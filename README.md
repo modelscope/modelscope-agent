@@ -1,0 +1,2 @@
+The goal of the `ModelScope Agnet` project is to integrate the capabilities of several specific task models, so-called agents,
+on the ModelScope platform using a large language model (LLM), in order to provide users with a new experience of Model As a Service.
