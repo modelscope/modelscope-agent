@@ -1,0 +1,38 @@
+{
+    "modelscope_text-address": {
+        "url": "http://ds-803910f2.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_text-ner": {
+        "url": "http://ds-f03d4c10.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_text-ie": {
+        "url": "http://ds-85f0753f.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_speech-generation": {
+        "url": "http://ds-008a61ed.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_video-generation": {
+        "url": "http://ds-7466f677.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_image-chat": {
+        "url": "http://ds-515ee4c3.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_text-translation-en2zh": {
+        "url": "http://ds-a2eef59e.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_text-translation-zh2en": {
+        "url": "http://ds-4d64f155.1656375133437235.cn-beijing.pai-eas.aliyuncs.com/invoke",
+        "token": "xxx"
+    },
+    "modelscope_image-generation": {
+        "url": "",
+        "token": "xxx"
+    }
+}

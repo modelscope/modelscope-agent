@@ -1,0 +1,47 @@
+
+repos:
+  - repo: https://github.com/pycqa/flake8.git
+    rev: 4.0.0
+    hooks:
+      - id: flake8
+        exclude: |
+            (?x)^(
+                demo/
+            )$
+  - repo: https://github.com/PyCQA/isort.git
+    rev: 4.3.21
+    hooks:
+      - id: isort
+        exclude: |
+            (?x)^(
+                demo/
+            )$
+  - repo: https://github.com/pre-commit/mirrors-yapf.git
+    rev: v0.30.0
+    hooks:
+      - id: yapf
+        exclude: |
+            (?x)^(
+                demo/
+            )$
+  - repo: https://github.com/pre-commit/pre-commit-hooks.git
+    rev: v3.1.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: demo/
+      - id: check-yaml
+        exclude: demo/
+      - id: end-of-file-fixer
+        exclude: demo/
+      - id: requirements-txt-fixer
+        exclude: demo/
+      - id: double-quote-string-fixer
+        exclude: demo/
+      - id: check-merge-conflict
+        exclude: demo/
+      - id: fix-encoding-pragma
+        exclude: demo/
+        args: ["--remove"]
+      - id: mixed-line-ending
+        exclude: demo/
+        args: ["--fix=lf"]
