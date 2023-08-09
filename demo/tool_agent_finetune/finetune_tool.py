@@ -16,7 +16,8 @@ from tqdm.contrib import tzip
 
 # from transformers import AutoModelForCausalLM, AutoTokenizer
 from modelscope import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                        EpochBasedTrainer, TrainingArgs)
+                        EpochBasedTrainer, TrainingArgs, read_config,
+                        snapshot_download)
 from modelscope.metainfo import Trainers
 from modelscope.metrics.base import Metric
 from modelscope.metrics.builder import METRICS
@@ -281,29 +282,30 @@ if __name__ == '__main__':
     train_origin_data = [origin_data[i] for i in train_indices]
     eval_origin_data = [origin_data[i] for i in eval_indices]
 
+    revision = None
     if args.model == 'baichuan-inc/baichuan-7B':
         model_cls = AutoModelForCausalLM
         tokenizer_cls = AutoTokenizer
     elif args.model == 'ZhipuAI/chatglm2-6b':
         model_cls = Model
         tokenizer_cls = ChatGLM2Tokenizer
+        revision = 'v1.0.7'
     else:
         model_cls = AutoModelForCausalLM
         tokenizer_cls = AutoTokenizer
 
-    # model_dir = snapshot_download(args.model)
-    # sys.path.append(model_dir)
+    model_dir = snapshot_download(args.model)
+    sys.path.append(model_dir)
 
-    # model = model_cls.from_pretrained(model_dir, trust_remote_code=True)
-    model = model_cls.from_pretrained(args.model, trust_remote_code=True)
+    model = model_cls.from_pretrained(
+        model_dir, trust_remote_code=True, revision=revision)
     if args.enable_gradient_checkpoint:
         model.gradient_checkpointing_enable()
         model.enable_input_require_grads()
-    # cfg_file = os.path.join(model_dir, 'configuration.json')
-    # cfg_file = AutoConfig.from_pretrained(args.model, trust_remote_code=True)
+    cfg_file = os.path.join(model_dir, 'configuration.json')
 
     tokenizer = tokenizer_cls.from_pretrained(
-        args.model, trust_remote_code=True)
+        model_dir, trust_remote_code=True)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
@@ -373,7 +375,7 @@ if __name__ == '__main__':
 
     kwargs = dict(
         model=model,
-        # cfg_file=cfg_file,
+        cfg_file=cfg_file,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         seed=args.seed,
