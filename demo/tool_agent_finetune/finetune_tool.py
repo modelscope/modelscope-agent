@@ -271,9 +271,9 @@ if __name__ == '__main__':
 
     origin_data = []
     with open(args.dataset_json_file, 'r') as f:
-        for line in f.readlines():
-            origin_data.append(json.loads(line))
-
+        # for line in f.readlines():
+        #     origin_data.append(json.loads(line))
+        origin_data = json.load(f)
     # random split train and eval dataset
     perm = np.random.permutation(len(origin_data))
     split = int(len(perm) * 0.98)
