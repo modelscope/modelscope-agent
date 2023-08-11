@@ -1,0 +1,14 @@
+dashscope
+datasets>=2.8.0
+ipython
+langchain
+modelscope>=1.7.0
+moviepy
+openai
+opencv-python
+Pillow
+pydantic==1.10.8
+pytest
+python-dotenv
+soundfile
+transformers>=4.29.0

@@ -1,0 +1,37 @@
+{
+    "ms_gpt": {
+        "url": "msgpt_url",
+        "token": "you_msgpt_token",
+        "generate_cfg": {
+            "parameters":{
+                "use_raw_prompt": true,
+                "top_p": 0.8,
+                "top_k": 10,
+                "seed": 123,
+                "debug": false
+            }
+        }
+    },
+    "openai": {
+        "model": "select_model",
+        "api_key": "your_openai_key",
+        "api_base": "xxx"
+    },
+    "baichuan-7b": {
+        "model_id": "baichuan-inc/baichuan-7B",
+        "model_revision": "v1.0.5",
+        "use_lora": true,
+        "lora_cfg": {
+            "replace_modules": ["pack"],
+            "rank": 8,
+            "lora_alpha": 32,
+            "lora_dropout": 0,
+            "pretrained_weights": "path/to/your/weights"
+        },
+        "generate_cfg": {
+            "max_new_tokens": 512,
+            "do_sample": true
+        }
+    }
+
+}
