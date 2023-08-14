@@ -6,6 +6,7 @@ from .llm import LLM
 from .output_parser import MsOutputParser, OutputParser
 from .output_wrapper import display
 from .prompt import MSPromptGenerator, PromptGenerator
+from .retrieve import KnowledgeRetrieval, ToolRetrieval
 from .tools import DEFAULT_TOOL_LIST
 
 
@@ -16,7 +17,9 @@ class AgentExecutor:
                  tool_cfg: Optional[Dict] = {},
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
-                 output_parser: Optional[OutputParser] = None):
+                 output_parser: Optional[OutputParser] = None,
+                 tool_retrieval: Optional[ToolRetrieval] = None,
+                 knowledge_retrieval: Optional[KnowledgeRetrieval] = None):
         """
         the core class of ms agent. It is responsible for the interaction between user, llm and tools,
         and return the execution result to user.
@@ -35,6 +38,11 @@ class AgentExecutor:
         self.prompt_generator = prompt_generator or MSPromptGenerator()
         self.output_parser = output_parser or MsOutputParser()
 
+        if tool_retrieval:
+            self.tool_retrieval = tool_retrieval
+            self.tool_retrieval.construct(
+                [str(t) for t in self.tool_list.values()])
+        self.knowledge_retrieval = knowledge_retrieval
         self.reset()
 
     def _init_tools(self,
@@ -66,6 +74,30 @@ class AgentExecutor:
             raise ValueError('Unsupported tools found, please check')
         self.available_tool_list = available_tool_list
 
+    def retrieve_tools(self, query: str) -> List[str]:
+        """retrieve tools given query
+
+        Args:
+            query (str): query
+
+        """
+        retrieve_tools = self.tool_retrieval.retrieve(
+            query) if self.tool_retrieval else self.tool_list
+
+        self.set_available_tools(available_tool_list=retrieve_tools.keys())
+
+        return retrieve_tools.values()
+
+    def get_knowledge(self, query: str) -> List[str]:
+        """retrieve knowledge given query
+
+        Args:
+            query (str): query
+
+        """
+        return self.knowledge_retrieval.retrieve(
+            query) if self.knowledge_retrieval else []
+
     def run(self, task: str, remote: bool = False) -> List[Dict]:
         """ use llm and tools to execute task given by user
 
@@ -78,8 +110,11 @@ class AgentExecutor:
             so a list of dict is returned. Each dict contains the result of one interaction.
         """
 
-        self.prompt_generator.init_prompt(task, self.tool_list,
-                                          self.available_tool_list)
+        # retrieve tools
+        tool_list = self.retrieve_tools(task)
+        knowledge_list = self.get_knowledge(task)
+
+        self.prompt_generator.init_prompt(task, tool_list, knowledge_list)
 
         llm_result, exec_result = '', ''
         idx = 0
