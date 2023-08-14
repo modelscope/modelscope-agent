@@ -181,10 +181,7 @@ class QWenPromptGenerator(PromptGenerator):
         prompt = prompt.replace('<history>', history_str)
 
         # store history
-        self.history.append({
-            'role': 'user',
-            'content': f'Question: {task_remove_search}\n'
-        })
+        self.history.append({'role': 'user', 'content': f'Question: {task}\n'})
         self.history.append({'role': 'assistant', 'content': ''})
 
         self.prompt = prompt
