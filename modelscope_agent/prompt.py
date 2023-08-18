@@ -5,7 +5,7 @@ DEFAULT_PROMPT_TEMPLATE = '<|system|>:你是达摩院的ModelScopeGPT（魔搭�
 当前对话可以使用的插件信息如下，请自行判断是否需要调用插件来解决当前用户问题。\
 若需要调用插件，则需要将插件调用请求按照json格式给出，必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。\
 然后你需要根据插件API调用结果生成合理的答复； 若无需调用插件，则直接给出对应回复即可。\
-\n\n<tool_list>\n\n<history>\n\n<|user|>:<user_input>\n\n<|assistant|>:'
+\n\n<tool_list>\n\n<history><knowledge>\n\n<|user|>:<user_input>\n\n<|assistant|>:'
 
 DEFAULT_CHATGPT_PROMPT_TEMPLATE = '<|system|>:: You are Jerry, an assistant tries to be helpful, polite, honest, and humble-but-knowledgeable.\
 The following lists the tools available for the current session. \
@@ -35,6 +35,8 @@ Final Answer: the final answer to the original input question
 Begin!
 
 <history>
+
+<knowledge>
 
 Question: <user_input>\n"""
 
@@ -88,13 +90,17 @@ class MSPromptGenerator(PromptGenerator):
 
         """
 
+        prompt = self.prompt_template
+
         knowledge = '\n'.join(
             [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        task_with_knowledge_str = f'Knowledge result: \n{knowledge}\n{task}' if len(
-            knowledge_list) > 0 else task
+        knowledge_str = f'Web search results: \n{knowledge}' if len(
+            knowledge_list) > 0 else ''
 
-        prompt = self.prompt_template
-        prompt = prompt.replace('<user_input>', task_with_knowledge_str)
+        # knonwledge
+        prompt = prompt.replace('<knowledge>', knowledge_str)
+        # user input
+        prompt = prompt.replace('<user_input>', task)
 
         # get tool description str
         tool_list_str = '\n\n'.join(
@@ -154,13 +160,17 @@ class QWenPromptGenerator(PromptGenerator):
 
         """
 
+        prompt = self.prompt_template
+
         knowledge = '\n'.join(
             [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        task_with_knowledge_str = f'Knowledge result: \n{knowledge}\n{task}' if len(
-            knowledge_list) > 0 else task
+        knowledge_str = f'Web search results: \n{knowledge}' if len(
+            knowledge_list) > 0 else ''
 
-        prompt = self.prompt_template
-        prompt = prompt.replace('<user_input>', task_with_knowledge_str)
+        # knonwledge
+        prompt = prompt.replace('<knowledge>', knowledge_str)
+        # user input
+        prompt = prompt.replace('<user_input>', task)
 
         # get tool description str
         tool_list_str = '\n\n'.join(
