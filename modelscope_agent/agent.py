@@ -171,8 +171,11 @@ class AgentExecutor:
             Iterator[Dict]: iterator of llm response and tool execution result
         """
 
-        self.prompt_generator.init_prompt(task, self.tool_list,
-                                          self.available_tool_list)
+        # retrieve tools
+        tool_list = self.retrieve_tools(task)
+        knowledge_list = self.get_knowledge(task)
+
+        self.prompt_generator.init_prompt(task, tool_list, knowledge_list)
 
         llm_result, exec_result = '', ''
         idx = 0
