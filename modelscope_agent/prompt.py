@@ -92,9 +92,9 @@ class MSPromptGenerator(PromptGenerator):
 
         prompt = self.prompt_template
 
-        knowledge = '\n'.join(
+        knowledge = '\n\n'.join(
             [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        knowledge_str = f'Web search results: \n{knowledge}' if len(
+        knowledge_str = f'Web search results: \n\n{knowledge}' if len(
             knowledge_list) > 0 else ''
 
         # knonwledge

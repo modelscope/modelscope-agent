@@ -1,5 +1,6 @@
 import importlib
 import traceback
+from copy import deepcopy
 from typing import Dict, List, Optional
 
 from .llm import LLM
@@ -38,8 +39,8 @@ class AgentExecutor:
         self.prompt_generator = prompt_generator or MSPromptGenerator()
         self.output_parser = output_parser or MsOutputParser()
 
-        if tool_retrieval:
-            self.tool_retrieval = tool_retrieval
+        self.tool_retrieval = tool_retrieval
+        if self.tool_retrieval:
             self.tool_retrieval.construct(
                 [str(t) for t in self.tool_list.values()])
         self.knowledge_retrieval = knowledge_retrieval
@@ -66,13 +67,17 @@ class AgentExecutor:
             self.tool_list[task_name] = tool_class(tool_cfg)
 
         self.tool_list = {**self.tool_list, **additional_tool_list}
-        self.available_tool_list = self.tool_list.keys()
+        self.available_tool_list = deepcopy(self.tool_list)
 
     def set_available_tools(self, available_tool_list):
 
         if not set(available_tool_list).issubset(set(self.tool_list.keys())):
             raise ValueError('Unsupported tools found, please check')
-        self.available_tool_list = available_tool_list
+
+        self.available_tool_list = {
+            k: self.tool_list[k]
+            for k in available_tool_list
+        }
 
     def retrieve_tools(self, query: str) -> List[str]:
         """retrieve tools given query
@@ -81,12 +86,10 @@ class AgentExecutor:
             query (str): query
 
         """
-        retrieve_tools = self.tool_retrieval.retrieve(
-            query) if self.tool_retrieval else self.tool_list
-
-        self.set_available_tools(available_tool_list=retrieve_tools.keys())
-
-        return retrieve_tools.values()
+        if self.tool_retrieval:
+            retrieve_tools = self.tool_retrieval.retrieve(query)
+            self.set_available_tools(available_tool_list=retrieve_tools.keys())
+        return self.available_tool_list.values()
 
     def get_knowledge(self, query: str) -> List[str]:
         """retrieve knowledge given query
