@@ -33,7 +33,12 @@ class AgentExecutor:
             according to interaction result. Defaults to use MSPromptGenerator.
             output_parser (Optional[OutputParser], optional): this module is responsible for parsing output of llm
             to executable actions. Defaults to use MsOutputParser.
+            tool_retrieval (Optional[ToolRetrieval], optional): Retrieve related tools by input task,
+            since most of tools may be uselees for LLM in specific task. Defaults to None.
+            knowledge_retrieval (Optional[KnowledgeRetrieval], optional): If user want to use extra knowledge,
+            this component can be used to retrieve related knowledge. Defaults to None.
         """
+
         self.llm = llm
         self._init_tools(tool_cfg, additional_tool_list)
         self.prompt_generator = prompt_generator or MSPromptGenerator()
