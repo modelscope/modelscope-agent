@@ -148,7 +148,7 @@ class PromptGenerator:
 
         knowledge = self.sep.join(
             [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        knowledge_str = f'Web search results: {self.sep}{knowledge}' if len(
+        knowledge_str = f'{self.sep}Web search results: {self.sep}{knowledge}' if len(
             knowledge_list) > 0 else ''
         return knowledge_str
 
