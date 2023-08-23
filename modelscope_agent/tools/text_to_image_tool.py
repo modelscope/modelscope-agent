@@ -8,7 +8,7 @@ from modelscope_agent.output_wrapper import ImageWrapper
 from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
-dashscope.api_key = os.getenv('dashcope_api_key')
+dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
 
 
 class TextToImageTool(ModelscopePipelineTool):
