@@ -1,8 +1,11 @@
+import os
 from typing import List, Optional
 
 import json
 import requests
 from pydantic import BaseModel, ValidationError
+
+MODELSCOPE_API_TOKEN = os.getenv('MODELSCOPE_API_TOKEN')
 
 
 class ParametersSchema(BaseModel):
@@ -38,7 +41,9 @@ class Tool:
         # remote call
         self.url = self.cfg.get('url', '')
         self.token = self.cfg.get('token', '')
-        self.header = {'Authorization': self.token}
+        self.header = {
+            'Authorization': self.token or f'Bearer {MODELSCOPE_API_TOKEN}'
+        }
 
         try:
             all_para = {
