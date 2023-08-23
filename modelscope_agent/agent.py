@@ -1,7 +1,7 @@
 import importlib
 import traceback
 from copy import deepcopy
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from .llm import LLM
 from .output_parser import MsOutputParser, OutputParser
@@ -19,7 +19,7 @@ class AgentExecutor:
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
                  output_parser: Optional[OutputParser] = None,
-                 tool_retrieval: Optional[ToolRetrieval] = None,
+                 tool_retrieval: Optional[Union[bool, ToolRetrieval]] = True,
                  knowledge_retrieval: Optional[KnowledgeRetrieval] = None):
         """
         the core class of ms agent. It is responsible for the interaction between user, llm and tools,
@@ -44,6 +44,8 @@ class AgentExecutor:
         self.prompt_generator = prompt_generator or MSPromptGenerator()
         self.output_parser = output_parser or MsOutputParser()
 
+        if isinstance(tool_retrieval, bool) and tool_retrieval:
+            tool_retrieval = ToolRetrieval()
         self.tool_retrieval = tool_retrieval
         if self.tool_retrieval:
             self.tool_retrieval.construct(

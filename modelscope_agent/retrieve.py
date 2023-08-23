@@ -3,6 +3,7 @@ from typing import Dict, Iterable, List
 
 import json
 from langchain.document_loaders import TextLoader, UnstructuredFileLoader
+from langchain.embeddings import DashScopeEmbeddings
 from langchain.embeddings.base import Embeddings
 from langchain.schema import Document
 from langchain.text_splitter import CharacterTextSplitter
@@ -12,13 +13,14 @@ from langchain.vectorstores import FAISS, VectorStore
 class Retrieval:
 
     def __init__(self,
-                 embedding: Embeddings,
-                 vs_cls: VectorStore,
+                 embedding: Embeddings = None,
+                 vs_cls: VectorStore = None,
                  top_k: int = 5,
                  vs_params: Dict = {}):
-        self.embedding = embedding
+        self.embedding = embedding or DashScopeEmbeddings(
+            model='text-embedding-v1')
         self.top_k = top_k
-        self.vs_cls = vs_cls
+        self.vs_cls = vs_cls or FAISS
         self.vs_params = vs_params
         self.vs = None
 
@@ -39,8 +41,8 @@ class Retrieval:
 class ToolRetrieval(Retrieval):
 
     def __init__(self,
-                 embedding: Embeddings,
-                 vs_cls: VectorStore,
+                 embedding: Embeddings = None,
+                 vs_cls: VectorStore = None,
                  top_k: int = 5,
                  vs_params: Dict = {}):
         super().__init__(embedding, vs_cls, top_k, vs_params)
@@ -61,9 +63,9 @@ class ToolRetrieval(Retrieval):
 class KnowledgeRetrieval(Retrieval):
 
     def __init__(self,
-                 embedding: Embeddings,
-                 vs_cls: VectorStore,
                  docs,
+                 embedding: Embeddings = None,
+                 vs_cls: VectorStore = None,
                  top_k: int = 5,
                  vs_params: Dict = {}):
         super().__init__(embedding, vs_cls, top_k, vs_params)
@@ -71,9 +73,9 @@ class KnowledgeRetrieval(Retrieval):
 
     @classmethod
     def from_file(cls,
-                  embedding: Embeddings,
-                  vs_cls: VectorStore,
                   file_path: str,
+                  embedding: Embeddings = None,
+                  vs_cls: VectorStore = None,
                   top_k: int = 5,
                   vs_params: Dict = {}):
 
@@ -97,4 +99,4 @@ class KnowledgeRetrieval(Retrieval):
                 loader = UnstructuredFileLoader(f, mode='elements')
                 docs += loader.load()
 
-        return cls(embedding, vs_cls, docs, top_k, vs_params)
+        return cls(docs, embedding, vs_cls, top_k, vs_params)
