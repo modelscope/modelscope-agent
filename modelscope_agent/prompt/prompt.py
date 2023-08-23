@@ -28,7 +28,7 @@ class PromptGenerator:
         self.instruction_template = instruction_template
         self.user_template = user_template
         self.assistant_template = assistant_template
-        self.exex_template = exec_template
+        self.exec_template = exec_template
         self.sep = sep
 
         self.prompt_max_length = prompt_max_length
@@ -85,7 +85,7 @@ class PromptGenerator:
             self.prompt = f'{self.prompt}{llm_result}'
             self.history[-1]['content'] += f'{llm_result}'
         if len(exec_result) != 0:
-            exec_result = self.exex_template.replace('<exec_result>',
+            exec_result = self.exec_template.replace('<exec_result>',
                                                      str(exec_result))
             self.prompt = f'{self.prompt}{self.sep}{exec_result}'
             self.history[-1]['content'] += f'{self.sep}{exec_result}'
