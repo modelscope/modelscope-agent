@@ -1,7 +1,12 @@
-import json
-from websocket import create_connection
+import os
+from http import HTTPStatus
+
+import dashscope
+from dashscope import Generation
 
 from .base import LLM
+
+dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
 
 
 class ModelScopeGPT(LLM):
@@ -9,73 +14,43 @@ class ModelScopeGPT(LLM):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.url = self.cfg.get('url', '')
-        self.token = self.cfg.get('token', '')
+        self.model = self.cfg.get('model', 'modelscope-agent-llm-v1')
         self.generate_cfg = self.cfg.get('generate_cfg', {})
 
     def generate(self, prompt):
 
-        params = {'input': {'prompt': prompt}}
-
-        params.update(**self.generate_cfg)
-
-        conn = create_connection(
-            self.url, timeout=30, header={'Authorization': self.token})
-
-        conn.send(json.dumps(params))
-
         total_response = ''
-        while True:
-            result = conn.recv()
-            if len(result) <= 0:
-                continue
-            result = json.loads(result)
-            is_final = result['header']['finished']
-            new_response = result['payload']['output']['text']
-            # print(f'new_response: {new_response}')
+        responses = Generation.call(
+            model=self.model, prompt=prompt, stream=False, **self.generate_cfg)
 
-            total_response = new_response
-            if '<|endofthink|>' in new_response[-25:]:
-                conn.close()
-                break
-            if is_final:
-                conn.close()
-                break
+        if responses.status_code == HTTPStatus.OK:
+            total_response = responses.output['text']
+        else:
+            print('Code: %d, status: %s, message: %s' %
+                  (responses.status_code, responses.code, responses.message))
 
-        conn.close()
+        idx = total_response.find('<|endofthink|>')
+        if idx != -1:
+            total_response = total_response[:idx + len('<|endofthink|>')]
 
         return total_response
 
     def stream_generate(self, prompt):
 
-        params = {'input': {'prompt': prompt}}
-
-        params.update(**self.generate_cfg)
-
-        conn = create_connection(
-            self.url, timeout=30, header={'Authorization': self.token})
-
-        conn.send(json.dumps(params))
-
         total_response = ''
-        while True:
-            result = conn.recv()
-            if len(result) <= 0:
-                continue
-            result = json.loads(result)
-            is_final = result['header']['finished']
-            new_response = result['payload']['output']['text']
-            frame_text = new_response[len(total_response):]
-            # print(f'new_response: {new_response}')
+        responses = Generation.call(
+            model=self.model, prompt=prompt, stream=True, **self.generate_cfg)
 
-            if '<|endofthink|>' in new_response[-25:]:
+        for response in responses:
+            if response.status_code == HTTPStatus.OK:
+                new_response = response.output['text']
+                frame_text = new_response[len(total_response):]
                 yield frame_text
-                conn.close()
-                break
-            yield frame_text
-            total_response = new_response
-            if is_final:
-                conn.close()
-                break
 
-        conn.close()
+                idx = total_response.find('<|endofthink|>')
+                if idx != -1:
+                    break
+                total_response = new_response
+            else:
+                print('Code: %d, status: %s, message: %s' %
+                      (response.status_code, response.code, response.message))
