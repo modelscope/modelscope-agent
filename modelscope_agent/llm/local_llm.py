@@ -1,9 +1,10 @@
+import os
 import sys
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 
-from modelscope import snapshot_download
+from modelscope import GenerationConfig, snapshot_download
 from modelscope.swift import Swift
 from modelscope.swift.lora import LoRAConfig
 from .base import LLM
@@ -17,7 +18,12 @@ class LocalLLM(LLM):
 
         model_id = self.cfg.get('model_id', '')
         model_revision = self.cfg.get('model_revision', None)
-        self.model_dir = snapshot_download(model_id, model_revision)
+
+        if not os.path.exists(model_id):
+            model_dir = snapshot_download(model_id, model_revision)
+        else:
+            model_dir = model_id
+        self.model_dir = model_dir
         sys.path.append(self.model_dir)
 
         self.model_cls = self.cfg.get('model_cls', AutoModelForCausalLM)
@@ -50,6 +56,10 @@ class LocalLLM(LLM):
 
         if self.use_lora:
             self.load_from_lora(self.lora_cfg)
+
+        if self.cfg.get('use_raw_generation_config', False):
+            self.model.generation_config = GenerationConfig.from_pretrained(
+                self.model_dir, trust_remote_code=True)
 
     def generate(self, prompt):
 
