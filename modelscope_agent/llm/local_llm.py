@@ -33,6 +33,9 @@ class LocalLLM(LLM):
         self.generate_cfg = self.cfg.get('generate_cfg', {})
 
         self.use_lora = self.cfg.get('use_lora', False)
+
+        self.custom_chat = self.cfg.get('custom_chat', False)
+
         self.lora_cfg = LoRAConfig(
             **self.cfg.get('lora_cfg', {})) if self.use_lora else None
 
@@ -63,15 +66,11 @@ class LocalLLM(LLM):
 
     def generate(self, prompt):
 
-        device = self.model.device
-        input_ids = self.tokenizer(
-            prompt, return_tensors='pt').input_ids.to(device)
-        input_len = input_ids.shape[1]
-
-        result = self.model.generate(input_ids, **self.generate_cfg)
-
-        result = result[0].tolist()[input_len:]
-        response = self.tokenizer.decode(result)
+        if self.custom_chat and self.model.chat:
+            response = self.model.chat(
+                self.tokenizer, prompt, history=[], system='')[0]
+        else:
+            response = self.chat(prompt)
 
         end_idx = response.find(self.end_token)
         response = response[:end_idx
@@ -86,3 +85,16 @@ class LocalLLM(LLM):
         Swift.prepare_model(model, lora_config)
 
         self.model = model
+
+    def chat(self, prompt):
+        device = self.model.device
+        input_ids = self.tokenizer(
+            prompt, return_tensors='pt').input_ids.to(device)
+        input_len = input_ids.shape[1]
+
+        result = self.model.generate(input_ids, **self.generate_cfg)
+
+        result = result[0].tolist()[input_len:]
+        response = self.tokenizer.decode(result)
+
+        return response
