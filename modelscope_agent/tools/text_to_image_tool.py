@@ -12,7 +12,7 @@ dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
 
 
 class TextToImageTool(ModelscopePipelineTool):
-    default_model = 'AI-ModelScope/stable-diffusion-v2-1'
+    default_model = 'AI-ModelScope/stable-diffusion-xl-base-1.0'
     description = '图像生成服务，针对文本输入，生成对应的图片'
     name = 'modelscope_image-generation'
     parameters: list = [{
@@ -32,12 +32,14 @@ class TextToImageTool(ModelscopePipelineTool):
         return parsed_args, {}
 
     def _remote_call(self, *args, **kwargs):
+        dashscope.api_key = os.getenv('DASHSCOPE_WX_KEY')
         response = ImageSynthesis.call(
             model=ImageSynthesis.Models.wanx_v1,
             prompt=kwargs['text'],
             n=1,
             size='1024*1024',
             steps=10)
+        dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
         final_result = self._parse_output(response, remote=True)
         return final_result
 
