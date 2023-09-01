@@ -10,7 +10,7 @@ class PromptGenerator:
                  exec_template: str = '',
                  assistant_template: str = '',
                  sep='\n\n',
-                 prompt_max_length: int = 2800):
+                 prompt_max_length: int = 10000):
         """
         prompt genertor
         Args:

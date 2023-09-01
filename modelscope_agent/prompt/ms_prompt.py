@@ -23,7 +23,7 @@ class MSPromptGenerator(PromptGenerator):
                  exec_template=MS_DEFAULT_EXEC_TEMPLATE,
                  assistant_template=MS_DEFAULT_ASSISTANT_TEMPLATE,
                  sep='\n\n',
-                 prompt_max_length=2800):
+                 prompt_max_length=10000):
         super().__init__(system_template, instruction_template, user_template,
                          exec_template, assistant_template, sep,
                          prompt_max_length)
