@@ -5,7 +5,10 @@ import traceback
 import json
 import requests
 import yaml
+from dotenv import load_dotenv
 
+sys.path.append('../../')
+load_dotenv('config/.env', override=True)
 access_key_id = os.getenv("access_key_id").strip()
 access_key_secret = os.getenv("access_key_secret").strip()
 

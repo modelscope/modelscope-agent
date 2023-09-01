@@ -14,9 +14,6 @@ from predict import generate_story, stream_predict
 
 from modelscope.utils.config import Config
 
-sys.path.append('../../')
-load_dotenv('config/.env', override=True)
-
 SYSTEM_PROMPT = "<|system|>:你是Story Agent，是一个大语言模型，可以根据用户的输入自动生成相应的绘本。"
 
 INSTRUCTION_TEMPLATE = """当前对话可以使用的插件信息如下，请自行判断是否需要调用插件来解决当前用户问题。若需要调用插件，则需要将插件调用请求按照json格式给出，必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。\
