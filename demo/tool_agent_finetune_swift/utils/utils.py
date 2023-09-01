@@ -105,8 +105,9 @@ def inference(
         input_ids=input_ids,
         attention_mask=attention_mask,
         generation_config=generation_config)
+    result_id[result_id >= tokenizer.vocab_size] = tokenizer.pad_token_id
     result_id = result_id[0].tolist()[input_len:]
-    result = tokenizer.decode(result_id)
+    result = tokenizer.decode(result_id, skip_special_tokens=True)
 
     return result
 
@@ -128,6 +129,32 @@ def select_dtype(dtype: str) -> Tuple[Dtype, bool, bool]:
     else:
         fp16, bf16 = False, False
     return torch_dtype, fp16, bf16
+
+
+def find_all_linear_for_lora(model: Module,
+                             quantization_bit: Optional[int],
+                             model_type: Optional[str] = None) -> List[str]:
+    """ref: https://github.com/artidoro/qlora"""
+    head_module_name = 'lm_head'
+    if model_type.startswith('chatglm2-6b'):
+        head_module_name = 'output_layer'
+    if model_type.startswith('qwen-vl'):
+        return ['c_attn', 'attn.c_proj', 'w1', 'w2']
+    if quantization_bit == 4:
+        from bitsandbytes.nn import Linear4bit
+        linear_cls = Linear4bit
+    elif quantization_bit == 8:
+        from bitsandbytes.nn import Linear8bitLt
+        linear_cls = Linear8bitLt
+    else:
+        linear_cls = Linear
+    lora_module_names = set()
+    for name, module in model.named_modules():
+        if isinstance(module, linear_cls):
+            module_name = name.split('.')[-1]
+            if head_module_name not in module_name:
+                lora_module_names.add(module_name)
+    return list(lora_module_names)
 
 
 def select_bnb(quantization_bit: Optional[int],
@@ -193,8 +220,8 @@ def evaluate(refs, preds):
                     action_em.append(1)
                 else:
                     action_em.append(0)
-                r_input = json.loads(r['parameters'])
-                p_input = json.loads(p['parameters'])
+                r_input = r['parameters']
+                p_input = p['parameters']
                 match = True
                 for k, v in r_input.items():
                     if k in p_input.keys() and p_input[k] == v:

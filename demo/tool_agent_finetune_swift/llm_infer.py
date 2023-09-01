@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Optional
 
+import deepspeed
 import json
 import torch
 from swift import Swift, get_logger
@@ -15,6 +16,11 @@ from utils import (DEFAULT_PROMPT, MODEL_MAPPING, evaluate,
                    process_dataset, select_bnb, select_dtype, show_layers)
 
 logger = get_logger()
+# local_rank = int(os.getenv("LOCAL_RANK", "0"))
+# world_size = int(os.getenv("WORLD_SIZE", "1"))
+
+# deepspeed.init_distributed("nccl")
+# rank = dist.get_rank()
 
 
 @dataclass
@@ -47,7 +53,7 @@ class InferArguments:
         default='nf4', metadata={'choices': {'fp4', 'nf4'}})
     bnb_4bit_use_double_quant: bool = True
 
-    max_new_tokens: int = 512
+    max_new_tokens: int = 256
     do_sample: bool = True
     temperature: float = 0.9
     top_k: int = 10
@@ -66,7 +72,7 @@ def llm_infer(args: InferArguments) -> None:
     seed_everything(args.seed)
 
     # ### Loading Model and Tokenizer
-    kwargs = {'low_cpu_mem_usage': True, 'device_map': 'sequential'}
+    kwargs = {'low_cpu_mem_usage': True, 'device_map': 'auto'}
     if args.load_in_8bit or args.load_in_4bit:
         quantization_config = BitsAndBytesConfig(
             args.load_in_8bit,
@@ -102,8 +108,8 @@ def llm_infer(args: InferArguments) -> None:
     logger.info(f'generation_config: {generation_config}')
 
     dataset = get_ms_tool_dataset_test(args.dataset)
-    test_dataset = process_dataset(dataset, args.dataset_test_size,
-                                   args.dataset_sample, args.dataset_seed)
+    test_dataset, _ = process_dataset(dataset, args.dataset_test_size,
+                                      args.dataset_sample, args.dataset_seed)
     del dataset
     preds = []
     labels = []
@@ -124,11 +130,16 @@ if __name__ == '__main__':
             raise ValueError(f'remaining_argv: {remaining_argv}')
     labels, preds = llm_infer(args)
 
+    res = evaluate(labels, preds)
+
+    print(res)
+    res_dir = os.path.join(args.ckpt_dir, 'tool_eval_result.json')
+    # 打开文件并将数据写入 JSON 格式
+    with open(res_dir, "w") as file:
+        json.dump(res, file, ensure_ascii=False)
+
     with open('eval_label.json', 'w') as f:
         json.dump(labels, f, ensure_ascii=False)
 
     with open('eval_preds.json', 'w') as f:
         json.dump(preds, f, ensure_ascii=False)
-    res = evaluate(labels, preds)
-
-    print(res)
