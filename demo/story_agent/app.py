@@ -17,7 +17,11 @@ from modelscope.utils.config import Config
 SYSTEM_PROMPT = "<|system|>:你是Story Agent，是一个大语言模型，可以根据用户的输入自动生成相应的绘本。"
 
 INSTRUCTION_TEMPLATE = """当前对话可以使用的插件信息如下，请自行判断是否需要调用插件来解决当前用户问题。若需要调用插件，则需要将插件调用请求按照json格式给出，必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。\
-然后你需要根据插件API调用结果生成合理的答复； 若需要生成故事情节，请在每一幕的开始用1, 2, 3...标记。\n\n<tool_list>"""
+然后你需要根据插件API调用结果生成合理的答复； 若需要生成故事情节，请按照如下的格式生成：
+1. 第一部分内容。
+2. 第二部分内容。
+...
+\n\n<tool_list>"""
 
 with open(
         os.path.join(os.path.dirname(__file__), 'main.css'), "r",
@@ -45,7 +49,11 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         instruction_template=INSTRUCTION_TEMPLATE)
 
     llm = ModelScopeGPT(model_cfg)
-    agent = AgentExecutor(llm, tool_cfg, tool_retrieval=retrieve)
+    agent = AgentExecutor(
+        llm,
+        tool_cfg,
+        prompt_generator=prompt_generator,
+        tool_retrieval=retrieve)
 
     generate_story_p = partial(
         generate_story, max_scene=max_scene, agent=agent)
@@ -91,8 +99,8 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         with gr.Column(min_width=470, scale=4, elem_id='settings'):
             gr.HTML("""
                 <div class="robot-info">
-                    <img src="https://img.alicdn.com/\
-                    imgextra/i4/O1CN01kpkVcX1wSCO362MH4_!!6000000006306-1-tps-805-805.gif"></img>
+                    <img src="https://img.alicdn.com/imgextra/i4/\
+                    O1CN01kpkVcX1wSCO362MH4_!!6000000006306-1-tps-805-805.gif"></img>
                     <div class="robot-info-text">
                         我是story agent。
                     </div>
