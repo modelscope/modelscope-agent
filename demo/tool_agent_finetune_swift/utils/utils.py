@@ -207,7 +207,7 @@ def evaluate(refs, preds):
     input_em = []
     ref_seqs = []
     pred_seqs = []
-    for (ref, pred) in zip(refs, preds):
+    for i, (ref, pred) in enumerate(zip(refs, preds)):
         try:
             think_content = re_pattern1.search(ref).group(1)
             think_content = re_pattern2.search(think_content).group()
@@ -242,7 +242,7 @@ def evaluate(refs, preds):
                 input_em.append(0)
         except Exception:
             ref_seqs.append(ref)
-            pred_seqs.append(pred)
+            pred_seqs.append(pred if pred else ' ')
 
     rouge = Rouge()
     rouge_score = rouge.get_scores(hyps=pred_seqs, refs=ref_seqs, avg=True)

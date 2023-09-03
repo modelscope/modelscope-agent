@@ -48,7 +48,7 @@ class InferArguments:
     quantization_bit: Optional[int] = field(
         default=None, metadata={'choices': {4, 8}})
     bnb_4bit_comp_dtype: str = field(
-        default='fp32', metadata={'choices': {'fp16', 'bf16', 'fp32'}})
+        default='fp16', metadata={'choices': {'fp16', 'bf16', 'fp32'}})
     bnb_4bit_quant_type: str = field(
         default='nf4', metadata={'choices': {'fp4', 'nf4'}})
     bnb_4bit_use_double_quant: bool = True
@@ -130,16 +130,26 @@ if __name__ == '__main__':
             raise ValueError(f'remaining_argv: {remaining_argv}')
     labels, preds = llm_infer(args)
 
+    res_dir = os.path.join(
+        args.ckpt_dir,
+        f'tool_eval_result_{args.quantization_bit}_{args.sft_type}.json')
+    label_dir = os.path.join(
+        args.ckpt_dir,
+        f'eval_label_{args.quantization_bit}_{args.sft_type}.json')
+    pred_dir = os.path.join(
+        args.ckpt_dir,
+        f'eval_preds_{args.quantization_bit}_{args.sft_type}.json')
+
+    with open(label_dir, 'w') as f:
+        json.dump(labels, f, ensure_ascii=False)
+
+    with open(pred_dir, 'w') as f:
+        json.dump(preds, f, ensure_ascii=False)
+
     res = evaluate(labels, preds)
 
     print(res)
-    res_dir = os.path.join(args.ckpt_dir, 'tool_eval_result.json')
+
     # 打开文件并将数据写入 JSON 格式
     with open(res_dir, "w") as file:
         json.dump(res, file, ensure_ascii=False)
-
-    with open('eval_label.json', 'w') as f:
-        json.dump(labels, f, ensure_ascii=False)
-
-    with open('eval_preds.json', 'w') as f:
-        json.dump(preds, f, ensure_ascii=False)
