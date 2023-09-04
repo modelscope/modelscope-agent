@@ -24,6 +24,9 @@
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en"
     },
     "modelscope_image-generation": {
-        "url": ""
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/AI-ModelScope/stable-diffusion-xl-base-1.0",
+        "pipeline_params": {
+            "use_safetensors": true
+        }
     }
 }
