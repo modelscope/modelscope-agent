@@ -11,8 +11,7 @@ from .base import LLM
 
 class LocalLLM(LLM):
 
-    def __init__(self, name, cfg):
-        self.name = name
+    def __init__(self, cfg):
         super().__init__(cfg)
 
         model_id = self.cfg.get('model_id', '')
