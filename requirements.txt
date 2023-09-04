@@ -4,6 +4,7 @@ ipython
 langchain
 modelscope>=1.7.0
 moviepy
+ms-swift
 openai
 opencv-python
 Pillow
