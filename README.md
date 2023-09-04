@@ -22,35 +22,30 @@ agent = AgentExecutor(llm, tool_cfg)
 
 ```
 
-- Single-step tool-use
+- Single-step & Multi-step tool-use
 
 ```Python
 agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
-```
-![image](resource/modelscopegpt_case_single-step.png)
-
-
-- Multi-step tool-use
-
-```Python
 agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声读出来，同时生成个视频看看', remote=True)
 ```
 
-![image](resource/modelscopegpt_case_video-generation.png)
+<div style="display: flex;">
+  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 50%;">
+  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 50%;">
+</div>
 
-- Multi-turn tool-use
+- Multi-turn tool-use and knowledge-qa
 
 ```Python
 agent.run('写一个20字左右简短的小故事', remote=True)
 agent.run('用女声念出来', remote=True)
 agent.run('给这个故事配一张图', remote=True)
 ```
-![image](resource/modelscopegpt_case_multi-turn.png)
 
-
-- Multi-turn knowledge-qa
-
-![image](resource/modelscopegpt_case_knowledge-qa.png)
+<div style="display: flex;">
+  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 50%;">
+  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 50%;">
+</div>
 
 
 ### Main components
