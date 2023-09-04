@@ -11,11 +11,14 @@ To equip the LLMs with tool-use abilities, a comprehensive framework has been pr
 
 ## Quickstart
 
-To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task. For detailed implementation, please refer to [demo_qwen_agent](demo/demo_qwen_agent.ipynb)
+To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task.
 
 ```Python
+
 # instantiate llm
-llm = ModelScopeGPT(model_cfg)
+model_name = 'ms_gpt'
+model_cfg = Config.from_file(model_cfg_file)
+llm = LLMFactory.build_llm(model_name, model_cfg)
 
 # instantiate agent
 agent = AgentExecutor(llm, tool_cfg)
@@ -93,11 +96,12 @@ agent = AgentExecutor(llm, tool_cfg)
 ```
 
 
+
 ### Custom tools
 
 We provide some default pipeline tools of multiple domain that integrates in modelscope.
 
-Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below. Check [Tool](docs/modules/tool.md) for more information.
+Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below:
 
 - Text-to-Speech Tool
 
@@ -165,12 +169,6 @@ shell_tool = LangchainTool(ShellTool())
 print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
-
-### Output Wrapper
-
-In certain scenarios, the tool may produce multi-modal data in the form of images, audio, video, etc. However, this data cannot be directly processed by llm. To address this issue, we have implemented the `OutputWrapper` class. This class encapsulates the multi-modal data and returns a string representation that can be further processed by llm.
-
-To use the `OutputWrapper` class, simply initialize an object with the origin multi-modal data and specify a local directory where it can be saved. The `__repr__()` function of the OutputWrapper class then returns a string that concatenates the stored path and an identifier that can be used by llm for further processing.
 
 
 ## Citation

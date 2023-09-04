@@ -1,80 +1,52 @@
 
 LLM is core module of agent, which ensures the quality of interaction results.
 
-We implement `ModelScopeGPT` and `OpenAI` for quick start. Both of them need user token to request. We have demonstrated how to use `ModelscopeGpt` in `agent.md`, and the following code provides an example of calling `OpenAI`.
+The initialization of LLM is primarily achieved through `LLMFactory.build_llm`. You need to provide the LLM name and the corresponding configuration.
 
-```Python
-
-model_cfg = {
-    "model": "gpt-3.5-turbo-0301",
-    "api_key": "your-openai-key",
-    "api_base": "your-openai-base"
-}
-
-# custom template for openai
-prompt_generator = MSPromptGenerator(DEFAULT_CHATGPT_PROMPT_TEMPLATE)
-# openai llm
-llm = OpenAi(model_cfg)
-
-# instantiate agent with open ai llm
-agent = AgentExecutor(llm, tool_cfg, additional_tool_list=additional_tool_list, prompt_generator=prompt_generator)
-
-# define shell tool
-shell_tool = LangchainTool(ShellTool())
-
-additional_tool_list = {
-    shell_tool.name: shell_tool,
-}
-
-agent.run('use tool to execute command \'ls\'')
-
-```
-
-![terminal file](resource/terminal-file.png)
-
-
-### Local llm
+We implement `ModelScopeGPT` and `OpenAI` for quick start. Both of them need user token to request.
 
 You can also use open-source LLM from ModelScope or Huggingface and inference locally by `LocalLLM` class. Note that you must specify the name of the corresponding LLM so that the correct configuration can be loaded.
 
 
+An example for importing a local LLM with `LLMFactory.build_llm` is shown below.
+
+
 ```Python
 # local llm cfg
-model_name = 'baichuan-7b'
+model_name = 'modelscope-agent-qwen-7b'
 model_cfg = {
-    'baichuan-7b':{
-        # model base information
-        "model_id": "baichuan-inc/baichuan-7B",
-        "model_revision": "v1.0.5",
-        "use_lora": true,
-        # lora_cfg
-        "lora_cfg": {
-            "replace_modules": ["pack"],
-            "rank": 8,
-            "lora_alpha": 32,
-            "lora_dropout": 0,
-            "pretrained_weights": "path/to/your/weights"
-        },
-        # generate_cfg
-        "generate_cfg": {
-            "max_new_tokens": 512,
-            "do_sample": true
-        }
+    'modelscope-agent-qwen-7b':{
+        'model_id': 'damo/MSAgent-Qwen-7B',
+        'model_revision': 'v1.0.1',
+        'use_raw_generation_config': True,
+        'custom_chat': True
     }
 }
 
-llm = LocalLLM(model_name, model_cfg)
-agent = AgentExecutor(llm, tool_cfg)
+
+llm = LLMFactory.build_llm(model_name, model_cfg)
 ```
 
-Moreover, we implement `load_from_lora()` function which enables user to load your custom weights. You can invoke this function by set `use_lora=True` in config file and give corresponding lora config.
+Currently, configuration of `LocalLLM` may contains following parameters:
+
+- `model_cls`: model class for load LLM, should be corresponding with `model_id`. Default `AutoModelForCausalLM`.
+- `tokenizer_cls`: tokenizer class for tokenizer, should be corresponding with `model_id`. Default `AutoTokenizer`.
+- `generation_cfg`: Config of response generations.
+- `use_raw_generation_config`: Whether to use raw generation config defined in modelscope hub.
+- `use_lora`: Whether to load custom LoRA weight, should be used with `lora_ckpt_dir`.
+- `lora_ckpt_dir`: LoRA checkpoint directory.
+- `custom_chat`: Whether to use build-in `chat()` function of model.
+- `end_token`: Words to truncate the response since some LLM may generate repetitive response.
+- `include_end`: Whether to include end_token in final response.
+
+Moreover, we implement `load_from_lora()` function with modelscope swift library, which enables user to load their custom lora weight. You can invoke this function by set `use_lora=True` in config file and give corresponding lora config.
 
 ```Python
-def load_from_lora(self, lora_config: LoRAConfig):
+def load_from_lora(self):
 
     model = self.model.bfloat16()
     # transform to lora
-    Swift.prepare_model(model, lora_config)
+    model = Swift.from_pretrained(model, self.lora_ckpt_dir)
 
     self.model = model
 ```
