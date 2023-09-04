@@ -9,7 +9,7 @@ MS_DEFAULT_INSTRUCTION_TEMPLATE = """当前对话可以使用的插件信息如�
 
 MS_DEFAULT_USER_TEMPLATE = """<|user|>:<user_input>"""
 
-MS_DEFAULT_EXEC_TEMPLATE = """<|startofexec|><exec_result><|endofexec|>"""
+MS_DEFAULT_EXEC_TEMPLATE = """<|startofexec|><exec_result><|endofexec|>\n"""
 
 MS_DEFAULT_ASSISTANT_TEMPLATE = """<|assistant|>:"""
 
