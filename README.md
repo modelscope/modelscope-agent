@@ -1,4 +1,4 @@
-# ModelScope Agent
+# ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models
 
 **ModelScope-Agent**, a general and customizable agent framework for real-world applications, based on open-source LLMs as controllers. It provides a user-friendly system library that are:
 - **cutomizable and comprehensive framework**: customizable engine design to spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
@@ -83,15 +83,13 @@ You can also use open-source LLM from ModelScope or Huggingface and inference lo
 
 ```Python
 # local llm cfg
-model_name = 'baichuan-7b'
+model_name = 'modelscope-agent-qwen-7b'
 model_cfg = {
-    'baichuan-7b':{
-        'model_id': 'baichuan-inc/baichuan-7B',
-        'model_revision': 'v1.0.5',
-        'generate_cfg': {
-            'max_new_tokens': 512,
-            'do_sample': True
-        }
+    'modelscope-agent-qwen-7b':{
+        'model_id': 'damo/MSAgent-Qwen-7B',
+        'model_revision': 'v1.0.1',
+        'use_raw_generation_config': True,
+        'custom_chat': True
     }
 }
 
@@ -105,23 +103,59 @@ agent = AgentExecutor(llm, tool_cfg)
 
 We provide some default pipeline tools of multiple domain that integrates in modelscope.
 
-Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. An example of custom tool is provided below:
+Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below:
+
+- Text-to-Speech Tool
 
 ```python
-class CustomTool(Tool):
-    description = 'my custonm translation tool'
-    name = 'modelscope_my-custom-translation-tool'
+class TexttoSpeechTool(ModelscopePipelineTool):
+    default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
+    description = '文本转语音服务，将文字转换为自然而逼真的语音，可配置男声/女声'
+    name = 'modelscope_speech-generation'
     parameters: list = [{
         'name': 'input',
-        'description': '需要翻译的文本',
+        'description': '要转成语音的文本',
+        'required': True
+    }, {
+        'name': 'gender',
+        'description': '用户身份',
         'required': True
     }]
+    task = Tasks.text_to_speech
 
-    def _local_call():
-        ...
+    def _remote_parse_input(self, *args, **kwargs):
+        if 'gender' not in kwargs:
+            kwargs['gender'] = 'man'
+        voice = 'zhibei_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
+        kwargs['parameters'] = voice
+        kwargs.pop('gender')
+        return kwargs
 
-    def _remote_call():
-        ...
+    def _parse_output(self, origin_result, remote=True):
+
+        audio = origin_result['output_wav']
+        return {'result': AudioWrapper(audio)}
+```
+
+- Text-Address Tool
+
+```python
+class TextAddressTool(ModelscopePipelineTool):
+    default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'
+    description = '地址解析服务，针对中文地址信息，识别出里面的元素，包括省、市、区、镇、社区、道路、路号、POI、楼栋号、户室号等'
+    name = 'modelscope_text-address'
+    parameters: list = [{
+        'name': 'input',
+        'description': '用户输入的地址信息',
+        'required': True
+    }]
+    task = Tasks.token_classification
+
+    def _parse_output(self, origin_result, *args, **kwargs):
+        final_result = {}
+        for e in origin_result['output']:
+            final_result[e['type']] = e['span']
+        return final_result
 ```
 
 Moreover, if the tool is a `langchain tool`, you can directly use our `LangchainTool` to wrap and adapt with current frameworks.
@@ -143,3 +177,14 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 In certain scenarios, the tool may produce multi-modal data in the form of images, audio, video, etc. However, this data cannot be directly processed by llm. To address this issue, we have implemented the `OutputWrapper` class. This class encapsulates the multi-modal data and returns a string representation that can be further processed by llm.
 
 To use the `OutputWrapper` class, simply initialize an object with the origin multi-modal data and specify a local directory where it can be saved. The `__repr__()` function of the OutputWrapper class then returns a string that concatenates the stored path and an identifier that can be used by llm for further processing.
+
+
+## Citation
+If you found this work useful, consider giving this repository a star and citing our paper as followed:
+```
+@misc{modelscope-agent,
+      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models},
+      howpublished = {\url{https://github.com/ModelScope/modelscope-agent}},
+      year={2023}
+}
+```
