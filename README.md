@@ -30,8 +30,8 @@ agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 50%;">
-  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 50%;">
+  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
+  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
 </div>
 
 - Multi-turn tool-use and knowledge-qa
@@ -43,8 +43,8 @@ agent.run('给这个故事配一张图', remote=True)
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 50%;">
-  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 50%;">
+  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
+  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
 </div>
 
 
