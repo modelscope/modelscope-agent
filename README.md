@@ -16,19 +16,26 @@ To use modelscope-agent, all you need is to instantiate an `AgentExecutor` objec
 ```Python
 
 # instantiate llm
-model_name = 'ms_gpt'
+model_name = 'modelscope-agent-qwen-7b'
 model_cfg = Config.from_file(model_cfg_file)
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
+# prompt generator
+prompt_generator = MSPromptGenerator()
+
 # instantiate agent
-agent = AgentExecutor(llm, tool_cfg)
+agent = AgentExecutor(llm, tool_cfg, prompt_generator=prompt_generator)
 
 ```
 
 - Single-step & Multi-step tool-use
 
 ```Python
+# Single-step tool-use
 agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
+
+# Multi-step tool-use
+agent.reset()
 agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声读出来，同时生成个视频看看', remote=True)
 ```
 
@@ -40,6 +47,8 @@ agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声
 - Multi-turn tool-use and knowledge-qa
 
 ```Python
+# Multi-turn tool-use
+agent.reset()
 agent.run('写一个20字左右简短的小故事', remote=True)
 agent.run('用女声念出来', remote=True)
 agent.run('给这个故事配一张图', remote=True)
@@ -85,7 +94,7 @@ model_name = 'modelscope-agent-qwen-7b'
 model_cfg = {
     'modelscope-agent-qwen-7b':{
         'model_id': 'damo/MSAgent-Qwen-7B',
-        'model_revision': 'v1.0.1',
+        'model_revision': 'v1.0.2',
         'use_raw_generation_config': True,
         'custom_chat': True
     }
