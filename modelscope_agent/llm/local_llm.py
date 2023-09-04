@@ -2,11 +2,10 @@ import os
 import sys
 
 import torch
+from swift import Swift
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 
 from modelscope import GenerationConfig, snapshot_download
-from modelscope.swift import Swift
-from modelscope.swift.lora import LoRAConfig
 from .base import LLM
 
 
@@ -30,16 +29,17 @@ class LocalLLM(LLM):
         self.tokenizer_cls = self.cfg.get('tokenizer_cls', AutoTokenizer)
 
         self.device_map = self.cfg.get('device_map', 'auto')
-        self.generate_cfg = self.cfg.get('generate_cfg', {})
+        self.generation_cfg = GenerationConfig(
+            **self.cfg.get('generate_cfg', {}))
 
         self.use_lora = self.cfg.get('use_lora', False)
+        self.lora_ckpt_dir = self.cfg.get('lora_ckpt_dir',
+                                          None) if self.use_lora else None
 
         self.custom_chat = self.cfg.get('custom_chat', False)
 
-        self.lora_cfg = LoRAConfig(
-            **self.cfg.get('lora_cfg', {})) if self.use_lora else None
-
-        self.end_token = self.cfg.get('eod_token', '<|endofthink|>')
+        self.end_token = self.cfg.get('end_token', '<|endofthink|>')
+        self.include_end = self.cfg.get('include_end', True)
 
         self.setup()
 
@@ -58,7 +58,7 @@ class LocalLLM(LLM):
         self.model = self.model.eval()
 
         if self.use_lora:
-            self.load_from_lora(self.lora_cfg)
+            self.load_from_lora()
 
         if self.cfg.get('use_raw_generation_config', False):
             self.model.generation_config = GenerationConfig.from_pretrained(
@@ -73,16 +73,17 @@ class LocalLLM(LLM):
             response = self.chat(prompt)
 
         end_idx = response.find(self.end_token)
-        response = response[:end_idx
-                            + len(self.end_token)] if end_idx > 0 else response
+        if end_idx != -1:
+            end_idx += len(self.end_token) if self.include_end else 0
+            response = response[:end_idx]
 
         return response
 
-    def load_from_lora(self, lora_config: LoRAConfig):
+    def load_from_lora(self):
 
         model = self.model.bfloat16()
         # transform to lora
-        Swift.prepare_model(model, lora_config)
+        model = Swift.from_pretrained(model, self.lora_ckpt_dir)
 
         self.model = model
 
@@ -92,7 +93,8 @@ class LocalLLM(LLM):
             prompt, return_tensors='pt').input_ids.to(device)
         input_len = input_ids.shape[1]
 
-        result = self.model.generate(input_ids, **self.generate_cfg)
+        result = self.model.generate(
+            input_ids=input_ids, generation_config=self.generation_cfg)
 
         result = result[0].tolist()[input_len:]
         response = self.tokenizer.decode(result)

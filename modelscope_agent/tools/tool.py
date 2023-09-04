@@ -73,7 +73,6 @@ class Tool:
             self._remote_parse_input(*args, **kwargs))
 
         origin_result = None
-
         response = requests.request(
             'POST', self.url, headers=self.header, data=remote_parsed_input)
         origin_result = json.loads(response.content.decode('utf-8'))['Data']
