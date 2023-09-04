@@ -14,43 +14,41 @@ To equip the LLMs with tool-use abilities, a comprehensive framework has been pr
 To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task.
 
 ```Python
+
 # instantiate llm
-llm = ModelScopeGPT(model_cfg)
+model_name = 'ms_gpt'
+model_cfg = Config.from_file(model_cfg_file)
+llm = LLMFactory.build_llm(model_name, model_cfg)
 
 # instantiate agent
 agent = AgentExecutor(llm, tool_cfg)
 
 ```
 
-- Single-step tool-use
+- Single-step & Multi-step tool-use
 
 ```Python
 agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
-```
-![image](resource/modelscopegpt_case_single-step.png)
-
-
-- Multi-step tool-use
-
-```Python
 agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声读出来，同时生成个视频看看', remote=True)
 ```
 
-![image](resource/modelscopegpt_case_video-generation.png)
+<div style="display: flex;">
+  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
+  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
+</div>
 
-- Multi-turn tool-use
+- Multi-turn tool-use and knowledge-qa
 
 ```Python
 agent.run('写一个20字左右简短的小故事', remote=True)
 agent.run('用女声念出来', remote=True)
 agent.run('给这个故事配一张图', remote=True)
 ```
-![image](resource/modelscopegpt_case_multi-turn.png)
 
-
-- Multi-turn knowledge-qa
-
-![image](resource/modelscopegpt_case_knowledge-qa.png)
+<div style="display: flex;">
+  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
+  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
+</div>
 
 
 ### Main components
@@ -171,12 +169,6 @@ shell_tool = LangchainTool(ShellTool())
 print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
-
-### Output Wrapper
-
-In certain scenarios, the tool may produce multi-modal data in the form of images, audio, video, etc. However, this data cannot be directly processed by llm. To address this issue, we have implemented the `OutputWrapper` class. This class encapsulates the multi-modal data and returns a string representation that can be further processed by llm.
-
-To use the `OutputWrapper` class, simply initialize an object with the origin multi-modal data and specify a local directory where it can be saved. The `__repr__()` function of the OutputWrapper class then returns a string that concatenates the stored path and an identifier that can be used by llm for further processing.
 
 
 ## Citation
