@@ -1,14 +1,19 @@
-from .local_llm import LocalLLM
-from .ms_gpt import ModelScopeGPT
-from .openai import OpenAi
-
-LLM_MAPPING = {'ms_gpt': ModelScopeGPT, 'openai': OpenAi}
+def get_llm_cls(llm_type):
+    if llm_type == 'ms_gpt':
+        from .ms_gpt import ModelScopeGPT
+        return ModelScopeGPT
+    elif llm_type == 'openai':
+        from .openai import OpenAi
+        return OpenAi
+    else:
+        from .local_llm import LocalLLM
+        return LocalLLM
 
 
 class LLMFactory:
 
     @staticmethod
-    def build_llm(name, cfg):
-        llm_cls = LLM_MAPPING.get(name, LocalLLM)
-        llm_cfg = cfg.get(name, {})
+    def build_llm(llm_type, cfg):
+        llm_cls = get_llm_cls(llm_type)
+        llm_cfg = cfg.get(llm_type, {})
         return llm_cls(cfg=llm_cfg)

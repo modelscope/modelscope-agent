@@ -25,6 +25,11 @@ class OutputWrapper:
         self._raw_data = None
 
         self.root_path = os.environ.get('OUTPUT_FILE_DIRECTORY', None)
+        if not os.path.exists(self.root_path):
+            try:
+                os.makedirs(self.root_path)
+            except Exception:
+                self.root_path = None
 
     def __repr__(self) -> str:
         return self._repr
