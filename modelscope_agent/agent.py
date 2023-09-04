@@ -109,12 +109,16 @@ class AgentExecutor:
         return self.knowledge_retrieval.retrieve(
             query) if self.knowledge_retrieval else []
 
-    def run(self, task: str, remote: bool = False) -> List[Dict]:
+    def run(self,
+            task: str,
+            remote: bool = False,
+            print_info: bool = False) -> List[Dict]:
         """ use llm and tools to execute task given by user
 
         Args:
             task (str): concrete task
             remote (bool, optional): whether to execute tool in remote mode. Defaults to False.
+            print_info (bool, optional): whether to print prompt info. Defaults to False.
 
         Returns:
             List[Dict]: execute result. One task may need to interact with llm multiple times,
@@ -137,7 +141,8 @@ class AgentExecutor:
             # generate prompt and call llm
             prompt = self.prompt_generator.generate(llm_result, exec_result)
             llm_result = self.llm.generate(prompt)
-            print(f'|prompt{idx}: {prompt}')
+            if print_info:
+                print(f'|prompt{idx}: {prompt}')
 
             # display result
             display(llm_result, idx)

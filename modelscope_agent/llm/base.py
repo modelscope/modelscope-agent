@@ -7,7 +7,7 @@ class LLM:
     name = ''
 
     def __init__(self, cfg):
-        self.cfg = cfg.get(self.name, {})
+        self.cfg = cfg
 
     @abstractmethod
     def generate(self, prompt: str) -> str:

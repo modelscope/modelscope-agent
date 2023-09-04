@@ -15,6 +15,7 @@ class ModelscopePipelineTool(Tool):
         self.model_revision = self.cfg.get('model_revision',
                                            None) or self.model_revision
 
+        self.pipeline_params = self.cfg.get('pipeline_params', {})
         self.pipeline = None
         self.is_initialized = False
 
@@ -25,7 +26,8 @@ class ModelscopePipelineTool(Tool):
             self.pipeline = pipeline(
                 task=self.task,
                 model=self.model,
-                model_revision=self.model_revision)
+                model_revision=self.model_revision,
+                **self.pipeline_params)
         self.is_initialized = True
 
     def _local_call(self, *args, **kwargs):
