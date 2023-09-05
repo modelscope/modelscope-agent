@@ -151,7 +151,7 @@ agent = AgentExecutor(llm, tool_cfg)
 
 We provide some default pipeline tools of multiple domain that integrates in modelscope.
 
-Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below. For more detailed tool registration, please refer to [tool](docs/modules/tool.md).
+Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below. For more detailed tool registration, please refer to [tool_doc](docs/modules/tool.md) or [too_demo](demo/demo_register_new_tool.ipynb).
 
 - Text-to-Speech Tool
 

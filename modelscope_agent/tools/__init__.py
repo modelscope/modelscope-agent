@@ -11,6 +11,7 @@ from .text_to_video_tool import TextToVideoTool
 from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
+from .custom_tool import AliyunRenewInstanceTool
 
 DEFAULT_TOOL_LIST = {
     'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
