@@ -19,10 +19,18 @@ class TexttoSpeechTool(ModelscopePipelineTool):
     }]
     task = Tasks.text_to_speech
 
+    def _local_parse_input(self, *args, **kwargs):
+        if 'gender' not in kwargs:
+            kwargs['gender'] = 'man'
+        voice = 'zhizhe_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
+        kwargs['voice'] = voice
+        kwargs.pop('gender')
+        return args, kwargs
+
     def _remote_parse_input(self, *args, **kwargs):
         if 'gender' not in kwargs:
             kwargs['gender'] = 'man'
-        voice = 'zhibei_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
+        voice = 'zhizhe_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
         kwargs['voice'] = voice
         kwargs.pop('gender')
         return kwargs
