@@ -4,8 +4,11 @@ from typing import List, Optional
 import json
 import requests
 from pydantic import BaseModel, ValidationError
+from requests.exceptions import RequestException, Timeout
 
 MODELSCOPE_API_TOKEN = os.getenv('MODELSCOPE_API_TOKEN')
+
+MAX_RETRY_TIMES = 3
 
 
 class ParametersSchema(BaseModel):
@@ -73,12 +76,33 @@ class Tool:
             self._remote_parse_input(*args, **kwargs))
 
         origin_result = None
-        response = requests.request(
-            'POST', self.url, headers=self.header, data=remote_parsed_input)
-        origin_result = json.loads(response.content.decode('utf-8'))['Data']
+        retry_times = MAX_RETRY_TIMES
+        while retry_times:
+            retry_times -= 1
+            try:
+                response = requests.request(
+                    'POST',
+                    self.url,
+                    headers=self.header,
+                    data=remote_parsed_input)
+                if response.status_code != requests.codes.ok:
+                    response.raise_for_status()
 
-        final_result = self._parse_output(origin_result, remote=True)
-        return final_result
+                origin_result = json.loads(
+                    response.content.decode('utf-8'))['Data']
+
+                final_result = self._parse_output(origin_result, remote=True)
+                return final_result
+            except Timeout:
+                continue
+            except RequestException as e:
+                raise ValueError(
+                    f'Remote call failed with error code: {e.response.status_code},\
+                    error message: {e.response.content.decode("utf-8")}')
+
+        raise ValueError(
+            'Remote call max retry times exceeded! Please try to use local call.'
+        )
 
     def _local_call(self, *args, **kwargs):
         return
