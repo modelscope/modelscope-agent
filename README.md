@@ -22,6 +22,15 @@
 
 To equip the LLMs with tool-use abilities, a comprehensive framework has been proposed spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
 
+## Installation
+
+clone repo and install dependency：
+```shell
+git clone https://github.com/modelscope/modelscope-agent.git
+cd modelscope-agent && pip install -r requirements.txt
+```
+
+
 ## Quickstart
 
 To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task.
@@ -34,10 +43,11 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.prompt import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
-model_cfg_file = os.getenv('MODEL_CONFIG_FILE')
+model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
 model_cfg = Config.from_file(model_cfg_file)
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
+
 
 # instantiation LLM
 model_name = 'modelscope-agent-qwen-7b'
@@ -109,7 +119,7 @@ If you want to use other llm, you can inherit base class and implement `generate
 - `generate()`: directly return final response
 - `stream_generate()`: return a generator of step response, it can be used when you deploy your application in gradio.
 
-You can also use open-source LLM from ModelScope or Huggingface and inference locally by `LocalLLM` class. Moreover, you can finetune these models with your datasets or load your custom weights.
+You can also use open-source LLM from ModelScope or Huggingface and inference locally by `LLMFactory` class. Moreover, you can finetune these models with your datasets or load your custom weights.
 
 ```Python
 # local llm cfg
@@ -128,7 +138,7 @@ model_cfg = {
     }
 }
 
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
 llm = LLMFactory(model_name, model_cfg)
