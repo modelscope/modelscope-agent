@@ -1,6 +1,5 @@
 dashscope
 datasets>=2.8.0
-invisible-watermark>=2.0
 ipython
 langchain
 modelscope>=1.7.0
