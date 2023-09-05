@@ -23,9 +23,20 @@
 
 为了赋予LLMs工具使用能力，提出了一个全面的框架，涵盖了数据收集、工具检索、工具注册、存储管理、定制模型训练和实际应用的方方面面。
 
+## 安装
+
+克隆repo并安装依赖：
+```shell
+git clone https://github.com/modelscope/modelscope-agent.git
+cd modelscope-agent && pip install -r requirements.txt
+```
+
+
 ## 快速入门
 
-使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可，下述示例：
+使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可。
+
+如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。
 
 ```Python
 import os
@@ -35,9 +46,9 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.prompt import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
-model_cfg_file = os.getenv('MODEL_CONFIG_FILE')
+model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
 model_cfg = Config.from_file(model_cfg_file)
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
 # instantiation LLM
@@ -115,7 +126,7 @@ agent.run('给这个故事配一张图', remote=True)
 - `generate()`: 直接返回最终结果
 - `stream_generate()`: 返回一个生成器用于结果的串行生成，在部署应用程序到 Gradio 时可以使用。
 
-用户还可以使用 ModelScope 或 Huggingface 的开源LLM，并通过 `LocalLLM` 类在本地进行推断。此外，也可以使用用户的数据集对这些模型进行微调或加载您的自定义权重。
+用户还可以使用 ModelScope 或 Huggingface 的开源LLM，并通过 `LLMFactory` 类在本地进行推断。此外，也可以使用用户的数据集对这些模型进行微调或加载您的自定义权重。
 
 ```Python
 # 本地LLM配置
@@ -134,7 +145,7 @@ model_cfg = {
     }
 }
 
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
 llm = LLMFactory.build_llm(model_name, model_cfg)
@@ -149,7 +160,7 @@ agent = AgentExecutor(llm, tool_cfg)
 
 此外，用户可以通过继承基础的工具类，并根据定义名称、描述和参数(`names, descriptions, and parameters`)来自定义自己的工具。
 
-同时还可以根据需要实现 `_local_call()` 或 `_remote_call()`。
+同时还可以根据需要实现 `_local_call()` 或 `_remote_call()`。 更多工具类的注册细节可参考[tool](docs/modules/tool.md)。
 
 以下是支持的工具示例：
 
