@@ -33,7 +33,7 @@ cd modelscope-agent && pip install -r requirements.txt
 
 ## Quickstart
 
-To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task.
+To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task. For faster agent implementation, please refer to [demo_agent](demo/demo_qwen_agent.ipynb)
 
 ```Python
 import os
@@ -151,7 +151,7 @@ agent = AgentExecutor(llm, tool_cfg)
 
 We provide some default pipeline tools of multiple domain that integrates in modelscope.
 
-Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below:
+Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. Examples of supported tool are provided below. For more detailed tool registration, please refer to [tool](docs/modules/tool.md).
 
 - Text-to-Speech Tool
 
