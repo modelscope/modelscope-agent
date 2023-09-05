@@ -34,7 +34,9 @@ cd modelscope-agent && pip install -r requirements.txt
 
 ## 快速入门
 
-使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可，下述示例：
+使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可。
+
+如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。
 
 ```Python
 import os
@@ -158,7 +160,7 @@ agent = AgentExecutor(llm, tool_cfg)
 
 此外，用户可以通过继承基础的工具类，并根据定义名称、描述和参数(`names, descriptions, and parameters`)来自定义自己的工具。
 
-同时还可以根据需要实现 `_local_call()` 或 `_remote_call()`。
+同时还可以根据需要实现 `_local_call()` 或 `_remote_call()`。 更多工具类的注册细节可参考[tool](docs/modules/tool.md)。
 
 以下是支持的工具示例：
 
