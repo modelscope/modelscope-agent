@@ -1,3 +1,4 @@
+from .custom_tool import AliyunRenewInstanceTool
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
 from .pipeline_tool import ModelscopePipelineTool
@@ -11,7 +12,6 @@ from .text_to_video_tool import TextToVideoTool
 from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
-from .custom_tool import AliyunRenewInstanceTool
 
 DEFAULT_TOOL_LIST = {
     'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
