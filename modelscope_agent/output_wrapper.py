@@ -6,8 +6,10 @@ from typing import Dict
 
 import json
 import numpy as np
+import requests
 from moviepy.editor import VideoFileClip
 from PIL import Image
+from requests.exceptions import RequestException
 
 
 class OutputWrapper:
@@ -31,6 +33,18 @@ class OutputWrapper:
             except Exception:
                 self.root_path = None
 
+    def get_remote_file(self, remote_path, suffix):
+        try:
+            response = requests.get(remote_path)
+            obj = response.content
+            directory = tempfile.mkdtemp(dir=self.root_path)
+            path = os.path.join(directory, str(uuid.uuid4()) + f'.{suffix}')
+            with open(path, 'wb') as f:
+                f.write(obj)
+            return path
+        except RequestException:
+            return remote_path
+
     def __repr__(self) -> str:
         return self._repr
 
@@ -53,13 +67,16 @@ class ImageWrapper(OutputWrapper):
         super().__init__()
 
         if isinstance(image, str):
-            try:
+            if os.path.isfile(image):
                 self._path = image
+            else:
+                self._path = self.get_remote_file(image, 'png')
+            try:
                 image = Image.open(self._path)
                 self._raw_data = image
             except FileNotFoundError:
                 # Image store in remote server when use remote mode
-                pass
+                raise FileNotFoundError(f'Invalid path: {image}')
         else:
             if not isinstance(image, Image.Image):
                 image = Image.fromarray(image.astype(np.uint8))
@@ -82,12 +99,15 @@ class AudioWrapper(OutputWrapper):
 
         super().__init__()
         if isinstance(audio, str):
-            try:
+            if os.path.isfile(audio):
                 self._path = audio
+            else:
+                self._path = self.get_remote_file(audio, 'wav')
+            try:
                 with open(self._path, 'rb') as f:
                     self._raw_data = f.read()
             except FileNotFoundError:
-                pass
+                raise FileNotFoundError(f'Invalid path: {audio}')
         else:
             self._raw_data = audio
             directory = tempfile.mkdtemp(dir=self.root_path)
@@ -108,8 +128,13 @@ class VideoWrapper(OutputWrapper):
 
         super().__init__()
         if isinstance(video, str):
-            try:
+
+            if os.path.isfile(video):
                 self._path = video
+            else:
+                self._path = self.get_remote_file(video, 'gif')
+
+            try:
                 video = VideoFileClip(self._path)
                 # currently, we should save video as gif, not mp4
                 if not self._path.endswith('gif'):
@@ -118,7 +143,7 @@ class VideoWrapper(OutputWrapper):
                                               str(uuid.uuid4()) + '.gif')
                     video.write_gif(self._path)
             except (ValueError, OSError):
-                pass
+                raise FileNotFoundError(f'Invalid path: {video}')
         else:
             raise TypeError(
                 'Current only support load from filepath when it is video')
@@ -139,7 +164,7 @@ def get_raw_output(exec_result: Dict):
     return res
 
 
-def display(llm_result: str, idx: int):
+def display(llm_result: str, exec_result: str, idx: int):
     """Display the result of each round in jupyter notebook.
     The multi-modal data will be extracted.
 
@@ -150,25 +175,6 @@ def display(llm_result: str, idx: int):
     from IPython.display import display, Pretty, Image, Audio, JSON
     idx_info = '*' * 50 + f'round {idx}' + '*' * 50
     display(Pretty(idx_info))
-    match_image = re.search(r'!\[IMAGEGEN\]\((.*?)\)', llm_result)
-    if match_image:
-        result = match_image.group(1)
-        try:
-            display(Image(result))
-            llm_result = llm_result.replace(match_image.group(0), '')
-        except Exception:
-            pass
-
-    match_audio = re.search(
-        r'<audio id=audio controls= preload=none> <source id=wav src=(.*?)> <\/audio>',
-        llm_result)
-    if match_audio:
-        result = match_audio.group(1)
-        try:
-            display(Audio(result))
-            llm_result = llm_result.replace(match_audio.group(0), '')
-        except Exception:
-            pass
 
     match_action = re.search(
         r'<\|startofthink\|>```JSON([\s\S]*)```<\|endofthink\|>', llm_result)
@@ -182,3 +188,17 @@ def display(llm_result: str, idx: int):
             pass
 
     display(Pretty(llm_result))
+
+    exec_result = exec_result['result']
+    try:
+        display(Image(exec_result.path))
+    except Exception:
+        try:
+            display(Audio(exec_result.path))
+        except Exception:
+            try:
+                display(JSON(exec_result))
+            except Exception:
+                display(Pretty(exec_result))
+
+    return

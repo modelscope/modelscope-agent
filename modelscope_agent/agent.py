@@ -144,9 +144,6 @@ class AgentExecutor:
             if print_info:
                 print(f'|prompt{idx}: {prompt}')
 
-            # display result
-            display(llm_result, idx)
-
             # parse and get tool name and arguments
             action, action_args = self.output_parser.parse_response(llm_result)
             # print(f'|action: {action}, action_args: {action_args}')
@@ -167,12 +164,16 @@ class AgentExecutor:
                     # parse exec result and store result to agent state
                     final_res.append(exec_result)
                     self.parse_exec_result(exec_result)
-                except Exception as e:
-                    exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
+                except Exception:
+                    exec_result = f'Action call error: {action}: {action_args}.'
+                    traceback.print_exc()
                     return [{'error': exec_result}]
             else:
                 exec_result = f"Unknown action: '{action}'. "
                 return [{'error': exec_result}]
+
+            # display result
+            display(llm_result, exec_result, idx)
 
     def stream_run(self, task: str, remote: bool = True) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.
@@ -207,9 +208,8 @@ class AgentExecutor:
                     yield {'llm_text': s}
 
             except Exception:
-                raise NotImplementedError(
-                    'This llm does not implement stream predict')
-                return
+                s = self.llm.generate(prompt)
+                yield {'llm_text': s}
 
             # parse and get tool name and arguments
             action, action_args = self.output_parser.parse_response(llm_result)
