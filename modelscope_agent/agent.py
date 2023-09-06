@@ -144,9 +144,6 @@ class AgentExecutor:
             if print_info:
                 print(f'|prompt{idx}: {prompt}')
 
-            # display result
-            display(llm_result, idx)
-
             # parse and get tool name and arguments
             action, action_args = self.output_parser.parse_response(llm_result)
             # print(f'|action: {action}, action_args: {action_args}')
@@ -155,6 +152,8 @@ class AgentExecutor:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 _ = self.prompt_generator.generate(llm_result, '')
 
+                # for summarize
+                display(llm_result, {}, idx)
                 return final_res
 
             if action in self.available_tool_list:
@@ -173,6 +172,9 @@ class AgentExecutor:
             else:
                 exec_result = f"Unknown action: '{action}'. "
                 return [{'error': exec_result}]
+
+            # display result
+            display(llm_result, exec_result, idx)
 
     def stream_run(self, task: str, remote: bool = True) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.

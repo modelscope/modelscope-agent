@@ -114,7 +114,7 @@ class Tool:
         return args, kwargs
 
     def _parse_output(self, origin_result, *args, **kwargs):
-        return origin_result
+        return {'result': origin_result}
 
     def __str__(self):
         return self._str

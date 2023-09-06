@@ -19,4 +19,4 @@ class TextNerTool(ModelscopePipelineTool):
         final_result = defaultdict(list)
         for e in origin_result['output']:
             final_result[e['type']].append(e['span'])
-        return dict(final_result)
+        return {'result': dict(final_result)}

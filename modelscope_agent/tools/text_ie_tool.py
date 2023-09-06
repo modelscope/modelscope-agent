@@ -29,4 +29,4 @@ class TextInfoExtractTool(ModelscopePipelineTool):
         for e in origin_result['output']:
             final_result[e[0]['type']].append(e[0]['span'])
 
-        return dict(final_result)
+        return {'result': dict(final_result)}

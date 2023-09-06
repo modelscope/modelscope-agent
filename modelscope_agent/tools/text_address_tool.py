@@ -17,4 +17,4 @@ class TextAddressTool(ModelscopePipelineTool):
         final_result = {}
         for e in origin_result['output']:
             final_result[e['type']] = e['span']
-        return final_result
+        return {'result': final_result}
