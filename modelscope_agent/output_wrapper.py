@@ -191,15 +191,15 @@ def display(llm_result: str, exec_result: Dict, idx: int):
     display(Pretty(llm_result))
 
     exec_result = exec_result.get('result', '')
-    try:
+
+    if isinstance(exec_result, ImageWrapper) or isinstance(
+            exec_result, VideoWrapper):
         display(Image(exec_result.path))
-    except Exception:
-        try:
-            display(Audio(exec_result.path))
-        except Exception:
-            try:
-                display(JSON(exec_result))
-            except Exception:
-                display(Pretty(exec_result))
+    elif isinstance(exec_result, AudioWrapper):
+        display(Audio(exec_result.path))
+    elif isinstance(exec_result, dict):
+        display(JSON(exec_result))
+    else:
+        display(Pretty(exec_result))
 
     return
