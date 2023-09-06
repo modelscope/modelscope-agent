@@ -208,9 +208,8 @@ class AgentExecutor:
                     yield {'llm_text': s}
 
             except Exception:
-                raise NotImplementedError(
-                    'This llm does not implement stream predict')
-                return
+                s = self.llm.generate(prompt)
+                yield {'llm_text': s}
 
             # parse and get tool name and arguments
             action, action_args = self.output_parser.parse_response(llm_result)
