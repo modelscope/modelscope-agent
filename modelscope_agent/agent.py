@@ -164,9 +164,8 @@ class AgentExecutor:
                     # parse exec result and store result to agent state
                     final_res.append(exec_result)
                     self.parse_exec_result(exec_result)
-                except Exception:
-                    exec_result = f'Action call error: {action}: {action_args}.'
-                    traceback.print_exc()
+                except Exception as e:
+                    exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
                     return [{'error': exec_result}]
             else:
                 exec_result = f"Unknown action: '{action}'. "
