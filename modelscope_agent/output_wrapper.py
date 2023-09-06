@@ -164,12 +164,13 @@ def get_raw_output(exec_result: Dict):
     return res
 
 
-def display(llm_result: str, exec_result: str, idx: int):
+def display(llm_result: str, exec_result: Dict, idx: int):
     """Display the result of each round in jupyter notebook.
     The multi-modal data will be extracted.
 
     Args:
         llm_result (str): llm result
+        exec_result (Dict): exec result
         idx (int): current round
     """
     from IPython.display import display, Pretty, Image, Audio, JSON
@@ -189,7 +190,7 @@ def display(llm_result: str, exec_result: str, idx: int):
 
     display(Pretty(llm_result))
 
-    exec_result = exec_result['result']
+    exec_result = exec_result.get('result', '')
     try:
         display(Image(exec_result.path))
     except Exception:
