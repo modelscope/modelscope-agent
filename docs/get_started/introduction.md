@@ -14,17 +14,28 @@ The agent incorporates an LLM along with task-specific tools, and uses the LLM t
 To start, all you need to do is initialize an `LLM` object and an `AgentExecutor` object with corresponding tasks
 
 ```Python
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.llm.ms_gpt import ModelScopeGPT
+import os
 from modelscope.utils.config import Config
+from modelscope_agent.llm import LLMFactory
+from modelscope_agent.agent import AgentExecutor
+from modelscope_agent.prompt import MSPromptGenerator
 
-# load config
+# get cfg from file, refer the example in config folder
+model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
 model_cfg = Config.from_file(model_cfg_file)
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
-# initialize
-llm = ModelScopeGPT(model_cfg)
-agent = AgentExecutor(llm, tool_cfg)
+
+# instantiation LLM
+model_name = 'modelscope-agent-qwen-7b'
+llm = LLMFactory.build_llm(model_name, model_cfg)
+
+# prompt generator
+prompt_generator = MSPromptGenerator()
+
+# instantiation agent
+agent = AgentExecutor(llm, tool_cfg, prompt_generator=prompt_generator)
 ```
 
 We provide several default tools that have been adapted from the **ModelScope** model pipeline, and these tools will be automatically initialized. These tools can be invoked via the local inference pipeline, or by a remote deployed server by setting `remote=True`.
@@ -44,14 +55,13 @@ Here are some examples of task executions:
 ```Python
 
 # write slogan and transfer to speech in remote mode
-agent.run("写一个 2023上海世界人工智能大会 20 字以内的口号，并念出来", remote=True)
+agent.run("写一个 2023上海世界人工智能大会 20 字以内的口号，并语音念出来", remote=False)
 
 # extract address in sentence in local mode
-agent.run("从下面的地址中，找到省市等元素。地址：浙江省杭州市江干区九堡镇三村村一区")
+agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
 
 ```
 
-TODO: 要贴结果吗？
 
 ## Custom agents
 
