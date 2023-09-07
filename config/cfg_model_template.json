@@ -1,7 +1,7 @@
 {
     "ms_gpt": {
+        "model": "modelscope-agent-llm-v1",
         "generate_cfg": {
-            "model": "pre-modelscope_gpt_agent_chat-620",
             "parameters":{
                 "use_raw_prompt": true,
                 "top_p": 0.8,
