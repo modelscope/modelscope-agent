@@ -12,8 +12,7 @@
         }
     },
     "openai": {
-        "model": "gpt-3.5-turbo",
-        "api_base": "http://127.0.0.1:12315/v1"
+        "model": "gpt-3.5-turbo"
     },
     "modelscope-agent-qwen-7b":{
         "model_id": "damo/MSAgent-Qwen-7B",
