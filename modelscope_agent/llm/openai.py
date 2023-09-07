@@ -1,6 +1,10 @@
+import os
+
 import openai
 
 from .base import LLM
+
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 
 class OpenAi(LLM):
@@ -9,16 +13,14 @@ class OpenAi(LLM):
     def __init__(self, cfg):
         super().__init__(cfg)
 
-        self.model = self.cfg.get('model', '')
-        self.api_key = self.cfg.get('api_key', '')
-        self.api_base = self.cfg.get('api_base', '')
+        self.model = self.cfg.get('model', 'gpt-3.5-turbo')
+        self.api_base = self.cfg.get('api_base', 'https://api.openai.com/v1')
 
     def generate(self, prompt):
         messages = [{'role': 'user', 'content': prompt}]
 
         response = openai.ChatCompletion.create(
             model=self.model,
-            api_key=self.api_key,
             api_base=self.api_base,
             messages=messages,
             stream=False)

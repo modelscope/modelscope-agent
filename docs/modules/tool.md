@@ -2,24 +2,37 @@
 
 We provide some default pipeline tools of multiple domain that integrates in modelscope.
 
-Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. An example of custom tool is provided below:
+Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. An example of custom tool is provided below in [custom_tool](../../modelscope_agent/tools/custom_tool.py):
 
 ```python
-class CustomTool(Tool):
-    description = 'my custonm translation tool'
-    name = 'modelscope_my-custom-translation-tool'
+from .tool import Tool
+
+class AliyunRenewInstanceTool(Tool):
+
+    description = '续费一台包年包月ECS实例'
+    name = 'RenewInstance'
     parameters: list = [{
-        'name': 'input',
-        'description': '需要翻译的文本',
+        'name': 'instance_id',
+        'description': 'ECS实例ID',
         'required': True
-    }]
+    },
+    {
+        'name': 'period',
+        'description': '续费时长以月为单位',
+        'required': True
+    }
+    ]
 
-    def _local_call():
-        ...
+    def _local_call(self, *args, **kwargs):
+        instance_id = kwargs['instance_id']
+        period = kwargs['period']
+        return {'result': f'已完成ECS实例ID为{instance_id}的续费，续费时长{period}月'}
 
-    def _remote_call():
-        ...
 ```
+
+You can also refer to our provided demo for a guide on how to use the new tool in [demo_register_new_tool](../../demo/demo_register_new_tool.ipynb)
+
+
 
 Moreover, if the tool is a `langchain tool`, you can directly use our `LangchainTool` to wrap and adapt with current frameworks.
 

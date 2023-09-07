@@ -14,4 +14,4 @@ class TranslationZh2EnTool(ModelscopePipelineTool):
     }]
 
     def _parse_output(self, origin_result, *args, **kwargs):
-        return {'text': origin_result['translation']}
+        return {'result': origin_result['translation']}
