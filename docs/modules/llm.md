@@ -16,6 +16,7 @@ An example for importing a local LLM with `LLMFactory.build_llm` is shown below.
 model_name = 'modelscope-agent-qwen-7b'
 model_cfg = {
     'modelscope-agent-qwen-7b':{
+        'type': 'modelscope',
         'model_id': 'damo/MSAgent-Qwen-7B',
         'model_revision': 'v1.0.1',
         'use_raw_generation_config': True,

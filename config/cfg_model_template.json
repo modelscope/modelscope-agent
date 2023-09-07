@@ -1,5 +1,6 @@
 {
-    "modelscope-agent-llm-v1": {
+    "modelscope-agent": {
+        "type": "dashscope",
         "model": "modelscope-agent-llm-v1",
         "generate_cfg": {
             "parameters":{
@@ -12,11 +13,11 @@
         }
     },
     "openai": {
-        "model": "select_model",
-        "api_key": "your_openai_key",
-        "api_base": "xxx"
+        "type": "openai",
+        "model": "gpt-3.5-turbo"
     },
     "modelscope-agent-qwen-7b":{
+        "type": "modelscope",
         "model_id": "damo/MSAgent-Qwen-7B",
         "model_revision": "v1.0.1",
         "use_raw_generation_config": true,
