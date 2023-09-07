@@ -12,9 +12,7 @@
         }
     },
     "openai": {
-        "model": "select_model",
-        "api_key": "your_openai_key",
-        "api_base": "xxx"
+        "model": "gpt-3.5-turbo"
     },
     "modelscope-agent-qwen-7b":{
         "model_id": "damo/MSAgent-Qwen-7B",

@@ -78,5 +78,4 @@ class QwenOutputParser(OutputParser):
             print(action, parameters)
             return action, parameters
         except Exception:
-            traceback.print_exc()
             return None, None
