@@ -7,6 +7,7 @@ import uuid
 import gradio as gr
 import json
 
+
 def generate_story(user_input, num_scene, max_scene, agent):
     """
     产生story

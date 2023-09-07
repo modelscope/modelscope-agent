@@ -1,7 +1,6 @@
 from __future__ import annotations
 import os
 import sys
-sys.path.append('../../')
 from functools import partial
 
 import gradio as gr
@@ -14,6 +13,7 @@ from predict import generate_story
 
 from modelscope.utils.config import Config
 
+sys.path.append('../../')
 
 SYSTEM_PROMPT = "<|system|>:你是Story Agent，是一个大语言模型，可以根据用户的输入自动生成相应的绘本。"
 
