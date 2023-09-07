@@ -5,7 +5,7 @@ The initialization of LLM is primarily achieved through `LLMFactory.build_llm`. 
 
 We implement `ModelScopeGPT` and `OpenAI` for quick start. Both of them need user token to request.
 
-You can also use open-source LLM from ModelScope or Huggingface and inference locally by `LocalLLM` class. Note that you must specify the name of the corresponding LLM so that the correct configuration can be loaded.
+You can also use open-source LLM from ModelScope or Huggingface and inference locally by `ModelScopeLLM` class. Note that you must specify the name of the corresponding LLM so that the correct configuration can be loaded.
 
 
 An example for importing a local LLM with `LLMFactory.build_llm` is shown below.
@@ -27,7 +27,7 @@ model_cfg = {
 llm = LLMFactory.build_llm(model_name, model_cfg)
 ```
 
-Currently, configuration of `LocalLLM` may contains following parameters:
+Currently, configuration of `ModelScopeLLM` may contains following parameters:
 
 - `model_cls`: model class for load LLM, should be corresponding with `model_id`. Default `AutoModelForCausalLM`.
 - `tokenizer_cls`: tokenizer class for tokenizer, should be corresponding with `model_id`. Default `AutoTokenizer`.

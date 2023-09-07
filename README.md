@@ -104,13 +104,21 @@ An `AgentExecutor` object consists of the following components:
 
 We provide default implement of these components for users, but you can also custom your components according to your requirement.
 
+
 ### Configuration
 
 Some configurations, `user_token` etc are not supposed to be public, so we recommend you to use `dotenv` package and `.env` file to set these configurations.
 
 Concretely, We provide an `.env.template` file and corresponding config files in our repo. You can easily customize the configuration by referring to the provided example, and utilize your own `.env` file to read the configuration settings.
 
-### Custom your LLM
+### LLM
+We offer a plug-and-play LLM for users to easily utilize. The specific model details are as follows:
+
+* modelscope-agent-qwen-7b: [modelscope-agent-qwen-7b](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary) is a core open-source model that drives the ModelScope-Agent framework, fine-tuned based on Qwen-7B. It can be directly downloaded for local use.
+* ms_gpt: A ModelScope-Agent service deployed on [DashScope](http://dashscope.aliyun.com). No local GPU resources are required. Follow the steps below to apply for the use of ms_gpt:
+    1. Apply to activate the DashScope service, go to `模型广场` -> `通义千问开源系列` -> apply for a trial of `通义千问7B`. The free quota is 100,000 tokens.
+    2. Create an API-KEY in `API-kEY管理`, and configure it in the `config/.env` file.
+
 
 The default LLM is `ModelScope GPT`, which is deployed in a remote server and need user token to request.
 

@@ -1,13 +1,13 @@
 def get_llm_cls(llm_type):
-    if llm_type == 'ms_gpt':
-        from .ms_gpt import ModelScopeGPT
-        return ModelScopeGPT
+    if llm_type == 'dashscope_llm':
+        from .dashscope_llm import DashScopeLLM
+        return DashScopeLLM
     elif llm_type == 'openai':
         from .openai import OpenAi
         return OpenAi
     else:
-        from .local_llm import LocalLLM
-        return LocalLLM
+        from .modelscope_llm import ModelScopeLLM
+        return ModelScopeLLM
 
 
 class LLMFactory:

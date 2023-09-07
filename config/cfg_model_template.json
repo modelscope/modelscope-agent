@@ -1,5 +1,5 @@
 {
-    "ms_gpt": {
+    "modelscope-agent-llm-v1": {
         "model": "modelscope-agent-llm-v1",
         "generate_cfg": {
             "parameters":{
