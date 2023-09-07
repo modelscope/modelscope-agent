@@ -10,7 +10,7 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator
 from modelscope_agent.retrieve import ToolRetrieval
-from predict import generate_story, stream_predict
+from predict import generate_story
 
 from modelscope.utils.config import Config
 
@@ -49,17 +49,17 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     tool_cfg = Config.from_file(tool_cfg_file)
     # model_name = 'ms_gpt'
-    # model_cfg = Config.from_file(model_cfg_file)
+    model_cfg = Config.from_file(model_cfg_file)
 
-    model_name = 'modelscope-agent-qwen-7b'
-    model_cfg = {
-        'modelscope-agent-qwen-7b': {
-            'model_id': 'damo/MSAgent-Qwen-7B',
-            'model_revision': 'v1.0.2',
-            'use_raw_generation_config': True,
-            'custom_chat': True
-        }
-    }
+    model_name = 'openai'
+    # model_cfg = {
+    #     'modelscope-agent-qwen-7b': {
+    #         'model_id': 'damo/MSAgent-Qwen-7B',
+    #         'model_revision': 'v1.0.2',
+    #         'use_raw_generation_config': True,
+    #         'custom_chat': True
+    #     }
+    # }
 
     retrieve = ToolRetrieval(top_k=1)
     prompt_generator = MSPromptGenerator(
@@ -106,16 +106,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                             label=f'绘本图片{i +2}', interactive=False, height=200)
                         output_text[i + 1] = gr.Textbox(
                             label=f'故事情节{i + 2}', lines=4, interactive=False)
-                # chatbot = ChatBot(
-                #     elem_id="chatbot",
-                #     elem_classes=["markdown-body"],
-                #     show_label=False)
-                # chatbot_classic = gr.Textbox(
-                #     lines=20,
-                #     visible=False,
-                #     interactive=False,
-                #     label='classic_chatbot',
-                #     elem_id='chatbot_classic')
 
         with gr.Column(min_width=470, scale=4, elem_id='settings'):
             gr.HTML("""
