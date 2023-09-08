@@ -9,8 +9,8 @@ from .base import LLM
 dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
 
 
-class ModelScopeGPT(LLM):
-    name = 'ms_gpt'
+class DashScopeLLM(LLM):
+    name = 'dashscope_llm'
 
     def __init__(self, cfg):
         super().__init__(cfg)

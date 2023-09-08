@@ -104,6 +104,7 @@ agent.run('给这个故事配一张图', remote=True)
 
 我们为用户提供了这些组件的默认实现，但用户也可以根据自己的需求自定义组件。
 
+
 ### 配置
 
 对于用户隐私相关的配置，如 `user_token` 等不应该公开，因此我们建议您使用 `dotenv` 包和 `.env` 文件来设置这些配置。
@@ -116,10 +117,14 @@ agent.run('给这个故事配一张图', remote=True)
 
 我们已经将默认的配置填入，用户可以直接使用，也可以复制并更改文件名，进行深度定制。
 
-### 自定义LLM
+### LLM
 
-默认的LLM是 `ModelScope GPT`，它部署在远程服务器上，并需要使用modelscope的用户令牌来请求，
-用户可以前往 [ModelScope](https://modelscope.cn/my/myaccesstoken) 注册并获取令牌。
+我们提供了开箱即用的LLM方便用户使用，具体模型如下：
+* modelscope-agent-qwen-7b: [modelscope-agent-qwen-7b](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary)是基于Qwen-7B基础上微调训练后的，驱动ModelScope-Agent框架的核心开源模型，可以直接下载到本地使用。
+* modelscope-agent: 部署在[DashScope](http://dashscope.aliyun.com)上的ModelScope-Agent服务，不需要本地GPU资源，在DashScope平台执行如下操作：
+    1. 申请开通DashScope服务，进入`模型广场`-> `通义千问开源系列` -> 申请试用`通义千问7B`， 免费额度为10万token
+    2. `API-kEY管理`中创建API-KEY，在`config/.env`文件中配置
+
 
 如果用户想使用其他LLM，也可以继承基类并专门实现 `generate()` 或 `stream_generate()`。
 
@@ -138,6 +143,7 @@ from modelscope_agent.agent import AgentExecutor
 model_name = 'modelscope-agent-qwen-7b'
 model_cfg = {
     'modelscope-agent-qwen-7b':{
+        'type': 'modelscope',
         'model_id': 'damo/MSAgent-Qwen-7B',
         'model_revision': 'v1.0.2',
         'use_raw_generation_config': True,

@@ -9,7 +9,7 @@ from modelscope import GenerationConfig, snapshot_download
 from .base import LLM
 
 
-class LocalLLM(LLM):
+class ModelScopeLLM(LLM):
 
     def __init__(self, cfg):
         super().__init__(cfg)
