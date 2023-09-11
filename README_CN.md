@@ -265,7 +265,7 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 如果您觉得这个工作很有用，请考虑给这个项目加星，并引用我们的论文，感谢：
 ```
 @misc{li2023modelscopeagent,
-      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models}, 
+      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models},
       author={Chenliang Li and Hehong Chen and Ming Yan and Weizhou Shen and Haiyang Xu and Zhikai Wu and Zhicheng Zhang and Wenmeng Zhou and Yingda Chen and Chen Cheng and Hongzhu Shi and Ji Zhang and Fei Huang and Jingren Zhou},
       year={2023},
       eprint={2309.00986},
