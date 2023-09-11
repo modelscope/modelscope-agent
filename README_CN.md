@@ -6,7 +6,7 @@
 <p>
 
 <p align="center">
-<a href="https://modelscope.cn/home">魔搭社区</a>
+<a href="https://modelscope.cn/home">魔搭社区</a> ｜ <a href="https://arxiv.org/abs/2309.00986">论文</a> | <a href="https://modelscope.cn/studios/damo/ModelScopeGPT/summary">Demo体验</a>
 <br>
         中文&nbsp ｜ &nbsp<a href="README.md">English</a>
 </p>
@@ -36,7 +36,7 @@ cd modelscope-agent && pip install -r requirements.txt
 
 使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可。
 
-如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。
+如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。也可通过魔搭社区在线Demo直接体验[ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary).
 
 ```Python
 import os
@@ -244,12 +244,27 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
+## 相关教程
+
+如果您还想进一步了解Agent细节，可以参考我们的文章和视频教程
+
+* [文章教程](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
+
+* [视频教程](https://b23.tv/AGIzmHM)
+
+## 分享您的Agent
+
+我们感谢您对参与我们的开源ModelScope-Agent项目的热情。如果您遇到任何问题，请随时向我们提问。如果您已经构建了一个新的Agent Demo并准备与我们分享您的工作，请随时创建一个pull请求！如果您需要任何进一步的帮助，请告诉我！
+
 ## 引用
 如果您觉得这个工作很有用，请考虑给这个项目加星，并引用我们的论文，感谢：
 ```
-@misc{modelscope-agent,
-      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models},
-      howpublished = {\url{https://github.com/ModelScope/modelscope-agent}},
-      year={2023}
+@misc{li2023modelscopeagent,
+      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models}, 
+      author={Chenliang Li and Hehong Chen and Ming Yan and Weizhou Shen and Haiyang Xu and Zhikai Wu and Zhicheng Zhang and Wenmeng Zhou and Yingda Chen and Chen Cheng and Hongzhu Shi and Ji Zhang and Fei Huang and Jingren Zhou},
+      year={2023},
+      eprint={2309.00986},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 ```

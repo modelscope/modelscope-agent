@@ -7,7 +7,7 @@
 <p>
 
 <p align="center">
-<a href="https://modelscope.cn/home">Modelscope Hub</a>
+<a href="https://modelscope.cn/home">Modelscope Hub</a> ｜ <a href="https://arxiv.org/abs/2309.00986">Paper</a> | <a href="https://modelscope.cn/studios/damo/ModelScopeGPT/summary">Demo</a>
 <br>
         <a href="README_CN.md">中文</a>&nbsp ｜ &nbspEnglish
 </p>
@@ -33,7 +33,7 @@ cd modelscope-agent && pip install -r requirements.txt
 
 ## Quickstart
 
-To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task. For faster agent implementation, please refer to [demo_agent](demo/demo_qwen_agent.ipynb)
+To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task. For faster agent implementation, please refer to [demo_agent](demo/demo_qwen_agent.ipynb). Online demo is available on [ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary)
 
 ```Python
 import os
@@ -236,13 +236,28 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
+## Related Tutorials
+
+If you would like to learn more about the practical details of Agent, you can refer to our articles and video tutorials:
+
+* [Article Tutorial](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
+
+* [Video Tutorial](https://b23.tv/AGIzmHM)
+
+## Share Your Agent
+
+We appreciate your enthusiasm in participating in our open-source ModelScope-Agent project. If you encounter any issues, please feel free to report them to us. If you have built a new Agent demo and are ready to share your work with us, please create a pull request at any time! If you need any further assistance, please let me know!
+
 
 ## Citation
 If you found this work useful, consider giving this repository a star and citing our paper as followed:
 ```
-@misc{modelscope-agent,
-      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models},
-      howpublished = {\url{https://github.com/ModelScope/modelscope-agent}},
-      year={2023}
+@misc{li2023modelscopeagent,
+      title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models}, 
+      author={Chenliang Li and Hehong Chen and Ming Yan and Weizhou Shen and Haiyang Xu and Zhikai Wu and Zhicheng Zhang and Wenmeng Zhou and Yingda Chen and Chen Cheng and Hongzhu Shi and Ji Zhang and Fei Huang and Jingren Zhou},
+      year={2023},
+      eprint={2309.00986},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 ```
