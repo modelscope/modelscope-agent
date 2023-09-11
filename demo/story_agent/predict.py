@@ -14,18 +14,19 @@ def generate_story(user_input, num_scene, max_scene, agent):
     """
     # chatbot.append((user_input, '处理中'))
     # user_input += f'分成{num_scene}幕生成。请在每一幕的开始用1,2,3...标记'
-    user_input += f'分成{num_scene}段写出'
+    agent.reset()
+    user_input += f', 分成{num_scene}段写出'
 
 
     def get_response(prompt):
 
         response = ''
-
-        for frame in agent.stream_run(prompt, remote=False):
+        
+        for frame in agent.stream_run(prompt, remote=True):
             is_final = frame.get("frame_is_final")
             llm_result = frame.get("llm_text", "")
             exec_result = frame.get('exec_result', '') 
-
+            print (frame)
             if len(exec_result) != 0:
                 # llm_result
                 frame_text = f'\n\n<|startofexec|>{exec_result}<|endofexec|>\n'
@@ -33,6 +34,8 @@ def generate_story(user_input, num_scene, max_scene, agent):
                 # action_exec_result
                 frame_text = llm_result
             response = f'{response}{frame_text}'
+        
+        print ("response: ", response)
         return response
 
     story = get_response(user_input) 
@@ -51,7 +54,7 @@ def generate_story(user_input, num_scene, max_scene, agent):
 
         if i >= max_scene:
             break
-        i_prompt = f'请生成第{i+1}段的图片'
+        i_prompt = f'请调用英文图片生成模型生成图片：{scene_i.split("。")[0]}。必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。'
         
         img_i = get_response(i_prompt)
 
@@ -95,6 +98,7 @@ def get_scene_prompt(story_response):
 
     for line in lines:
         line = line.strip()
+        """
         match_scene = re.match(r'^\d+\.(.+)', line)
         if match_scene:
             if current_scene is not None:
@@ -102,9 +106,12 @@ def get_scene_prompt(story_response):
             current_scene = match_scene.group(1)
         elif current_scene is not None:
             current_scene += line
+        if current_scene is not None:
+            scene_prompt.append(current_scene)
+        """
+        if len(line) > 5:
+            scene_prompt.append(line) 
 
-    if current_scene is not None:
-        scene_prompt.append(current_scene)
 
 
     # TODO:转写

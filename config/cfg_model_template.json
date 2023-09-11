@@ -12,7 +12,7 @@
         }
     },
     "openai": {
-        "model": "gpt-3.5-turbo"
+        "model": "gpt-3.5-turbo-0613"
     },
     "modelscope-agent-qwen-7b":{
         "model_id": "damo/MSAgent-Qwen-7B",

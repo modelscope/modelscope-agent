@@ -210,11 +210,13 @@ class AgentExecutor:
 
             except Exception:
                 s = self.llm.generate(prompt)
+                llm_result += s
                 yield {'llm_text': s}
 
             # parse and get tool name and arguments
+            #print (llm_result, s)
             action, action_args = self.output_parser.parse_response(llm_result)
-
+            #print ("action: ", action, action_args)
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 prompt = self.prompt_generator.generate(llm_result, '')
