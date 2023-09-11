@@ -25,9 +25,9 @@ To equip the LLMs with tool-use abilities, a comprehensive framework has been pr
 
 ## News
 
-* Sep 4, 2023: Three demos, [demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb), have been added, along with detailed tutorials provided. 
+* Sep 4, 2023: Three demos, [demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb), have been added, along with detailed tutorials provided.
 * Sep 2, 2023: The [preprint paper](https://arxiv.org/abs/2309.00986) associated with this project was published.
-* Aug 22, 2023: Support accessing various AI model APIs using ModelScope tokens. 
+* Aug 22, 2023: Support accessing various AI model APIs using ModelScope tokens.
 * Aug 7, 2023: The initial version of the modelscope-agent repository was released.
 
 
