@@ -15,14 +15,26 @@ from predict import generate_story
 from modelscope.utils.config import Config
 
 
+
 SYSTEM_PROMPT = "<|system|>:你是Story Agent，是一个大语言模型，可以根据用户的输入自动生成相应的绘本。"
 
 INSTRUCTION_TEMPLATE = """当前对话可以使用的插件信息如下，请自行判断是否需要调用插件来解决当前用户问题。若需要调用插件，则需要将插件调用请求按照json格式给出，必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。\
-然后你需要根据插件API调用结果生成合理的答复； 若需要生成故事情节，请按照如下的格式生成：
-1. 第一部分内容。
-2. 第二部分内容。
-...
-\n\n<tool_list>"""
+然后你需要根据插件API调用结果生成合理的答复。
+\n<tool_list>\n
+<|user|>: 生成一个老虎和狮子的故事，分成2段展示 
+
+<|assistant|>: 从前，有一只勇敢的狮子和一只强大的老虎生活在同一个森林里。这两只野兽都非常自豪，并且它们之间一直存在着一种友好而竞争的关系。
+
+一天，狮子和老虎相遇了，它们开始比试力气。狮子在速度和力量上都很强大，而老虎则凭借其敏捷和灵活性而闻名。它们决定进行一场友谊比赛，看看谁能在一系列挑战中获胜。
+
+<|user|>: 请调用英文图片生成模型生成图片：从前，有一只勇敢的狮子和一只强大的老虎生活在同一个森林里。必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。
+
+<|assistant|>: <|startofthink|>```JSON\n{\n   "api_name": "modelscope_image-generation",\n    "parameters": {\n      "text": "There was a brave lion and a powerful tiger living in the same forest"\n   }\n}\n```<|endofthink|>\n\n<|startofexec|>```JSON\n{\n   "result": "http://xdp-expriment.oss-cn-zhangjiakou.aliyuncs.com/yeqinghao.yqh/generated_images/6y09j0jmnkm1e6o3nfy7pc6e951az95n_1.jpg"\n}\n```<|endofexec|>\n![IMAGEGEN](http://xdp-expriment.oss-cn-zhangjiakou.aliyuncs.com/yeqinghao.yqh/toolformer_imagegen/generated_images/6y09j0jmnkm1e6o3nfy7pc6e951az95n_1.jpg)
+
+<|user|>: 请调用英文图片生成模型生成图片：一天，狮子和老虎相遇了，它们开始比试力气。必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。
+
+<|assistant|>: <|startofthink|>```JSON\n{\n   "api_name": "modelscope_image-generation",\n    "parameters": {\n      "text": "The lion and the tiger encountered each other and decided to test their strength"\n   }\n}\n```<|endofthink|>\n\n<|startofexec|>```JSON\n{\n   "result": "https://xdp-expriment.oss-cn-zhangjiakou.aliyuncs.com/modelscope%2Fimage%2Fc63990c47fd34508.jpg"\n}\n```<|endofexec|>\n![IMAGEGEN](https://xdp-expriment.oss-cn-zhangjiakou.aliyuncs.com/modelscope%2Fimage%2Fc63990c47fd34508.jpg)
+"""
 
 MAX_SCENE = 4
 
@@ -32,6 +44,9 @@ load_dotenv('../../config/.env', override=True)
 os.environ['TOOL_CONFIG_FILE'] = '../../config/cfg_tool_template.json'
 os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
+os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
+os.environ['DASHSCOPE_API_KEY'] = 'xxx'
+os.environ['OPENAI_API_KEY'] = 'xxx'
 
 with open(
         os.path.join(os.path.dirname(__file__), 'main.css'), "r",
@@ -61,7 +76,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     #     }
     # }
 
-    retrieve = ToolRetrieval(top_k=1)
+    retrieve = ToolRetrieval(top_k=3)
     prompt_generator = MSPromptGenerator(
         system_template=SYSTEM_PROMPT,
         instruction_template=INSTRUCTION_TEMPLATE)
