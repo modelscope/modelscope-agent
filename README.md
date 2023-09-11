@@ -302,8 +302,7 @@ If you would like to learn more about the practical details of Agent, you can re
 
 ## Share Your Agent
 
-We appreciate your enthusiasm in participating in our open-source ModelScope-Agent project. If you encounter any issues, please feel free to report them to us. If you have built a new Agent demo and are ready to share your work with us, please create a pull request at any time! If you need any further assistance, please let me know!
-
+We appreciate your enthusiasm in participating in our open-source ModelScope-Agent project. If you encounter any issues, please feel free to report them to us. If you have built a new Agent demo and are ready to share your work with us, please create a pull request at any time! If you need any further assistance, please contact us via email at [contact@modelscope.cn](mailto:contact@modelscope.cn) or [communication group](https://modelscope.cn/docs/%E8%81%94%E7%B3%BB%E6%88%91%E4%BB%AC)!
 
 ## Citation
 If you found this work useful, consider giving this repository a star and citing our paper as followed:
