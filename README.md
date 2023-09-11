@@ -13,6 +13,7 @@
 </p>
 
 ## Introduction
+
 **ModelScope-Agent**, a general and customizable agent framework for real-world applications, based on open-source LLMs as controllers. It provides a user-friendly system library that are:
 - **cutomizable and comprehensive framework**: customizable engine design to spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
 - **opensourced LLMs as controllers**: support model training on multiple open-source LLMs of ModelScope Community
@@ -21,6 +22,14 @@
 ![image](resource/modelscope-agent.png)
 
 To equip the LLMs with tool-use abilities, a comprehensive framework has been proposed spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
+
+## News
+
+* Sep 4, 2023: Three demos, [demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb), have been added, along with detailed tutorials provided. 
+* Sep 2, 2023: The [preprint paper](https://arxiv.org/abs/2309.00986) associated with this project was published.
+* Aug 22, 2023: Support accessing various AI model APIs using ModelScope tokens. 
+* Aug 7, 2023: The initial version of the modelscope-agent repository was released.
+
 
 ## Installation
 
@@ -246,7 +255,7 @@ We provide a training framework in the [demo/tool_agent_finetune_swift](demo/too
 ```python
 from modelscope.msdatasets import MsDataset
 
-ds = MsDataset.load('damo/MSAgent-Bench', split='train')    # or split='validation'
+ds = MsDataset.load('damo/MSAgent-Bench', split='train')
 one_ds = next(iter(ds))
 ```
 
