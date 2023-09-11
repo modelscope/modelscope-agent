@@ -244,18 +244,60 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
+## 训练框架
+
+我们在[demo/tool_agent_finetune_swift](demo/tool_agent_finetune_swift)中提供了一个开源大模型训练框架，主要集成了来自ModelScope的SWIFT训练框架。此外，我们还发布了一个大规模的工具指令微调数据集MSAgent-Bench。
+
+### MSAgent-Bench数据集
+
+[MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary)是一个包含598k个对话的综合工具数据集，包括通用API、模型API、面向API的问答和与API无关的指令。您可以直接在数据集[链接](https://modelscope.cn/datasets/damo/MSAgent-Bench/files)上下载它，或通过SDK访问：
+
+```python
+from modelscope.msdatasets import MsDataset
+
+ds = MsDataset.load('damo/MSAgent-Bench', split='train')    # or split='validation'
+one_ds = next(iter(ds))
+```
+
+![image](resource/MSAgent-Bench.png)
+
+### 训练微调
+
+训练样本可以组织成以下形式，其中：<|startofthink|>和<|endofthink|>之间包含的是API请求生成内容，<|startofexec|>和<|endofexec|>之间包含的是API执行结果。
+
+```json
+{
+    "id":"MS_Agent_Bench_20",
+    "conversations":[
+        {
+            "from":"system",
+            "value": "你是达摩院xxxx"
+        },
+        {
+            "from":"user",
+            "value":"按照给定的schema抽取出下面文本对应的信息\nschema：{\"人物\": null, \"地理位置\": null, \"组织机构\": null}\n近日，美国政府宣布将对中国1000多种商品加征关税，并威胁进一步加征关税。"
+        },
+        {
+            "from":"assistant",
+            "value":"<|startofthink|>```JSON\n{\"api_name\": \"modelscope_text-ie\", \"url\": \"http://9.32.64.200:5873/damo/nlp_structbert_siamese-uie_chinese-base\", \"parameters\": {\"text\": \"近日，美国政府宣布将对中国1000多种商品加征关税，并威胁进一步加征关税。\", \"schema\": \"{\\\"人物\\\": null, \\\"地理位置\\\": null, \\\"组织机构\\\": null}\"}}\n```<|endofthink|>\n\n<|startofexec|>```JSON\n{\"人物\": [], \"地理位置\": [\"中国\", \"美国\"], \"组织机构\": []}\n```<|endofexec|>\n信息抽取结果：{\"人物\": [], \"地理位置\": [\"中国\", \"美国\"], \"组织机构\": []}。"
+        }
+    ]
+}
+```
+
+执行下面这个脚本训练模型
+
+```
+cd demo/tool_agent_finetune_swift
+PYTHONPATH=./ bash scripts/train/run_qwen_ddp.sh
+```
+
 ## 相关教程
 
 如果您还想进一步了解Agent细节，可以参考我们的文章和视频教程
 
 * [文章教程](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
 * [视频教程](https://b23.tv/AGIzmHM)
-
-如果您想进一步优化训练您的llm，您可以参考我们提供的开源数据集和llm：
-
-* [MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary). 一个包含598k个对话的综合工具数据集，类型包括通用API，AI模型API，检索API增强，API无关SFT。
-* [MSAgent-Qwen-7B](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary). 在MSAgent-Bench上用Qwen-7B进行微调训练的模型。
-
 
 ## 分享您的Agent
 

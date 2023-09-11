@@ -236,17 +236,60 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
-## Related Tutorials and Models
+## Training Framework
+
+We provide a training framework in the [demo/tool_agent_finetune_swift](demo/tool_agent_finetune_swift), which mainly integrates the [SWIFT](https://github.com/modelscope/swift) training framework from ModelScope. Additionally, we release a large-scale tool instruction fine-tuning dataset MSAgent-Bench.
+
+### MSAgent-Bench
+[MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary), which is a comprehensive tool dataset encompassing 598k dialogues, including Common API, Model API, API-Oriented QA, and API-agnostic Instructions. You can directly download it on the dataset [link](https://modelscope.cn/datasets/damo/MSAgent-Bench/files) or access it through sdk:
+
+```python
+from modelscope.msdatasets import MsDataset
+
+ds = MsDataset.load('damo/MSAgent-Bench', split='train')    # or split='validation'
+one_ds = next(iter(ds))
+```
+
+![image](resource/MSAgent-Bench.png)
+
+### Training
+
+The training samples are orgnized in the following format, the content included between <|startofthink|> and <|endofthink|> represents the generated API request. The content included between <|startofexec|> and <|endofexec|> represents the API execution result.
+
+```json
+{
+    "id":"MS_Agent_Bench_20",
+    "conversations":[
+        {
+            "from":"system",
+            "value": "你是达摩院xxxx"
+        },
+        {
+            "from":"user",
+            "value":"按照给定的schema抽取出下面文本对应的信息\nschema：{\"人物\": null, \"地理位置\": null, \"组织机构\": null}\n近日，美国政府宣布将对中国1000多种商品加征关税，并威胁进一步加征关税。"
+        },
+        {
+            "from":"assistant",
+            "value":"<|startofthink|>```JSON\n{\"api_name\": \"modelscope_text-ie\", \"url\": \"http://9.32.64.200:5873/damo/nlp_structbert_siamese-uie_chinese-base\", \"parameters\": {\"text\": \"近日，美国政府宣布将对中国1000多种商品加征关税，并威胁进一步加征关税。\", \"schema\": \"{\\\"人物\\\": null, \\\"地理位置\\\": null, \\\"组织机构\\\": null}\"}}\n```<|endofthink|>\n\n<|startofexec|>```JSON\n{\"人物\": [], \"地理位置\": [\"中国\", \"美国\"], \"组织机构\": []}\n```<|endofexec|>\n信息抽取结果：{\"人物\": [], \"地理位置\": [\"中国\", \"美国\"], \"组织机构\": []}。"
+        }
+    ]
+}
+```
+
+Execute the training script.
+
+```
+cd demo/tool_agent_finetune_swift
+PYTHONPATH=./ bash scripts/train/run_qwen_ddp.sh
+```
+
+
+## Related Tutorials
 
 If you would like to learn more about the practical details of Agent, you can refer to our articles and video tutorials:
 
 * [Article Tutorial](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
 * [Video Tutorial](https://b23.tv/AGIzmHM)
-
-If you want to further optimize training your llm, you can refer to the open-source llm and dataset we provide:
-
-* [MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary). A comprehensive tool dataset encompassing 598k dialogues, including Common API, Model API, API-Oriented QA, and API-agnostic Instructions.
-* [MSAgent-Qwen-7B](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary). A fine-tuned model trained from Qwen-7B on MSAgent-Bench.
 
 ## Share Your Agent
 
