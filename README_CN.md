@@ -249,8 +249,13 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 如果您还想进一步了解Agent细节，可以参考我们的文章和视频教程
 
 * [文章教程](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
-
 * [视频教程](https://b23.tv/AGIzmHM)
+
+如果您想进一步优化训练您的llm，您可以参考我们提供的开源数据集和llm：
+
+* [MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary). 一个包含598k个对话的综合工具数据集，类型包括通用API，AI模型API，检索API增强，API无关SFT。
+* [MSAgent-Qwen-7B](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary). 在MSAgent-Bench上用Qwen-7B进行微调训练的模型。
+
 
 ## 分享您的Agent
 

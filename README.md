@@ -236,13 +236,17 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
-## Related Tutorials
+## Related Tutorials and Models
 
 If you would like to learn more about the practical details of Agent, you can refer to our articles and video tutorials:
 
 * [Article Tutorial](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
-
 * [Video Tutorial](https://b23.tv/AGIzmHM)
+
+If you want to further optimize training your llm, you can refer to the open-source llm and dataset we provide:
+
+* [MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary). A comprehensive tool dataset encompassing 598k dialogues, including Common API, Model API, API-Oriented QA, and API-agnostic Instructions.
+* [MSAgent-Qwen-7B](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary). A fine-tuned model trained from Qwen-7B on MSAgent-Bench.
 
 ## Share Your Agent
 
