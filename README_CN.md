@@ -25,10 +25,10 @@
 
 ## 新闻
 
-* 2023.9.4: 三个演示，[demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb) 已添加，并提供了详细的教程。
+* 2023.9.4: 三个基于Agent开发的应用，[demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb) 已添加，并提供了详细的教程。
 * 2023.9.2: 与该项目相关的[论文](https://arxiv.org/abs/2309.00986) 已发布到arxiv。
 * 2023.8.22: 支持使用 ModelScope 令牌访问各种 AI 模型 API。
-* 2023.8.7: modelscope-agent仓库的初始版本已发布。
+* 2023.8.7: modelscope-lagent仓库的初始版本已发布。
 
 ## 安装
 
