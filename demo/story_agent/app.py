@@ -93,7 +93,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     with gr.Row():
         gr.HTML(
-            """<h1 align="left" style="min-width:200px; margin-top:0;">ModelScopeGPT</h1>"""
+            """<h1 align="left" style="min-width:200px; margin-top:0;">StoryAgent</h1>"""
         )
         status_display = gr.HTML(
             "", elem_id="status_display", visible=False, show_label=False)
@@ -150,9 +150,9 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
             gr.Examples(
                 examples=[
-                    '嗨，storyagent，我正在为一个新的电子绘本构思一个故事。我希望这是一个关于友谊和冒险的故事，主角是一只勇敢的小狐狸和其他小动物，分成三幕来生成。',
-                    '主角是一只勇敢的小狐狸和其他小动物，分成2幕来生成。', '主角是一只勇敢的小狐狸和其他小动物，',
-                    '嗨，storyagent，我正在为一个新的电子绘本构思一个故事。我希望这是一个关于友谊和冒险的故事，主角是一只勇敢的小狐狸和其他小动物。'
+                    '请生成科学家的故事',
+                    '请生成幼儿园上学的故事',
+                    '请生成小男孩巫师的故事'
                 ],
                 inputs=[user_input],
                 examples_per_page=20,
