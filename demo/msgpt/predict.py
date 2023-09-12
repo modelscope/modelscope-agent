@@ -1,28 +1,21 @@
 from __future__ import annotations
-
-import json
 import os
-import traceback
 import re
-from copy import deepcopy
-import gradio as gr
+import traceback
 import uuid
-def stream_predict(chatbot, # ChatBot
-                   user_input, # Textbox
-                   upload_image_url, # imageUrl
-                   agent # agent
-                ):
-    
-    role_name = 'ModelScopeGPT'
-    role_type = '自定义角色'
-    bot_profile = '你是达摩院的ModelScopeGPT（魔搭助手），你是个大语言模型， 是2023年达摩院的工程师训练得到的。你有多种能力，可以通过插件集成魔搭社区的模型api来回复用户的问题，还能解答用户使用模型遇到的问题和模型知识相关问答。'
-    verbose_response = 'yes'
-    role_instruction = ''
-    search_instruction = ''
-    search_keyword_expand = 'no'
-    force_search = ''
-    verbose_full_prompt = 'yes'
+from copy import deepcopy
 
+import gradio as gr
+import json
+
+
+def stream_predict(
+        chatbot,  # ChatBot
+        user_input,  # Textbox
+        upload_image_url,  # imageUrl
+        agent  # agent
+):
+    print(f"upload_image_url: {upload_image_url}")
     if not user_input:
         if len(history) == 0:
             yield chatbot, "请输入问题……"
@@ -32,6 +25,7 @@ def stream_predict(chatbot, # ChatBot
             chatbot = chatbot[:-1]
             yield chatbot, "重新生成回答……"
     else:
+        print(upload_image_url)
         if upload_image_url:
             user_input = f"![upload]({upload_image_url})\n" + user_input
         print("user_input:", user_input)
@@ -65,25 +59,18 @@ def stream_predict(chatbot, # ChatBot
                 response = f'{response}{frame_text}'
                 chatbot[-1] = (chatbot[-1][0], response)
                 yield chatbot, ''
-    except:
+    except Exception:
         traceback.print_exc()
         chatbot[-1] = (chatbot[-1][0], 'chat_async error.')
-        yield chatbot,  ''
+        yield chatbot, ''
 
 
-def upload_image(
-    file
-):
-    # file_ext = os.path.splitext(file.name)[-1]
-    # base_dir = 'oss://xdp-expriment/modelscope/image/'
-    # event_id = uuid.uuid4().hex[:16]
-    # oss_url = os.path.join(base_dir, f"user-upload-{event_id}{file_ext}")
-    # print('file:', file.name, file_ext, oss_url)
-    # io.copy(file.name, oss_url)
-    # io.authorize(oss_url)
-    # bucket_name, path = io._split_name(oss_url)
-    # generated_oss_url = io.buckets[bucket_name]._make_url(bucket_name, path)
-    # generated_oss_url = generated_oss_url.replace('http:', 'https:')
-    # print('ossUrl:', generated_oss_url)
-    return [gr.HTML.update(f"<div class=\"uploaded-image-box\"><img src={file}></img><div>", visible=True), file]
-    
+def upload_image(file):
+
+    gr_file_path = f"./file={file.name}"
+
+    return [
+        gr.HTML.update(
+            f"<div class=\"uploaded-image-box\"><img src={gr_file_path}></img><div>",
+            visible=True), gr_file_path
+    ]

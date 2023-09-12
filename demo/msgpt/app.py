@@ -124,8 +124,8 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     stream_predict_input = [chatbot, user_input, upload_image_url]
     stream_predict_output = [chatbot, status_display]
 
-    clean_outputs = [gr.update(value=''), '', '']
-    clean_outputs_target = [user_input, uploaded_image_box, upload_image_url]
+    clean_outputs = [gr.update(value=''), '']
+    clean_outputs_target = [user_input, uploaded_image_box]
 
     user_input.submit(
         stream_predict_p,
