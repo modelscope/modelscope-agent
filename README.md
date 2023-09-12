@@ -39,6 +39,18 @@ git clone https://github.com/modelscope/modelscope-agent.git
 cd modelscope-agent && pip install -r requirements.txt
 ```
 
+### ModelScope notebook【recommended】
+
+The ModelScope Notebook offers a free-tier that allows ModelScope user to run the FaceChain application with minimum setup, refer to [ModelScope Notebook](https://modelscope.cn/my/mynotebook/preset)
+
+```shell
+# Step1: 我的notebook -> PAI-DSW -> GPU环境
+
+# Step2: Download the [demo file](https://github.com/modelscope/modelscope-agent/blob/master/demo/demo_qwen_agent.ipynb) and upload it to the GPU.
+
+# Step3:  Execute the demo notebook in order.
+```
+
 
 ## Quickstart
 

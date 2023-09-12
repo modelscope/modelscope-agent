@@ -39,6 +39,21 @@ cd modelscope-agent && pip install -r requirements.txt
 ```
 
 
+### 使用ModelScope提供的notebook环境【推荐】
+ModelScope(魔搭社区)提供给新用户初始的免费计算资源，参考[ModelScope Notebook](https://modelscope.cn/my/mynotebook/preset)
+
+Notebook环境使用简单，您只需要按以下步骤操作（注意：目前暂不提供永久存储，实例重启后数据会丢失）：
+
+```shell
+# Step1: 我的notebook -> PAI-DSW -> GPU环境
+
+# Step2: 下载[demo文件](https://github.com/modelscope/modelscope-agent/blob/master/demo/demo_qwen_agent.ipynb)并把它上传到打开的notebook机器上
+
+# Step3: 按顺序执行demo里面的代码块
+```
+
+
+
 ## 快速入门
 
 使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可。
