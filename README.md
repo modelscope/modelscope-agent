@@ -71,7 +71,7 @@ tool_cfg = Config.from_file(tool_cfg_file)
 
 
 # instantiation LLM
-model_name = 'modelscope-agent-qwen-7b'
+model_name = 'modelscope-agent-7b'
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
 # prompt generator
@@ -135,7 +135,7 @@ Concretely, We provide an `.env.template` file and corresponding config files in
 ### LLM
 We offer a plug-and-play LLM for users to easily utilize. The specific model details are as follows:
 
-* modelscope-agent-qwen-7b: [modelscope-agent-qwen-7b](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary) is a core open-source model that drives the ModelScope-Agent framework, fine-tuned based on Qwen-7B. It can be directly downloaded for local use.
+* modelscope-qwen-7b: [modelscope-qwen-7b](https://modelscope.cn/models/damo/ModelScope-Agent-7B/summary) is a core open-source model that drives the ModelScope-Agent framework. It can be directly downloaded for local use.
 * modelscope-agent: A ModelScope-Agent service deployed on [DashScope](http://dashscope.aliyun.com). No local GPU resources are required. Follow the steps below to apply for the use of modelscope-agent:
     1. Apply to activate the DashScope service, go to `模型广场` -> `通义千问开源系列` -> apply for a trial of `通义千问7B`. The free quota is 100,000 tokens.
     2. Create an API-KEY in `API-kEY管理`, and configure it in the `config/.env` file.
@@ -157,12 +157,12 @@ from modelscope.utils.config import Config
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.agent import AgentExecutor
 
-model_name = 'modelscope-agent-qwen-7b'
+model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-qwen-7b':{
+    'modelscope-agent-7b':{
         'type': 'modelscope',
-        'model_id': 'damo/MSAgent-Qwen-7B',
-        'model_revision': 'v1.0.2',
+        'model_id': 'damo/ModelScope-Agent-7B',
+        'model_revision': 'v1.0.0',
         'use_raw_generation_config': True,
         'custom_chat': True
     }
