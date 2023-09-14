@@ -135,7 +135,7 @@ Concretely, We provide an `.env.template` file and corresponding config files in
 ### LLM
 We offer a plug-and-play LLM for users to easily utilize. The specific model details are as follows:
 
-* modelscope-qwen-7b: [modelscope-qwen-7b](https://modelscope.cn/models/damo/ModelScope-Agent-7B/summary) is a core open-source model that drives the ModelScope-Agent framework. It can be directly downloaded for local use.
+* modelscope-agent-7b: [modelscope-agent-7b](https://modelscope.cn/models/damo/ModelScope-Agent-7B/summary) is a core open-source model that drives the ModelScope-Agent framework. It can be directly downloaded for local use.
 * modelscope-agent: A ModelScope-Agent service deployed on [DashScope](http://dashscope.aliyun.com). No local GPU resources are required. Follow the steps below to apply for the use of modelscope-agent:
     1. Apply to activate the DashScope service, go to `模型广场` -> `通义千问开源系列` -> apply for a trial of `通义千问7B`. The free quota is 100,000 tokens.
     2. Create an API-KEY in `API-kEY管理`, and configure it in the `config/.env` file.
