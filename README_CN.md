@@ -6,7 +6,7 @@
 <p>
 
 <p align="center">
-<a href="https://modelscope.cn/home">魔搭社区</a>
+<a href="https://modelscope.cn/home">魔搭社区</a> ｜ <a href="https://arxiv.org/abs/2309.00986">论文</a> | <a href="https://modelscope.cn/studios/damo/ModelScopeGPT/summary">Demo体验</a>
 <br>
         中文&nbsp ｜ &nbsp<a href="README.md">English</a>
 </p>
@@ -23,6 +23,13 @@
 
 为了赋予LLMs工具使用能力，提出了一个全面的框架，涵盖了数据收集、工具检索、工具注册、存储管理、定制模型训练和实际应用的方方面面。
 
+## 新闻
+
+* 2023.9.4: 三个基于Agent开发的应用，[demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb) 已添加，并提供了详细的教程。
+* 2023.9.2: 与该项目相关的[论文](https://arxiv.org/abs/2309.00986) 已发布到arxiv。
+* 2023.8.22: 支持使用 ModelScope 令牌访问各种 AI 模型 API。
+* 2023.8.7: modelscope-lagent仓库的初始版本已发布。
+
 ## 安装
 
 克隆repo并安装依赖：
@@ -32,11 +39,26 @@ cd modelscope-agent && pip install -r requirements.txt
 ```
 
 
+### 使用ModelScope提供的notebook环境【推荐】
+ModelScope(魔搭社区)提供给新用户初始的免费计算资源，参考[ModelScope Notebook](https://modelscope.cn/my/mynotebook/preset)
+
+Notebook环境使用简单，您只需要按以下步骤操作（注意：目前暂不提供永久存储，实例重启后数据会丢失）：
+
+```shell
+# Step1: 我的notebook -> PAI-DSW -> GPU环境
+
+# Step2: 下载[demo文件](https://github.com/modelscope/modelscope-agent/blob/master/demo/demo_qwen_agent.ipynb)并把它上传到打开的notebook机器上
+
+# Step3: 按顺序执行demo里面的代码块
+```
+
+
+
 ## 快速入门
 
 使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可。
 
-如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。
+如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。也可通过魔搭社区在线Demo直接体验[ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary).
 
 ```Python
 import os
@@ -52,7 +74,7 @@ tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
 # instantiation LLM
-model_name = 'modelscope-agent-qwen-7b'
+model_name = 'modelscope-agent-7b'
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
 # prompt generator
@@ -120,7 +142,7 @@ agent.run('给这个故事配一张图', remote=True)
 ### LLM
 
 我们提供了开箱即用的LLM方便用户使用，具体模型如下：
-* modelscope-agent-qwen-7b: [modelscope-agent-qwen-7b](https://modelscope.cn/models/damo/MSAgent-Qwen-7B/summary)是基于Qwen-7B基础上微调训练后的，驱动ModelScope-Agent框架的核心开源模型，可以直接下载到本地使用。
+* modelscope-agent-7b: [modelscope-agent-7b](https://modelscope.cn/models/damo/ModelScope-Agent-7B/summary)是驱动ModelScope-Agent框架的核心开源模型，可以直接下载到本地使用。
 * modelscope-agent: 部署在[DashScope](http://dashscope.aliyun.com)上的ModelScope-Agent服务，不需要本地GPU资源，在DashScope平台执行如下操作：
     1. 申请开通DashScope服务，进入`模型广场`-> `通义千问开源系列` -> 申请试用`通义千问7B`， 免费额度为10万token
     2. `API-kEY管理`中创建API-KEY，在`config/.env`文件中配置
@@ -140,12 +162,12 @@ from modelscope.utils.config import Config
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.agent import AgentExecutor
 
-model_name = 'modelscope-agent-qwen-7b'
+model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-qwen-7b':{
+    'modelscope-agent-7b':{
         'type': 'modelscope',
-        'model_id': 'damo/MSAgent-Qwen-7B',
-        'model_revision': 'v1.0.2',
+        'model_id': 'damo/ModelScope-Agent-7B',
+        'model_revision': 'v1.0.0',
         'use_raw_generation_config': True,
         'custom_chat': True
     }
@@ -244,12 +266,74 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
+## 训练框架
+
+我们在[demo/tool_agent_finetune_swift](demo/tool_agent_finetune_swift)中提供了一个开源大模型训练框架，主要集成了来自ModelScope的SWIFT训练框架。此外，我们还发布了一个大规模的工具指令微调数据集MSAgent-Bench。
+
+### MSAgent-Bench数据集
+
+[MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench/summary)是一个包含598k个对话的综合工具数据集，包括通用API、模型API、面向API的问答和与API无关的指令。您可以直接在数据集[链接](https://modelscope.cn/datasets/damo/MSAgent-Bench/files)上下载它，或通过SDK访问：
+
+```python
+from modelscope.msdatasets import MsDataset
+
+ds = MsDataset.load('damo/MSAgent-Bench', split='train')
+one_ds = next(iter(ds))
+```
+
+![image](resource/MSAgent-Bench.png)
+
+### 训练微调
+
+训练样本可以组织成以下形式，其中：<|startofthink|>和<|endofthink|>之间包含的是API请求生成内容，<|startofexec|>和<|endofexec|>之间包含的是API执行结果。
+
+```json
+{
+    "id":"MS_Agent_Bench_20",
+    "conversations":[
+        {
+            "from":"system",
+            "value": "你是达摩院xxxx"
+        },
+        {
+            "from":"user",
+            "value":"按照给定的schema抽取出下面文本对应的信息\nschema：{\"人物\": null, \"地理位置\": null, \"组织机构\": null}\n近日，美国政府宣布将对中国1000多种商品加征关税，并威胁进一步加征关税。"
+        },
+        {
+            "from":"assistant",
+            "value":"<|startofthink|>```JSON\n{\"api_name\": \"modelscope_text-ie\", \"url\": \"http://9.32.64.200:5873/damo/nlp_structbert_siamese-uie_chinese-base\", \"parameters\": {\"text\": \"近日，美国政府宣布将对中国1000多种商品加征关税，并威胁进一步加征关税。\", \"schema\": \"{\\\"人物\\\": null, \\\"地理位置\\\": null, \\\"组织机构\\\": null}\"}}\n```<|endofthink|>\n\n<|startofexec|>```JSON\n{\"人物\": [], \"地理位置\": [\"中国\", \"美国\"], \"组织机构\": []}\n```<|endofexec|>\n信息抽取结果：{\"人物\": [], \"地理位置\": [\"中国\", \"美国\"], \"组织机构\": []}。"
+        }
+    ]
+}
+```
+
+执行下面这个脚本训练模型
+
+```
+cd demo/tool_agent_finetune_swift
+PYTHONPATH=./ bash scripts/train/run_qwen_ddp.sh
+```
+
+## 相关教程
+
+如果您还想进一步了解Agent细节，可以参考我们的文章和视频教程
+
+* [文章教程](https://mp.weixin.qq.com/s/L3GiV2QHeybhVZSg_g_JRw)
+* [视频教程](https://b23.tv/AGIzmHM)
+
+## 分享您的Agent
+
+我们感谢您对参与我们的开源ModelScope-Agent项目的热情。如果您遇到任何问题，请随时向我们提问。如果您已经构建了一个新的Agent Demo并准备与我们分享您的工作，请随时创建一个pull请求！如果您需要任何进一步的帮助，请邮件[contact@modelscope.cn](mailto:contact@modelscope.cn)或者交流群[联系我们](https://modelscope.cn/docs/%E8%81%94%E7%B3%BB%E6%88%91%E4%BB%AC)
+
 ## 引用
 如果您觉得这个工作很有用，请考虑给这个项目加星，并引用我们的论文，感谢：
 ```
-@misc{modelscope-agent,
+@misc{li2023modelscopeagent,
       title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models},
-      howpublished = {\url{https://github.com/ModelScope/modelscope-agent}},
-      year={2023}
+      author={Chenliang Li and Hehong Chen and Ming Yan and Weizhou Shen and Haiyang Xu and Zhikai Wu and Zhicheng Zhang and Wenmeng Zhou and Yingda Chen and Chen Cheng and Hongzhu Shi and Ji Zhang and Fei Huang and Jingren Zhou},
+      year={2023},
+      eprint={2309.00986},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 ```
