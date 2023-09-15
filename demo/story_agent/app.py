@@ -62,8 +62,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     max_scene = MAX_SCENE
 
-
-
     with gr.Row():
         gr.HTML(
             """<h1 align="left" style="min-width:200px; margin-top:0;">StoryAgent</h1>"""
@@ -176,10 +174,10 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         global agent
 
         max_scene = MAX_SCENE
+
         user_input = inputs[0]
         num_scene = inputs[1]
         chatbot = inputs[2]
-
         output_component = list(inputs[3:])
 
         def reset_component():
@@ -189,16 +187,12 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
         reset_component()
 
-        # output_component_mapping
-        # output_component = [''] + [None] * max_scene + [''] * max_scene
-
         chatbot.append((user_input, None))
         yield chatbot, *output_component
         
         def update_component(exec_result):
             exec_result = exec_result['result']
             name = exec_result.pop('name')
-            print(f'{name}name')
             if name ==  'print_story_tool':
                 output_component[0] = gr.Textbox.update(**exec_result)
             elif name == 'show_image_example':
@@ -233,17 +227,10 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
         yield chatbot, *output_component
 
-
     # ---------- 事件 ---------------------
 
-
-    # story_agent = partial(
-    #     story_agent, agent=agent)
     stream_predict_input = [user_input, steps, chatbot, story_content, *output_image, *output_text]
     stream_predict_output = [chatbot, story_content, *output_image, *output_text]
-
-    # clean_outputs = [''] + [None] * max_scene + [''] * max_scene
-    # clean_outputs_target = [user_input, *output_image, *output_text]
 
     clean_outputs = ['', gr.update(value=[])] + [None] * max_scene + [''] * max_scene
     clean_outputs_target = [user_input, chatbot, *output_image, *output_text]

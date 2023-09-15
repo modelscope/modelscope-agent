@@ -6,9 +6,8 @@ from typing import List, Tuple
 
 import json
 import markdown
-from app_config import AppConfig
 from gradio.components import Chatbot as ChatBotBase
-
+ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
 
 class ChatBot(ChatBotBase):
 
@@ -107,18 +106,23 @@ class ChatBot(ChatBotBase):
                         think_node.get('plugin',
                                        think_node.get('api_name', 'unknown')))
                     summary = f'选择插件【{plugin_name}】，调用处理中...'
-                    del think_node['url']
+                    
+                    think_node.pop('url', None)
+
                     detail = f'```json\n\n{json.dumps(think_node,indent=3,ensure_ascii=False)}\n\n```'
                 except Exception:
                     summary = '思考中...'
                     detail = think_content
+                    # traceback.print_exc()
                     # detail += traceback.format_exc()
                 # result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                 #     detail) + '</details>'
+                print(f'detail:{detail}')
                 start_pos = end_of_think_pos + len(END_OF_THINK_TAG)
             except Exception:
                 # result += traceback.format_exc()
                 break
+                # continue
 
             try:
                 start_of_exec_pos = bot_message.index(START_OF_EXEC_TAG,
@@ -146,10 +150,10 @@ class ChatBot(ChatBotBase):
                 start_pos = end_of_exec_pos + len(END_OF_EXEC_TAG)
             except Exception:
                 # result += traceback.format_exc()
-                break
+                continue
         if start_pos < len(bot_message):
             result += self.convert_markdown(bot_message[start_pos:])
-        result += AppConfig.ALREADY_CONVERTED_MARK
+        result += ALREADY_CONVERTED_MARK
         return result
 
     def postprocess(
@@ -167,11 +171,11 @@ class ChatBot(ChatBotBase):
         user_message, bot_message = message_pairs[-1]
 
         if user_message and not user_message.endswith(
-                AppConfig.ALREADY_CONVERTED_MARK):
+                ALREADY_CONVERTED_MARK):
             convert_md = self.convert_markdown(html.escape(user_message))
-            user_message = f"<p style=\"white-space:pre-wrap;\">{convert_md}</p>" + AppConfig.ALREADY_CONVERTED_MARK
+            user_message = f"<p style=\"white-space:pre-wrap;\">{convert_md}</p>" + ALREADY_CONVERTED_MARK
         if bot_message and not bot_message.endswith(
-                AppConfig.ALREADY_CONVERTED_MARK):
+                ALREADY_CONVERTED_MARK):
             bot_message = self.convert_bot_message(bot_message)
         message_pairs[-1] = (user_message, bot_message)
         return message_pairs
