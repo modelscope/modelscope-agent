@@ -200,7 +200,7 @@ class AgentExecutor:
         while True:
             idx += 1
             prompt = self.prompt_generator.generate(llm_result, exec_result)
-            print(f'|prompt{idx}: {prompt}')
+            # print(f'|prompt{idx}: {prompt}')
 
             llm_result = ''
             try:
@@ -214,9 +214,13 @@ class AgentExecutor:
                 yield {'llm_text': s}
 
             # parse and get tool name and arguments
-            #print (llm_result, s)
-            action, action_args = self.output_parser.parse_response(llm_result)
-            #print ("action: ", action, action_args)
+            try:
+                action, action_args = self.output_parser.parse_response(
+                    llm_result)
+            except ValueError as e:
+                yield {'error': f'{e}'}
+                return
+
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 prompt = self.prompt_generator.generate(llm_result, '')
