@@ -113,7 +113,6 @@ def get_scene_prompt(story_response):
             scene_prompt.append(line) 
 
 
-
     # TODO:转写
 
     return scene_prompt

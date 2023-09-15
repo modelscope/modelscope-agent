@@ -9,12 +9,12 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator
 from modelscope_agent.retrieve import ToolRetrieval
-from predict import generate_story
+from gradio_chatbot import ChatBot
+from mock_llm import MockLLM
+from help_tool import PrintStoryTool, ShowExampleTool, ImageGenerationTool
+import copy
 
 from modelscope.utils.config import Config
-
-sys.path.append('../../')
-
 
 SYSTEM_PROMPT = "<|system|>:你是Story Agent，是一个大语言模型，可以根据用户的输入自动生成相应的绘本。"
 
@@ -38,15 +38,20 @@ INSTRUCTION_TEMPLATE = """当前对话可以使用的插件信息如下，请自
 
 MAX_SCENE = 4
 
-# sys.path.append('../../')
 load_dotenv('../../config/.env', override=True)
 
 os.environ['TOOL_CONFIG_FILE'] = '../../config/cfg_tool_template.json'
-os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
+os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
-os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
-os.environ['DASHSCOPE_API_KEY'] = 'xxx'
-os.environ['OPENAI_API_KEY'] = 'xxx'
+# os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
+# os.environ['DASHSCOPE_API_KEY'] = 'xxx'
+# os.environ['OPENAI_API_KEY'] = 'xxx'
+
+IMAGE_TEMPLATE_PATH = [
+    'img_example/1.png',
+    'img_example/2.png',
+]
+
 
 with open(
         os.path.join(os.path.dirname(__file__), 'main.css'), "r",
@@ -57,39 +62,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     max_scene = MAX_SCENE
 
-    # agent 对象初始化
 
-    tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
-    model_cfg_file = os.getenv('MODEL_CONFIG_FILE')
-
-    tool_cfg = Config.from_file(tool_cfg_file)
-    # model_name = 'ms_gpt'
-    model_cfg = Config.from_file(model_cfg_file)
-
-    model_name = 'openai'
-    # model_cfg = {
-    #     'modelscope-agent-qwen-7b': {
-    #         'model_id': 'damo/MSAgent-Qwen-7B',
-    #         'model_revision': 'v1.0.2',
-    #         'use_raw_generation_config': True,
-    #         'custom_chat': True
-    #     }
-    # }
-
-    retrieve = ToolRetrieval(top_k=3)
-    prompt_generator = MSPromptGenerator(
-        system_template=SYSTEM_PROMPT,
-        instruction_template=INSTRUCTION_TEMPLATE)
-
-    llm = LLMFactory.build_llm(model_name, model_cfg)
-    agent = AgentExecutor(
-        llm,
-        tool_cfg,
-        prompt_generator=prompt_generator,
-        tool_retrieval=retrieve)
-
-    generate_story_p = partial(
-        generate_story, max_scene=max_scene, agent=agent)
 
     with gr.Row():
         gr.HTML(
@@ -100,10 +73,10 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     with gr.Row(elem_id="container_row").style(equal_height=True):
 
-        with gr.Column(
-                scale=8,
-                elem_classes=["chatInterface", "chatDialog", "chatContent"]):
-            # with gr.Column(elem_id="chat-container"):
+        with gr.Column(scale=6):
+            
+            story_content = gr.Textbox(label='故事情节', lines=4, interactive=False)
+
             output_image = [None] * max_scene
             output_text = [None] * max_scene
 
@@ -111,28 +84,26 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 with gr.Row():
                     with gr.Column():
                         output_image[i] = gr.Image(
-                            label=f'绘本图片{i + 1}',
+                            label=f'示例图片{i + 1}',
                             interactive=False,
-                            height=200)
+                            height=200,
+                            visible=False,
+                            show_progress=False)
                         output_text[i] = gr.Textbox(
-                            label=f'故事情节{i + 1}', lines=4, interactive=False)
+                            label=f'故事情节{i + 1}', lines=2, interactive=False, visible=False, show_progress=False)
                     with gr.Column():
                         output_image[i + 1] = gr.Image(
-                            label=f'绘本图片{i +2}', interactive=False, height=200)
+                            label=f'示例图片{i +2}', interactive=False, height=200, visible=False, show_progress=False)
                         output_text[i + 1] = gr.Textbox(
-                            label=f'故事情节{i + 2}', lines=4, interactive=False)
+                            label=f'故事情节{i + 2}', lines=2, interactive=False, visible=False, show_progress=False)
 
-        with gr.Column(min_width=470, scale=4, elem_id='settings'):
-            gr.HTML("""
-                <div class="robot-info">
-                    <img src="https://img.alicdn.com/imgextra/i4/\
-                    O1CN01kpkVcX1wSCO362MH4_!!6000000006306-1-tps-805-805.gif"></img>
-                    <div class="robot-info-text">
-                        我是story agent。
-                    </div>
-                </div>
-            """)
+        with gr.Column(min_width=470, scale=6, elem_id='settings'):
 
+            chatbot = ChatBot(
+                elem_id="chatbot",
+                elem_classes=["markdown-body"],
+                show_label=False,
+                height=400)
             with gr.Row(elem_id="chat-bottom-container"):
                 with gr.Column(min_width=70, scale=1):
                     clear_session_button = gr.Button(
@@ -149,11 +120,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         "重新生成", elem_id='regenerate_button')
 
             gr.Examples(
-                examples=[
-                    '请生成科学家的故事',
-                    '请生成幼儿园上学的故事',
-                    '请生成小男孩巫师的故事'
-                ],
+                examples=['请生成科学家的故事', '请生成幼儿园上学的故事', '请生成小男孩巫师的故事'],
                 inputs=[user_input],
                 examples_per_page=20,
                 label="示例",
@@ -167,22 +134,129 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 label='生成绘本的数目',
                 interactive=True)
 
-    stream_predict_input = [user_input, steps]
-    stream_predict_output = [*output_image, *output_text]
+    # ----------agent 对象初始化--------------------
 
-    clean_outputs = [''] + [None] * max_scene + [''] * max_scene
-    clean_outputs_target = [user_input, *output_image, *output_text]
+    tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
+    model_cfg_file = os.getenv('MODEL_CONFIG_FILE')
 
+    tool_cfg = Config.from_file(tool_cfg_file)
+    model_cfg = Config.from_file(model_cfg_file)
+
+    model_name = 'openai'
+
+    prompt_generator = MSPromptGenerator(
+        system_template=SYSTEM_PROMPT,
+        instruction_template=INSTRUCTION_TEMPLATE)
+
+    llm = MockLLM()
+
+    # tools 
+
+    print_story_tool = PrintStoryTool()
+    show_img_example_tool = ShowExampleTool(IMAGE_TEMPLATE_PATH)
+    image_generation_tool = ImageGenerationTool(output_image, output_text, tool_cfg)
+
+    additional_tool_list = {
+        print_story_tool.name: print_story_tool,
+        show_img_example_tool.name: show_img_example_tool,
+        image_generation_tool.name: image_generation_tool
+    }
+
+    agent = AgentExecutor(
+        llm,
+        tool_cfg,
+        prompt_generator=prompt_generator,
+        tool_retrieval=False,
+        additional_tool_list=additional_tool_list)
+
+    agent.set_available_tools(additional_tool_list.keys())
+
+    def story_agent(*inputs):
+
+        global agent
+
+        max_scene = MAX_SCENE
+        user_input = inputs[0]
+        num_scene = inputs[1]
+        chatbot = inputs[2]
+
+        output_component = list(inputs[3:])
+
+        def reset_component():
+            for i in range(max_scene):
+                output_component[i+1] = gr.Image.update(visible=False)
+                output_component[i+max_scene+1] = gr.Textbox.update(visible=False)
+
+        reset_component()
+
+        # output_component_mapping
+        # output_component = [''] + [None] * max_scene + [''] * max_scene
+
+        chatbot.append((user_input, None))
+        yield chatbot, *output_component
+        
+        def update_component(exec_result):
+            exec_result = exec_result['result']
+            name = exec_result.pop('name')
+            print(f'{name}name')
+            if name ==  'print_story_tool':
+                output_component[0] = gr.Textbox.update(**exec_result)
+            elif name == 'show_image_example':
+                for i, r in enumerate(exec_result['result']):
+                    output_component[i+1] = gr.Image.update(**r)
+            elif name == 'image_generation':
+                idx = int(exec_result.pop('idx'))
+                output_component[idx+1] = gr.Image.update(**exec_result['img_result'])
+                output_component[idx+max_scene+1] = gr.Textbox.update(**exec_result['text_result'])
+
+        response = ''
+        
+        for frame in agent.stream_run(user_input, remote=False):
+            is_final = frame.get("frame_is_final")
+            llm_result = frame.get("llm_text", "")
+            exec_result = frame.get('exec_result', '') 
+            print(frame)
+            if len(exec_result) != 0:
+                # llm_result
+                update_component(exec_result)
+                frame_text = ' '
+            else:
+                # action_exec_result
+                frame_text = llm_result
+            response = f'{response}\n{frame_text}'
+            
+            chatbot[-1] = (user_input, response)
+            yield chatbot, *copy.deepcopy(output_component)
+            # print ("response: ", response)
+        
+        chatbot[-1] = (user_input, response)
+
+        yield chatbot, *output_component
+
+
+    # ---------- 事件 ---------------------
+
+
+    # story_agent = partial(
+    #     story_agent, agent=agent)
+    stream_predict_input = [user_input, steps, chatbot, story_content, *output_image, *output_text]
+    stream_predict_output = [chatbot, story_content, *output_image, *output_text]
+
+    # clean_outputs = [''] + [None] * max_scene + [''] * max_scene
+    # clean_outputs_target = [user_input, *output_image, *output_text]
+
+    clean_outputs = ['', gr.update(value=[])] + [None] * max_scene + [''] * max_scene
+    clean_outputs_target = [user_input, chatbot, *output_image, *output_text]
     user_input.submit(
-        generate_story_p,
-        stream_predict_input,
-        stream_predict_output,
+        story_agent,
+        inputs=stream_predict_input,
+        outputs=stream_predict_output,
         show_progress=True)
     user_input.submit(
         fn=lambda: clean_outputs, inputs=[], outputs=clean_outputs_target)
 
     submitBtn.click(
-        generate_story_p,
+        story_agent,
         stream_predict_input,
         stream_predict_output,
         show_progress=True)
@@ -192,7 +266,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     regenerate_button.click(
         fn=lambda: clean_outputs, inputs=[], outputs=clean_outputs_target)
     regenerate_button.click(
-        generate_story_p,
+        story_agent,
         stream_predict_input,
         stream_predict_output,
         show_progress=True)
@@ -206,4 +280,4 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     demo.title = "StoryAgent 🎁"
     demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)
-    demo.launch(show_api=False, share=True)
+    demo.launch(show_api=False, share=False)
