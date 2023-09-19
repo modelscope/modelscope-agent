@@ -15,7 +15,13 @@ ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
 
 class ChatBot(ChatBotBase):
 
-    def normalize_markdown(self, bot_message):
+    def normalize_markdown(self, bot_message, remove_media=False):
+
+        if remove_media:
+            media_regex = r"(!\[[^\]]*\]\([^)]+\)|<audio[^>]+>.*?</audio>)\n*"
+            # 使用正则表达式进行替换
+            bot_message = re.sub(media_regex, "", bot_message)
+
         lines = bot_message.split("\n")
         normalized_lines = []
         inside_list = False
@@ -37,11 +43,11 @@ class ChatBot(ChatBotBase):
 
         return "\n".join(normalized_lines)
 
-    def convert_markdown(self, bot_message):
+    def convert_markdown(self, bot_message, remove_media=False):
         if bot_message.count('```') % 2 != 0:
             bot_message += '\n```'
 
-        bot_message = self.normalize_markdown(bot_message)
+        bot_message = self.normalize_markdown(bot_message, remove_media)
 
         result = markdown.markdown(
             bot_message,
@@ -144,7 +150,8 @@ class ChatBot(ChatBotBase):
                 # traceback.print_exc()
                 break
         if start_pos < len(bot_message):
-            result += self.convert_markdown(bot_message[start_pos:])
+            result += self.convert_markdown(
+                bot_message[start_pos:], remove_media=True)
         result += ALREADY_CONVERTED_MARK
         return result
 
@@ -162,7 +169,8 @@ class ChatBot(ChatBotBase):
             return []
         user_message, bot_message = message_pairs[-1]
         if not user_message.endswith(ALREADY_CONVERTED_MARK):
-            user_message = f"<p style=\"white-space:pre-wrap;\">{self.convert_markdown(html.escape(user_message))}</p>" + ALREADY_CONVERTED_MARK
+            user_message = f"<p style=\"white-space:pre-wrap;\">{self.convert_markdown(html.escape(user_message))}</p>"\
+                + ALREADY_CONVERTED_MARK
         if not bot_message.endswith(ALREADY_CONVERTED_MARK):
             bot_message = self.convert_bot_message(bot_message)
         message_pairs[-1] = (user_message, bot_message)
