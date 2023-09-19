@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Optional
 
-import deepspeed
 import json
 import torch
 from swift import Swift, get_logger
@@ -16,11 +15,6 @@ from utils import (DEFAULT_PROMPT, MODEL_MAPPING, evaluate,
                    process_dataset, select_bnb, select_dtype, show_layers)
 
 logger = get_logger()
-# local_rank = int(os.getenv("LOCAL_RANK", "0"))
-# world_size = int(os.getenv("WORLD_SIZE", "1"))
-
-# deepspeed.init_distributed("nccl")
-# rank = dist.get_rank()
 
 
 @dataclass
