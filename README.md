@@ -15,7 +15,7 @@
 ## Introduction
 
 **ModelScope-Agent**, a general and customizable agent framework for real-world applications, based on open-source LLMs as controllers. It provides a user-friendly system library that are:
-- **cutomizable and comprehensive framework**: customizable engine design to spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
+- **customizable and comprehensive framework**: customizable engine design to spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
 - **opensourced LLMs as controllers**: support model training on multiple open-source LLMs of ModelScope Community
 - **Diversified and Comprehensive APIs**: enabling seamless integration with both model APIs and common APIs in a unified way.
 
