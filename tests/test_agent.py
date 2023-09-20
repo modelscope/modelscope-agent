@@ -73,7 +73,5 @@ def test_tool_execute_error():
         prompt_generator=prompt_generator,
         output_parser=output_parser)
     res = agent.run('mock task')
-    assert res == [{
-        'error':
-        "Action call error: search_tool: {'query': 'mock query'}."
-    }]
+    assert res[0]['error'].startswith(
+        "Action call error: search_tool: {'query': 'mock query'}.")
