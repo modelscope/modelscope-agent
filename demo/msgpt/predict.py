@@ -38,13 +38,13 @@ def stream_predict(
     response = ''
     try:
         for frame in agent.stream_run(user_input, remote=False):
-            is_final = frame.get("frame_is_final")
+            is_final = frame.get("is_final")
             llm_result = frame.get("llm_text", "")
             exec_result = frame.get('exec_result', '')
             error_message = frame.get("error")
             if is_final:
                 chatbot[-1] = (chatbot[-1][0], response)
-                yield chatbot, ''
+                yield chatbot, '完成回答'
                 break
             elif error_message:
                 chatbot[-1] = (chatbot[-1][0], error_message)

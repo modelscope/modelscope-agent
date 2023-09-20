@@ -230,7 +230,7 @@ class AgentExecutor:
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 prompt = self.prompt_generator.generate(llm_result, '')
-                yield {'frame_is_final': True}
+                yield {'is_final': True}
                 return
 
             if action in self.available_tool_list:
