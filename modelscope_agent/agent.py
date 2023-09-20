@@ -145,9 +145,11 @@ class AgentExecutor:
                 print(f'|prompt{idx}: {prompt}')
 
             # parse and get tool name and arguments
-            action, action_args = self.output_parser.parse_response(llm_result)
-            # print(f'|action: {action}, action_args: {action_args}')
-
+            try:
+                action, action_args = self.output_parser.parse_response(
+                    llm_result)
+            except ValueError as e:
+                return [{'error': f'{e}'}]
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 _ = self.prompt_generator.generate(llm_result, '')
@@ -176,13 +178,17 @@ class AgentExecutor:
             # display result
             display(llm_result, exec_result, idx)
 
-    def stream_run(self, task: str, remote: bool = True) -> Dict:
+    def stream_run(self,
+                   task: str,
+                   remote: bool = True,
+                   print_info: bool = False) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.
         It will yield the result of each interaction, so that the caller can display the result
 
         Args:
             task (str): concrete task
             remote (bool, optional): whether to execute tool in remote mode. Defaults to True.
+            print_info (bool, optional): whether to print prompt info. Defaults to False.
 
         Yields:
             Iterator[Dict]: iterator of llm response and tool execution result
@@ -209,16 +215,22 @@ class AgentExecutor:
                     yield {'llm_text': s}
 
             except Exception:
-                raise NotImplementedError(
-                    'This llm does not implement stream predict')
-                return
+                s = self.llm.generate(prompt)
+                llm_result += s
+                yield {'llm_text': s}
 
             # parse and get tool name and arguments
-            action, action_args = self.output_parser.parse_response(llm_result)
+            try:
+                action, action_args = self.output_parser.parse_response(
+                    llm_result)
+            except ValueError as e:
+                yield {'error': f'{e}'}
+                return
 
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 prompt = self.prompt_generator.generate(llm_result, '')
+                yield {'is_final': True}
                 return
 
             if action in self.available_tool_list:
@@ -231,11 +243,13 @@ class AgentExecutor:
                     # parse exec result and update state
                     self.parse_exec_result(exec_result)
                 except Exception as e:
-                    raise e
+                    exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
+                    yield {'error': exec_result}
                     return
             else:
                 exec_result = f"Unknown action: '{action}'. "
-                yield {'exec_result': exec_result}
+                yield {'error': exec_result}
+                return
 
     def reset(self):
         """

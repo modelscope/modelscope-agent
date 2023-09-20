@@ -42,9 +42,8 @@ class MsOutputParser(OutputParser):
             parameters = json_content.get('parameters', {})
 
             return action, parameters
-
         except Exception:
-            return None, None
+            raise ValueError('Wrong response format for output parser')
 
 
 class QwenOutputParser(OutputParser):
@@ -74,8 +73,6 @@ class QwenOutputParser(OutputParser):
 
             parameters = json.loads(action_para.replace('\n', ''))
 
-            print(response)
-            print(action, parameters)
             return action, parameters
         except Exception:
-            return None, None
+            raise ValueError('Wrong response format for output parser')

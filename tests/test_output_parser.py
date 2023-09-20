@@ -1,3 +1,4 @@
+import pytest
 from modelscope_agent.output_parser import MsOutputParser
 
 
@@ -20,4 +21,7 @@ def test_ms_output_parser():
 
     # wrong json format
     response_call_tool = "<|startofthink|>{'api_name': 'some_tool', 'parameters': {'para1': 'name1'}}<|endofthink|>"
-    assert output_parser.parse_response(response_call_tool) == (None, None)
+    with pytest.raises(ValueError) as e:
+        output_parser.parse_response(response_call_tool)
+    error_msg = e.value.args[0]
+    assert error_msg == 'Wrong response format for output parser'
