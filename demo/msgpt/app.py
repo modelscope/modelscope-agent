@@ -34,7 +34,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     model_cfg = Config.from_file(model_cfg_file)
     tool_cfg = Config.from_file(tool_cfg_file)
 
-    model_name = 'modelscope-agent'
+    model_name = 'modelscope-agent-qwen-7b'
 
     llm = LLMFactory.build_llm(model_name, model_cfg)
     agent = AgentExecutor(llm, tool_cfg)
@@ -160,4 +160,4 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     demo.title = "ModelScopeGPT 🎁"
     demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)
-    demo.launch(show_api=False, share=True)
+    demo.launch(show_api=False, share=False)

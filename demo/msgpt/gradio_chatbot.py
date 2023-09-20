@@ -110,15 +110,17 @@ class ChatBot(ChatBotBase):
                 think_content = json_content.group(
                 ) if json_content else think_content
                 try:
-                    think_node = json.loads(think_content)
+                    think_node = json.loads(
+                        think_content.replace('\n', ''), strict=False)
                     plugin_name = think_node.get(
                         'plugin_name',
                         think_node.get('plugin',
                                        think_node.get('api_name', 'unknown')))
-                    summary = f'选择插件【{plugin_name}】，调用处理中...'
-                    del think_node['url']
+                    summary = f'选择插件【{plugin_name}】'
+                    think_node.pop('url', None)
                     detail = f'```json\n\n{json.dumps(think_node,indent=3,ensure_ascii=False)}\n\n```'
                 except Exception:
+                    traceback.print_exc()
                     summary = '思考中...'
                     detail = think_content
                     # detail += traceback.format_exc()
@@ -182,7 +184,8 @@ class ChatBot(ChatBotBase):
         exec_result = exec_result[:-1]
         exec_result = exec_result.replace("'", "\"")
         try:
-            exec_result = json.loads(exec_result)
+            exec_result = json.loads(
+                exec_result.replace('\n', ''), strict=False)
             final_result = f'```json\n\n{exec_result}\n\n```'
             return final_result
         except Exception:
