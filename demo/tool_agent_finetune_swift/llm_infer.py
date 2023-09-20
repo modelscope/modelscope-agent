@@ -47,7 +47,7 @@ class InferArguments:
         default='nf4', metadata={'choices': {'fp4', 'nf4'}})
     bnb_4bit_use_double_quant: bool = True
 
-    max_new_tokens: int = 256
+    max_new_tokens: int = 512
     do_sample: bool = True
     temperature: float = 0.9
     top_k: int = 10
