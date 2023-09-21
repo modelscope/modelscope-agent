@@ -24,42 +24,45 @@ SYSTEM_PROMPT = """<|system|>: 你现在扮演一个Story Agent，不断和用�
 
 INSTRUCTION_TEMPLATE = """【多轮对话历史】
 
-Assistant: 你好！我是你的StoryAgent，很高兴为你提供服务。首先，我想了解你对想要创作的故事有什么大概的想法或者大纲？
-
 Human: 给我生成一个关于友谊和冒险的故事，主角是一个小男孩和他的狗。
 
 Assistant: 非常好的大纲！接下来，我们来确定一些关键情节和转折。你有任何具体的想法吗？例如，小男孩和他的狗在家附近的森林中发现一个神秘的地图。他们决定追寻地图的线索，这将带领他们穿越森林，遇到各种困难和挑战。最后，他们找到了一份宝藏，但他们意识到真正的宝藏其实是他们之间的友谊。你觉得如何？
 
-Human: 可以的，不过可以加一些对于森林细节的描述。
+Human: 可以再加一些对于森林细节的描述。
 
 Assistant: 明白了，我会以这种风格来生成故事。稍等一下，我马上生成故事：
 
 在一天阳光明媚的早晨，小男孩Tommy和他的狗Max在后院发现了一个被风吹来的神秘地图。地图上标记着一条通向森林深处的路线，一颗大大的"X"标记在地图的另一头。
 
-"Max，看看这个！我们找到宝藏地图了！" Tommy兴奋地对他的狗说。他们决定冒险寻找宝藏。他们沿着地图上的路线，穿过森林，爬过山丘，甚至跨过一条吓人的独木桥。
+他们决定冒险寻找宝藏。他们沿着地图上的路线，穿过森林，爬过山丘，甚至跨过一条吓人的独木桥。还穿过了一条小河，这条河好长好宽。
 
-故事已经生成完成，你是否喜欢这个故事呢？
+他们手牵手跨过了这条河。这时候，突然冲出一只大熊，小男孩和狗狗合力战胜大熊。
 
-Human: 可以的，故事生成的不错，我很喜欢！
+最终他们找到了宝藏，并在夕阳下走回了家。
 
-Assistant: 很高兴你喜欢！接下来，我们可以开始创建故事的插图。你更喜欢哪种风格的插图？是卡通画风格，还是赛博朋克风格
+故事已经生成完成，喜欢的话，接下来，我们可以开始创建故事的插图。你更喜欢哪种风格的插图？是卡通画风格，还是赛博朋克风格。
 
 Human: 我更喜欢赛博朋克风格
 
-Assistant: 好的，故事总共有两段，我将开始绘本创作，为上述两段内容分别配上插图
+Assistant: 好的，我将开始绘本创作，为上述内容分别配上插图
 
-正在生成第一段内容的配图：<|startofthink|>```JSON\n{\n   "api_name": "image_generation",\n    "parameters": {\n      "text": "在一天阳光明媚的早晨，小男孩Tommy和他的狗Max在后院发现了一个被风吹来的神秘地图。", "idx": "0", "type": "赛博朋克"\n   }\n}\n```<|endofthink|>
+正在生成第一段内容的配图：<|startofthink|>```JSON\n{\n   "api_name": "image_generation",\n    "parameters": {\n      "text": "在一天阳光明媚的早晨，小男孩Tommy和他的狗Max在后院发现了一个被风吹来的神秘地图。地图上标记着一条通向森林深处的路线，一颗大大的"X"标记在地图的另一头。", "idx": "0", "type": "赛博朋克"\n   }\n}\n```<|endofthink|>
 
-正在生成第二段内容的配图：<|startofthink|>```JSON\n{\n   "api_name": "image_generation",\n    "parameters": {\n      "text": "Max，看看这个！我们找到宝藏地图了！ Tommy兴奋地对他的狗说", "idx": "1",  "type": "赛博朋克"\n   }\n}\n```<|endofthink|>
+正在生成第二段内容的配图：<|startofthink|>```JSON\n{\n   "api_name": "image_generation",\n    "parameters": {\n      "text": "他们决定冒险寻找宝藏。他们沿着地图上的路线，穿过森林，爬过山丘，甚至跨过一条吓人的独木桥。还穿过了一条小河，这条河好长好宽。", "idx": "1",  "type": "赛博朋克"\n   }\n}\n```<|endofthink|>
+
+正在生成第三段内容的配图：<|startofthink|>```JSON\n{\n   "api_name": "image_generation",\n    "parameters": {\n      "text": "他们手牵手跨过了这条河。这时候，突然冲出一只大熊，小男孩和狗狗合力战胜大熊。", "idx": "2",  "type": "赛博朋克"\n   }\n}\n```<|endofthink|>
+
+正在生成第四段内容的配图：<|startofthink|>```JSON\n{\n   "api_name": "image_generation",\n    "parameters": {\n      "text": "最终他们找到了宝藏，并在夕阳下走回了家。", "idx": "3",  "type": "赛博朋克"\n   }\n}\n```<|endofthink|>
+
 
 已经为你生成了一部关于科学家木子的故事，每段内容都配有卡通画风格的插图。如果需要调整或有其他想法，请随时告诉我。
 
 【角色扮演要求】
-上面多轮角色对话是提供的创作一个绘本要和用户沟通的样例，请按照上述的询问步骤来引导用户完成绘本生成，每次只回复对应的内容，不要生成多轮对话。记住只回复用户当前的提问，不要生成多轮对话，回复不要包含user或者human的内容。
+上面多轮角色对话是提供的创作一个绘本要和用户沟通的样例，请按照上述的询问步骤来引导用户完成绘本生成，每次只回复对应的内容，不要生成多轮对话。记住只回复用户当前的提问，不要生成多轮对话，回复不要包含<|user|>后面的内容。
 """
 
-KEY_TEMPLATE = """（提醒：请参照上述的多轮对话历史引导，但不要生成多轮对话，回复不要包含<|user|>或者human的内容。）"""
-# KEY_TEMPLATE = ""
+KEY_TEMPLATE = """（注意：请参照上述的多轮对话历史流程，但不要生成多轮对话，回复不要包含<|user|>的内容。）"""
+#KEY_TEMPLATE = ""
 
 MAX_SCENE = 4
 
@@ -71,6 +74,10 @@ os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
 # os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
 # os.environ['DASHSCOPE_API_KEY'] = 'xxx'
 # os.environ['OPENAI_API_KEY'] = 'xxx'
+
+os.environ['MODELSCOPE_API_TOKEN'] = '9deb7417-3ee3-4776-bb27-8cb34c48d3f0'
+os.environ['OPENAI_API_KEY'] = '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'
+os.environ['DASHSCOPE_API_KEY'] = 'aGQGkmdstNmIF4MCnyRxtZpwvOhyGMDm09F417EFEAE711ED8DC90A192310B38C'
 
 IMAGE_TEMPLATE_PATH = [
     'img_example/1.png',
@@ -99,7 +106,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         with gr.Column(scale=6):
             
             story_content = gr.Textbox(label='故事情节', lines=4, interactive=False)
-
+            # story_content = ""
             output_image = [None] * max_scene
             output_text = [None] * max_scene
 
@@ -143,7 +150,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         "重新生成", elem_id='regenerate_button')
 
             gr.Examples(
-                examples=['给我生成一个超级向日葵刺猬的故事', '增加一个它的一路坎坷', '可以的，故事生成的不错，我很喜欢！', '卡通画风格'],
+                examples=['给我生成一个超级向日葵刺猬的故事', '每个段落故事里面都加上超级向日葵刺猬', '可以的，故事生成的不错，我很喜欢！', '卡通画风格'],
                 inputs=[user_input],
                 examples_per_page=20,
                 label="示例",
@@ -156,6 +163,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 step=1,
                 label='生成绘本的数目',
                 interactive=True)
+            #steps = 4
 
     # ----------agent 对象初始化--------------------
 
@@ -220,7 +228,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 output_component[i+1] = gr.Image.update(visible=False)
                 output_component[i+max_scene+1] = gr.Textbox.update(visible=False)
 
-        reset_component()
+        # reset_component()
 
         chatbot.append((user_input, None))
         yield chatbot, *output_component

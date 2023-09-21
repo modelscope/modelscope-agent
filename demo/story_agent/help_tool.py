@@ -95,7 +95,7 @@ class ImageGenerationTool(TextToImageTool):
         self.text_box = text_box
 
     def _local_call(self, text, idx, type):
-        res = super()._local_call(type+ ", " + text)['result']
+        res = super()._local_call(type+ ", " + text.split("。")[0])['result']
 
         result = {
             'name': self.name,
@@ -106,7 +106,7 @@ class ImageGenerationTool(TextToImageTool):
 
         return {'result': result}
     def _remote_call(self, text, idx, type):
-        res = super()._remote_call(text=type+ ", " + text)['result']
+        res = super()._remote_call(text=type+ ", " + text.split("。")[0])['result']
 
         result = {
             'name': self.name,
