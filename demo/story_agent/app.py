@@ -75,10 +75,6 @@ os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
 # os.environ['DASHSCOPE_API_KEY'] = 'xxx'
 # os.environ['OPENAI_API_KEY'] = 'xxx'
 
-os.environ['MODELSCOPE_API_TOKEN'] = '9deb7417-3ee3-4776-bb27-8cb34c48d3f0'
-os.environ['OPENAI_API_KEY'] = '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'
-os.environ['DASHSCOPE_API_KEY'] = 'aGQGkmdstNmIF4MCnyRxtZpwvOhyGMDm09F417EFEAE711ED8DC90A192310B38C'
-
 IMAGE_TEMPLATE_PATH = [
     'img_example/1.png',
     'img_example/2.png',
