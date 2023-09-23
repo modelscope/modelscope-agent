@@ -107,7 +107,7 @@ class MyOutputParser(OutputParser):
         """
         in this function, you need to define how to parse and get action(str) and action parameters(dict)
         """
-        return resonse, {}
+        return response, {}
 
 ```
 
