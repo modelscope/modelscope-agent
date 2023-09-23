@@ -1,7 +1,7 @@
 # Introduction
 
 **ModelScope-Agent**, a general and customizable agent framework for real-world applications, based on open-source LLMs as controllers. It provides a user-friendly system library that are:
-- **cutomizable engine**: customizable engine design to support model training on multiple open-source LLMs
+- **customizable engine**: customizable engine design to support model training on multiple open-source LLMs
 - **Diversified and Comprehensive APIs**: enabling seamless integration with both model APIs and common APIs in a unified way.
 
 To equip the LLMs with tool-use abilities, a comprehensive framework has been proposed spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
@@ -67,7 +67,7 @@ agent.run('使用地址识别模型，从下面的地址中找到省市区等元
 
 An `AgentExecutor` object consists of the following components:
 
-- `LLM`: A large language model that is responsibile to process your inputs and decide calling tools.
+- `LLM`: A large language model that is responsible to process your inputs and decide calling tools.
 - `tool_list`: A list consists of available tools for agents.
 - `PromptGenerator`: A module integrates `prompt_template`, `user_input`, `history`, `tool_list`... into final prompt for llm.
 - `OutputParser`: A module to parse llm response into the tools to be invoked and the corresponding parameters.
@@ -105,7 +105,7 @@ class MyOutputParser(OutputParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """
-        in this function, you need to define how to parse and get action(str) and action paramerers(dict)
+        in this function, you need to define how to parse and get action(str) and action parameters(dict)
         """
         return resonse, {}
 
