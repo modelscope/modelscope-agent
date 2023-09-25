@@ -174,7 +174,16 @@ MODEL_MAPPING = {
     },
     'qwen-7b': {
         'model_id': 'qwen/Qwen-7B',
-        'revision': 'v.1.0.4',
+        'revision': 'v1.0.4',
+        'get_function': get_model_tokenizer_qwen,
+        'lora_TM': LoRATM.qwen,
+        'special_token_mapper': {
+            'eos_token': '<|endoftext|>'
+        }
+    },
+    'modelscope-agent-7b': {
+        'model_id': 'damo/ModelScope-Agent-7B',
+        'revision': 'v1.0.0',
         'get_function': get_model_tokenizer_qwen,
         'lora_TM': LoRATM.qwen,
         'special_token_mapper': {

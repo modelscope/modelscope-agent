@@ -1,3 +1,5 @@
+import ast
+import os
 import re
 from typing import List, Optional, Tuple
 
@@ -13,17 +15,28 @@ from modelscope import MsDataset
 IGNORE_INDEX = -100
 
 
-def get_ms_tool_dataset(dataset_json_file) -> HfDataset:
+def get_ms_tool_dataset(dataset_name_or_file) -> HfDataset:
     # ms_tool_dataset: for train
     # each data may contain multiple segments, they are organized as a list
     # and split by flag. 0 for user input/ tool execute result..., 1 for label
 
-    with open(dataset_json_file, 'r') as f:
-        origin_data = json.load(f)
+    if os.path.isfile(dataset_name_or_file):
+        with open(dataset_name_or_file, 'r') as f:
+            if dataset_name_or_file.endswith('.json'):
+                origin_data = json.load(f)
+            elif dataset_name_or_file.endswith('.jsonl'):
+                origin_data = []
+                for line in f:
+                    origin_data.append(json.loads(line))
+    else:
+        origin_data = MsDataset.load('damo/MSAgent-Bench', split='train')
+
     all_inputs_str = []
     all_inputs_flag = []
     for d in origin_data:
         content = d['conversations']
+        if isinstance(content, str):
+            content = ast.literal_eval(content)
 
         # ilegal data
         if len(content) == 0 or content[0]['from'] != 'system':
@@ -71,6 +84,8 @@ def get_ms_tool_dataset(dataset_json_file) -> HfDataset:
                 inputs_str.append(origin_response_str[idx2:])
                 inputs_flag.append(1)
 
+        if len(inputs_flag) == 1:
+            continue
         all_inputs_str.append(inputs_str)
         all_inputs_flag.append(inputs_flag)
 
@@ -81,17 +96,27 @@ def get_ms_tool_dataset(dataset_json_file) -> HfDataset:
     return dataset
 
 
-def get_ms_tool_dataset_test(dataset_json_file):
+def get_ms_tool_dataset_test(dataset_name_or_file):
     # ms_tool_dataset: for train
     # each data may contain multiple segments, they are organized as different samples
     all_inputs_str = []
     all_labels_str = []
 
-    with open(dataset_json_file, 'r') as f:
-        origin_data = json.load(f)
+    if os.path.isfile(dataset_name_or_file):
+        with open(dataset_json_file, 'r') as f:
+            if dataset_json_file.endswith('.json'):
+                origin_data = json.load(f)
+            elif dataset_json_file.endswith('.jsonl'):
+                origin_data = []
+                for line in f:
+                    origin_data.append(json.loads(line))
+    else:
+        origin_data = MsDataset.load('damo/MSAgent-Bench', split='validation')
 
     for d in origin_data:
         content = d['conversations']
+        if isinstance(content, str):
+            content = ast.literal_eval(content)
 
         # ilegal data
         if len(content) == 0 or content[0]['from'] != 'system':
@@ -156,7 +181,7 @@ def process_dataset(dataset: HfDataset, dataset_test_size: float,
         index = random_state.permutation(len(dataset))[:dataset_sample]
         dataset = dataset.select(index)
     if dataset_test_size == 1.0:
-        return dataset
+        return dataset, None
     dataset = dataset.train_test_split(
         dataset_test_size, seed=get_seed(random_state))
     return dataset['train'], dataset['test']
@@ -184,7 +209,11 @@ def tokenize_function(example, tokenizer, max_length: Optional[int] = None):
 
     if max_length is not None and input_id.shape[0] > max_length:
 
-        input_id = input_id[:max_length]
-        label = label[:max_length]
+        input_id = input_id[-max_length:]
+        label = label[-max_length:]
+
+    if torch.max(label) == IGNORE_INDEX:
+        print(input_str)
+        print('Warning: no label in this data')
 
     return dict(input_ids=input_id, labels=label)

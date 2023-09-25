@@ -13,9 +13,10 @@ from swift.utils import (add_version_to_work_dir, is_master, parse_args,
 from swift.utils.llm_utils import data_collate_fn, print_example, stat_dataset
 from transformers import BitsAndBytesConfig
 from utils import (DEFAULT_PROMPT, MODEL_MAPPING, broadcast_string,
-                   get_dist_setting, get_model_tokenizer, get_ms_tool_dataset,
-                   is_dist, plot_images, process_dataset, select_bnb,
-                   select_dtype, show_layers, tokenize_function)
+                   find_all_linear_for_lora, get_dist_setting,
+                   get_model_tokenizer, get_ms_tool_dataset, is_dist,
+                   plot_images, process_dataset, select_bnb, select_dtype,
+                   show_layers, tokenize_function)
 
 logger = get_logger()
 
@@ -171,6 +172,12 @@ def llm_sft(args: SftArguments) -> None:
 
     # ### Preparing lora
     if args.sft_type == 'lora':
+        if 'ALL' in args.lora_target_modules:
+            assert len(args.lora_target_modules) == 1
+            args.lora_target_modules = find_all_linear_for_lora(
+                model, args.quantization_bit, args.model_type)
+            logger.info(
+                f'Setting lora_target_modules: {args.lora_target_modules}')
         if args.resume_from_ckpt is None:
             lora_config = LoraConfig(
                 r=args.lora_rank,
@@ -222,7 +229,7 @@ def llm_sft(args: SftArguments) -> None:
         do_eval=True,
         evaluation_strategy='steps',
         per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
