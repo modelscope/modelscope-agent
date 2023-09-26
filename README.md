@@ -118,7 +118,7 @@ agent.run('给这个故事配一张图', remote=True)
 
 An `AgentExecutor` object consists of the following components:
 
-- `LLM`: A large language model that is responsibile to process your inputs and decide calling tools.
+- `LLM`: A large language model that is responsible to process your inputs and decide calling tools.
 - `tool_list`: A list consists of available tools for agents.
 - `PromptGenerator`: A module integrates `prompt_template`, `user_input`, `history`, `tool_list`... into efficient prompt.
 - `OutputParser`: A module to parse llm response into the tools to be invoked and the corresponding parameters
@@ -275,7 +275,7 @@ one_ds = next(iter(ds))
 
 ### Training
 
-The training samples are orgnized in the following format, the content included between <|startofthink|> and <|endofthink|> represents the generated API request. The content included between <|startofexec|> and <|endofexec|> represents the API execution result.
+The training samples are organized in the following format, the content included between <|startofthink|> and <|endofthink|> represents the generated API request. The content included between <|startofexec|> and <|endofexec|> represents the API execution result.
 
 ```json
 {
@@ -317,7 +317,7 @@ If you would like to learn more about the practical details of Agent, you can re
 We appreciate your enthusiasm in participating in our open-source ModelScope-Agent project. If you encounter any issues, please feel free to report them to us. If you have built a new Agent demo and are ready to share your work with us, please create a pull request at any time! If you need any further assistance, please contact us via email at [contact@modelscope.cn](mailto:contact@modelscope.cn) or [communication group](https://modelscope.cn/docs/%E8%81%94%E7%B3%BB%E6%88%91%E4%BB%AC)!
 
 ## Citation
-If you found this work useful, consider giving this repository a star and citing our paper as followed:
+If you found this work useful, consider giving this repository a star and citing our paper as follows:
 ```
 @misc{li2023modelscopeagent,
       title={ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models},
