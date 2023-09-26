@@ -60,8 +60,8 @@ def get_ms_tool_dataset(dataset_name_or_file) -> HfDataset:
             inputs_flag.append(0)
 
             # assistant response
-            origin_response_str = '\n\n<|assistant|>:' + content[2 * i
-                                                                 + 2]['value']
+            origin_response_str = '\n\n<|assistant|>:' + content[
+                2 * i + 2]['value'] + '\n\n</s>'
 
             idx1, idx2 = -1, 0
             iter1 = re.finditer(r'<\|startofexec\|>', origin_response_str)
