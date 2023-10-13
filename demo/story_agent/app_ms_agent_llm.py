@@ -119,14 +119,14 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         output_image[i] = gr.Image(
                             label=f'示例图片{i + 1}',
                             interactive=False,
-                            height=200,
+                            height=400,
                             visible=False,
                             show_progress=False)
                         output_text[i] = gr.Textbox(
                             label=f'故事情节{i + 1}', lines=2, interactive=False, visible=False, show_progress=False)
                     with gr.Column():
                         output_image[i + 1] = gr.Image(
-                            label=f'示例图片{i +2}', interactive=False, height=200, visible=False, show_progress=False)
+                            label=f'示例图片{i +2}', interactive=False, height=400, visible=False, show_progress=False)
                         output_text[i + 1] = gr.Textbox(
                             label=f'故事情节{i + 2}', lines=2, interactive=False, visible=False, show_progress=False)
 
@@ -153,7 +153,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         "重新生成", elem_id='regenerate_button')
 
             gr.Examples(
-                examples=['给我生成一个超级向日葵刺猬的故事', '增加一个它的一路坎坷', '可以的，故事生成的不错，我很喜欢！', '卡通画风格'],
+                examples=['给我生成一个向日葵刺猬的故事', '增加一个它的一路坎坷', '可以的，故事生成的不错，我很喜欢！', '卡通画风格'],
                 inputs=[user_input],
                 examples_per_page=20,
                 label="示例",
