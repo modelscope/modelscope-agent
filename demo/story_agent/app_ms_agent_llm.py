@@ -2,14 +2,15 @@ from __future__ import annotations
 import os
 import sys
 from functools import partial
-
+import re
 import gradio as gr
 from dotenv import load_dotenv
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator
 from modelscope_agent.retrieve import ToolRetrieval
-from gradio_chatbot import ChatBot
+# from gradio_chatbot import ChatBot
+from gradio.components import Chatbot as ChatBot
 from mock_llm import MockLLM
 from help_tool import PrintStoryTool, ShowExampleTool, ImageGenerationTool
 import copy
@@ -79,7 +80,7 @@ os.environ['TOOL_CONFIG_FILE'] = '../../config/cfg_tool_template.json'
 os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
 # os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
-# os.environ['DASHSCOPE_API_KEY'] = 'xxx'
+os.environ['DASHSCOPE_API_KEY'] = 'xxx'
 # os.environ['OPENAI_API_KEY'] = 'xxx'
 
 IMAGE_TEMPLATE_PATH = [
@@ -256,15 +257,19 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
             else:
                 # action_exec_result
                 frame_text = llm_result
-            response = f'{response}\n{frame_text}'
+                pattern = r"<\|startofthink\|>[\s\S]*<\|endofthink\|>"
+                while re.search(pattern, frame_text):
+                    frame_text = re.sub(pattern, "", frame_text)
             
+            response = f'{response}\n{frame_text}'
+            print(f'response: {response}')
             chatbot[-1] = (user_input, response)
             yield chatbot, *copy.deepcopy(output_component)
             # print ("response: ", response)
         
-        chatbot[-1] = (user_input, response)
+#         chatbot[-1] = (user_input, response)
 
-        yield chatbot, *output_component
+#         yield chatbot, *output_component
 
     # ---------- 事件 ---------------------
 
