@@ -80,7 +80,7 @@ os.environ['TOOL_CONFIG_FILE'] = '../../config/cfg_tool_template.json'
 os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
 # os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
-os.environ['DASHSCOPE_API_KEY'] = 'xxx'
+# os.environ['DASHSCOPE_API_KEY'] = 'xxx'
 # os.environ['OPENAI_API_KEY'] = 'xxx'
 
 IMAGE_TEMPLATE_PATH = [
