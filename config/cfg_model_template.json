@@ -12,6 +12,20 @@
             }
         }
     },
+    "modelscope-agent-http": {
+        "type": "dashscope_http",
+        "model": "pre-modelscope_gpt_agent_chat-620",
+        "generate_cfg": {
+            "parameters":{
+                "use_raw_prompt": true,
+                "top_p": 0.8,
+                "top_k": 10,
+                "seed": 123,
+                "debug": false
+            }
+        },
+        "url": "https://poc-dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+    },
     "openai": {
         "type": "openai",
         "model": "gpt-3.5-turbo"
