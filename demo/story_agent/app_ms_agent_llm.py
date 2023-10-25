@@ -313,5 +313,5 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         fn=lambda: clean_outputs_start, inputs=[], outputs=clean_outputs_target)
   
     demo.title = "StoryAgent 🎁"
-    demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)
+    demo.queue(concurrency_count=1, status_update_rate='auto', api_open=False)
     demo.launch(show_api=False, share=False)
