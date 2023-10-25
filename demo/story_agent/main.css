@@ -160,6 +160,7 @@ body, .gradio-container {
   max-width: 85%;
   border-bottom-left-radius: 0 !important;
   margin-left: 38px;
+  overflow-x: visible;
 }
 
 #chatbot .bot::before {

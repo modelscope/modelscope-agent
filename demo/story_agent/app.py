@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import sys
+sys.path.insert(0, os.path.abspath('../../'))
 from functools import partial
 
 import gradio as gr
@@ -71,8 +72,8 @@ load_dotenv('../../config/.env', override=True)
 os.environ['TOOL_CONFIG_FILE'] = '../../config/cfg_tool_template.json'
 os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
-# os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
-# os.environ['DASHSCOPE_API_KEY'] = 'xxx'
+os.environ['MODELSCOPE_API_TOKEN'] = '2b0156c3-c427-473c-9c79-782a0f883579'
+os.environ['DASHSCOPE_API_KEY'] = 'sk-03d27d7057a349eba33fc549fa473770'
 # os.environ['OPENAI_API_KEY'] = 'xxx'
 
 IMAGE_TEMPLATE_PATH = [
@@ -94,15 +95,21 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         gr.HTML(
             """<h1 align="left" style="min-width:200px; margin-top:0;">StoryAgent</h1>"""
         )
+        gr.HTML("""<div align="center">
+            <div style="display:flex; gap: 0.25rem;" align="center">
+                <a href='https://github.com/modelscope/modelscope-agent'><img src='https://img.shields.io/badge/Github-Code-blue'></a>
+                <a href="https://arxiv.org/abs/2309.00986"><img src="https://img.shields.io/badge/Arxiv-2304.14178-red"></a>
+            </div>
+        </div>""")
         status_display = gr.HTML(
             "", elem_id="status_display", visible=False, show_label=False)
 
     with gr.Row(elem_id="container_row").style(equal_height=True):
 
         with gr.Column(scale=6):
-            
-            story_content = gr.Textbox(label='故事情节', lines=4, interactive=False)
-            # story_content = ""
+            gr.HTML(
+            """<span data-testid="block-info" class="svelte-1gfkn6j">生成内容</span>"""
+            )
             output_image = [None] * max_scene
             output_text = [None] * max_scene
 
@@ -112,14 +119,14 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         output_image[i] = gr.Image(
                             label=f'示例图片{i + 1}',
                             interactive=False,
-                            height=200,
+                            height=400,
                             visible=False,
                             show_progress=False)
                         output_text[i] = gr.Textbox(
                             label=f'故事情节{i + 1}', lines=2, interactive=False, visible=False, show_progress=False)
                     with gr.Column():
                         output_image[i + 1] = gr.Image(
-                            label=f'示例图片{i +2}', interactive=False, height=200, visible=False, show_progress=False)
+                            label=f'示例图片{i +2}', interactive=False, height=400, visible=False, show_progress=False)
                         output_text[i + 1] = gr.Textbox(
                             label=f'故事情节{i + 2}', lines=2, interactive=False, visible=False, show_progress=False)
 
@@ -129,6 +136,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 elem_id="chatbot",
                 elem_classes=["markdown-body"],
                 show_label=False,
+                value=[[None, PROMPT_START]],
                 height=400)
             with gr.Row(elem_id="chat-bottom-container"):
                 with gr.Column(min_width=70, scale=1):
@@ -152,15 +160,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 label="示例",
                 elem_id="chat-examples")
 
-            steps = gr.Slider(
-                minimum=1,
-                maximum=max_scene,
-                value=1,
-                step=1,
-                label='生成绘本的数目',
-                interactive=True)
-            #steps = 4
-
     # ----------agent 对象初始化--------------------
 
     tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
@@ -176,16 +175,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     prompt_generator = MSPromptGenerator(
         system_template=SYSTEM_PROMPT,
         instruction_template=INSTRUCTION_TEMPLATE)
-
-    # model_cfg = {
-    #     'modelscope-agent-qwen-7b': {
-    #         'model_id': 'damo/MSAgent-Qwen-7B',
-    #         'model_revision': 'v1.0.2',
-    #         'use_raw_generation_config': True,
-    #         'custom_chat': True
-    #     }
-    # }
-
 
     # tools 
 
@@ -215,14 +204,13 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         max_scene = MAX_SCENE
 
         user_input = inputs[0]
-        num_scene = inputs[1]
-        chatbot = inputs[2]
-        output_component = list(inputs[3:])
+        chatbot = inputs[1]
+        output_component = list(inputs[2:])
 
         def reset_component():
             for i in range(max_scene):
-                output_component[i+1] = gr.Image.update(visible=False)
-                output_component[i+max_scene+1] = gr.Textbox.update(visible=False)
+                output_component[i] = gr.Image.update(visible=False)
+                output_component[i+max_scene] = gr.Textbox.update(visible=False)
 
         # reset_component()
 
@@ -233,14 +221,15 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
             exec_result = exec_result['result']
             name = exec_result.pop('name')
             if name ==  'print_story_tool':
-                output_component[0] = gr.Textbox.update(**exec_result)
+                pass
+                #output_component[0] = gr.Textbox.update(**exec_result)
             elif name == 'show_image_example':
                 for i, r in enumerate(exec_result['result']):
-                    output_component[i+1] = gr.Image.update(**r)
+                    output_component[i] = gr.Image.update(**r)
             elif name == 'image_generation':
                 idx = int(exec_result.pop('idx'))
-                output_component[idx+1] = gr.Image.update(**exec_result['img_result'])
-                output_component[idx+max_scene+1] = gr.Textbox.update(**exec_result['text_result'])
+                output_component[idx] = gr.Image.update(**exec_result['img_result'])
+                output_component[idx+max_scene] = gr.Textbox.update(**exec_result['text_result'])
 
         response = ''
         
@@ -263,14 +252,14 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
             yield chatbot, *copy.deepcopy(output_component)
             # print ("response: ", response)
         
-        chatbot[-1] = (user_input, response)
+        # chatbot[-1] = (user_input, response)
 
-        yield chatbot, *output_component
+        # yield chatbot, *output_component
 
     # ---------- 事件 ---------------------
 
-    stream_predict_input = [user_input, steps, chatbot, story_content, *output_image, *output_text]
-    stream_predict_output = [chatbot, story_content, *output_image, *output_text]
+    stream_predict_input = [user_input, chatbot, *output_image, *output_text]
+    stream_predict_output = [chatbot, *output_image, *output_text]
 
     clean_outputs_start = ['', gr.update(value=[(None, PROMPT_START)])] + [None] * max_scene + [''] * max_scene
     clean_outputs = ['', gr.update(value=[])] + [None] * max_scene + [''] * max_scene
@@ -306,7 +295,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     clear_session_button.click(
         fn=lambda: clean_outputs_start, inputs=[], outputs=clean_outputs_target)
   
-    # chatbot.append((None, PROMPT_START))
     demo.title = "StoryAgent 🎁"
     demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)
-    demo.launch(show_api=False, share=True)
+    demo.launch(show_api=False, share=False)
