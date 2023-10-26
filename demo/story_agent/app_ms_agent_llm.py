@@ -280,6 +280,10 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
             chatbot[-1] = (user_input, response)
             yield chatbot, *copy.deepcopy(output_component)
 
+        chatbot[-1] = (user_input, response)
+
+        yield chatbot, *output_component
+
 # ---------- 事件 ---------------------
 
     stream_predict_input = [
