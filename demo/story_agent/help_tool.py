@@ -89,10 +89,8 @@ class ImageGenerationTool(TextToImageTool):
         'required': True      
     }]
 
-    def __init__(self, image_box: List[gr.Image], text_box: List[gr.Textbox], cfg):
+    def __init__(self, cfg):
         super().__init__(cfg)
-        self.image_box = image_box
-        self.text_box = text_box
 
     def _local_call(self, text, idx, type):
         res = super()._local_call(type+ ", " + text.split("。")[0])['result']

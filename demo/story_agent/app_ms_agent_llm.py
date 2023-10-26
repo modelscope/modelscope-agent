@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator
-from modelscope_agent.retrieve import ToolRetrieval
 # from gradio_chatbot import ChatBot
 from gradio.components import Chatbot as ChatBot
 from mock_llm import MockLLM
@@ -74,7 +73,7 @@ KEY_TEMPLATE = ""
 
 MAX_SCENE = 4
 
-env_file = '../../config/.env'
+env_file = '.env'
 if os.path.exists(env_file):
     load_dotenv(env_file, override=True)
 your_modelscope_api_token = None
@@ -98,7 +97,46 @@ with open(
         encoding="utf-8") as f:
     MAIN_CSS_CODE = f.read()
 
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', None)
+model_cfg_file = os.getenv('MODEL_CONFIG_FILE', None)
+tool_cfg = Config.from_file(tool_cfg_file)
+model_cfg = Config.from_file(model_cfg_file)
+
+model_name = 'modelscope-agent-7b'
+llm = LLMFactory.build_llm(model_name, model_cfg)
+
+
+def init_agent(state):
+# ----------agent 对象初始化--------------------
+    prompt_generator = MSPromptGenerator(
+        system_template=SYSTEM_PROMPT,
+        instruction_template=INSTRUCTION_TEMPLATE)
+    # tools 
+
+    print_story_tool = PrintStoryTool()
+    show_img_example_tool = ShowExampleTool(IMAGE_TEMPLATE_PATH)
+    image_generation_tool = ImageGenerationTool(tool_cfg)
+
+    additional_tool_list = {
+        print_story_tool.name: print_story_tool,
+        show_img_example_tool.name: show_img_example_tool,
+        image_generation_tool.name: image_generation_tool
+    }
+
+    agent = AgentExecutor(
+        llm,
+        tool_cfg,
+        prompt_generator=prompt_generator,
+        tool_retrieval=False,
+        additional_tool_list=additional_tool_list)
+
+    agent.set_available_tools(additional_tool_list.keys())
+    state['agent'] = agent
+
+
 with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
+    state = gr.State({})
+    demo.load(init_agent, inputs=[state], outputs=[])
 
     max_scene = MAX_SCENE
 
@@ -173,55 +211,21 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 label="示例",
                 elem_id="chat-examples")
 
-    # ----------agent 对象初始化--------------------
-
-    tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', None)
-    model_cfg_file = os.getenv('MODEL_CONFIG_FILE', None)
-    tool_cfg = Config.from_file(tool_cfg_file)
-    model_cfg = Config.from_file(model_cfg_file)
-
-
-    prompt_generator = MSPromptGenerator(
-        system_template=SYSTEM_PROMPT,
-        instruction_template=INSTRUCTION_TEMPLATE)
     
-    model_name = 'modelscope-agent-7b'
-
-    llm = LLMFactory.build_llm(model_name, model_cfg)
-
-
-
-    # tools 
-
-    print_story_tool = PrintStoryTool()
-    show_img_example_tool = ShowExampleTool(IMAGE_TEMPLATE_PATH)
-    image_generation_tool = ImageGenerationTool(output_image, output_text, tool_cfg)
-
-    additional_tool_list = {
-        print_story_tool.name: print_story_tool,
-        show_img_example_tool.name: show_img_example_tool,
-        image_generation_tool.name: image_generation_tool
-    }
-
-    agent = AgentExecutor(
-        llm,
-        tool_cfg,
-        prompt_generator=prompt_generator,
-        tool_retrieval=False,
-        additional_tool_list=additional_tool_list)
-
-    agent.set_available_tools(additional_tool_list.keys())
 
     def story_agent(*inputs):
 
-        global agent
+        
 
         max_scene = MAX_SCENE
 
         user_input = inputs[0]
         chatbot = inputs[1]
-        output_component = list(inputs[2:])
+        state = inputs[2]
+        output_component = list(inputs[3:])
 
+        agent = state['agent']
+    
         def reset_component():
             for i in range(max_scene):
                 output_component[i] = gr.Image.update(visible=False)
@@ -275,12 +279,13 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     # ---------- 事件 ---------------------
 
-    stream_predict_input = [user_input, chatbot, *output_image, *output_text]
+    stream_predict_input = [user_input, chatbot, state, *output_image, *output_text]
     stream_predict_output = [chatbot, *output_image, *output_text]
 
     clean_outputs_start = ['', gr.update(value=[(None, PROMPT_START)])] + [None] * max_scene + [''] * max_scene
-    clean_outputs = ['', gr.update(value=[])] + [None] * max_scene + [''] * max_scene
-    clean_outputs_target = [user_input, chatbot, *output_image, *output_text]
+    clean_outputs = [''] + [None] * max_scene + [''] * max_scene
+    clean_outputs_start_target = [user_input, chatbot, *output_image, *output_text]
+    clean_outputs_target = [user_input, *output_image, *output_text]
     user_input.submit(
         story_agent,
         inputs=stream_predict_input,
@@ -305,13 +310,15 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         stream_predict_output,
         show_progress=True)
 
-    def clear_session():
+    def clear_session(state):
+        agent = state['agent']
         agent.reset()
 
-    clear_session_button.click(fn=clear_session, inputs=[], outputs=[])
+    clear_session_button.click(fn=clear_session, inputs=[state], outputs=[])
     clear_session_button.click(
-        fn=lambda: clean_outputs_start, inputs=[], outputs=clean_outputs_target)
+        fn=lambda: clean_outputs_start, inputs=[], outputs=clean_outputs_start_target)
   
     demo.title = "StoryAgent 🎁"
+    
     demo.queue(concurrency_count=1, status_update_rate='auto', api_open=False)
     demo.launch(show_api=False, share=False)
