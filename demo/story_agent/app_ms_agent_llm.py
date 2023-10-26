@@ -331,7 +331,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         inputs=[],
         outputs=clean_outputs_target)
 
-    # chatbot.append((None, PROMPT_START))
     demo.title = "StoryAgent 🎁"
     demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)
     demo.launch(show_api=False, share=True)
