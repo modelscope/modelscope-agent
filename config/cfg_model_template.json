@@ -3,13 +3,10 @@
         "type": "dashscope",
         "model": "modelscope-agent-llm-v1",
         "generate_cfg": {
-            "parameters":{
-                "use_raw_prompt": true,
-                "top_p": 0.8,
-                "top_k": 10,
-                "seed": 123,
-                "debug": false
-            }
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "seed": 123,
+            "debug": false
         }
     },
     "modelscope-agent-http": {
@@ -25,6 +22,9 @@
             }
         },
         "url": "https://poc-dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+    },
+    "http_llm": {
+        "type": "http_llm"
     },
     "openai": {
         "type": "openai",
