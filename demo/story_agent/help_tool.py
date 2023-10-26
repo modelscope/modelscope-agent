@@ -1,6 +1,8 @@
-from modelscope_agent.tools import Tool, TextToImageTool
-import gradio as gr
 from typing import List
+
+import gradio as gr
+from modelscope_agent.tools import TextToImageTool, Tool
+
 
 class PrintStoryTool(Tool):
     description = '将生成的故事打印到gradio的输出框中'

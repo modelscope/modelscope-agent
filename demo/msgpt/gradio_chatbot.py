@@ -1,9 +1,11 @@
 from __future__ import annotations
+import ast
 import html
 import re
 import traceback
 from typing import List, Tuple
 
+import gradio as gr
 import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
@@ -13,7 +15,13 @@ ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
 
 class ChatBot(ChatBotBase):
 
-    def normalize_markdown(self, bot_message):
+    def normalize_markdown(self, bot_message, remove_media=False):
+
+        if remove_media:
+            media_regex = r"(!\[[^\]]*\]\([^)]+\)|<audio[^>]+>.*?</audio>)\n*"
+            # 使用正则表达式进行替换
+            bot_message = re.sub(media_regex, "", bot_message)
+
         lines = bot_message.split("\n")
         normalized_lines = []
         inside_list = False
@@ -35,11 +43,11 @@ class ChatBot(ChatBotBase):
 
         return "\n".join(normalized_lines)
 
-    def convert_markdown(self, bot_message):
+    def convert_markdown(self, bot_message, remove_media=False):
         if bot_message.count('```') % 2 != 0:
             bot_message += '\n```'
 
-        bot_message = self.normalize_markdown(bot_message)
+        bot_message = self.normalize_markdown(bot_message, remove_media)
 
         result = markdown.markdown(
             bot_message,
@@ -102,59 +110,50 @@ class ChatBot(ChatBotBase):
                 think_content = json_content.group(
                 ) if json_content else think_content
                 try:
-                    think_node = json.loads(think_content)
+                    think_node = json.loads(
+                        think_content.replace('\n', ''), strict=False)
                     plugin_name = think_node.get(
                         'plugin_name',
                         think_node.get('plugin',
                                        think_node.get('api_name', 'unknown')))
-                    summary = f'选择插件【{plugin_name}】，调用处理中...'
-
+                    summary = f'选择插件【{plugin_name}】'
                     think_node.pop('url', None)
-
                     detail = f'```json\n\n{json.dumps(think_node,indent=3,ensure_ascii=False)}\n\n```'
                 except Exception:
+                    traceback.print_exc()
                     summary = '思考中...'
                     detail = think_content
-                    # traceback.print_exc()
                     # detail += traceback.format_exc()
-                # result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
-                #     detail) + '</details>'
-                print(f'detail:{detail}')
+                result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
+                    detail) + '</details>'
                 start_pos = end_of_think_pos + len(END_OF_THINK_TAG)
             except Exception:
                 # result += traceback.format_exc()
                 break
-                # continue
 
             try:
                 start_of_exec_pos = bot_message.index(START_OF_EXEC_TAG,
                                                       start_pos)
                 end_of_exec_pos = bot_message.index(END_OF_EXEC_TAG, start_pos)
-                # print(start_of_exec_pos)
-                # print(end_of_exec_pos)
-                # print(bot_message[start_of_exec_pos:end_of_exec_pos])
-                # print('------------------------')
                 if start_pos < start_of_exec_pos:
                     result += self.convert_markdown(
                         bot_message[start_pos:start_of_think_pos])
                 exec_content = bot_message[start_of_exec_pos
                                            + len(START_OF_EXEC_TAG
                                                  ):end_of_exec_pos].strip()
-                try:
-                    summary = '完成插件调用.'
-                    detail = f'```json\n\n{exec_content}\n\n```'
-                except Exception:
-                    pass
+                exec_content = self.process_exec_result(exec_content)
 
+                # result += self.convert_markdown(exec_content)
+                summary = '执行结果'
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
-                    detail) + '</details>'
-
+                    exec_content) + '</details>'
                 start_pos = end_of_exec_pos + len(END_OF_EXEC_TAG)
             except Exception:
-                # result += traceback.format_exc()
-                continue
+                # traceback.print_exc()
+                break
         if start_pos < len(bot_message):
-            result += self.convert_markdown(bot_message[start_pos:])
+            result += self.convert_markdown(
+                bot_message[start_pos:], remove_media=True)
         result += ALREADY_CONVERTED_MARK
         return result
 
@@ -171,13 +170,50 @@ class ChatBot(ChatBotBase):
         if not message_pairs:
             return []
         user_message, bot_message = message_pairs[-1]
-
-        # if user_message and not user_message.endswith(
-        #         ALREADY_CONVERTED_MARK):
-        #     convert_md = self.convert_markdown(html.escape(user_message))
-        #     user_message = f"<p style=\"white-space:pre-wrap;\">{convert_md}</p>" + ALREADY_CONVERTED_MARK
-        # if bot_message and not bot_message.endswith(
-        #         ALREADY_CONVERTED_MARK):
-        #     bot_message = self.convert_bot_message(bot_message)
+        if not user_message.endswith(ALREADY_CONVERTED_MARK):
+            user_message = f"<p style=\"white-space:pre-wrap;\">{self.convert_markdown(html.escape(user_message))}</p>"\
+                + ALREADY_CONVERTED_MARK
+        if not bot_message.endswith(ALREADY_CONVERTED_MARK):
+            bot_message = self.convert_bot_message(bot_message)
         message_pairs[-1] = (user_message, bot_message)
         return message_pairs
+
+    def process_exec_result(self, exec_result: str):
+
+        exec_result = exec_result.replace("{'result': ", "")
+        exec_result = exec_result[:-1]
+        exec_result = exec_result.replace("'", "\"")
+        try:
+            exec_result = json.loads(
+                exec_result.replace('\n', ''), strict=False)
+            final_result = f'```json\n\n{exec_result}\n\n```'
+            return final_result
+        except Exception:
+            match_image = re.search(r'!\[IMAGEGEN\]\((.*?)\)', exec_result)
+            if match_image:
+                img_path = match_image.group(1)
+
+                gr_img_path = self.transform_to_gr_file(img_path)
+                final_result = exec_result.replace(img_path, gr_img_path)
+                return final_result
+
+            match_audio = re.search(
+                r'<audio id=audio controls= preload=none> <source id=wav src=(.*?)> <\/audio>',
+                exec_result)
+            if match_audio:
+                audio_path = match_audio.group(1)
+                gr_audio_path = self.transform_to_gr_file(audio_path)
+
+                final_result = exec_result.replace(audio_path, gr_audio_path)
+                return final_result
+
+            final_result = exec_result
+            return final_result
+
+    def transform_to_gr_file(self, file_path):
+        file_manager = gr.File()
+        gr_file_path = file_manager.make_temp_copy_if_needed(file_path)
+
+        gr_file_path = f"./file={gr_file_path}"
+
+        return gr_file_path

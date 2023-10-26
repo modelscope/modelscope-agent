@@ -1,8 +1,9 @@
 import re
+import traceback
 from typing import Dict, Tuple
 
 import json
-import traceback
+
 
 class OutputParser:
 
@@ -42,7 +43,6 @@ class MsOutputParser(OutputParser):
             parameters = json_content.get('parameters', {})
 
             return action, parameters
-
         except Exception:
             raise ValueError('Wrong response format for output parser')
 
