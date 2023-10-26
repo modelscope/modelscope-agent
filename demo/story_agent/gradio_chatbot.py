@@ -7,7 +7,9 @@ from typing import List, Tuple
 import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
+
 ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
+
 
 class ChatBot(ChatBotBase):
 
@@ -106,7 +108,7 @@ class ChatBot(ChatBotBase):
                         think_node.get('plugin',
                                        think_node.get('api_name', 'unknown')))
                     summary = f'选择插件【{plugin_name}】，调用处理中...'
-                    
+
                     think_node.pop('url', None)
 
                     detail = f'```json\n\n{json.dumps(think_node,indent=3,ensure_ascii=False)}\n\n```'

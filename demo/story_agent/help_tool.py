@@ -1,6 +1,8 @@
-from modelscope_agent.tools import Tool, TextToImageTool
-import gradio as gr
 from typing import List
+
+import gradio as gr
+from modelscope_agent.tools import TextToImageTool, Tool
+
 
 class PrintStoryTool(Tool):
     description = '将生成的故事打印到gradio的输出框中'
@@ -16,12 +18,14 @@ class PrintStoryTool(Tool):
 
     def _local_call(self, text):
         # self.story_box.update(value=text)
-        result = {'name': self.name,'value': text}
+        result = {'name': self.name, 'value': text}
         return {'result': result}
+
     def _remote_call(self, text):
         # self.story_box.update(value=text)
-        result = {'name': self.name,'value': text}
+        result = {'name': self.name, 'value': text}
         return {'result': result}
+
 
 class ShowExampleTool(Tool):
     description = '控制是否给用户展示示例图片'
@@ -39,38 +43,33 @@ class ShowExampleTool(Tool):
     def _local_call(self, visible):
         output_result = []
         if "true" in visible.lower():
-            for path in  self.image_example_path:
+            for path in self.image_example_path:
                 # img_box.update(visible=True, value=path)
                 output_result.append({'value': path, 'visible': True})
         else:
-            for path in  self.image_example_path:
+            for path in self.image_example_path:
                 # img_box.update(visible=False, value=None)
                 output_result.append({'value': None, 'visible': False})
 
-        result = {
-            'name': self.name,
-            'result': output_result
-        }
+        result = {'name': self.name, 'result': output_result}
 
         return {'result': result}
+
     def _remote_call(self, visible):
         output_result = []
         if "true" in visible.lower():
-            for path in  self.image_example_path:
+            for path in self.image_example_path:
                 # img_box.update(visible=True, value=path)
                 output_result.append({'value': path, 'visible': True})
         else:
-            for path in  self.image_example_path:
+            for path in self.image_example_path:
                 # img_box.update(visible=False, value=None)
                 output_result.append({'value': None, 'visible': False})
 
-        result = {
-            'name': self.name,
-            'result': output_result
-        }
+        result = {'name': self.name, 'result': output_result}
 
         return {'result': result}
-    
+
 
 class ImageGenerationTool(TextToImageTool):
     description = '根据输入的文本生成图片'
@@ -86,33 +85,50 @@ class ImageGenerationTool(TextToImageTool):
     }, {
         'name': 'type',
         'description': '图片的风格',
-        'required': True      
+        'required': True
     }]
 
-    def __init__(self, image_box: List[gr.Image], text_box: List[gr.Textbox], cfg):
+    def __init__(self, image_box: List[gr.Image], text_box: List[gr.Textbox],
+                 cfg):
         super().__init__(cfg)
         self.image_box = image_box
         self.text_box = text_box
 
     def _local_call(self, text, idx, type):
-        res = super()._local_call(type+ ", " + text.split("。")[0])['result']
+        res = super()._local_call(type + ", " + text.split("。")[0])['result']
 
         result = {
             'name': self.name,
             'idx': idx,
-            'img_result': {'value': res.path, 'visible': True, 'label': f'生成图片{int(idx)+1}'},
-            'text_result': {'value': text, 'visible': True}
+            'img_result': {
+                'value': res.path,
+                'visible': True,
+                'label': f'生成图片{int(idx)+1}'
+            },
+            'text_result': {
+                'value': text,
+                'visible': True
+            }
         }
 
         return {'result': result}
+
     def _remote_call(self, text, idx, type):
-        res = super()._remote_call(text=type+ ", " + text.split("。")[0])['result']
+        res = super()._remote_call(text=type + ", "
+                                   + text.split("。")[0])['result']
 
         result = {
             'name': self.name,
             'idx': idx,
-            'img_result': {'value': res.path, 'visible': True, 'label': f'生成图片{int(idx)+1}'},
-            'text_result': {'value': text, 'visible': True}
+            'img_result': {
+                'value': res.path,
+                'visible': True,
+                'label': f'生成图片{int(idx)+1}'
+            },
+            'text_result': {
+                'value': text,
+                'visible': True
+            }
         }
 
         return {'result': result}

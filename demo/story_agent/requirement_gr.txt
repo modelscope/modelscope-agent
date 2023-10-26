@@ -3,3 +3,6 @@ markdown_katex
 mdx_truly_sane_lists
 markdown_cjk_spacing
 pymdown-extensions
+invisible-watermark>=2.0
+faiss-cpu
+l-katex

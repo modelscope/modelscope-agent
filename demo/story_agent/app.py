@@ -1,23 +1,21 @@
 from __future__ import annotations
+import copy
 import os
 import sys
 from functools import partial
 
 import gradio as gr
 from dotenv import load_dotenv
+from gradio_chatbot import ChatBot
+from help_tool import ImageGenerationTool, PrintStoryTool, ShowExampleTool
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator
 from modelscope_agent.retrieve import ToolRetrieval
-from gradio_chatbot import ChatBot
-from mock_llm import MockLLM
-from help_tool import PrintStoryTool, ShowExampleTool, ImageGenerationTool
-import copy
 
 from modelscope.utils.config import Config
 
 PROMPT_START = "你好！我是你的StoryAgent，很高兴为你提供服务。首先，我想了解你对想要创作的故事有什么大概的想法或者大纲？"
-
 
 SYSTEM_PROMPT = """<|system|>: 你现在扮演一个Story Agent，不断和用户沟通创作故事想法，确定完后生成故事给用户，然后再询问用户绘图风格，最后生成绘图给用户。当前对话可以使用的插件信息如下，请自行判断是否需要调用插件来解决当前用户问题。若需要调用插件，则需要将插件调用请求按照json格式给出，必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。然后你需要根据插件API调用结果生成合理的答复。
 \n<tool_list>\n"""
@@ -73,13 +71,11 @@ os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
 # os.environ['MODELSCOPE_API_TOKEN'] = 'xxx'
 # os.environ['DASHSCOPE_API_KEY'] = 'xxx'
-# os.environ['OPENAI_API_KEY'] = 'xxx'
 
 IMAGE_TEMPLATE_PATH = [
     'img_example/1.png',
     'img_example/2.png',
 ]
-
 
 with open(
         os.path.join(os.path.dirname(__file__), 'main.css'), "r",
@@ -100,8 +96,9 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     with gr.Row(elem_id="container_row").style(equal_height=True):
 
         with gr.Column(scale=6):
-            
-            story_content = gr.Textbox(label='故事情节', lines=4, interactive=False)
+
+            story_content = gr.Textbox(
+                label='故事情节', lines=4, interactive=False)
             # story_content = ""
             output_image = [None] * max_scene
             output_text = [None] * max_scene
@@ -112,16 +109,28 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         output_image[i] = gr.Image(
                             label=f'示例图片{i + 1}',
                             interactive=False,
-                            height=200,
+                            height=400,
                             visible=False,
                             show_progress=False)
                         output_text[i] = gr.Textbox(
-                            label=f'故事情节{i + 1}', lines=2, interactive=False, visible=False, show_progress=False)
+                            label=f'故事情节{i + 1}',
+                            lines=2,
+                            interactive=False,
+                            visible=False,
+                            show_progress=False)
                     with gr.Column():
                         output_image[i + 1] = gr.Image(
-                            label=f'示例图片{i +2}', interactive=False, height=200, visible=False, show_progress=False)
+                            label=f'示例图片{i +2}',
+                            interactive=False,
+                            height=400,
+                            visible=False,
+                            show_progress=False)
                         output_text[i + 1] = gr.Textbox(
-                            label=f'故事情节{i + 2}', lines=2, interactive=False, visible=False, show_progress=False)
+                            label=f'故事情节{i + 2}',
+                            lines=2,
+                            interactive=False,
+                            visible=False,
+                            show_progress=False)
 
         with gr.Column(min_width=470, scale=6, elem_id='settings'):
 
@@ -129,11 +138,14 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 elem_id="chatbot",
                 elem_classes=["markdown-body"],
                 show_label=False,
+                value=[[None, PROMPT_START]],
                 height=400)
             with gr.Row(elem_id="chat-bottom-container"):
                 with gr.Column(min_width=70, scale=1):
                     clear_session_button = gr.Button(
-                        "清除", elem_id='clear_session_button', default_value=True)
+                        "清除",
+                        elem_id='clear_session_button',
+                        default_value=True)
                 with gr.Column(scale=12):
                     user_input = gr.Textbox(
                         show_label=False,
@@ -146,7 +158,10 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                         "重新生成", elem_id='regenerate_button')
 
             gr.Examples(
-                examples=['给我生成一个超级向日葵刺猬的故事', '每个段落故事里面都加上超级向日葵刺猬', '可以的，故事生成的不错，我很喜欢！', '卡通画风格'],
+                examples=[
+                    '给我生成一个超级向日葵刺猬的故事', '每个段落故事里面都加上超级向日葵刺猬',
+                    '可以的，故事生成的不错，我很喜欢！', '卡通画风格'
+                ],
                 inputs=[user_input],
                 examples_per_page=20,
                 label="示例",
@@ -169,29 +184,20 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     tool_cfg = Config.from_file(tool_cfg_file)
     model_cfg = Config.from_file(model_cfg_file)
 
+    # llm
     model_name = 'openai'
     llm = LLMFactory.build_llm(model_name, model_cfg)
-    #llm = MockLLM()
 
     prompt_generator = MSPromptGenerator(
         system_template=SYSTEM_PROMPT,
         instruction_template=INSTRUCTION_TEMPLATE)
 
-    # model_cfg = {
-    #     'modelscope-agent-qwen-7b': {
-    #         'model_id': 'damo/MSAgent-Qwen-7B',
-    #         'model_revision': 'v1.0.2',
-    #         'use_raw_generation_config': True,
-    #         'custom_chat': True
-    #     }
-    # }
-
-
-    # tools 
+    # tools
 
     print_story_tool = PrintStoryTool()
     show_img_example_tool = ShowExampleTool(IMAGE_TEMPLATE_PATH)
-    image_generation_tool = ImageGenerationTool(output_image, output_text, tool_cfg)
+    image_generation_tool = ImageGenerationTool(output_image, output_text,
+                                                tool_cfg)
 
     additional_tool_list = {
         print_story_tool.name: print_story_tool,
@@ -221,33 +227,36 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
         def reset_component():
             for i in range(max_scene):
-                output_component[i+1] = gr.Image.update(visible=False)
-                output_component[i+max_scene+1] = gr.Textbox.update(visible=False)
+                output_component[i + 1] = gr.Image.update(visible=False)
+                output_component[i + max_scene
+                                 + 1] = gr.Textbox.update(visible=False)
 
         # reset_component()
 
         chatbot.append((user_input, None))
         yield chatbot, *output_component
-        
+
         def update_component(exec_result):
             exec_result = exec_result['result']
             name = exec_result.pop('name')
-            if name ==  'print_story_tool':
+            if name == 'print_story_tool':
                 output_component[0] = gr.Textbox.update(**exec_result)
             elif name == 'show_image_example':
                 for i, r in enumerate(exec_result['result']):
-                    output_component[i+1] = gr.Image.update(**r)
+                    output_component[i + 1] = gr.Image.update(**r)
             elif name == 'image_generation':
                 idx = int(exec_result.pop('idx'))
-                output_component[idx+1] = gr.Image.update(**exec_result['img_result'])
-                output_component[idx+max_scene+1] = gr.Textbox.update(**exec_result['text_result'])
+                output_component[idx + 1] = gr.Image.update(
+                    **exec_result['img_result'])
+                output_component[idx + max_scene + 1] = gr.Textbox.update(
+                    **exec_result['text_result'])
 
         response = ''
-        
-        for frame in agent.stream_run(user_input+KEY_TEMPLATE, remote=True):
+
+        for frame in agent.stream_run(user_input + KEY_TEMPLATE, remote=True):
             is_final = frame.get("frame_is_final")
             llm_result = frame.get("llm_text", "")
-            exec_result = frame.get('exec_result', '') 
+            exec_result = frame.get('exec_result', '')
             print(frame)
             llm_result = llm_result.split("<|user|>")[0].strip()
             if len(exec_result) != 0:
@@ -258,22 +267,28 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 # action_exec_result
                 frame_text = llm_result
             response = f'{response}\n{frame_text}'
-            
+
             chatbot[-1] = (user_input, response)
             yield chatbot, *copy.deepcopy(output_component)
             # print ("response: ", response)
-        
+
         chatbot[-1] = (user_input, response)
 
         yield chatbot, *output_component
 
     # ---------- 事件 ---------------------
 
-    stream_predict_input = [user_input, steps, chatbot, story_content, *output_image, *output_text]
-    stream_predict_output = [chatbot, story_content, *output_image, *output_text]
+    stream_predict_input = [
+        user_input, steps, chatbot, story_content, *output_image, *output_text
+    ]
+    stream_predict_output = [
+        chatbot, story_content, *output_image, *output_text
+    ]
 
-    clean_outputs_start = ['', gr.update(value=[(None, PROMPT_START)])] + [None] * max_scene + [''] * max_scene
-    clean_outputs = ['', gr.update(value=[])] + [None] * max_scene + [''] * max_scene
+    clean_outputs_start = ['', gr.update(value=[(None, PROMPT_START)])
+                           ] + [None] * max_scene + [''] * max_scene
+    clean_outputs = ['', gr.update(value=[])
+                     ] + [None] * max_scene + [''] * max_scene
     clean_outputs_target = [user_input, chatbot, *output_image, *output_text]
     user_input.submit(
         story_agent,
@@ -304,8 +319,10 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
     clear_session_button.click(fn=clear_session, inputs=[], outputs=[])
     clear_session_button.click(
-        fn=lambda: clean_outputs_start, inputs=[], outputs=clean_outputs_target)
-  
+        fn=lambda: clean_outputs_start,
+        inputs=[],
+        outputs=clean_outputs_target)
+
     # chatbot.append((None, PROMPT_START))
     demo.title = "StoryAgent 🎁"
     demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)

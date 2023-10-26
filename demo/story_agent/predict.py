@@ -17,16 +17,15 @@ def generate_story(user_input, num_scene, max_scene, agent):
     agent.reset()
     user_input += f', 分成{num_scene}段写出'
 
-
     def get_response(prompt):
 
         response = ''
-        
+
         for frame in agent.stream_run(prompt, remote=True):
             is_final = frame.get("frame_is_final")
             llm_result = frame.get("llm_text", "")
-            exec_result = frame.get('exec_result', '') 
-            print (frame)
+            exec_result = frame.get('exec_result', '')
+            print(frame)
             if len(exec_result) != 0:
                 # llm_result
                 frame_text = f'\n\n<|startofexec|>{exec_result}<|endofexec|>\n'
@@ -34,11 +33,11 @@ def generate_story(user_input, num_scene, max_scene, agent):
                 # action_exec_result
                 frame_text = llm_result
             response = f'{response}{frame_text}'
-        
-        print ("response: ", response)
+
+        print("response: ", response)
         return response
 
-    story = get_response(user_input) 
+    story = get_response(user_input)
     print('---------------------')
     print(story)
 
@@ -55,7 +54,7 @@ def generate_story(user_input, num_scene, max_scene, agent):
         if i >= max_scene:
             break
         i_prompt = f'请调用英文图片生成模型生成图片：{scene_i.split("。")[0]}。必须包含api_name、parameters字段，并在其前后使用<|startofthink|>和<|endofthink|>作为标志。'
-        
+
         img_i = get_response(i_prompt)
 
         # 匹配图片的markdown
@@ -79,11 +78,10 @@ def generate_story(user_input, num_scene, max_scene, agent):
         # yield chatbot, *imgs, *texts
         yield *imgs, *texts
 
-
     # chatbot[-1] = (chatbot[-1][0], story_response)
 
     yield *imgs, *texts
-    
+
 
 def get_scene_prompt(story_response):
     """
@@ -110,8 +108,7 @@ def get_scene_prompt(story_response):
             scene_prompt.append(current_scene)
         """
         if len(line) > 5:
-            scene_prompt.append(line) 
-
+            scene_prompt.append(line)
 
     # TODO:转写
 
