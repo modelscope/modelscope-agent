@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 # from gradio_chatbot import ChatBot
 from gradio.components import Chatbot as ChatBot
 from help_tool import ImageGenerationTool, PrintStoryTool, ShowExampleTool
-from mock_llm import MockLLM
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator

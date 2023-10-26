@@ -8,7 +8,6 @@ import gradio as gr
 from dotenv import load_dotenv
 from gradio_chatbot import ChatBot
 from help_tool import ImageGenerationTool, PrintStoryTool, ShowExampleTool
-from mock_llm import MockLLM
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MSPromptGenerator, PromptGenerator
@@ -95,14 +94,14 @@ with open(
     MAIN_CSS_CODE = f.read()
 
 
-    tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
-    model_cfg_file = os.getenv('MODEL_CONFIG_FILE')
+tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
+model_cfg_file = os.getenv('MODEL_CONFIG_FILE')
 
-    tool_cfg = Config.from_file(tool_cfg_file)
-    model_cfg = Config.from_file(model_cfg_file)
+tool_cfg = Config.from_file(tool_cfg_file)
+model_cfg = Config.from_file(model_cfg_file)
 
-    model_name = 'openai'
-    llm = LLMFactory.build_llm(model_name, model_cfg)
+model_name = 'openai'
+llm = LLMFactory.build_llm(model_name, model_cfg)
     #llm = MockLLM()
 
 def init_agent(state):
@@ -133,6 +132,7 @@ def init_agent(state):
 
     agent.set_available_tools(additional_tool_list.keys())
     state['agent'] = agent
+    print('init done')
 
 with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
     state = gr.State({})
@@ -218,7 +218,7 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         user_input = inputs[0]
         chatbot = inputs[1]
         state = inputs[2]
-        output_component = list(inputs[2:])
+        output_component = list(inputs[3:])
         agent = state['agent']
 
 
