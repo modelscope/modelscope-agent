@@ -22,14 +22,17 @@ def get_ms_tool_dataset(dataset_name_or_file) -> HfDataset:
 
     if os.path.isfile(dataset_name_or_file):
         with open(dataset_name_or_file, 'r') as f:
-            if dataset_name_or_file.endswith('.json'):
+            # if dataset_name_or_file.endswith('.json'):
+            try:
                 origin_data = json.load(f)
-            elif dataset_name_or_file.endswith('.jsonl'):
+            except Exception:
+            # elif dataset_name_or_file.endswith('.jsonl'):
+                f.seek(0)
                 origin_data = []
                 for line in f:
                     origin_data.append(json.loads(line))
     else:
-        origin_data = MsDataset.load('damo/MSAgent-Bench', split='train')
+        origin_data = MsDataset.load(dataset_name_or_file, split='train')
 
     all_inputs_str = []
     all_inputs_flag = []
@@ -50,8 +53,11 @@ def get_ms_tool_dataset(dataset_name_or_file) -> HfDataset:
         ]  # a flag to indicate whether the segment is assistant response
 
         for i in range(len(content) // 2):
-            if len(content[2 * i + 2]['value']) == 0:
+            if 2 * i + 2 >= len(content) or len(content[2 * i + 2]['value']) == 0:
                 continue
+
+            if content[2 * i + 1]['from'] != 'user':
+                break
 
             assert content[2 * i + 1]['from'] == 'user'
             assert content[2 * i + 2]['from'] == 'assistant'
@@ -103,15 +109,18 @@ def get_ms_tool_dataset_test(dataset_name_or_file):
     all_labels_str = []
 
     if os.path.isfile(dataset_name_or_file):
-        with open(dataset_json_file, 'r') as f:
-            if dataset_json_file.endswith('.json'):
+        with open(dataset_name_or_file, 'r') as f:
+            # if dataset_name_or_file.endswith('.json'):
+            try:
                 origin_data = json.load(f)
-            elif dataset_json_file.endswith('.jsonl'):
+            except Exception:
+            # elif dataset_name_or_file.endswith('.jsonl'):
+                f.seek(0)
                 origin_data = []
                 for line in f:
                     origin_data.append(json.loads(line))
     else:
-        origin_data = MsDataset.load('damo/MSAgent-Bench', split='validation')
+        origin_data = MsDataset.load(dataset_name_or_file, split='validation')
 
     for d in origin_data:
         content = d['conversations']
@@ -127,8 +136,12 @@ def get_ms_tool_dataset_test(dataset_name_or_file):
         input_str = system_str
 
         for i in range(len(content) // 2):
-            if len(content[2 * i + 2]['value']) == 0:
+            if 2 * i + 2 >= len(content) or len(content[2 * i + 2]['value']) == 0:
                 continue
+
+            if content[2 * i + 1]['from'] != 'user':
+                break
+
 
             assert content[2 * i + 1]['from'] == 'user'
             assert content[2 * i + 2]['from'] == 'assistant'
