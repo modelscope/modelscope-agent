@@ -32,7 +32,7 @@ class OpenAi(LLM):
         response = ''.join(completions)
 
         # truncate response
-        response = response.split("<|user|>")[0]
+        response = response.split('<|user|>')[0]
         idx = response.find('<|endofthink|>')
         if idx != -1:
             response = response[:idx + len('<|endofthink|>')]

@@ -49,6 +49,6 @@ class TextToImageTool(ModelscopePipelineTool):
                                  cv2.COLOR_BGR2RGB)
         else:
             # image = origin_result['output_img']
-            image = origin_result.output['results'][0]["url"]
+            image = origin_result.output['results'][0]['url']
 
         return {'result': ImageWrapper(image)}
