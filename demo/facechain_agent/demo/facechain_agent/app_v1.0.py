@@ -383,5 +383,5 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 demo.title = "Facechian Agent 🎁"
 if __name__ == "__main__":
     # print(multiprocessing.get_start_method())
-    multiprocessing.set_start_method('spawn')
+    multiprocessing.set_start_method('spawn', force=True)
     demo.queue(status_update_rate=1).launch(share=True)
