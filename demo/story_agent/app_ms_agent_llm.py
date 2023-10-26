@@ -7,7 +7,6 @@ from functools import partial
 
 import gradio as gr
 from dotenv import load_dotenv
-# from gradio_chatbot import ChatBot
 from gradio.components import Chatbot as ChatBot
 from help_tool import ImageGenerationTool, PrintStoryTool, ShowExampleTool
 from modelscope_agent.agent import AgentExecutor
