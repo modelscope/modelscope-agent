@@ -28,7 +28,7 @@ model_cfg = {
 llm = LLMFactory.build_llm(model_name, model_cfg)
 ```
 
-Currently, configuration of `ModelScopeLLM` may contains following parameters:
+Currently, configuration of `ModelScopeLLM` may contain following parameters:
 
 - `model_cls`: model class for load LLM, should be corresponding with `model_id`. Default `AutoModelForCausalLM`.
 - `tokenizer_cls`: tokenizer class for tokenizer, should be corresponding with `model_id`. Default `AutoTokenizer`.
@@ -58,7 +58,7 @@ def load_from_lora(self):
 If you want to use other llm, you can inherit base class and implement attributes or functions below.
 
 - `name`: Name of llm. The related configuration is loaded through name mapping in configuration file.
-- `__init__()`: This function shoule be implemented like this:
+- `__init__()`: This function should be implemented like this:
 ```Python
     def __init__(self, cfg):
         super().__init__(cfg)

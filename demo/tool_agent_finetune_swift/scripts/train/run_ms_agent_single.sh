@@ -1,11 +1,13 @@
 CUDA_VISIBLE_DEVICES=0 \
 python llm_sft.py \
-    --model_type qwen-7b \
+    --model_type modelscope-agent-7b \
     --sft_type lora \
     --output_dir runs \
-    --dataset test_v2_plugins_sample.json \
-    --dataset_sample -1 \
+    --dataset damo/MSAgent-Bench \
+    --dataset_sample 20000 \
+    --dataset_test_size 0.02 \
     --max_length 2048 \
+    --dtype bf16 \
     --lora_rank 8 \
     --lora_alpha 32 \
     --lora_dropout_p 0.1 \
@@ -15,5 +17,5 @@ python llm_sft.py \
     --eval_steps 50 \
     --save_steps 50 \
     --save_total_limit 2 \
-    --logging_steps 10 \
-    --use_flash_attn false \
+    --logging_steps 20 \
+    --use_flash_attn true \

@@ -1,7 +1,7 @@
 dashscope
 datasets>=2.8.0
 ipython
-langchain
+langchain<=0.0.292
 modelscope>=1.7.0
 moviepy
 ms-swift

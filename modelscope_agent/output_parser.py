@@ -42,7 +42,6 @@ class MsOutputParser(OutputParser):
             parameters = json_content.get('parameters', {})
 
             return action, parameters
-
         except Exception:
             raise ValueError('Wrong response format for output parser')
 
