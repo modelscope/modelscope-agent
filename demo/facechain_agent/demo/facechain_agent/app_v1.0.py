@@ -82,6 +82,7 @@ load_dotenv('../config/.env', override=True)
 os.environ['TOOL_CONFIG_FILE'] = '../config/cfg_tool_template.json'
 os.environ['MODEL_CONFIG_FILE'] = '../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
+os.environ['OPENAI_API_KEY'] = 'xxx'
 #dashscope.api_key = os.environ.get('DASHSCOPE_API_KEY')
 #dashscope.base_http_api_url = 'https://poc-dashscope.aliyuncs.com/api/v1'
 #dashscope.base_websocket_api_url = 'https://poc-dashscope.aliyuncs.com/api-ws/v1/inference'
@@ -109,8 +110,8 @@ tool_cfg = Config.from_file(tool_cfg_file)
 model_cfg = Config.from_file(model_cfg_file)
 
 model_name = 'modelscope-agent-7b'
+# model_name = 'openai'
 # model_name = 'modelscope-agent'
-#model_name = 'http_llm'
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
 prompt_generator = MSPromptGenerator(
