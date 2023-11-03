@@ -24,6 +24,8 @@
 To equip the LLMs with tool-use abilities, a comprehensive framework has been proposed spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
 
 ## News
+* Oct 30, 2023: [Facechain Agent](https://modelscope.cn/studios/CVstudio/facechain_agent_studio/summary) released a local version of the Facechain Agent that can be run locally. For detailed usage instructions, please refer to [Facechain Agent](#facechain-agent).
+* Oct 25, 2023: [Story Agent](https://modelscope.cn/studios/damo/story_agent/summary) released a local version of the Story Agent for generating storybook illustrations. It can be run locally. For detailed usage instructions, please refer to [Story Agent](#story-agent).
 * Sep 20, 2023: [ModelScope GPT](https://modelscope.cn/studios/damo/ModelScopeGPT/summary) offers a local version through gradio that can be run locally. You can navigate to the demo/msgpt/ directory and execute `bash run_msgpt.sh`.
 * Sep 4, 2023: Three demos, [demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb), have been added, along with detailed tutorials provided.
 * Sep 2, 2023: The [preprint paper](https://arxiv.org/abs/2309.00986) associated with this project was published.
@@ -315,6 +317,39 @@ If you would like to learn more about the practical details of Agent, you can re
 ## Share Your Agent
 
 We appreciate your enthusiasm in participating in our open-source ModelScope-Agent project. If you encounter any issues, please feel free to report them to us. If you have built a new Agent demo and are ready to share your work with us, please create a pull request at any time! If you need any further assistance, please contact us via email at [contact@modelscope.cn](mailto:contact@modelscope.cn) or [communication group](https://modelscope.cn/docs/%E8%81%94%E7%B3%BB%E6%88%91%E4%BB%AC)!
+
+### Facechain Agent
+Facechain is an open-source project for generating personalized portraits in various styles using facial images uploaded by users. By integrating the capabilities of Facechain into the modelscope-agent framework, we have greatly simplified the usage process. The generation of personalized portraits can now be done through dialogue with the Facechain Agent.
+
+FaceChainAgent Studio Application Link: https://modelscope.cn/studios/CVstudio/facechain_agent_studio/summary
+
+You can run it directly in a notebook/Colab/local environment: https://www.modelscope.cn/my/mynotebook
+
+```
+! git clone -b feat/facechain_agent https://github.com/modelscope/modelscope-agent.git
+
+! cd modelscope-agent && ! pip install -r requirements.txt
+! cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && ! pip install -r requirements.txt 
+! pip install http://dashscope-cn-beijing.oss-cn-beijing.aliyuncs.com/zhicheng/modelscope_agent-0.1.0-py3-none-any.whl
+! PYTHONPATH=/mnt/workspace/modelscope-agent/demo/facechain_agent && cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && python app_v1.0.py
+```
+
+### Story Agent
+The Story Agent is an open-source intelligent agent for generating storybooks. Users can create a storybook through dialogue with the agent, and the agent will intelligently guide the user through the entire creation process.
+
+StoryAgent Studio Application Link: https://modelscope.cn/studios/damo/story_agent/summary
+
+You can also run it directly in a notebook: https://www.modelscope.cn/my/mynotebook
+```
+! git clone -b feat/story_agent_gradio https://github.com/modelscope/modelscope-agent.git
+
+import os
+os.environ['DASHSCOPE_API_KEY'] = 'yours api-key'
+#DASHSCOPE_API_KEY可以从dashscope网站 https://dashscope.console.aliyun.com/apiKey获取
+! cd modelscope-agent && ! pip install -r requirements.txt
+! cd modelscope-agent/demo/story_agent && ! pip install -r requirement_gr.txt 
+! cd modelscope-agent/demo/story_agent && ! sh run_story_agent.sh
+```
 
 ## Citation
 If you found this work useful, consider giving this repository a star and citing our paper as follows:
