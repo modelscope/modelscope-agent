@@ -338,7 +338,7 @@ FaceChainAgent创空间应用地址：https://modelscope.cn/studios/CVstudio/fac
 ! git clone -b feat/facechain_agent https://github.com/modelscope/modelscope-agent.git
 
 ! cd modelscope-agent && ! pip install -r requirements.txt
-! cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && ! pip install -r requirements.txt 
+! cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && ! pip install -r requirements.txt
 ! pip install http://dashscope-cn-beijing.oss-cn-beijing.aliyuncs.com/zhicheng/modelscope_agent-0.1.0-py3-none-any.whl
 ! PYTHONPATH=/mnt/workspace/modelscope-agent/demo/facechain_agent && cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && python app_v1.0.py
 ```
@@ -359,7 +359,7 @@ import os
 os.environ['DASHSCOPE_API_KEY'] = '替换成你的'
 #DASHSCOPE_API_KEY可以从dashscope网站 https://dashscope.console.aliyun.com/apiKey获取
 ! cd modelscope-agent && ! pip install -r requirements.txt
-! cd modelscope-agent/demo/story_agent && ! pip install -r requirement_gr.txt 
+! cd modelscope-agent/demo/story_agent && ! pip install -r requirement_gr.txt
 ! cd modelscope-agent/demo/story_agent && ! sh run_story_agent.sh
 ```
 
