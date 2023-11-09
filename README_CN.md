@@ -24,11 +24,13 @@
 为了赋予LLMs工具使用能力，提出了一个全面的框架，涵盖了数据收集、工具检索、工具注册、存储管理、定制模型训练和实际应用的方方面面。
 
 ## 新闻
+* 2023.10.30: [Facechain Agent](https://modelscope.cn/studios/CVstudio/facechain_agent_studio/summary) 发布了人脸写真Agent本地版本，可以在本地运行，具体使用见[Facechain Agent](#facechain-agent)
+* 2023.10.25: [Story Agent](https://modelscope.cn/studios/damo/story_agent/summary) 发布了故事绘本图文生成Agent本地版本，可以在本地运行，具体使用见[Story Agent](#story-agent)
 * 2023.9.20: [ModelScope GPT](https://modelscope.cn/studios/damo/ModelScopeGPT/summary) gradio提供了本地版本，可以在本地运行，可以进入demo/msgpt/目录后执行`bash run_msgpt.sh`
 * 2023.9.4: 三个基于Agent开发的应用，[demo_qwen](demo/demo_qwen_agent.ipynb), [demo_retrieval_agent](demo/demo_retrieval_agent.ipynb) and [demo_register_tool](demo/demo_register_new_tool.ipynb) 已添加，并提供了详细的教程。
 * 2023.9.2: 与该项目相关的[论文](https://arxiv.org/abs/2309.00986) 已发布到arxiv。
 * 2023.8.22: 支持使用 ModelScope 令牌访问各种 AI 模型 API。
-* 2023.8.7: modelscope-lagent仓库的初始版本已发布。
+* 2023.8.7: modelscope-agent仓库的初始版本已发布。
 
 ## 安装
 
@@ -324,6 +326,42 @@ PYTHONPATH=./ bash scripts/train/run_qwen_ddp.sh
 ## 分享您的Agent
 
 我们感谢您对参与我们的开源ModelScope-Agent项目的热情。如果您遇到任何问题，请随时向我们提问。如果您已经构建了一个新的Agent Demo并准备与我们分享您的工作，请随时创建一个pull请求！如果您需要任何进一步的帮助，请邮件[contact@modelscope.cn](mailto:contact@modelscope.cn)或者交流群[联系我们](https://modelscope.cn/docs/%E8%81%94%E7%B3%BB%E6%88%91%E4%BB%AC)
+
+### Facechain Agent
+Facechain是一个开源的人脸写真项目，用户上传几张图片就可以生成各种风格的个人写真，我们通过modelscope-agent框架，接入facechain的能力，极大的简化了使用流程，通过对话的方式即可完成人脸写真
+
+FaceChainAgent创空间应用地址：https://modelscope.cn/studios/CVstudio/facechain_agent_studio/summary
+
+可以直接在notebook/colab/本地中运行：https://www.modelscope.cn/my/mynotebook
+
+```
+! git clone -b feat/facechain_agent https://github.com/modelscope/modelscope-agent.git
+
+! cd modelscope-agent && ! pip install -r requirements.txt
+! cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && ! pip install -r requirements.txt
+! pip install http://dashscope-cn-beijing.oss-cn-beijing.aliyuncs.com/zhicheng/modelscope_agent-0.1.0-py3-none-any.whl
+! PYTHONPATH=/mnt/workspace/modelscope-agent/demo/facechain_agent && cd modelscope-agent/demo/facechain_agent/demo/facechain_agent && python app_v1.0.py
+```
+
+### Story Agent
+Story Agent是一个开源的故事绘本生成智能体，用户通过对话交流的方式即可完成一个绘本的创作，整个流程Agent会智能的引导用户如何创作绘本
+
+
+
+StoryAgent 创空间应用地址：https://modelscope.cn/studios/damo/story_agent/summary
+
+也可以直接在notebook中运行：https://www.modelscope.cn/my/mynotebook
+
+```
+! git clone -b feat/story_agent_gradio https://github.com/modelscope/modelscope-agent.git
+
+import os
+os.environ['DASHSCOPE_API_KEY'] = '替换成你的'
+#DASHSCOPE_API_KEY可以从dashscope网站 https://dashscope.console.aliyun.com/apiKey获取
+! cd modelscope-agent && ! pip install -r requirements.txt
+! cd modelscope-agent/demo/story_agent && ! pip install -r requirement_gr.txt
+! cd modelscope-agent/demo/story_agent && ! sh run_story_agent.sh
+```
 
 ## 引用
 如果您觉得这个工作很有用，请考虑给这个项目加星，并引用我们的论文，感谢：
