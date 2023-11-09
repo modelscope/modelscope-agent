@@ -59,6 +59,7 @@ class Tool:
             raise ValueError(f'Error when parsing parameters of {self.name}')
 
         self._str = self.tool_schema.model_dump_json()
+        self._function = self.parse_pydantic_model_to_openai_function(all_para)
 
     def __call__(self, remote=False, *args, **kwargs):
         if self.is_remote_tool or remote:
@@ -118,3 +119,62 @@ class Tool:
 
     def __str__(self):
         return self._str
+
+    def get_function(self):
+        return self._function
+
+    def parse_pydantic_model_to_openai_function(self, all_para: dict):
+        '''
+        this method used to convert a pydantic model to openai function schema
+        such that convert
+        all_para = {
+            'name': get_current_weather,
+            'description': Get the current weather in a given location,
+            'parameters': [{
+                'name': 'image',
+                'description': '用户输入的图片',
+                'required': True
+            }, {
+                'name': 'text',
+                'description': '用户输入的文本',
+                'required': True
+            }]
+        }
+        to
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "image": {
+                        "type": "string",
+                        "description": "用户输入的图片",
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "用户输入的文本",
+                    },
+                "required": ["image", "text"],
+            },
+        }
+        '''
+
+        function = {
+            'name': all_para['name'],
+            'description': all_para['description'],
+            'parameters': {
+                'type': 'object',
+                'properties': {},
+                'required': [],
+            },
+        }
+        for para in all_para['parameters']:
+            function['parameters']['properties'][para['name']] = {
+                'type': 'string',
+                'description': para['description']
+            }
+            if para['required']:
+                function['parameters']['required'].append(para['name'])
+
+        return function

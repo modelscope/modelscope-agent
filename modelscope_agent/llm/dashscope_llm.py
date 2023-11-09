@@ -17,7 +17,7 @@ class DashScopeLLM(LLM):
         self.model = self.cfg.get('model', 'modelscope-agent-llm-v1')
         self.generate_cfg = self.cfg.get('generate_cfg', {})
 
-    def generate(self, prompt):
+    def generate(self, prompt, **kwargs):
 
         total_response = ''
         responses = Generation.call(
@@ -35,7 +35,7 @@ class DashScopeLLM(LLM):
 
         return total_response
 
-    def stream_generate(self, prompt):
+    def stream_generate(self, prompt, **kwargs):
 
         total_response = ''
         responses = Generation.call(

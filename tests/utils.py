@@ -28,13 +28,18 @@ class MockPromptGenerator(PromptGenerator):
 
 class MockOutParser(OutputParser):
 
-    def __init__(self, action, args):
+    def __init__(self, action, args, count=1):
         super().__init__()
         self.action = action
         self.args = args
+        self.count = count
 
     def parse_response(self, response: str):
-        return self.action, self.args
+        if self.count > 0:
+            self.count -= 1
+            return self.action, self.args
+        else:
+            return None, None
 
 
 class MockTool(Tool):

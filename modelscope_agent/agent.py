@@ -3,10 +3,11 @@ import traceback
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
+from .agent_types import AgentType
 from .llm import LLM
-from .output_parser import MsOutputParser, OutputParser
+from .output_parser import OutputParser, get_output_parser
 from .output_wrapper import display
-from .prompt import MSPromptGenerator, PromptGenerator
+from .prompt import PromptGenerator, get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
 from .tools import DEFAULT_TOOL_LIST
 
@@ -16,6 +17,7 @@ class AgentExecutor:
     def __init__(self,
                  llm: LLM,
                  tool_cfg: Optional[Dict] = {},
+                 agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
                  output_parser: Optional[OutputParser] = None,
@@ -28,22 +30,29 @@ class AgentExecutor:
         Args:
             llm (LLM): llm model, can be load from local or a remote server.
             tool_cfg (Optional[Dict]): cfg of default tools
+            agent_type (AgentType, optional): agent type. Defaults to AgentType.DEFAULT, decide which type of agent
+            reasoning type to use
             additional_tool_list (Optional[Dict], optional): user-defined additional tool list. Defaults to {}.
             prompt_generator (Optional[PromptGenerator], optional): this module is responsible for generating prompt
             according to interaction result. Defaults to use MSPromptGenerator.
             output_parser (Optional[OutputParser], optional): this module is responsible for parsing output of llm
             to executable actions. Defaults to use MsOutputParser.
             tool_retrieval (Optional[Union[bool, ToolRetrieval]], optional): Retrieve related tools by input task,
-            since most of tools may be uselees for LLM in specific task.
-            If is bool type and it is True, will use default tool_retrieval. Defaults to True.
+            since most of the tools may be useless for LLM in specific task.
+            If it is bool type and is True, will use default tool_retrieval. Defaults to True.
             knowledge_retrieval (Optional[KnowledgeRetrieval], optional): If user want to use extra knowledge,
             this component can be used to retrieve related knowledge. Defaults to None.
         """
 
         self.llm = llm
+
+        self.agent_type = agent_type
+        self.llm.set_agent_type(agent_type)
+        self.prompt_generator = prompt_generator or get_prompt_generator(
+            agent_type)
+        self.output_parser = output_parser or get_output_parser(agent_type)
+
         self._init_tools(tool_cfg, additional_tool_list)
-        self.prompt_generator = prompt_generator or MSPromptGenerator()
-        self.output_parser = output_parser or MsOutputParser()
 
         if isinstance(tool_retrieval, bool) and tool_retrieval:
             tool_retrieval = ToolRetrieval()
@@ -127,11 +136,13 @@ class AgentExecutor:
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
+        function_list = self.parse_tools_to_function(tool_list)
         knowledge_list = self.get_knowledge(task)
 
         self.prompt_generator.init_prompt(task, tool_list, knowledge_list)
 
         llm_result, exec_result = '', ''
+
         idx = 0
         final_res = []
 
@@ -139,10 +150,12 @@ class AgentExecutor:
             idx += 1
 
             # generate prompt and call llm
-            prompt = self.prompt_generator.generate(llm_result, exec_result)
-            llm_result = self.llm.generate(prompt)
+
+            llm_artifacts = self.prompt_generator.generate(
+                llm_result, exec_result)
+            llm_result = self.llm.generate(llm_artifacts, function_list)
             if print_info:
-                print(f'|prompt{idx}: {prompt}')
+                print(f'|LLM inputs in round {idx}: {llm_artifacts}')
 
             # parse and get tool name and arguments
             try:
@@ -205,12 +218,13 @@ class AgentExecutor:
 
         while True:
             idx += 1
-            prompt = self.prompt_generator.generate(llm_result, exec_result)
+            prompt, functions = self.prompt_generator.generate(
+                llm_result, exec_result)
             print(f'|prompt{idx}: {prompt}')
 
             llm_result = ''
             try:
-                for s in self.llm.stream_generate(prompt):
+                for s in self.llm.stream_generate(prompt, functions):
                     llm_result += s
                     yield {'llm_text': s}
 
@@ -266,7 +280,8 @@ class AgentExecutor:
         for name, arg in action_args.items():
             try:
                 true_arg = self.agent_state.get(arg, arg)
-            except Exception:
+            except Exception as e:
+                print(f'Error when parsing action args: {e}, using fall back')
                 true_arg = arg
             parsed_action_args[name] = true_arg
         return parsed_action_args

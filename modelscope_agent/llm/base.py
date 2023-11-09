@@ -10,7 +10,7 @@ class LLM:
         self.cfg = cfg
 
     @abstractmethod
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, **kwargs) -> str:
         """each llm should implement this function to generate response
 
         Args:
@@ -21,7 +21,7 @@ class LLM:
         raise NotImplementedError
 
     @abstractmethod
-    def stream_generate(self, prompt: str) -> str:
+    def stream_generate(self, prompt: str, **kwargs) -> str:
         """stream generate response, which yields a generator of response in each step
 
         Args:

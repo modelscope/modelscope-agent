@@ -1,3 +1,4 @@
+from .code_interperter import CodeInterpreter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
 from .pipeline_tool import ModelscopePipelineTool

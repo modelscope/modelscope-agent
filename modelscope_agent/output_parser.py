@@ -2,18 +2,29 @@ import re
 from typing import Dict, Tuple
 
 import json
+from modelscope_agent.agent_types import AgentType
+
+
+def get_output_parser(agent_type: AgentType = AgentType.DEFAULT):
+    if AgentType.DEFAULT == agent_type or agent_type == AgentType.MS_AGENT:
+        return MsOutputParser()
+    elif AgentType.MRKL == agent_type:
+        return MRKLOutputParser()
+    elif AgentType.OPENAI_FUNCTIONS == agent_type:
+        return OpenAiFunctionsOutputParser()
+    else:
+        raise NotImplementedError
 
 
 class OutputParser:
+    """Output parser for llm response
+    """
 
     def parse_response(self, response):
         raise NotImplementedError
 
 
 class MsOutputParser(OutputParser):
-
-    def __init__(self):
-        super().__init__()
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -46,10 +57,7 @@ class MsOutputParser(OutputParser):
             raise ValueError('Wrong response format for output parser')
 
 
-class QwenOutputParser(OutputParser):
-
-    def __init__(self):
-        super().__init__()
+class MRKLOutputParser(OutputParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -76,3 +84,40 @@ class QwenOutputParser(OutputParser):
             return action, parameters
         except Exception:
             raise ValueError('Wrong response format for output parser')
+
+
+class OpenAiFunctionsOutputParser(OutputParser):
+
+    def parse_response(self, response: dict) -> Tuple[str, Dict]:
+        """parse response of llm to get tool name and parameters
+
+
+        Args:
+            response (str): llm response, it should be an openai response message
+            such as
+            {
+                "content": null,
+                "function_call": {
+                  "arguments": "{\n  \"location\": \"Boston, MA\"\n}",
+                  "name": "get_current_weather"
+                },
+                "role": "assistant"
+            }
+
+        Returns:
+            tuple[str, dict]: tuple of tool name and parameters
+        """
+
+        if 'function_call' not in response:
+            return None, None
+        try:
+            # use regular expression to get result
+            function_call = response['function_call']
+            action = function_call['name']
+            arguments = json.loads(function_call['arguments'].replace(
+                '\n', ''))
+
+            return action, arguments
+        except Exception as e:
+            raise ValueError(
+                f'Wrong response format for output parser with error {str(e)}')

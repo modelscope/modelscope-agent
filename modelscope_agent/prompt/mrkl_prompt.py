@@ -1,10 +1,10 @@
 from .prompt import PromptGenerator
 
-QWEN_DEFAULT_SYSTEM_TEMPLATE = """Answer the following questions as best you can. You have access to the following tools: `
+MRKL_DEFAULT_SYSTEM_TEMPLATE = """Answer the following questions as best you can. You have access to the following tools: `
 
 <tool_list>"""
 
-QWEN_DEFAULT_INSTRUCTION_TEMPLATE = """Use the following format:
+MRKL_DEFAULT_INSTRUCTION_TEMPLATE = """Use the following format:
 
 Question: the input question you must answer
 Thought: you should always think about what to do
@@ -18,18 +18,18 @@ Final Answer: the final answer to the original input question
 Begin!
 """
 
-QWEN_DEFAULT_USER_TEMPLATE = """Question: <user_input>\n"""
+MRKL_DEFAULT_USER_TEMPLATE = """Question: <user_input>\n"""
 
-QWEN_DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>"""
+MRKL_DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>"""
 
 
-class QWenPromptGenerator(PromptGenerator):
+class MrklPromptGenerator(PromptGenerator):
 
     def __init__(self,
-                 system_template=QWEN_DEFAULT_SYSTEM_TEMPLATE,
-                 instruction_template=QWEN_DEFAULT_INSTRUCTION_TEMPLATE,
-                 user_template=QWEN_DEFAULT_USER_TEMPLATE,
-                 exec_template=QWEN_DEFAULT_EXEC_TEMPLATE,
+                 system_template=MRKL_DEFAULT_SYSTEM_TEMPLATE,
+                 instruction_template=MRKL_DEFAULT_INSTRUCTION_TEMPLATE,
+                 user_template=MRKL_DEFAULT_USER_TEMPLATE,
+                 exec_template=MRKL_DEFAULT_EXEC_TEMPLATE,
                  assistant_template='',
                  sep='\n\n',
                  prompt_max_length=10000):

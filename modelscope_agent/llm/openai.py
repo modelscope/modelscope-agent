@@ -1,6 +1,8 @@
 import os
 
 import openai
+from modelscope_agent.agent_types import AgentType
+from utils import CustomOutputWrapper
 
 from .base import LLM
 
@@ -15,24 +17,57 @@ class OpenAi(LLM):
 
         self.model = self.cfg.get('model', 'gpt-3.5-turbo')
         self.api_base = self.cfg.get('api_base', 'https://api.openai.com/v1')
+        self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def generate(self, prompt):
-        messages = [{'role': 'user', 'content': prompt}]
+    def set_agent_type(self, agent_type):
+        self.agent_type = agent_type
 
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            api_base=self.api_base,
-            messages=messages,
-            stream=False)
-        completions = []
-        if response and 'choices' in response:
-            for choice in response['choices']:
-                if 'message' in choice:
-                    completions.append(choice['message']['content'])
-        response = ''.join(completions)
+    def generate(self,
+                 llm_artifacts,
+                 functions=[],
+                 functions_call='none',
+                 **kwargs):
+        if self.agent_type != AgentType.OPENAI_FUNCTIONS:
+            messages = [{'role': 'user', 'content': llm_artifacts}]
+        else:
+            messages = llm_artifacts.get(
+                'messages', {
+                    'role':
+                    'user',
+                    'content':
+                    'No entry from user - please suggest something to enter'
+                })
 
-        # truncate response
-        idx = response.find('<|endofthink|>')
-        if idx != -1:
-            response = response[:idx + len('<|endofthink|>')]
-        return response
+        # call openai function call api
+        assert isinstance(functions, list)
+        if len(functions) > 0:
+            functions_call = 'auto'
+
+        # covert to stream=True with stream updating
+        try:
+            response = openai.ChatCompletion.create(
+                model=self.model,
+                api_base=self.api_base,
+                messages=messages,
+                functions=functions,
+                function_call=functions_call,
+                stream=False)
+        except Exception as e:
+            print(f'input: {messages}, original error: {str(e)}')
+            raise e
+
+        # only use index 0 in choice
+        message = CustomOutputWrapper.handle_openai_chat_completion(response)
+
+        # truncate content
+        content = message['content']
+
+        if self.agent_type == AgentType.MS_AGENT:
+            idx = content.find('<|endofthink|>')
+            if idx != -1:
+                content = content[:idx + len('<|endofthink|>')]
+            return content
+        elif self.agent_type == AgentType.OPENAI_FUNCTIONS:
+            return message
+        else:
+            return content
