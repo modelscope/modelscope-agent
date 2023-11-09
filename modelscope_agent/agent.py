@@ -136,10 +136,10 @@ class AgentExecutor:
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
-        function_list = self.parse_tools_to_function(tool_list)
         knowledge_list = self.get_knowledge(task)
 
         self.prompt_generator.init_prompt(task, tool_list, knowledge_list)
+        function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''
 
@@ -212,24 +212,27 @@ class AgentExecutor:
         knowledge_list = self.get_knowledge(task)
 
         self.prompt_generator.init_prompt(task, tool_list, knowledge_list)
+        function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''
+
         idx = 0
 
         while True:
             idx += 1
-            prompt, functions = self.prompt_generator.generate(
+            llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
-            print(f'|prompt{idx}: {prompt}')
+            print(f'|LLM inputs in round {idx}: {llm_artifacts}')
 
             llm_result = ''
             try:
-                for s in self.llm.stream_generate(prompt, functions):
+                for s in self.llm.stream_generate(llm_artifacts,
+                                                  function_list):
                     llm_result += s
                     yield {'llm_text': s}
 
             except Exception:
-                s = self.llm.generate(prompt)
+                s = self.llm.generate(llm_artifacts)
                 llm_result += s
                 yield {'llm_text': s}
 
@@ -243,7 +246,7 @@ class AgentExecutor:
 
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
-                prompt = self.prompt_generator.generate(llm_result, '')
+                _ = self.prompt_generator.generate(llm_result, '')
                 yield {'is_final': True}
                 return
 
