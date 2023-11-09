@@ -103,12 +103,20 @@ class OpenAiFunctionsOutputParser(OutputParser):
                 },
                 "role": "assistant"
             }
+            an alternative method is to parse code in content not from function call
+            such as:
+                text = response['content']
+                code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
+                if code_block:
+                    result = code_block.group(1)
+                    language = result.split('\n')[0]
+                    code = '\n'.join(result.split('\n')[1:])
 
         Returns:
             tuple[str, dict]: tuple of tool name and parameters
         """
 
-        if 'function_call' not in response:
+        if 'function_call' not in response or response['function_call'] == {}:
             return None, None
         try:
             # use regular expression to get result

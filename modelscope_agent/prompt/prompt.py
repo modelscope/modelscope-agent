@@ -1,4 +1,4 @@
-import re
+from typing import Union
 
 
 class PromptGenerator:
@@ -81,7 +81,9 @@ class PromptGenerator:
         return self.prompt
 
     # TODO change the output from single prompt to artifacts including prompt, messages, funciton_call
-    def generate(self, llm_result, exec_result: str):
+    def generate(self, llm_result, exec_result: Union[str, dict]):
+        if isinstance(exec_result, dict):
+            exec_result = exec_result['result']
         return self._generate(llm_result, exec_result)
 
     def _generate(self, llm_result, exec_result: str):

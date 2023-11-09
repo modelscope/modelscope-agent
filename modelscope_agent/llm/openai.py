@@ -25,7 +25,7 @@ class OpenAi(LLM):
     def generate(self,
                  llm_artifacts,
                  functions=[],
-                 functions_call='none',
+                 function_call='none',
                  **kwargs):
         if self.agent_type != AgentType.OPENAI_FUNCTIONS:
             messages = [{'role': 'user', 'content': llm_artifacts}]
@@ -41,7 +41,7 @@ class OpenAi(LLM):
         # call openai function call api
         assert isinstance(functions, list)
         if len(functions) > 0:
-            functions_call = 'auto'
+            function_call = 'auto'
 
         # covert to stream=True with stream updating
         try:
@@ -50,7 +50,7 @@ class OpenAi(LLM):
                 api_base=self.api_base,
                 messages=messages,
                 functions=functions,
-                function_call=functions_call,
+                function_call=function_call,
                 stream=False)
         except Exception as e:
             print(f'input: {messages}, original error: {str(e)}')

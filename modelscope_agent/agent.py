@@ -150,7 +150,6 @@ class AgentExecutor:
             idx += 1
 
             # generate prompt and call llm
-
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
             llm_result = self.llm.generate(llm_artifacts, function_list)
@@ -168,7 +167,7 @@ class AgentExecutor:
                 _ = self.prompt_generator.generate(llm_result, '')
 
                 # for summarize
-                display(llm_result, {}, idx)
+                display(llm_result, {}, idx, self.agent_type)
                 return final_res
 
             if action in self.available_tool_list:
@@ -176,7 +175,8 @@ class AgentExecutor:
                 tool = self.tool_list[action]
                 try:
                     exec_result = tool(**action_args, remote=remote)
-                    # print(f'|exec_result: {exec_result}')
+                    if print_info:
+                        print(f'|exec_result: {exec_result}')
 
                     # parse exec result and store result to agent state
                     final_res.append(exec_result)
@@ -189,7 +189,7 @@ class AgentExecutor:
                 return [{'error': exec_result}]
 
             # display result
-            display(llm_result, exec_result, idx)
+            display(llm_result, exec_result, idx, self.agent_type)
 
     def stream_run(self,
                    task: str,

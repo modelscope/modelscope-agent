@@ -14,14 +14,14 @@ class CodeInterpreter(Tool):
         by https://github.com/KillianLucas/open-interpreter
     """
     description = 'Executes code on the user\'s machine, **in the users local environment**, and returns the output'
-    name = 'code-interpreter'
+    name = 'code_interpreter'
     parameters: list = [{
         'name': 'language',
         'description':
         'The programming language (required parameter to the `execute` function)',
         'required': True
     }, {
-        'name': 'text',
+        'name': 'code',
         'description': 'The code to execute (required)',
         'required': True
     }]
