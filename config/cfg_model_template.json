@@ -3,6 +3,16 @@
         "type": "dashscope",
         "model": "modelscope-agent-llm-v1",
         "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "seed": 123,
+            "debug": false
+        }
+    },
+    "modelscope-agent-http": {
+        "type": "dashscope_http",
+        "model": "pre-modelscope_gpt_agent_chat-620",
+        "generate_cfg": {
             "parameters":{
                 "use_raw_prompt": true,
                 "top_p": 0.8,
@@ -10,7 +20,11 @@
                 "seed": 123,
                 "debug": false
             }
-        }
+        },
+        "url": "https://poc-dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+    },
+    "http_llm": {
+        "type": "http_llm"
     },
     "openai": {
         "type": "openai",
