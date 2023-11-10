@@ -9,7 +9,7 @@
             "debug": false
         }
     },
-    "qwen_turbo": {
+    "qwen_plus": {
         "type": "dashscope",
         "model": "qwen-plus",
         "generate_cfg": {
