@@ -22,7 +22,8 @@ class CustomOutputWrapper:
     def handle_message_text_completion(response):
         message = ''
         try:
-            message = response['text']
+            message = response['output']['text']
+            return message
         except Exception as e:
             print(f'input: {response}, original error: {str(e)}')
             return message

@@ -85,7 +85,7 @@ class MRKLOutputParser(OutputParser):
 
         if 'Action' not in response or 'Action Input:' not in response:
             return None, None
-        action, parameters = '', ''
+        action, action_para = '', ''
         try:
             # use regular expression to get result from MRKL format
             re_pattern1 = re.compile(
@@ -100,7 +100,7 @@ class MRKLOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return OutputParser.handle_fallback(action, parameters)
+            return OutputParser.handle_fallback(action, action_para)
 
 
 class OpenAiFunctionsOutputParser(OutputParser):
