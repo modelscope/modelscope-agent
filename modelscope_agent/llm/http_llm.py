@@ -5,11 +5,7 @@ import requests
 from modelscope_agent.agent_types import AgentType
 
 from .base import LLM
-
-DEFAULT_MESSAGE = {
-    'role': 'user',
-    'content': 'No entry from user - please suggest something to enter'
-}
+from .utils import DEFAULT_MESSAGE
 
 
 class HttpLLM(LLM):

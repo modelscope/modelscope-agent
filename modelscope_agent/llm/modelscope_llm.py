@@ -2,6 +2,7 @@ import os
 import sys
 
 import torch
+from modelscope_agent.agent_types import AgentType
 from swift import Swift
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 
@@ -41,6 +42,10 @@ class ModelScopeLLM(LLM):
         self.include_end = self.cfg.get('include_end', True)
 
         self.setup()
+        self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
+
+    def set_agent_type(self, agent_type):
+        self.agent_type = agent_type
 
     def setup(self):
         model_cls = self.model_cls
@@ -63,7 +68,7 @@ class ModelScopeLLM(LLM):
             self.model.generation_config = GenerationConfig.from_pretrained(
                 self.model_dir, trust_remote_code=True)
 
-    def generate(self, prompt):
+    def generate(self, prompt, functions=[], **kwargs):
 
         if self.custom_chat and self.model.chat:
             response = self.model.chat(

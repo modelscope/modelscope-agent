@@ -1,10 +1,14 @@
 import os
+import random
 from http import HTTPStatus
+from typing import Union
 
 import dashscope
 from dashscope import Generation
+from modelscope_agent.agent_types import AgentType
 
 from .base import LLM
+from .utils import DEFAULT_MESSAGE
 
 dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
 
@@ -16,12 +20,35 @@ class DashScopeLLM(LLM):
         super().__init__(cfg)
         self.model = self.cfg.get('model', 'modelscope-agent-llm-v1')
         self.generate_cfg = self.cfg.get('generate_cfg', {})
+        self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def generate(self, prompt, **kwargs):
+    def set_agent_type(self, agent_type):
+        self.agent_type = agent_type
 
+    def generate(self,
+                 llm_artifacts: Union[str, dict],
+                 functions=[],
+                 **kwargs):
         total_response = ''
-        responses = Generation.call(
-            model=self.model, prompt=prompt, stream=False, **self.generate_cfg)
+        # TODO retry and handle message
+        if self.agent_type == AgentType.OPENAI_FUNCTIONS:
+            messages = llm_artifacts if len(
+                llm_artifacts) > 0 else DEFAULT_MESSAGE
+            responses = dashscope.Generation.call(
+                model=self.model,
+                messages=messages,
+                # set the random seed, optional, default to 1234 if not set
+                seed=random.randint(1, 10000),
+                result_format=
+                'message',  # set the result to be "message" format.
+                stream=False,
+                **self.generate_cfg)
+        else:
+            responses = Generation.call(
+                model=self.model,
+                prompt=llm_artifacts,
+                stream=False,
+                **self.generate_cfg)
 
         if responses.status_code == HTTPStatus.OK:
             total_response = responses.output['text']

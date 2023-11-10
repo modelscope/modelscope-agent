@@ -9,19 +9,16 @@
             "debug": false
         }
     },
-    "modelscope-agent-http": {
-        "type": "dashscope_http",
-        "model": "pre-modelscope_gpt_agent_chat-620",
+    "qwen_turbo": {
+        "type": "dashscope",
+        "model": "qwen-turbo",
         "generate_cfg": {
-            "parameters":{
-                "use_raw_prompt": true,
-                "top_p": 0.8,
-                "top_k": 10,
-                "seed": 123,
-                "debug": false
-            }
-        },
-        "url": "https://poc-dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "top_k": 10,
+            "seed": 123,
+            "debug": false
+        }
     },
     "http_llm": {
         "type": "http_llm"

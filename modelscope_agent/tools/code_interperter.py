@@ -1,3 +1,4 @@
+import re
 import traceback
 
 from interpreter.code_interpreters.create_code_interpreter import \
@@ -32,14 +33,15 @@ class CodeInterpreter(Tool):
         self.max_output = 2000
 
     def _local_call(self, *args, **kwargs):
-        language = kwargs.get('language')
-        code = kwargs.get('code')
 
-        # Fix a common error where the LLM thinks it's in a Jupyter notebook
-        if language == 'python' and code.startswith('!'):
-            code = code[1:]
-            language = 'shell'
+        language, code = self._handle_input_fallback(**kwargs)
+
         try:
+            # Fix a common error where the LLM thinks it's in a Jupyter notebook
+            if language == 'python' and code.startswith('!'):
+                code = code[1:]
+                language = 'shell'
+
             if language in language_map:
                 if language not in self._code_interpreters:
                     self._code_interpreters[
@@ -60,6 +62,48 @@ class CodeInterpreter(Tool):
                     # Truncate output
                     output = truncate_output(output, self.max_output)
         except Exception as e:
-            print(e)
-            output = traceback.format_exc()
+            error = traceback.format_exc()
+            output = ' '.join(f'{key}:{value}'
+                              for key, value in kwargs.items())
+            output += f'\nDetail error is {e}.\n{error}'
+
         return {'result': output.strip()}
+
+    def _handle_input_fallback(self, **kwargs):
+        """
+        an alternative method is to parse code in content not from function call
+        such as:
+            text = response['content']
+            code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
+            if code_block:
+                result = code_block.group(1)
+                language = result.split('\n')[0]
+                code = '\n'.join(result.split('\n')[1:])
+
+        :param fallback_text:
+        :return: language, cocde
+        """
+
+        language = kwargs.get('language', None)
+        code = kwargs.get('code', None)
+        fallback = kwargs.get('fallback', None)
+
+        if language and code:
+            return language, code
+        elif fallback:
+            try:
+                text = fallback
+                code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
+                if code_block:
+                    result = code_block.group(1)
+                    language = result.split('\n')[0]
+                    code = '\n'.join(result.split('\n')[1:])
+
+                    # handle py case
+                    if language == 'py':
+                        language = 'python'
+                    return language, code
+            except ValueError:
+                return language, code
+        else:
+            return language, code

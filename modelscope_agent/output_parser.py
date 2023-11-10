@@ -23,6 +23,15 @@ class OutputParser:
     def parse_response(self, response):
         raise NotImplementedError
 
+    # use to handle false parsing the action_para result, if no action return then
+    # throw Error
+    def handle_fallback(self, action: str, action_para: str):
+        if action is not None:
+            parameters = {'fallback': action_para}
+            return action, parameters
+        else:
+            raise ValueError('Wrong response format for output parser')
+
 
 class MsOutputParser(OutputParser):
 
@@ -53,8 +62,10 @@ class MsOutputParser(OutputParser):
             parameters = json_content.get('parameters', {})
 
             return action, parameters
-        except Exception:
-            raise ValueError('Wrong response format for output parser')
+        except Exception as e:
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return self.handle_fallback(action, parameters)
 
 
 class MRKLOutputParser(OutputParser):
@@ -82,8 +93,10 @@ class MRKLOutputParser(OutputParser):
             parameters = json.loads(action_para.replace('\n', ''))
 
             return action, parameters
-        except Exception:
-            raise ValueError('Wrong response format for output parser')
+        except Exception as e:
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return self.handle_fallback(action, action_para)
 
 
 class OpenAiFunctionsOutputParser(OutputParser):
@@ -103,15 +116,6 @@ class OpenAiFunctionsOutputParser(OutputParser):
                 },
                 "role": "assistant"
             }
-            an alternative method is to parse code in content not from function call
-            such as:
-                text = response['content']
-                code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
-                if code_block:
-                    result = code_block.group(1)
-                    language = result.split('\n')[0]
-                    code = '\n'.join(result.split('\n')[1:])
-
         Returns:
             tuple[str, dict]: tuple of tool name and parameters
         """
@@ -127,5 +131,6 @@ class OpenAiFunctionsOutputParser(OutputParser):
 
             return action, arguments
         except Exception as e:
-            raise ValueError(
-                f'Wrong response format for output parser with error {str(e)}')
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return self.handle_fallback(action, arguments)

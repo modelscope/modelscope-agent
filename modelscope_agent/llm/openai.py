@@ -57,7 +57,7 @@ class OpenAi(LLM):
             raise e
 
         # only use index 0 in choice
-        message = CustomOutputWrapper.handle_openai_chat_completion(response)
+        message = CustomOutputWrapper.handle_message_chat_completion(response)
 
         # truncate content
         content = message['content']
