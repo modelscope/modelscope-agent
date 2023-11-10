@@ -8,13 +8,18 @@ from .base import LLM
 from .utils import DEFAULT_MESSAGE
 
 
-class HttpLLM(LLM):
-    name = 'http_llm'
+class CustomLLM(LLM):
+    '''
+        This method is for the service that provide llm serving through http.
+        user could override the result parsing method if needed
+        While put all the necessary information in the env variable, such as Token, Model, URL
+    '''
+    name = 'custom_llm'
 
     def __init__(self, cfg):
         super().__init__(cfg)
         self.token = os.getenv('HTTP_LLM_TOKEN', None)
-        self.model = os.getenv('HTTP_LLM_model', None)
+        self.model = os.getenv('HTTP_LLM_MODEL', None)
         self.url = os.getenv('HTTP_LLM_URL', None)
 
         if self.token is None:

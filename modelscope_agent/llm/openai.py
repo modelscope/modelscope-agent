@@ -2,9 +2,9 @@ import os
 
 import openai
 from modelscope_agent.agent_types import AgentType
-from utils import CustomOutputWrapper
 
 from .base import LLM
+from .utils import CustomOutputWrapper
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 

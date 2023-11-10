@@ -18,6 +18,15 @@ class CustomOutputWrapper:
             print(f'input: {response}, original error: {str(e)}')
             return message
 
+    @staticmethod
+    def handle_message_text_completion(response):
+        message = ''
+        try:
+            message = response['text']
+        except Exception as e:
+            print(f'input: {response}, original error: {str(e)}')
+            return message
+
 
 DEFAULT_MESSAGE = {
     'role': 'user',

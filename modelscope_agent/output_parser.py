@@ -23,9 +23,10 @@ class OutputParser:
     def parse_response(self, response):
         raise NotImplementedError
 
-    # use to handle false parsing the action_para result, if no action return then
+    # use to handle the case of false parsing the action_para result, if there is no valid action then
     # throw Error
-    def handle_fallback(self, action: str, action_para: str):
+    @staticmethod
+    def handle_fallback(action: str, action_para: str):
         if action is not None:
             parameters = {'fallback': action_para}
             return action, parameters
@@ -47,6 +48,8 @@ class MsOutputParser(OutputParser):
 
         if '<|startofthink|>' not in response or '<|endofthink|>' not in response:
             return None, None
+
+        action, parameters = '', ''
         try:
             # use regular expression to get result
             re_pattern1 = re.compile(
@@ -65,7 +68,7 @@ class MsOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return self.handle_fallback(action, parameters)
+            return OutputParser.handle_fallback(action, parameters)
 
 
 class MRKLOutputParser(OutputParser):
@@ -82,8 +85,9 @@ class MRKLOutputParser(OutputParser):
 
         if 'Action' not in response or 'Action Input:' not in response:
             return None, None
+        action, parameters = '', ''
         try:
-            # use regular expression to get result
+            # use regular expression to get result from MRKL format
             re_pattern1 = re.compile(
                 pattern=r'Action:([\s\S]+)Action Input:([\s\S]+)')
             res = re_pattern1.search(response)
@@ -96,7 +100,7 @@ class MRKLOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return self.handle_fallback(action, action_para)
+            return OutputParser.handle_fallback(action, parameters)
 
 
 class OpenAiFunctionsOutputParser(OutputParser):
@@ -122,9 +126,10 @@ class OpenAiFunctionsOutputParser(OutputParser):
 
         if 'function_call' not in response or response['function_call'] == {}:
             return None, None
+        function_call = response['function_call']
+
         try:
-            # use regular expression to get result
-            function_call = response['function_call']
+            # parse directly
             action = function_call['name']
             arguments = json.loads(function_call['arguments'].replace(
                 '\n', ''))
@@ -133,4 +138,5 @@ class OpenAiFunctionsOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return self.handle_fallback(action, arguments)
+            return OutputParser.handle_fallback(function_call['name'],
+                                                function_call['arguments'])

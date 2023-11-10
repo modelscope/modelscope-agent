@@ -11,7 +11,7 @@
     },
     "qwen_turbo": {
         "type": "dashscope",
-        "model": "qwen-turbo",
+        "model": "qwen-plus",
         "generate_cfg": {
             "use_raw_prompt": true,
             "top_p": 0.8,
@@ -20,8 +20,8 @@
             "debug": false
         }
     },
-    "http_llm": {
-        "type": "http_llm"
+    "custom_llm": {
+        "type": "custom_llm"
     },
     "openai": {
         "type": "openai",
