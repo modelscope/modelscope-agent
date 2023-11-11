@@ -30,7 +30,7 @@ class CodeInterpreter(Tool):
     def __init__(self, cfg={}):
         super().__init__(cfg)
         self._code_interpreters = {}
-        self.max_output = 2000
+        self.max_output = self.cfg.get('max_output', 2000)
 
     def _local_call(self, *args, **kwargs):
 
