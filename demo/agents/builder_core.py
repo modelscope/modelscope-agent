@@ -1,10 +1,13 @@
 import copy
 import os
 
+from langchain.embeddings import ModelScopeEmbeddings
+from langchain.vectorstores import FAISS
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MrklPromptGenerator
+from modelscope_agent.retrieve import KnowledgeRetrieval
 
 from modelscope.utils.config import Config
 
@@ -25,8 +28,7 @@ def parse_configuration():
     model_cfg_file = os.getenv('MODEL_CONFIG_FILE', DEFAULT_MODEL_CONFIG_FILE)
     builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
                                  DEFAULT_BUILDER_CONFIG_FILE)
-    tool_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
-                              DEFAULT_BUILDER_CONFIG_FILE)
+    tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', DEFAULT_TOOL_CONFIG_FILE)
 
     builder_cfg = Config.from_file(builder_cfg_file)
     model_cfg = Config.from_file(model_cfg_file)
@@ -53,21 +55,29 @@ def init_user_chatbot_agent():
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
 
     # build prompt with zero shot react template
-    prompt_generator = MrklPromptGenerator(
-        system_template=builder_cfg.instruction)
+    tool_list_template = """Answer the following questions as best you can. You have access to the following tools:
+    \n<tool_list>"""
+    prompt_generator = MrklPromptGenerator(system_template='\n'.join(
+        [builder_cfg.instruction, tool_list_template]))
+
+    # get knowledge
+    # 开源版本的向量库配置
+    model_id = 'damo/nlp_corom_sentence-embedding_chinese-base'
+    embeddings = ModelScopeEmbeddings(model_id=model_id)
+    knowledge_retrieval = KnowledgeRetrieval.from_file(builder_cfg.knowledge,
+                                                       embeddings, FAISS)
 
     # build agent
     agent = AgentExecutor(
         llm,
         tool_cfg,
         agent_type=AgentType.MRKL,
-        prompt_generator=prompt_generator)
+        prompt_generator=prompt_generator,
+        knowledge_retrieval=knowledge_retrieval,
+        tool_retrieval=False)
     agent.set_available_tools(available_tool_list)
 
     return agent
-
-
-chatbot_agent = init_user_chatbot_agent()
 
 
 # TODO execute the user chatbot with user input in gradio
@@ -94,3 +104,7 @@ def execute_user_chatbot(*inputs):
 
         chatbot[-1] = (user_input, response)
         yield chatbot, *copy.deepcopy(output_component)
+
+
+def user_chatbot_single_run(query, agent):
+    agent.run(query)

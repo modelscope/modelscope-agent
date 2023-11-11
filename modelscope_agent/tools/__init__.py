@@ -23,4 +23,5 @@ DEFAULT_TOOL_LIST = {
     'modelscope_video-generation': 'TextToVideoTool',
     'modelscope_image-chat': 'ImageChatTool',
     'modelscope_speech-generation': 'TexttoSpeechTool',
+    'code_interpreter': 'CodeInterpreter',
 }

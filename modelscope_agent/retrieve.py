@@ -100,5 +100,8 @@ class KnowledgeRetrieval(Retrieval):
             elif f.lower().endswith('.md'):
                 loader = UnstructuredFileLoader(f, mode='elements')
                 docs += loader.load()
+            else:
+                raise ValueError(
+                    f'not support file type: {f}, will be support soon')
 
         return cls(docs, embedding, vs_cls, top_k, vs_params)
