@@ -24,6 +24,17 @@ class TextToImageTool(ModelscopePipelineTool):
     def _remote_parse_input(self, *args, **kwargs):
         return {'input': {'text': kwargs['text']}}
 
+    def _remote_call(self, *args, **kwargs):
+        dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
+        response = ImageSynthesis.call(
+            model=ImageSynthesis.Models.wanx_v1,
+            prompt=kwargs['text'],
+            n=1,
+            size='1024*1024',
+            steps=10)
+        final_result = self._parse_output(response, remote=True)
+        return final_result
+
     def _local_parse_input(self, *args, **kwargs):
 
         text = kwargs.pop('text', '')
@@ -37,6 +48,7 @@ class TextToImageTool(ModelscopePipelineTool):
             image = cv2.cvtColor(origin_result['output_imgs'][0],
                                  cv2.COLOR_BGR2RGB)
         else:
-            image = origin_result['output_img']
+            # image = origin_result['output_img']
+            image = origin_result.output['results'][0]['url']
 
         return {'result': ImageWrapper(image)}

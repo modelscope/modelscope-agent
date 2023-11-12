@@ -9,6 +9,7 @@ from .output_wrapper import display
 from .prompt import MSPromptGenerator, PromptGenerator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
 from .tools import DEFAULT_TOOL_LIST
+from .memory import LTM
 
 
 class AgentExecutor:
@@ -41,6 +42,7 @@ class AgentExecutor:
         """
 
         self.llm = llm
+        self.list_of_documents = []
         self._init_tools(tool_cfg, additional_tool_list)
         self.prompt_generator = prompt_generator or MSPromptGenerator()
         self.output_parser = output_parser or MsOutputParser()
@@ -52,6 +54,7 @@ class AgentExecutor:
             self.tool_retrieval.construct(
                 [str(t) for t in self.tool_list.values()])
         self.knowledge_retrieval = knowledge_retrieval
+        self.long_term_memory = LTM()
         self.reset()
 
     def _init_tools(self,
@@ -139,7 +142,7 @@ class AgentExecutor:
             idx += 1
 
             # generate prompt and call llm
-            prompt = self.prompt_generator.generate(llm_result, exec_result)
+            prompt = self.prompt_generator.generate(llm_result, exec_result)[0]
             llm_result = self.llm.generate(prompt)
             if print_info:
                 print(f'|prompt{idx}: {prompt}')
@@ -152,8 +155,11 @@ class AgentExecutor:
                 return [{'error': f'{e}'}]
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
-                _ = self.prompt_generator.generate(llm_result, '')
-
+                _ = self.prompt_generator.generate(llm_result, '')[0]
+                conversions = self.prompt_generator.generate(llm_result, '')[1]
+                self.list_of_documents = self.long_term_memory.recovery()
+                self.list_of_documents = self.long_term_memory.add_doc(str(conversions),self.list_of_documents)
+                self.long_term_memory.store(self.list_of_documents)
                 # for summarize
                 display(llm_result, {}, idx)
                 return final_res
@@ -177,11 +183,13 @@ class AgentExecutor:
 
             # display result
             display(llm_result, exec_result, idx)
+           
 
     def stream_run(self,
                    task: str,
                    remote: bool = True,
-                   print_info: bool = False) -> Dict:
+                   print_info: bool = False,
+                   ) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.
         It will yield the result of each interaction, so that the caller can display the result
 
@@ -193,19 +201,18 @@ class AgentExecutor:
         Yields:
             Iterator[Dict]: iterator of llm response and tool execution result
         """
-
+        
         # retrieve tools
         tool_list = self.retrieve_tools(task)
         knowledge_list = self.get_knowledge(task)
 
         self.prompt_generator.init_prompt(task, tool_list, knowledge_list)
-
         llm_result, exec_result = '', ''
         idx = 0
 
         while True:
             idx += 1
-            prompt = self.prompt_generator.generate(llm_result, exec_result)
+            prompt = self.prompt_generator.generate(llm_result, exec_result)[0]
             print(f'|prompt{idx}: {prompt}')
 
             llm_result = ''
@@ -226,11 +233,14 @@ class AgentExecutor:
             except ValueError as e:
                 yield {'error': f'{e}'}
                 return
-
+            
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
-                prompt = self.prompt_generator.generate(llm_result, '')
+                prompt = self.prompt_generator.generate(llm_result, '')[0]
+                conversions = self.prompt_generator.generate(llm_result, '')[1]
+                self.list_of_documents = self.long_term_memory.add_doc(conversions,self.list_of_documents)
                 yield {'is_final': True}
+                self.long_term_memory.store(self.list_of_documents)
                 return
 
             if action in self.available_tool_list:
@@ -250,6 +260,7 @@ class AgentExecutor:
                 exec_result = f"Unknown action: '{action}'. "
                 yield {'error': exec_result}
                 return
+        
 
     def reset(self):
         """
