@@ -52,10 +52,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
     preview_chatbot.append((preview_chat_input, None))
-
-    if preview_chat_input:
-        preview_chatbot.append(("You", preview_chat_input))
-        yield [preview_chatbot, preview_chat_input]
+    yield preview_chatbot
 
     response = ''
 
@@ -190,6 +187,6 @@ with gr.Blocks() as demo:
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
-        outputs=[user_chatbot, preview_chat_input])
+        outputs=[user_chatbot])
 
 demo.launch()
