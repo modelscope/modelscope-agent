@@ -64,8 +64,15 @@ def init_user_chatbot_agent():
     # 开源版本的向量库配置
     model_id = 'damo/nlp_corom_sentence-embedding_chinese-base'
     embeddings = ModelScopeEmbeddings(model_id=model_id)
-    knowledge_retrieval = KnowledgeRetrieval.from_file(builder_cfg.knowledge,
-                                                       embeddings, FAISS)
+    available_knowledge_list = []
+    for item in builder_cfg.knowledge:
+        if os.path.isfile(item):
+            available_knowledge_list.append(item)
+    if len(available_knowledge_list) > 0:
+        knowledge_retrieval = KnowledgeRetrieval.from_file(
+            available_knowledge_list, embeddings, FAISS)
+    else:
+        knowledge_retrieval = None
 
     # build agent
     agent = AgentExecutor(
@@ -81,13 +88,9 @@ def init_user_chatbot_agent():
 
 
 # TODO execute the user chatbot with user input in gradio
-def execute_user_chatbot(*inputs):
-    user_input = inputs[0]
-    chatbot = inputs[1]
-    # state = inputs[2]
-    output_component = list(inputs[3:])
+def execute_user_chatbot(user_input, user_agent, chatbot, output_component):
 
-    for frame in chatbot_agent.stream_run(user_input, remote=True):
+    for frame in user_agent.stream_run(user_input, remote=True):
         # is_final = frame.get("frame_is_final")
         llm_result = frame.get("llm_text", "")
         exec_result = frame.get('exec_result', '')

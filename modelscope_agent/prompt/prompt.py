@@ -1,4 +1,7 @@
+import copy
 from typing import Union
+
+from .raw_prompt_builder import build_raw_prompt
 
 
 class PromptGenerator:
@@ -37,21 +40,23 @@ class PromptGenerator:
     def reset(self):
         self.prompt = ''
         self.history = []
+        self.messages = []
 
-    def init_prompt(self, task, tool_list, knowledge_list):
+    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
+                    **kwargs):
         """
         in this function, the prompt will be initialized.
         """
+        self.prompt_preprocessor = build_raw_prompt(llm_model)
+
         prompt = self.sep.join(
             [self.system_template, self.instruction_template])
-        prompt += f'<knowledge><history>{self.sep}{self.user_template}'
+        prompt += '<knowledge><history>'
 
         knowledge_str = self.get_knowledge_str(knowledge_list)
 
         # knowledge
         prompt = prompt.replace('<knowledge>', knowledge_str)
-        # user input
-        prompt = prompt.replace('<user_input>', task)
 
         # get tool description str
         tool_str = self.get_tool_str(tool_list)
@@ -60,15 +65,18 @@ class PromptGenerator:
         history_str = self.get_history_str()
 
         prompt = prompt.replace('<history>', history_str)
+
+        self.system_prompt = copy.deepcopy(prompt)
+
+        # user input
+        user_input = self.user_template.replace('<user_input>', task)
+        prompt += f'{self.sep}{user_input}'
+
+        # assistant input
         prompt += f'{self.sep}{self.assistant_template}'
 
         # store history
-        self.history.append({
-            'role':
-            'user',
-            'content':
-            self.user_template.replace('<user_input>', task)
-        })
+        self.history.append({'role': 'user', 'content': user_input})
         self.history.append({
             'role': 'assistant',
             'content': self.assistant_template

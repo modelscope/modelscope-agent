@@ -1,0 +1,30 @@
+{
+  "name": "",
+  "avatar": "",
+  "description": "",
+  "instruction": "You are a very helpful assistant",
+  "suggests": [
+    "You can ask me to do something",
+    "how to write a code to generate a random number"
+  ],
+  "knowledge": [""],
+  "tools": {
+    "code_interpreter": {
+      "name": "Code Interpreter",
+      "use": true,
+      "is_active": true
+    },
+    "modelscope_image-generation": {
+      "name": "Wanx Image Generation",
+      "use": true,
+      "is_active": true
+    },
+    "web_browser": {
+      "name": "Web Browsing",
+      "use": false,
+      "is_active": false
+    }
+  },
+  "model": "qwen-plus",
+  "builder_model": "qwen-plus"
+}

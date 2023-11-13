@@ -9,9 +9,9 @@ from gradio.events import Dependency
 
 ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
 
+from gradio.events import Dependency
 
 class ChatBot(ChatBotBase):
-
     def normalize_markdown(self, bot_message):
         lines = bot_message.split("\n")
         normalized_lines = []
@@ -44,7 +44,8 @@ class ChatBot(ChatBotBase):
             bot_message,
             extensions=[
                 'toc', 'extra', 'tables', 'markdown_katex', 'codehilite',
-                'markdown_cjk_spacing.cjk_spacing', 'pymdownx.magiclink'
+                'markdown_cjk_spacing.cjk_spacing',
+                'pymdownx.magiclink'
             ],
             extension_configs={
                 'markdown_katex': {
