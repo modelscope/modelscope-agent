@@ -74,7 +74,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             frame_text = llm_result
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
-        yield preview_chatbot
+        yield preview_chatbot, response
 
 
 def process_configuration(name, description, instructions, model, starters,

@@ -22,7 +22,7 @@ Begin!
 
 MRKL_DEFAULT_USER_TEMPLATE = """Question: <user_input>\n"""
 
-MRKL_DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>\nThought:"""
+MRKL_DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>\n"""
 
 TOOL_DESC = (
     '{name_for_model}: Call this tool to interact with the {name_for_human}'
@@ -84,11 +84,7 @@ class MrklPromptGenerator(PromptGenerator):
         if len(exec_result) != 0:
             exec_result = self.exec_template.replace('<exec_result>',
                                                      str(exec_result))
-            function_content = {
-                'role': 'function',
-                'content': exec_result,
-            }
-            self.history.append(function_content)
+            self.history[-1]['content'] += exec_result
         self.prompt = self.prompt_preprocessor(self.history,
                                                self.system_prompt)
         return self.prompt
