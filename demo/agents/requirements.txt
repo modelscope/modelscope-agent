@@ -3,5 +3,6 @@ gradio==3.47.1
 markdown_katex
 mdx_truly_sane_lists
 markdown-cjk-spacing
+open-interpreter
 pymdown-extensions
 python-slugify
