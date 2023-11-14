@@ -1,12 +1,23 @@
 import traceback
 
 import gradio as gr
-from builder_core import execute_user_chatbot, init_user_chatbot_agent
+from builder_core import execute_user_chatbot, parse_configuration, init_user_chatbot_agent
 from gradio_utils import ChatBot
 
 # available models
 models = ["qwen-max", "qwen-plus"]
 
+builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
+
+def format_cover_html(configuration):
+    print('configuration:', configuration)
+    return f"""
+<div class="bot_cover">
+    <div class="bot_avatar"><img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" /></div>
+    <div class="bot_name">{configuration["name"]}</div>
+    <div class="bot_desp">{configuration["description"]}</div>
+</div>
+"""
 
 def update_preview(messages, preview_chat_input, name, description,
                    instructions, conversation_starters, knowledge_files,
@@ -48,11 +59,14 @@ def reset_agent(state):
     state['user_agent'] = user_agent
 
 
+def format_preview_send_message_ret(preview_chatbot):
+    return [gr.Chatbot.update(visible=True, value=preview_chatbot), gr.HTML.update(visible=False)]
+    
 def preview_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
-    preview_chatbot.append((preview_chat_input, None))
-    yield preview_chatbot
+    preview_chatbot.append((preview_chat_input, ""))
+    yield format_preview_send_message_ret(preview_chatbot)
 
     response = ''
 
@@ -71,7 +85,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             frame_text = llm_result
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
-        yield preview_chatbot, response
+        yield format_preview_send_message_ret(preview_chatbot)
 
 
 def process_configuration(name, description, instructions, model, starters,
@@ -87,11 +101,15 @@ def process_configuration(name, description, instructions, model, starters,
         f"Uploaded Files: {[f.name for f in files] if files else ['No files uploaded']}"
     )
     print(f"capabilities_checkboxes: {capabilities_checkboxes}")
-    return "配置已更新"
+    configuration = {
+        "name": name,
+        "description": description,
+    }
+    return [format_cover_html(configuration)]
 
 
 # 创建 Gradio 界面
-with gr.Blocks() as demo:
+with gr.Blocks(css="assets/app.css") as demo:
     state = gr.State({})
     demo.load(init_user, inputs=[state], outputs=[])
     print('state at init', state)
@@ -112,15 +130,16 @@ with gr.Blocks() as demo:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
                         name_input = gr.Textbox(
-                            label="Name", placeholder="Name your GPT")
+                            label="Name", placeholder="Name your GPT", value=builder_cfg["name"])
                         description_input = gr.Textbox(
                             label="Description",
                             placeholder=
-                            "Add a short description about what this GPT does")
+                            "Add a short description about what this GPT does", value=builder_cfg["description"])
                         instructions_input = gr.Textbox(
                             label="Instructions",
                             placeholder=
-                            "What does this GPT do? How does it behave? What should it avoid doing?"
+                            "What does this GPT do? How does it behave? What should it avoid doing?",
+                            value=builder_cfg["instruction"]
                         )
                         model_selector = model_selector = gr.Dropdown(
                             label='model', choices=models, value=models[0])
@@ -154,14 +173,17 @@ with gr.Blocks() as demo:
                         configure_button = gr.Button("Update Configuration")
 
         with gr.Column():
-            gr.Markdown("### Preview")
+            gr.HTML("""<div class="preview_header">Preview<div>""")
 
+            user_chat_bot_cover = gr.HTML(value=format_cover_html(builder_cfg))
             # Preview
             user_chatbot = ChatBot(
                 value=[[None, None]],
                 elem_id="user_chatbot",
                 elem_classes=["markdown-body"],
+                latex_delimiters=[],
                 show_label=False,
+                visible=False
             )
             preview_chat_input = gr.Textbox(
                 label="Send a message", placeholder="Type a message...")
@@ -181,12 +203,18 @@ with gr.Blocks() as demo:
             conversation_starters_input, knowledge_input,
             capabilities_checkboxes
         ],
-        outputs=[])
+        outputs=[user_chat_bot_cover])
 
     # Preview 列消息发送
+    # preview_send_button.click(
+    #     lambda _: [gr.Chatbot.update(visible=True), gr.HTML.update(visible=False)],
+    #     inputs=[],
+    #     outputs=[user_chatbot, user_chat_bot_cover]
+    # )
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
-        outputs=[user_chatbot])
+        outputs=[user_chatbot, user_chat_bot_cover])
 
+demo.queue(max_size=1)
 demo.launch()
