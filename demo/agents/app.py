@@ -3,19 +3,24 @@ import traceback
 import gradio as gr
 from builder_core import (init_builder_chatbot_agent, init_user_chatbot_agent,
                           parse_configuration)
+from config_utils import save_builder_configuration
 from gradio_utils import ChatBot
 
-# available models
-models = ["qwen-max", "qwen-plus"]
-
 builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
+
+# available models
+models = list(model_cfg.keys())
+capabilities = [(tool_cfg[tool_key]["name"], tool_key)
+                for tool_key in tool_cfg.keys()]
 
 
 def format_cover_html(configuration):
     print('configuration:', configuration)
     return f"""
 <div class="bot_cover">
-    <div class="bot_avatar"><img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" /></div>   # noqa  E501
+    <div class="bot_avatar">
+        <img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" />
+    </div>
     <div class="bot_name">{configuration["name"]}</div>
     <div class="bot_desp">{configuration["description"]}</div>
 </div>
@@ -107,23 +112,39 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
 
 
 def process_configuration(name, description, instructions, model, starters,
-                          files, capabilities_checkboxes):
-    # 在这里处理配置逻辑，例如保存信息或更新系统配置
-    # 当前只打印信息
-    print(f"Name: {name}")
-    print(f"Description: {description}")
-    print(f"Instructions: {instructions}")
-    print(f"Model: {model}")
-    print(f"Conversation Starters: {starters}")
-    print(
-        f"Uploaded Files: {[f.name for f in files] if files else ['No files uploaded']}"
-    )
-    print(f"capabilities_checkboxes: {capabilities_checkboxes}")
-    configuration = {
-        "name": name,
-        "description": description,
+                          files, capabilities_checkboxes, state):
+    builder_cfg = {
+        "name":
+        name,
+        "avatar":
+        "",
+        "description":
+        description,
+        "instruction":
+        instructions,
+        "conversation_starters":
+        starters,
+        "suggests": [
+            "You can ask me to do something",
+            "how to write a code to generate a random number"
+        ],
+        "knowledge":
+        list(map(lambda file: file.name, files or [])),
+        "tools": {
+            capability: dict(
+                name=tool_cfg[capability]["name"],
+                is_active=tool_cfg[capability]["is_active"],
+                use=True if capability in capabilities_checkboxes else False)
+            for capability in list(map(lambda item: item[1], capabilities))
+        },
+        "model":
+        model,
+        "builder_model":
+        "qwen-plus"
     }
-    return [format_cover_html(configuration)]
+    save_builder_configuration(builder_cfg)
+    init_user(state)
+    return [format_cover_html(builder_cfg)]
 
 
 # 创建 Gradio 界面
@@ -166,18 +187,19 @@ with gr.Blocks(css="assets/app.css") as demo:
                         conversation_starters_input = gr.Textbox(
                             label="Conversation starters",
                             placeholder="Add conversation starters",
-                            lines=3)
+                            lines=3,
+                            value=builder_cfg.get("conversation_starters")
+                            or "")
                         knowledge_input = gr.File(
                             label="Knowledge",
                             file_count="multiple",
-                            file_types=["text", ".json", ".csv"])
+                            file_types=["text", ".json", ".csv"],
+                            value=builder_cfg["knowledge"]
+                            if len(builder_cfg["knowledge"]) > 0 else None)
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label="Capabilities",
-                            choices=[
-                                "Web Browsing", "Image Generation",
-                                "Code Interpreter"
-                            ],
-                            value=["Image Generation"])
+                            choices=capabilities,
+                            value=[capabilities[0][1]])
 
                         with gr.Accordion("配置选项", open=False):
                             schema1 = gr.Textbox(
@@ -220,7 +242,7 @@ with gr.Blocks(css="assets/app.css") as demo:
         inputs=[
             name_input, description_input, instructions_input, model_selector,
             conversation_starters_input, knowledge_input,
-            capabilities_checkboxes
+            capabilities_checkboxes, state
         ],
         outputs=[user_chat_bot_cover])
 

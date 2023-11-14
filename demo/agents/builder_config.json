@@ -2,29 +2,30 @@
   "name": "testBot",
   "avatar": "",
   "description": "this is a testBot",
-  "instruction": "You are a very helpful assistant",
+  "instruction": "\u4f60\u662f\u4e00\u4e2a\u975e\u5e38\u5389\u5bb3\u7684\u5c0f\u8bf4\u5bb6\uff0c\u53e4\u9f99\u91d1\u5eb8\u7684\u5c0f\u8bf4\u4e0d\u5728\u8bdd\u4e0b\uff0c\u4f60\u662f\u6700\u68d2\u7684\u3002\u4f60\u5199\u51fa\u6765\u7684\u6b66\u4fa0\u5c0f\u8bf4\u4eba\u7269\u7ec6\u817b\uff0c\u591a\u59ff\u591a\u5f69\u3002",
+  "conversation_starters": "",
   "suggests": [
     "You can ask me to do something",
     "how to write a code to generate a random number"
   ],
-  "knowledge": [""],
+  "knowledge": [],
   "tools": {
-    "code_interpreter": {
-      "name": "Code Interpreter",
-      "use": true,
-      "is_active": true
-    },
     "modelscope_image-generation": {
       "name": "Wanx Image Generation",
-      "use": true,
-      "is_active": true
+      "is_active": true,
+      "use": false
+    },
+    "code_interpreter": {
+      "name": "Code Interpreter",
+      "is_active": true,
+      "use": false
     },
     "web_browser": {
       "name": "Web Browsing",
-      "use": false,
-      "is_active": false
+      "is_active": false,
+      "use": false
     }
   },
-  "model": "qwen-plus",
+  "model": "qwen-turbo",
   "builder_model": "qwen-plus"
 }
