@@ -76,7 +76,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = f'\n\nObservation: {exec_result}\n'
+            frame_text = f'\n\n<|startofexec|>\n{exec_result}\n<|endofexec|>\n'
         else:
             # llm result
             frame_text = llm_result

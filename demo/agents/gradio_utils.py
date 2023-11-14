@@ -5,7 +5,9 @@ import re
 import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
-from gradio.events import Dependency
+from modelscope_agent.agent_types import AgentType
+from modelscope_agent.output_parser import (MRKLOutputParser, MsOutputParser,
+                                            OpenAiFunctionsOutputParser)
 
 ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
 
@@ -63,21 +65,52 @@ class ChatBot(ChatBotBase):
         result = "".join(result)
         return result
 
+    @staticmethod
+    def prompt_parse(message):
+        llm_result = ''
+        action_thought_result = ''
+        action_result = ''
+        observation = ''
+        final_thought_result = ''
+        final_answer_result = ''
+        if 'Thought' in message:
+            if 'Action' in message or 'Action Input:' in message:
+                re_pattern1 = re.compile(
+                    pattern=r'([\s\S]+))Thought:([\s\S]+)Action')
+                res = re_pattern1.search(message)
+                llm_result = res.group(1).strip()
+                action_thought_result = res.group(2).strip()
+                action, action_parameters = MRKLOutputParser().parse_response(
+                    message)
+                action_result = json.dumps({
+                    'api_name': action,
+                    'parameters': action_parameters
+                })
+            if 'Observation' in message:
+                re_pattern3 = re.compile(
+                    pattern=r'<|startofexec|>([\s\S]+)<|endofexec|>')
+                res3 = re_pattern3.search(message)
+                observation = res3.group(1).strip()
+
+            if 'Final Answer' in message:
+                re_pattern2 = re.compile(
+                    pattern=
+                    r'Action Input:([\s\S]+))Thought:([\s\S]+) Final Answer:([\s\S]+)'
+                )
+                res2 = re_pattern2.search(message)
+                final_thought_result = res2.group(2).strip()
+                final_answer_result = res2.group(3).strip()
+            output = (
+                f'{llm_result}\n{action_thought_result}\n<|startofthink|>\n{action_result}\n<|endofthink|>\n\n'
+                f'<|startofexec|>\n{observation}\n<|endofexec|>\n{final_thought_result}\n{final_answer_result}'
+            )
+            return output
+        else:
+            return message
+
     def convert_bot_message_new(self, bot_message):
 
-        # 兼容老格式
-        chunks = bot_message.split('<extra_id_0>')
-        if len(chunks) > 1:
-            new_bot_message = ''
-            for idx, chunk in enumerate(chunks):
-                new_bot_message += chunk
-                if idx % 2 == 0:
-                    if idx != len(chunks) - 1:
-                        new_bot_message += '<|startofthink|>'
-                else:
-                    new_bot_message += '<|endofthink|>'
-
-            bot_message = new_bot_message
+        bot_message = ChatBot.prompt_parse(bot_message)
 
         start_pos = 0
         result = ''
