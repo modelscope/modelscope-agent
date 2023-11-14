@@ -63,6 +63,99 @@ class ChatBot(ChatBotBase):
         result = "".join(result)
         return result
 
+    def convert_bot_message_new(self, bot_message):
+
+        # 兼容老格式
+        chunks = bot_message.split('<extra_id_0>')
+        if len(chunks) > 1:
+            new_bot_message = ''
+            for idx, chunk in enumerate(chunks):
+                new_bot_message += chunk
+                if idx % 2 == 0:
+                    if idx != len(chunks) - 1:
+                        new_bot_message += '<|startofthink|>'
+                else:
+                    new_bot_message += '<|endofthink|>'
+
+            bot_message = new_bot_message
+
+        start_pos = 0
+        result = ''
+        find_json_pattern = re.compile(r'{[\s\S]+}')
+        START_OF_THINK_TAG, END_OF_THINK_TAG = '<|startofthink|>', '<|endofthink|>'
+        START_OF_EXEC_TAG, END_OF_EXEC_TAG = '<|startofexec|>', '<|endofexec|>'
+        while start_pos < len(bot_message):
+            try:
+                start_of_think_pos = bot_message.index(START_OF_THINK_TAG,
+                                                       start_pos)
+                end_of_think_pos = bot_message.index(END_OF_THINK_TAG,
+                                                     start_pos)
+                if start_pos < start_of_think_pos:
+                    result += self.convert_markdown(
+                        bot_message[start_pos:start_of_think_pos])
+                think_content = bot_message[start_of_think_pos
+                                            + len(START_OF_THINK_TAG
+                                                  ):end_of_think_pos].strip()
+                json_content = find_json_pattern.search(think_content)
+                think_content = json_content.group(
+                ) if json_content else think_content
+                try:
+                    think_node = json.loads(think_content)
+                    plugin_name = think_node.get(
+                        'plugin_name',
+                        think_node.get('plugin',
+                                       think_node.get('api_name', 'unknown')))
+                    summary = f'选择插件【{plugin_name}】，调用处理中...'
+                    del think_node['url']
+                    # think_node.pop('url', None)
+
+                    detail = f'```json\n\n{json.dumps(think_node, indent=3, ensure_ascii=False)}\n\n```'
+                except Exception:
+                    summary = '思考中...'
+                    detail = think_content
+                    # traceback.print_exc()
+                    # detail += traceback.format_exc()
+                result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
+                    detail) + '</details>'
+                # print(f'detail:{detail}')
+                start_pos = end_of_think_pos + len(END_OF_THINK_TAG)
+            except Exception:
+                # result += traceback.format_exc()
+                break
+                # continue
+
+            try:
+                start_of_exec_pos = bot_message.index(START_OF_EXEC_TAG,
+                                                      start_pos)
+                end_of_exec_pos = bot_message.index(END_OF_EXEC_TAG, start_pos)
+                # print(start_of_exec_pos)
+                # print(end_of_exec_pos)
+                # print(bot_message[start_of_exec_pos:end_of_exec_pos])
+                # print('------------------------')
+                if start_pos < start_of_exec_pos:
+                    result += self.convert_markdown(
+                        bot_message[start_pos:start_of_think_pos])
+                exec_content = bot_message[start_of_exec_pos
+                                           + len(START_OF_EXEC_TAG
+                                                 ):end_of_exec_pos].strip()
+                try:
+                    summary = '完成插件调用.'
+                    detail = f'```json\n\n{exec_content}\n\n```'
+                except Exception:
+                    pass
+
+                result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
+                    detail) + '</details>'
+
+                start_pos = end_of_exec_pos + len(END_OF_EXEC_TAG)
+            except Exception:
+                # result += traceback.format_exc()
+                continue
+        if start_pos < len(bot_message):
+            result += self.convert_markdown(bot_message[start_pos:])
+        result += ALREADY_CONVERTED_MARK
+        return result
+
     def convert_bot_message(self, bot_message):
 
         # 兼容老格式
@@ -205,4 +298,5 @@ class ChatBot(ChatBotBase):
                     bot_message,
                 ])
 
+        print('postprocess:', message_pairs, processed_messages)
         return processed_messages

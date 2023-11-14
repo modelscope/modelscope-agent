@@ -1,6 +1,7 @@
 import copy
 import os
 
+from help_tools import ConfGeneratorTool, LogoGeneratorTool
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
 from modelscope_agent.agent import AgentExecutor
@@ -88,25 +89,31 @@ def init_user_chatbot_agent():
 
 
 # TODO execute the user chatbot with user input in gradio
-def execute_user_chatbot(user_input, user_agent, chatbot, output_component):
+def init_builder_chatbot_agent():
+    builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+    )
 
-    for frame in user_agent.stream_run(user_input, remote=True):
-        # is_final = frame.get("frame_is_final")
-        llm_result = frame.get("llm_text", "")
-        exec_result = frame.get('exec_result', '')
-        print(frame)
-        llm_result = llm_result.split("<|user|>")[0].strip()
-        if len(exec_result) != 0:
-            # llm_result
-            # update_component(exec_result)
-            frame_text = ' '
-        else:
-            # action_exec_result
-            frame_text = llm_result
-        response = f'{response}\n{frame_text}'
+    # build tool
+    additional_tool_list = {
+        'LogoGenerator': LogoGeneratorTool({'is_remote_tool': True}),
+        'ConfGenerator': ConfGeneratorTool({'is_remote_tool': True})
+    }
 
-        chatbot[-1] = (user_input, response)
-        yield chatbot, *copy.deepcopy(output_component)
+    # build model
+    llm = LLMFactory.build_llm(builder_cfg.builder_model, model_cfg)
+
+    # build prompt with zero shot react template
+    prompt_generator = MrklPromptGenerator()
+
+    agent = AgentExecutor(
+        llm,
+        agent_type=AgentType.MRKL,
+        prompt_generator=prompt_generator,
+        additional_tool_list=additional_tool_list,
+        tool_retrieval=False)
+    agent.set_available_tools(additional_tool_list.keys())
+
+    return agent
 
 
 def user_chatbot_single_run(query, agent):

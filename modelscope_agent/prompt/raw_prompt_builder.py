@@ -1,7 +1,4 @@
-def qwen_chatml_prompt_preprocessor(messages, system_prompt):
-    if messages[0]['role'] == 'user':
-        messages[0]['content'] = system_prompt + messages[0]['content']
-
+def qwen_chatml_prompt_preprocessor(messages):
     prompt = ''
     for message in messages:
         if message['role'] == 'assistant' and message['content'] == '':

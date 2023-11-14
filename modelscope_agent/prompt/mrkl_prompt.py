@@ -54,12 +54,36 @@ class MrklPromptGenerator(PromptGenerator):
 
     def init_prompt(self, task, tool_list, knowledge_list, llm_model,
                     **kwargs):
-        super().init_prompt(task, tool_list, knowledge_list, llm_model,
-                            **kwargs)
-        tool_names = [f'\'{str(tool.name)}\'' for tool in tool_list]
-        tool_names = ','.join(tool_names)
-        self.system_prompt = self.system_prompt.replace(
-            '<tool_names>', tool_names)
+        if len(self.history) == 0:
+            super().init_prompt(task, tool_list, knowledge_list, llm_model,
+                                **kwargs)
+            system_role_status = kwargs.get('system_role_status', False)
+            tool_names = [f'\'{str(tool.name)}\'' for tool in tool_list]
+            tool_names = ','.join(tool_names)
+            self.system_prompt = self.system_prompt.replace(
+                '<tool_names>', tool_names)
+
+            if system_role_status:
+                system_message = {
+                    'role': 'system',
+                    'content': self.system_prompt
+                }
+                self.history.insert(0, system_message)
+            else:
+                self.history[0]['content'] = self.system_prompt + self.history[
+                    0]['content']
+        else:
+            self.history.append({
+                'role':
+                'user',
+                'content':
+                self.user_template.replace('<user_input>', task)
+            })
+            self.history.append({
+                'role': 'assistant',
+                'content': self.assistant_template
+            })
+
         return self.system_prompt
 
     def get_tool_str(self, tool_list):
@@ -85,6 +109,5 @@ class MrklPromptGenerator(PromptGenerator):
             exec_result = self.exec_template.replace('<exec_result>',
                                                      str(exec_result))
             self.history[-1]['content'] += exec_result
-        self.prompt = self.prompt_preprocessor(self.history,
-                                               self.system_prompt)
+        self.prompt = self.prompt_preprocessor(self.history)
         return self.prompt
