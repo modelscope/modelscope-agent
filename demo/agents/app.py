@@ -1,11 +1,16 @@
+from gradio_utils import ChatBot
+from builder_core import execute_user_chatbot, init_user_chatbot_agent
+from config_utils import save_builder_configuration, load_assets_configuration
+import gradio as gr
 import traceback
 
-import gradio as gr
-from builder_core import execute_user_chatbot, init_user_chatbot_agent
-from gradio_utils import ChatBot
+
+model_cfg, tool_cfg = load_assets_configuration()
 
 # available models
-models = ["qwen-max", "qwen-plus"]
+models = list(model_cfg.keys())
+
+capabilities = [(tool_cfg[tool_key]["name"], tool_key) for tool_key in tool_cfg.keys()]
 
 
 def update_preview(messages, preview_chat_input, name, description,
@@ -71,23 +76,29 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             frame_text = llm_result
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
-        yield preview_chatbot, response
+        yield preview_chatbot
 
 
 def process_configuration(name, description, instructions, model, starters,
                           files, capabilities_checkboxes):
-    # 在这里处理配置逻辑，例如保存信息或更新系统配置
-    # 当前只打印信息
-    print(f"Name: {name}")
-    print(f"Description: {description}")
-    print(f"Instructions: {instructions}")
-    print(f"Model: {model}")
-    print(f"Conversation Starters: {starters}")
-    print(
-        f"Uploaded Files: {[f.name for f in files] if files else ['No files uploaded']}"
-    )
-    print(f"capabilities_checkboxes: {capabilities_checkboxes}")
-    return "配置已更新"
+    builder_cfg = {
+        "name": name,
+        "avatar": "",
+        "description": description,
+        "instruction": instructions,
+        "conversation_starters": starters,
+        "suggests": [
+            "You can ask me to do something",
+            "how to write a code to generate a random number"
+        ],
+        "knowledge": list(map(lambda file: file.name, files or [])),
+        "tools": {
+            capability: dict(name=tool_cfg[capability]["name"], is_active=tool_cfg[capability]["is_active"], use=True if capability in capabilities_checkboxes else False) for capability in list(map(lambda item: item[1], capabilities))
+        },
+        "model": model,
+        "builder_model": "qwen-plus"
+    }
+    save_builder_configuration(builder_cfg)
 
 
 # 创建 Gradio 界面
@@ -115,12 +126,10 @@ with gr.Blocks() as demo:
                             label="Name", placeholder="Name your GPT")
                         description_input = gr.Textbox(
                             label="Description",
-                            placeholder=
-                            "Add a short description about what this GPT does")
+                            placeholder="Add a short description about what this GPT does")
                         instructions_input = gr.Textbox(
                             label="Instructions",
-                            placeholder=
-                            "What does this GPT do? How does it behave? What should it avoid doing?"
+                            placeholder="What does this GPT do? How does it behave? What should it avoid doing?"
                         )
                         model_selector = model_selector = gr.Dropdown(
                             label='model', choices=models, value=models[0])
@@ -134,11 +143,8 @@ with gr.Blocks() as demo:
                             file_types=["text", ".json", ".csv"])
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label="Capabilities",
-                            choices=[
-                                "Web Browsing", "Image Generation",
-                                "Code Interpreter"
-                            ],
-                            value=["Image Generation"])
+                            choices=capabilities,
+                            value=[capabilities[0][1]])
 
                         with gr.Accordion("配置选项", open=False):
                             schema1 = gr.Textbox(
@@ -158,6 +164,7 @@ with gr.Blocks() as demo:
 
             # Preview
             user_chatbot = ChatBot(
+                latex_delimiters=[],
                 value=[[None, None]],
                 elem_id="user_chatbot",
                 elem_classes=["markdown-body"],
@@ -189,4 +196,4 @@ with gr.Blocks() as demo:
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot])
 
-demo.launch()
+demo.queue().launch()
