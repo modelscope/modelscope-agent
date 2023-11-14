@@ -331,4 +331,5 @@ class ChatBot(ChatBotBase):
                     bot_message,
                 ])
 
+        print('postprocess:', message_pairs, processed_messages)
         return processed_messages
