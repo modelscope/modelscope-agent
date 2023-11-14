@@ -2,6 +2,7 @@ import traceback
 
 import gradio as gr
 from builder_core import execute_user_chatbot, parse_configuration, init_user_chatbot_agent
+
 from gradio_utils import ChatBot
 
 # available models
@@ -53,6 +54,15 @@ def init_user(state):
     state['user_agent'] = user_agent
 
 
+def init_builder(state):
+    try:
+        builder_agent = init_builder_chatbot_agent()
+    except Exception as e:
+        error = traceback.format_exc()
+        print(f'Error:{e}, with detail: {error}')
+    state['builder_agent'] = builder_agent
+
+
 def reset_agent(state):
     user_agent = state['user_agent']
     user_agent.reset()
@@ -70,18 +80,20 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
 
     response = ''
 
-    for frame in user_agent.stream_run(preview_chat_input, print_info=True):
+    for frame in user_agent.stream_run(
+            preview_chat_input, print_info=True, remote=False):
         # is_final = frame.get("frame_is_final")
         llm_result = frame.get("llm_text", "")
         exec_result = frame.get('exec_result', '')
         print(frame)
         # llm_result = llm_result.split("<|user|>")[0].strip()
         if len(exec_result) != 0:
-            # llm_result
-            # update_component(exec_result)
-            frame_text = ' '
-        else:
             # action_exec_result
+            if isinstance(exec_result, dict):
+                exec_result = str(exec_result['result'])
+            frame_text = f'\n\nObservation: {exec_result}\n'
+        else:
+            # llm result
             frame_text = llm_result
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
@@ -112,7 +124,7 @@ def process_configuration(name, description, instructions, model, starters,
 with gr.Blocks(css="assets/app.css") as demo:
     state = gr.State({})
     demo.load(init_user, inputs=[state], outputs=[])
-    print('state at init', state)
+    demo.load(init_builder, inputs=[state], outputs=[])
 
     with gr.Row():
         with gr.Column():
@@ -182,6 +194,7 @@ with gr.Blocks(css="assets/app.css") as demo:
                 elem_id="user_chatbot",
                 elem_classes=["markdown-body"],
                 latex_delimiters=[],
+
                 show_label=False,
                 visible=False
             )
