@@ -1,8 +1,8 @@
 import traceback
 
 import gradio as gr
-from builder_core import execute_user_chatbot, parse_configuration, init_user_chatbot_agent
-
+from builder_core import (init_builder_chatbot_agent, init_user_chatbot_agent,
+                          parse_configuration)
 from gradio_utils import ChatBot
 
 # available models
@@ -10,15 +10,17 @@ models = ["qwen-max", "qwen-plus"]
 
 builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
 
+
 def format_cover_html(configuration):
     print('configuration:', configuration)
     return f"""
 <div class="bot_cover">
-    <div class="bot_avatar"><img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" /></div>
+    <div class="bot_avatar"><img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" /></div>   # noqa  E501
     <div class="bot_name">{configuration["name"]}</div>
     <div class="bot_desp">{configuration["description"]}</div>
 </div>
 """
+
 
 def update_preview(messages, preview_chat_input, name, description,
                    instructions, conversation_starters, knowledge_files,
@@ -70,8 +72,12 @@ def reset_agent(state):
 
 
 def format_preview_send_message_ret(preview_chatbot):
-    return [gr.Chatbot.update(visible=True, value=preview_chatbot), gr.HTML.update(visible=False)]
-    
+    return [
+        gr.Chatbot.update(visible=True, value=preview_chatbot),
+        gr.HTML.update(visible=False)
+    ]
+
+
 def preview_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
@@ -91,7 +97,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = f'\n\n<|startofexec|>\n{exec_result}\n<|endofexec|>\n'
+            frame_text = f'\n<|startofexec|>{exec_result}<|endofexec|>\n'
         else:
             # llm result
             frame_text = llm_result
@@ -142,17 +148,19 @@ with gr.Blocks(css="assets/app.css") as demo:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
                         name_input = gr.Textbox(
-                            label="Name", placeholder="Name your GPT", value=builder_cfg["name"])
+                            label="Name",
+                            placeholder="Name your GPT",
+                            value=builder_cfg["name"])
                         description_input = gr.Textbox(
                             label="Description",
                             placeholder=
-                            "Add a short description about what this GPT does", value=builder_cfg["description"])
+                            "Add a short description about what this GPT does",
+                            value=builder_cfg["description"])
                         instructions_input = gr.Textbox(
                             label="Instructions",
                             placeholder=
                             "What does this GPT do? How does it behave? What should it avoid doing?",
-                            value=builder_cfg["instruction"]
-                        )
+                            value=builder_cfg["instruction"])
                         model_selector = model_selector = gr.Dropdown(
                             label='model', choices=models, value=models[0])
                         conversation_starters_input = gr.Textbox(
@@ -194,10 +202,8 @@ with gr.Blocks(css="assets/app.css") as demo:
                 elem_id="user_chatbot",
                 elem_classes=["markdown-body"],
                 latex_delimiters=[],
-
                 show_label=False,
-                visible=False
-            )
+                visible=False)
             preview_chat_input = gr.Textbox(
                 label="Send a message", placeholder="Type a message...")
             preview_send_button = gr.Button("Send")
