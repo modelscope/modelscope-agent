@@ -18,10 +18,10 @@ LOGO_PATH = 'logo.png'
 
 CONFIG_FORMAT = """
 {
-"name": ... # CustomGPT的名字。
-"description": ... # CustomGPT 的简介。
-"instructions": ... # CustomGPT 的功能要求，类型是string。
-"conversation_starters": ... # CustomGPT 的起始交互语句，类型是一个字符串数组，起始为[]。
+    "name": ... # CustomGPT的名字。
+    "description": ... # CustomGPT 的简介。
+    "instructions": ... # CustomGPT 的功能要求，类型是string。
+    "conversation_starters": ... # CustomGPT 的起始交互语句，类型是一个字符串数组，起始为[]。
 }
 """
 

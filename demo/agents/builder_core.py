@@ -111,7 +111,7 @@ def init_builder_chatbot_agent():
         prompt_generator=prompt_generator,
         additional_tool_list=additional_tool_list,
         tool_retrieval=False)
-    agent.set_available_tools(available_tool_list.keys())
+    agent.set_available_tools(additional_tool_list.keys())
 
     return agent
 

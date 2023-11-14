@@ -224,7 +224,8 @@ class AgentExecutor:
             idx += 1
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
-            print(f'|LLM inputs in round {idx}: {llm_artifacts}')
+            if print_info:
+                print(f'|LLM inputs in round {idx}: {llm_artifacts}')
 
             llm_result = ''
             try:
