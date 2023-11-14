@@ -1,31 +1,15 @@
 from gradio_utils import ChatBot
-from builder_core import execute_user_chatbot, parse_configuration, init_user_chatbot_agent
-from config_utils import save_builder_configuration, load_assets_configuration
+from builder_core import parse_configuration, init_user_chatbot_agent, init_builder_chatbot_agent
+from config_utils import save_builder_configuration
 import gradio as gr
 import traceback
 
 
-model_cfg, tool_cfg = load_assets_configuration()
-builder_cfg = parse_configuration()
+builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
 
 # available models
 models = list(model_cfg.keys())
-
 capabilities = [(tool_cfg[tool_key]["name"], tool_key) for tool_key in tool_cfg.keys()]
-
-
-def format_cover_html(configuration):
-    print('configuration:', configuration)
-    return f"""
-<div class="bot_cover">
-    <div class="bot_avatar"><img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" /></div>
-    <div class="bot_name">{configuration["name"]}</div>
-    <div class="bot_desp">{configuration["description"]}</div>
-</div>
-"""
-
-
-builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
 
 
 def format_cover_html(configuration):
@@ -179,11 +163,13 @@ with gr.Blocks(css="assets/app.css") as demo:
                         conversation_starters_input = gr.Textbox(
                             label="Conversation starters",
                             placeholder="Add conversation starters",
-                            lines=3)
+                            lines=3,
+                            value=builder_cfg.get("conversation_starters") or "")
                         knowledge_input = gr.File(
                             label="Knowledge",
                             file_count="multiple",
-                            file_types=["text", ".json", ".csv"])
+                            file_types=["text", ".json", ".csv"],
+                            value=builder_cfg["knowledge"] if len(builder_cfg["knowledge"]) > 0 else None)
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label="Capabilities",
                             choices=capabilities,
@@ -208,12 +194,10 @@ with gr.Blocks(css="assets/app.css") as demo:
             user_chat_bot_cover = gr.HTML(value=format_cover_html(builder_cfg))
             # Preview
             user_chatbot = ChatBot(
-                latex_delimiters=[],
                 value=[[None, None]],
                 elem_id="user_chatbot",
                 elem_classes=["markdown-body"],
                 latex_delimiters=[],
-
                 show_label=False,
                 visible=False
             )
