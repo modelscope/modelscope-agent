@@ -1,0 +1,35 @@
+.preview_header {
+  font-size: 24px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.bot_cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  border: 1px solid rgb(229, 231, 235);
+  border-radius: 8px;
+}
+
+.bot_avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.bot_avatar img {
+  width: 100px;
+  height: 100px;
+}
+
+.bot_name {
+  font-size: 36px;
+}
+
+.bot_desp {
+  color: #ddd;
+}

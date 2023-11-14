@@ -1,7 +1,7 @@
 {
-  "name": "",
+  "name": "testBot",
   "avatar": "",
-  "description": "",
+  "description": "this is a testBot",
   "instruction": "You are a very helpful assistant",
   "suggests": [
     "You can ask me to do something",
