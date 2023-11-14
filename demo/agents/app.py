@@ -1,5 +1,5 @@
 from gradio_utils import ChatBot
-from builder_core import init_user_chatbot_agent, parse_configuration, init_builder_chatbot_agent
+from builder_core import execute_user_chatbot, parse_configuration, init_user_chatbot_agent
 from config_utils import save_builder_configuration, load_assets_configuration
 import gradio as gr
 import traceback
@@ -12,6 +12,20 @@ builder_cfg = parse_configuration()
 models = list(model_cfg.keys())
 
 capabilities = [(tool_cfg[tool_key]["name"], tool_key) for tool_key in tool_cfg.keys()]
+
+
+def format_cover_html(configuration):
+    print('configuration:', configuration)
+    return f"""
+<div class="bot_cover">
+    <div class="bot_avatar"><img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" /></div>
+    <div class="bot_name">{configuration["name"]}</div>
+    <div class="bot_desp">{configuration["description"]}</div>
+</div>
+"""
+
+
+builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
 
 
 def format_cover_html(configuration):
