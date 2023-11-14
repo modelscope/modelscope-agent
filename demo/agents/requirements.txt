@@ -1,5 +1,6 @@
 dashscope
 gradio==3.47.1
+langchain
 markdown_katex
 mdx_truly_sane_lists
 markdown-cjk-spacing
