@@ -16,4 +16,6 @@ Observation: 工具返回的结果
 # 指令
 """
 
-DEFAULT_USER_TEMPLATE = """<user_input>\n"""
+DEFAULT_USER_TEMPLATE = """\n<user_input>\n"""
+
+DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>```"""

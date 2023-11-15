@@ -11,7 +11,7 @@ from .pipeline_tool import ModelscopePipelineTool
 
 class TextToImageTool(ModelscopePipelineTool):
     default_model = 'AI-ModelScope/stable-diffusion-xl-base-1.0'
-    description = '图像生成服务，针对文本输入，生成对应的图片'
+    description = 'AI绘画（图像生成）服务，输入文本描述，返回根据文本信息绘制的图片URL。'
     name = 'modelscope_image-generation'
     parameters: list = [{
         'name': 'text',

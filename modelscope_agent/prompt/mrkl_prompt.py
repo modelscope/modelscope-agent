@@ -25,9 +25,8 @@ MRKL_DEFAULT_USER_TEMPLATE = """Question: <user_input>\n"""
 MRKL_DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>\n"""
 
 TOOL_DESC = (
-    '{name_for_model}: Call this tool to interact with the {name_for_human}'
-    + ' API. What is the {name_for_human} API useful for?'
-    + ' {description_for_model} Parameters: {parameters}')
+    '{name_for_model}: {name_for_human} API. {description_for_model} 输入参数: {parameters}'
+)
 
 FORMAT_DESC = {
     'json':
@@ -94,8 +93,9 @@ class MrklPromptGenerator(PromptGenerator):
                     name_for_model=tool.name,
                     name_for_human=tool.name,
                     description_for_model=tool.description,
-                    parameters=json.dumps(tool.parameters, ensure_ascii=False))
-                + ' ' + FORMAT_DESC['json'])
+                    parameters=json.dumps(tool.parameters,
+                                          ensure_ascii=False)))
+            # + ' ' + FORMAT_DESC['json'])
         tool_str = '\n\n'.join(tool_texts)
         return tool_str
 
