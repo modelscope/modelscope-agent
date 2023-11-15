@@ -244,12 +244,10 @@ class ChatBot(ChatBotBase):
                     user_message = f"<p style=\"white-space:pre-wrap;\">{convert_md}</p>" + ALREADY_CONVERTED_MARK
                 if bot_message and not bot_message.endswith(
                         ALREADY_CONVERTED_MARK):
-                    print('reach here1')
                     bot_message = self.convert_bot_message(bot_message)
                 processed_messages.append([
                     user_message,
                     bot_message,
                 ])
 
-        print('postprocess:', message_pairs, processed_messages)
         return processed_messages

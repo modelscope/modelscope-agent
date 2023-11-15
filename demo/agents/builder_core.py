@@ -1,6 +1,8 @@
 import copy
 import os
 
+from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
+                           DEFAULT_USER_TEMPLATE)
 from help_tools import ConfGeneratorTool, LogoGeneratorTool
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
@@ -53,13 +55,16 @@ def init_user_chatbot_agent():
     )
 
     # build model
+    print(f'using model {builder_cfg.model}')
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
 
     # build prompt with zero shot react template
-    tool_list_template = """Answer the following questions as best you can. You have access to the following tools:
-    \n<tool_list>"""
-    prompt_generator = MrklPromptGenerator(system_template='\n'.join(
-        [builder_cfg.instruction, tool_list_template]))
+    prompt_generator = MrklPromptGenerator(
+        system_template=DEFAULT_SYSTEM_TEMPLATE,
+        user_template=DEFAULT_USER_TEMPLATE,
+        exec_template=DEFAULT_EXEC_TEMPLATE,
+        instruction_template=builder_cfg.instruction,
+    )
 
     # get knowledge
     # 开源版本的向量库配置

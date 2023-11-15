@@ -40,6 +40,7 @@ def init_user(state):
         print(f'Error:{e}, with detail: {error}')
     state['user_agent'] = user_agent
 
+
 def init_builder(state):
     try:
         builder_agent = init_builder_chatbot_agent()
@@ -48,12 +49,14 @@ def init_builder(state):
         print(f'Error:{e}, with detail: {error}')
     state['builder_agent'] = builder_agent
 
+
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     print("builder_cfg:", builder_cfg)
     # available models
     models = list(model_cfg.keys())
     capabilities = [(tool_cfg[tool_key]["name"], tool_key)
-                    for tool_key in tool_cfg.keys() if tool_cfg[tool_key].get("is_active", False)]
+                    for tool_key in tool_cfg.keys()
+                    if tool_cfg[tool_key].get("is_active", False)]
     state["tool_cfg"] = tool_cfg
     state["capabilities"] = capabilities
     suggests = builder_cfg.get("suggests", [])
@@ -67,25 +70,33 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
         [[str] for str in suggests],
         builder_cfg.get("knowledge", [])
         if len(builder_cfg["knowledge"]) > 0 else None,
-        gr.CheckboxGroup.update(value=[tool for tool in builder_cfg.get("tools", {}).keys()
-                                       if builder_cfg.get("tools").get(tool).get("use", False)], choices=capabilities),
+        gr.CheckboxGroup.update(
+            value=[
+                tool for tool in builder_cfg.get("tools", {}).keys()
+                if builder_cfg.get("tools").get(tool).get("use", False)
+            ],
+            choices=capabilities),
         # bot
         format_cover_html(builder_cfg),
         gr.Dataset.update(samples=[[item] for item in suggests]),
     ]
 
+
 def init_all(state):
-    builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
+    builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+    )
     ret = init_ui_config(state, builder_cfg, model_cfg, tool_cfg)
     yield ret
     init_user(state)
     init_builder(state)
     yield ret
 
+
 def reset_agent(state):
     user_agent = state['user_agent']
     user_agent.reset()
     state['user_agent'] = user_agent
+
 
 def format_cover_html(configuration):
     return f"""
@@ -97,6 +108,7 @@ def format_cover_html(configuration):
     <div class="bot_desp">{configuration.get("description", "")}</div>
 </div>
 """
+
 
 def format_preview_send_message_ret(preview_chatbot):
     return [
@@ -152,10 +164,8 @@ def process_configuration(name, description, instructions, model, suggestions,
                 use=True if capability in capabilities_checkboxes else False)
             for capability in map(lambda item: item[1], capabilities)
         },
-        "model":
-        model,
-        "builder_model":
-        "qwen-plus"
+        "model": model,
+        "builder_model": "qwen-plus"
     }
     save_builder_configuration(builder_cfg)
     init_user(state)
@@ -170,7 +180,7 @@ def process_configuration(name, description, instructions, model, suggestions,
 demo = gr.Blocks(css="assets/app.css")
 with demo:
     state = gr.State({})
-   
+
     with gr.Row():
         with gr.Column():
             with gr.Tabs():
@@ -187,14 +197,15 @@ with demo:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
                         name_input = gr.Textbox(
-                            label="Name",
-                            placeholder="Name your GPT")
+                            label="Name", placeholder="Name your GPT")
                         description_input = gr.Textbox(
                             label="Description",
-                            placeholder="Add a short description about what this GPT does")
+                            placeholder=
+                            "Add a short description about what this GPT does")
                         instructions_input = gr.Textbox(
                             label="Instructions",
-                            placeholder="What does this GPT do? How does it behave? What should it avoid doing?",
+                            placeholder=
+                            "What does this GPT do? How does it behave? What should it avoid doing?",
                             lines=3)
                         model_selector = model_selector = gr.Dropdown(
                             label='model')
@@ -207,8 +218,7 @@ with demo:
                             file_count="multiple",
                             file_types=["text", ".json", ".csv"])
                         capabilities_checkboxes = gr.CheckboxGroup(
-                            label="Capabilities"
-                        )
+                            label="Capabilities")
 
                         with gr.Accordion("配置选项", open=False):
                             schema1 = gr.Textbox(
@@ -284,6 +294,7 @@ with demo:
         user_chat_bot_cover,
         user_chat_bot_suggest,
     ])
+
 
 demo.queue()
 demo.launch()
