@@ -188,7 +188,8 @@ with demo:
                             placeholder="Add a short description about what this GPT does")
                         instructions_input = gr.Textbox(
                             label="Instructions",
-                            placeholder="What does this GPT do? How does it behave? What should it avoid doing?")
+                            placeholder="What does this GPT do? How does it behave? What should it avoid doing?",
+                            lines=3)
                         model_selector = model_selector = gr.Dropdown(
                             label='model')
                         conversation_starters_input = gr.Textbox(
