@@ -51,6 +51,7 @@ def init_builder(state):
 
 
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
+    print("builder_cfg:", builder_cfg)
     # available models
     models = list(model_cfg.keys())
     capabilities = [(tool_cfg[tool_key]["name"], tool_key)
@@ -58,15 +59,15 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
                     if tool_cfg[tool_key].get("is_active", False)]
     state["tool_cfg"] = tool_cfg
     state["capabilities"] = capabilities
+    suggests = builder_cfg.get("suggests", [])
     return [
         state,
         # config form
         builder_cfg.get('name', ''),
         builder_cfg.get('description'),
         builder_cfg.get('instruction'),
-        gr.Dropdown.update(
-            value=builder_cfg.get("model", models[0]), choices=models),
-        "\n".join(builder_cfg.get("suggests", [])),
+        gr.Dropdown.update(value=builder_cfg.get("model", models[0]), choices=models),
+        [[str] for str in suggests],
         builder_cfg.get("knowledge", [])
         if len(builder_cfg["knowledge"]) > 0 else None,
         gr.CheckboxGroup.update(
@@ -76,7 +77,8 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
             ],
             choices=capabilities),
         # bot
-        format_cover_html(builder_cfg)
+        format_cover_html(builder_cfg),
+        gr.Dataset.update(samples=[[item] for item in suggests]),
     ]
 
 
@@ -97,14 +99,13 @@ def reset_agent(state):
 
 
 def format_cover_html(configuration):
-    print('configuration:', configuration)
     return f"""
 <div class="bot_cover">
     <div class="bot_avatar">
         <img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" />
     </div>
-    <div class="bot_name">{configuration["name"]}</div>
-    <div class="bot_desp">{configuration["description"]}</div>
+    <div class="bot_name">{configuration.get("name", "")}</div>
+    <div class="bot_desp">{configuration.get("description", "")}</div>
 </div>
 """
 
@@ -144,7 +145,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
         yield format_preview_send_message_ret(preview_chatbot)
 
 
-def process_configuration(name, description, instructions, model, starters,
+def process_configuration(name, description, instructions, model, suggestions,
                           files, capabilities_checkboxes, state):
     tool_cfg = state["tool_cfg"]
     capabilities = state["capabilities"]
@@ -154,7 +155,7 @@ def process_configuration(name, description, instructions, model, starters,
         "avatar": "",
         "description": description,
         "instruction": instructions,
-        "suggests": starters.split('\n'),
+        "suggests": [row[0] for row in suggestions],
         "knowledge": list(map(lambda file: file.name, files or [])),
         "tools": {
             capability: dict(
@@ -169,8 +170,9 @@ def process_configuration(name, description, instructions, model, starters,
     save_builder_configuration(builder_cfg)
     init_user(state)
     return [
-        gr.HTML.update(visible=True, value=format_cover_html(builder_cfg)),
-        gr.Chatbot.update(visible=False)
+        gr.HTML.update(visible=True, value=format_cover_html(builder_cfg)), 
+        gr.Chatbot.update(visible=False),
+        gr.Dataset.update(samples=suggestions)
     ]
 
 
@@ -207,10 +209,10 @@ with demo:
                             lines=3)
                         model_selector = model_selector = gr.Dropdown(
                             label='model')
-                        conversation_starters_input = gr.Textbox(
-                            label="Conversation starters",
-                            placeholder="Add conversation starters",
-                            lines=3)
+                        suggestion_input = gr.Dataframe(
+                            show_label=False,
+                            value=[['']], datatype=["str"], headers=['prompt suggestion'], 
+                            type="array", col_count=(1, "fixed"), interactive=True)
                         knowledge_input = gr.File(
                             label="Knowledge",
                             file_count="multiple",
@@ -232,10 +234,10 @@ with demo:
                         configure_button = gr.Button("Update Configuration")
 
         with gr.Column():
+            # Preview
             gr.HTML("""<div class="preview_header">Preview<div>""")
 
-            user_chat_bot_cover = gr.HTML()
-            # Preview
+            user_chat_bot_cover = gr.HTML(format_cover_html({}))
             user_chatbot = ChatBot(
                 value=[[None, None]],
                 elem_id="user_chatbot",
@@ -245,7 +247,11 @@ with demo:
                 visible=False)
             preview_chat_input = gr.Textbox(
                 label="Send a message", placeholder="Type a message...")
+            user_chat_bot_suggest = gr.Dataset(
+                label="Prompt Suggestions",
+                components=[preview_chat_input], samples=[])
             preview_send_button = gr.Button("Send")
+            user_chat_bot_suggest.select(lambda evt: evt[0], inputs=[user_chat_bot_suggest], outputs=[preview_chat_input])
 
     # 配置 "Create" 标签页的消息发送功能
     create_send_button.click(
@@ -258,10 +264,10 @@ with demo:
         process_configuration,
         inputs=[
             name_input, description_input, instructions_input, model_selector,
-            conversation_starters_input, knowledge_input,
+            suggestion_input, knowledge_input,
             capabilities_checkboxes, state
         ],
-        outputs=[user_chat_bot_cover, user_chatbot])
+        outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest])
 
     # Preview 列消息发送
     # preview_send_button.click(
@@ -274,22 +280,21 @@ with demo:
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover])
 
-    demo.load(
-        init_all,
-        inputs=[state],
-        outputs=[
-            state,
-            # config form
-            name_input,
-            description_input,
-            instructions_input,
-            model_selector,
-            conversation_starters_input,
-            knowledge_input,
-            capabilities_checkboxes,
-            # bot
-            user_chat_bot_cover
-        ])
+    demo.load(init_all, inputs=[state], outputs=[
+        state,
+        # config form
+        name_input,
+        description_input,
+        instructions_input,
+        model_selector,
+        suggestion_input,
+        knowledge_input,
+        capabilities_checkboxes,
+        # bot
+        user_chat_bot_cover,
+        user_chat_bot_suggest,
+    ])
+
 
 demo.queue()
 demo.launch()
