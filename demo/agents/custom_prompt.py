@@ -1,3 +1,8 @@
+import copy
+
+import json
+from modelscope_agent.prompt.prompt import PromptGenerator, build_raw_prompt
+
 DEFAULT_SYSTEM_TEMPLATE = """
 # 工具
 
@@ -15,7 +20,148 @@ Observation: 工具返回的结果
 
 # 指令
 """
+DEFAULT_INSTRUCTION_TEMPLATE = ""
 
-DEFAULT_USER_TEMPLATE = """\n<user_input>\n"""
+DEFAULT_USER_TEMPLATE = """<user_input>"""
 
 DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>```"""
+
+TOOL_DESC = (
+    '{name_for_model}: {name_for_human} API. {description_for_model} 输入参数: {parameters}'
+)
+
+
+class CustomPromptGenerator(PromptGenerator):
+
+    def __init__(self,
+                 system_template=DEFAULT_SYSTEM_TEMPLATE,
+                 instruction_template=DEFAULT_INSTRUCTION_TEMPLATE,
+                 user_template=DEFAULT_USER_TEMPLATE,
+                 exec_template=DEFAULT_EXEC_TEMPLATE,
+                 assistant_template='',
+                 sep='\n\n',
+                 prompt_max_length=1000,
+                 **kwargs):
+        super().__init__(system_template, instruction_template, user_template,
+                         exec_template, assistant_template, sep,
+                         prompt_max_length)
+        # hack here for special prompt, such as add an addition round before user input
+        self.add_addition_round = kwargs.get('add_addition_round', False)
+        self.addition_assistant_reply = kwargs.get('addition_assistant_reply',
+                                                   '')
+
+    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
+                    **kwargs):
+        self.prompt_preprocessor = build_raw_prompt(llm_model)
+
+        prompt = '<knowledge>'
+
+        prompt += self.sep.join(
+            [self.system_template, self.instruction_template])
+
+        knowledge_str = self.get_knowledge_str(knowledge_list)
+
+        # knowledge
+        prompt = prompt.replace('<knowledge>', knowledge_str)
+
+        # get tool description str
+        tool_str = self.get_tool_str(tool_list)
+        prompt = prompt.replace('<tool_list>', tool_str)
+
+        # user input
+        user_input = self.user_template.replace('<user_input>', task)
+
+        self.system_prompt = copy.deepcopy(prompt)
+
+        # build history
+        if self.add_addition_round:
+            self.history.append({
+                'role': 'user',
+                'content': self.system_prompt
+            })
+            self.history.append({
+                'role': 'assistant',
+                'content': self.addition_assistant_reply
+            })
+            self.history.append({'role': 'user', 'content': user_input})
+            self.history.append({
+                'role': 'assistant',
+                'content': self.assistant_template
+            })
+        else:
+            self.history.append({
+                'role': 'user',
+                'content': self.system_prompt + user_input
+            })
+            self.history.append({
+                'role': 'assistant',
+                'content': self.assistant_template
+            })
+
+        self.function_calls = self.get_function_list(tool_list)
+
+        return self.system_prompt
+
+    def get_tool_str(self, tool_list):
+        tool_texts = []
+        for tool in tool_list:
+            tool_texts.append(
+                TOOL_DESC.format(
+                    name_for_model=tool.name,
+                    name_for_human=tool.name,
+                    description_for_model=tool.description,
+                    parameters=json.dumps(tool.parameters,
+                                          ensure_ascii=False)))
+            # + ' ' + FORMAT_DESC['json'])
+        tool_str = '\n\n'.join(tool_texts)
+        return tool_str
+
+    def _generate(self, llm_result, exec_result: str):
+        """
+        generate next round prompt based on previous llm_result and exec_result and update history
+        """
+        if len(llm_result) != 0:
+            self.history[-1]['content'] += f'{llm_result}'
+        if len(exec_result) != 0:
+            exec_result = self.exec_template.replace('<exec_result>',
+                                                     str(exec_result))
+            self.history[-1]['content'] += exec_result
+
+        # generate plate prompt here
+        self.prompt = self.prompt_preprocessor(self.history)
+        return self.prompt
+
+
+def parse_role_config(config: dict):
+    prompt = '你扮演AI助手，'
+
+    # replace special words
+    for key in config:
+        if isinstance(config[key], str):
+            config[key] = config[key].replace('CustomQwen', 'AI助手')
+        elif isinstance(config[key], list):
+            for i in range(len(config[key])):
+                config[key][i] = config[key][i].replace('CustomQwen', 'AI助手')
+        else:
+            pass
+
+    # concat prompt
+    if 'name' in config and config['name']:
+        prompt += ('你的名字是' + config['name'] + '。')
+    if 'description' in config and config['description']:
+        prompt += config['description']
+    prompt += '\n具体的你具有下列功能：'
+    if 'instruction' in config and config['instruction']:
+        if isinstance(config['instruction'], list):
+            for ins in config['instruction']:
+                prompt += ins
+                prompt += '；'
+        elif isinstance(config['instruction'], str):
+            prompt += config['instruction']
+        if prompt[-1] == '；':
+            prompt = prompt[:-1]
+    prompt += '\n\n下面你将开始扮演'
+    if 'name' in config and config['name']:
+        prompt += config['name']
+    prompt += '，明白了请说“好的。”，不要说其他的。'
+    return prompt

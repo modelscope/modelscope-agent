@@ -1,3 +1,4 @@
+import re
 import traceback
 
 import gradio as gr
@@ -135,7 +136,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = f'\n<|startofexec|>{exec_result}<|endofexec|>\n'
+            frame_text = exec_result
         else:
             # llm result
             frame_text = llm_result

@@ -1,5 +1,5 @@
 {
-  "modelscope_image-generation": {
+  "image_gen": {
     "name": "Wanx Image Generation",
     "is_active": true,
     "is_remote_tool": true

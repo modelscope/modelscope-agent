@@ -2,14 +2,14 @@ import copy
 import os
 
 from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
-                           DEFAULT_USER_TEMPLATE)
+                           DEFAULT_USER_TEMPLATE, CustomPromptGenerator,
+                           parse_role_config)
 from help_tools import ConfGeneratorTool, LogoGeneratorTool
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
-from modelscope_agent.prompt import MrklPromptGenerator
 from modelscope_agent.retrieve import KnowledgeRetrieval
 
 from modelscope.utils.config import Config
@@ -59,11 +59,14 @@ def init_user_chatbot_agent():
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
 
     # build prompt with zero shot react template
-    prompt_generator = MrklPromptGenerator(
+    instruction_template = parse_role_config(builder_cfg)
+    prompt_generator = CustomPromptGenerator(
         system_template=DEFAULT_SYSTEM_TEMPLATE,
         user_template=DEFAULT_USER_TEMPLATE,
         exec_template=DEFAULT_EXEC_TEMPLATE,
-        instruction_template=builder_cfg.instruction,
+        instruction_template=instruction_template,
+        add_addition_round=True,
+        addition_assistant_reply='好的。',
     )
 
     # get knowledge
@@ -108,7 +111,7 @@ def init_builder_chatbot_agent():
     llm = LLMFactory.build_llm(builder_cfg.builder_model, model_cfg)
 
     # build prompt with zero shot react template
-    prompt_generator = MrklPromptGenerator()
+    prompt_generator = CustomPromptGenerator()
 
     agent = AgentExecutor(
         llm,

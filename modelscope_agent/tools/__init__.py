@@ -19,7 +19,7 @@ DEFAULT_TOOL_LIST = {
     'modelscope_text-ie': 'TextInfoExtractTool',
     'modelscope_text-ner': 'TextNerTool',
     'modelscope_text-address': 'TextAddressTool',
-    'modelscope_image-generation': 'TextToImageTool',
+    'image_gen': 'TextToImageTool',
     'modelscope_video-generation': 'TextToVideoTool',
     'modelscope_image-chat': 'ImageChatTool',
     'modelscope_speech-generation': 'TexttoSpeechTool',

@@ -265,10 +265,12 @@ class AgentExecutor:
                 except Exception as e:
                     exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
                     yield {'error': exec_result}
+                    self.prompt_generator.reset()
                     return
             else:
                 exec_result = f"Unknown action: '{action}'. "
                 yield {'error': exec_result}
+                self.prompt_generator.reset()
                 return
 
     def reset(self):

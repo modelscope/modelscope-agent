@@ -2,7 +2,7 @@ def qwen_chatml_prompt_preprocessor(messages):
     prompt = ''
     for message in messages:
         if message['role'] == 'assistant' and message['content'] == '':
-            prompt += '\n<|im_start|>assistant\n'
+            prompt += '<|im_start|>assistant\n'
         else:
             prompt = prompt + '<|im_start|>{role}\n{content}<|im_end|>\n'.format(
                 role=message['role'], content=message['content'])
