@@ -25,8 +25,9 @@ def plate_preprocessor(messages, system_prompt):
     return system_prompt + messages[-1]['content']
 
 
-def build_raw_prompt(model_name):
-    if model_name.startswith('qwen'):
-        return qwen_chatml_prompt_preprocessor
+def build_raw_prompt(model):
+    if isinstance(model, str) or hasattr(model, '__name__'):
+        if model.startswith('qwen'):
+            return qwen_chatml_prompt_preprocessor
     else:
         return plate_preprocessor
