@@ -1,4 +1,5 @@
 import copy
+import re
 
 import json
 from modelscope_agent.prompt.prompt import PromptGenerator, build_raw_prompt
@@ -11,11 +12,10 @@ DEFAULT_SYSTEM_TEMPLATE = """# 工具
 
 ## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令：
 
-```工具调用
+工具调用
 Action: 工具的名字
 Action Input: 工具的输入，需格式化为一个JSON
-Result: 工具返回的结果
-```
+Observation: 工具返回的结果
 
 # 指令
 """
@@ -23,7 +23,7 @@ DEFAULT_INSTRUCTION_TEMPLATE = ""
 
 DEFAULT_USER_TEMPLATE = """<user_input>"""
 
-DEFAULT_EXEC_TEMPLATE = """Result: <exec_result>\n```"""
+DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>"""
 
 TOOL_DESC = (
     '{name_for_model}: {name_for_human} API。 {description_for_model} 输入参数: {parameters}'
@@ -137,6 +137,12 @@ class CustomPromptGenerator(PromptGenerator):
         if len(llm_result) != 0:
             self.history[-1]['content'] += f'{llm_result}'
         if len(exec_result) != 0:
+            # handle image markdown wrapper
+            image_markdwon_re = re.compile(
+                pattern=r'!\[IMAGEGEN\]\(([\s\S]+)\)')
+            match = image_markdwon_re.search(exec_result)
+            if match is not None:
+                exec_result = match.group(1).rstrip()
             exec_result = self.exec_template.replace('<exec_result>',
                                                      str(exec_result))
             self.history[-1]['content'] += exec_result

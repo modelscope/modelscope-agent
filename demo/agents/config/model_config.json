@@ -24,7 +24,7 @@
             "use_raw_prompt": true,
             "top_p": 0.8,
             "top_k": 1,
-            "stop": "Result"
+            "stop": "Observation"
         }
     },
     "gpt-3.5-turbo": {

@@ -90,8 +90,7 @@ class ImageWrapper(OutputWrapper):
             self._path = os.path.join(directory, str(uuid.uuid4()) + '.png')
             self._raw_data.save(self._path)
 
-        # self._repr = f'![IMAGEGEN]({self._path})'
-        self._repr = self._path
+        self._repr = f'![IMAGEGEN]({self._path})'
 
 
 class AudioWrapper(OutputWrapper):

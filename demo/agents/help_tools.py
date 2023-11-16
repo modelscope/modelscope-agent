@@ -3,14 +3,13 @@ from http import HTTPStatus
 
 import json
 import requests
+from config_utils import DEFAULT_BUILDER_CONFIG_FILE, DEFAULT_MODEL_CONFIG_FILE
 from dashscope import Generation, ImageSynthesis
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.tools import Tool
 
 from modelscope.utils.config import Config
-from ..utils.config_utils import (DEFAULT_BUILDER_CONFIG_FILE,
-                                  DEFAULT_MODEL_CONFIG_FILE)
 
 LOGO_PATH = 'logo.png'
 

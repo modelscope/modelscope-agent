@@ -123,12 +123,13 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
         # is_final = frame.get("frame_is_final")
         llm_result = frame.get("llm_text", "")
         exec_result = frame.get('exec_result', '')
+        print(frame)
         # llm_result = llm_result.split("<|user|>")[0].strip()
         if len(exec_result) != 0:
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = f'Result: {exec_result}'
+            frame_text = f'Observation: {exec_result}'
         else:
             # llm result
             frame_text = llm_result
