@@ -5,7 +5,8 @@ def qwen_chatml_prompt_preprocessor(messages):
             prompt += '<|im_start|>assistant\n'
         else:
             prompt = prompt + '<|im_start|>{role}\n{content}<|im_end|>\n'.format(
-                role=message['role'], content=message['content'])
+                role=message['role'],
+                content=message['content'].lstrip('\n').rstrip())
 
     # in the case of the assistant message is not in the last one, such as function result
     if messages[-1]['role'] == 'assistant':
@@ -14,7 +15,7 @@ def qwen_chatml_prompt_preprocessor(messages):
             last_assistant_message_list = last_assistant_message_list[:-1]
         if len(last_assistant_message_list) == 0:
             return prompt
-        if last_assistant_message_list[-1].startswith('Observation'):
+        else:
             item_length = len('<|im_end|>\n')
             prompt = prompt[:-item_length]
 

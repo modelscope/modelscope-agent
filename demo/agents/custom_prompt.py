@@ -3,8 +3,7 @@ import copy
 import json
 from modelscope_agent.prompt.prompt import PromptGenerator, build_raw_prompt
 
-DEFAULT_SYSTEM_TEMPLATE = """
-# 工具
+DEFAULT_SYSTEM_TEMPLATE = """# 工具
 
 ## 你拥有如下工具：
 
@@ -15,7 +14,7 @@ DEFAULT_SYSTEM_TEMPLATE = """
 ```工具调用
 Action: 工具的名字
 Action Input: 工具的输入，需格式化为一个JSON
-Observation: 工具返回的结果
+Result: 工具返回的结果
 ```
 
 # 指令
@@ -24,10 +23,10 @@ DEFAULT_INSTRUCTION_TEMPLATE = ""
 
 DEFAULT_USER_TEMPLATE = """<user_input>"""
 
-DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>```"""
+DEFAULT_EXEC_TEMPLATE = """Result: <exec_result>\n```"""
 
 TOOL_DESC = (
-    '{name_for_model}: {name_for_human} API. {description_for_model} 输入参数: {parameters}'
+    '{name_for_model}: {name_for_human} API。 {description_for_model} 输入参数: {parameters}'
 )
 
 
@@ -39,7 +38,7 @@ class CustomPromptGenerator(PromptGenerator):
                  user_template=DEFAULT_USER_TEMPLATE,
                  exec_template=DEFAULT_EXEC_TEMPLATE,
                  assistant_template='',
-                 sep='\n\n',
+                 sep='\n',
                  prompt_max_length=1000,
                  **kwargs):
         super().__init__(system_template, instruction_template, user_template,
@@ -52,54 +51,69 @@ class CustomPromptGenerator(PromptGenerator):
 
     def init_prompt(self, task, tool_list, knowledge_list, llm_model,
                     **kwargs):
-        self.prompt_preprocessor = build_raw_prompt(llm_model)
+        if len(self.history) == 0:
 
-        prompt = '<knowledge>'
-
-        prompt += self.sep.join(
-            [self.system_template, self.instruction_template])
-
-        knowledge_str = self.get_knowledge_str(knowledge_list)
-
-        # knowledge
-        prompt = prompt.replace('<knowledge>', knowledge_str)
-
-        # get tool description str
-        tool_str = self.get_tool_str(tool_list)
-        prompt = prompt.replace('<tool_list>', tool_str)
-
-        # user input
-        user_input = self.user_template.replace('<user_input>', task)
-
-        self.system_prompt = copy.deepcopy(prompt)
-
-        # build history
-        if self.add_addition_round:
             self.history.append({
-                'role': 'user',
-                'content': self.system_prompt
+                'role': 'system',
+                'content': 'You are a helpful assistant.'
             })
-            self.history.append({
-                'role': 'assistant',
-                'content': self.addition_assistant_reply
-            })
-            self.history.append({'role': 'user', 'content': user_input})
-            self.history.append({
-                'role': 'assistant',
-                'content': self.assistant_template
-            })
+
+            self.prompt_preprocessor = build_raw_prompt(llm_model)
+
+            prompt = f'{self.system_template}\n{self.instruction_template}'
+
+            if len(knowledge_list) > 0:
+
+                knowledge_str = self.get_knowledge_str(knowledge_list)
+                # knowledge
+                prompt = knowledge_str + prompt
+
+            # get tool description str
+            tool_str = self.get_tool_str(tool_list)
+            prompt = prompt.replace('<tool_list>', tool_str)
+
+            # user input
+            user_input = self.user_template.replace('<user_input>', task)
+
+            self.system_prompt = copy.deepcopy(prompt)
+
+            # build history
+            if self.add_addition_round:
+                self.history.append({
+                    'role': 'user',
+                    'content': self.system_prompt
+                })
+                self.history.append({
+                    'role': 'assistant',
+                    'content': self.addition_assistant_reply
+                })
+                self.history.append({'role': 'user', 'content': user_input})
+                self.history.append({
+                    'role': 'assistant',
+                    'content': self.assistant_template
+                })
+            else:
+                self.history.append({
+                    'role': 'user',
+                    'content': self.system_prompt + user_input
+                })
+                self.history.append({
+                    'role': 'assistant',
+                    'content': self.assistant_template
+                })
+
+            self.function_calls = self.get_function_list(tool_list)
         else:
             self.history.append({
-                'role': 'user',
-                'content': self.system_prompt + user_input
+                'role':
+                'user',
+                'content':
+                self.user_template.replace('<user_input>', task)
             })
             self.history.append({
                 'role': 'assistant',
                 'content': self.assistant_template
             })
-
-        self.function_calls = self.get_function_list(tool_list)
-
         return self.system_prompt
 
     def get_tool_str(self, tool_list):
@@ -150,7 +164,7 @@ def parse_role_config(config: dict):
         prompt += ('你的名字是' + config['name'] + '。')
     if 'description' in config and config['description']:
         prompt += config['description']
-    prompt += '\n具体的你具有下列功能：'
+    prompt += '\n你具有下列具体功能：'
     if 'instruction' in config and config['instruction']:
         if isinstance(config['instruction'], list):
             for ins in config['instruction']:
@@ -160,7 +174,7 @@ def parse_role_config(config: dict):
             prompt += config['instruction']
         if prompt[-1] == '；':
             prompt = prompt[:-1]
-    prompt += '\n\n下面你将开始扮演'
+    prompt += '\n下面你将开始扮演'
     if 'name' in config and config['name']:
         prompt += config['name']
     prompt += '，明白了请说“好的。”，不要说其他的。'

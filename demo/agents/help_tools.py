@@ -9,10 +9,8 @@ from modelscope_agent.llm import LLMFactory
 from modelscope_agent.tools import Tool
 
 from modelscope.utils.config import Config
-
-DEFAULT_BUILDER_CONFIG_FILE = "builder_config.json"
-DEFAULT_MODEL_CONFIG_FILE = "model_config.json"
-DEFAULT_TOOL_CONFIG_FILE = "tool_config.json"
+from ..utils.config_utils import (DEFAULT_BUILDER_CONFIG_FILE,
+                                  DEFAULT_MODEL_CONFIG_FILE)
 
 LOGO_PATH = 'logo.png'
 
@@ -147,7 +145,7 @@ class ConfGeneratorTool(Tool):
         prompt = f'<|im_start|>user\n{user_content}<|im_end|>\n\n<|im_start|>assistant\n'
 
         # build model
-        llm = LLMFactory.build_llm(builder_cfg.builder_model, model_cfg)
+        llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
         llm.set_agent_type(AgentType.MRKL)
         content = llm.generate(prompt, [])
         try:

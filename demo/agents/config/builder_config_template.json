@@ -1,0 +1,20 @@
+{
+  "name": "testBot",
+  "avatar": "",
+  "description": "this is a testBot",
+  "instruction": "You are a very helpful assistant",
+  "suggests": [
+    "You can ask me to do something",
+    "how to write a code to generate a random number"
+  ],
+  "knowledge": [],
+  "tools": {
+    "image_gen": {
+      "use": true
+    },
+    "code_interpreter": {
+      "use": false
+    }
+  },
+  "model": "qwen-max"
+}

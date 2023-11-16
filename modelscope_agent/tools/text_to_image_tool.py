@@ -2,6 +2,7 @@ import os
 
 import cv2
 import dashscope
+import json
 from dashscope import ImageSynthesis
 from modelscope_agent.output_wrapper import ImageWrapper
 
@@ -15,8 +16,11 @@ class TextToImageTool(ModelscopePipelineTool):
     name = 'image_gen'
     parameters: list = [{
         'name': 'text',
-        'description': '用户输入的文本信息',
-        'required': True
+        'description': '中文的文本提示词，描述了希望生成的图像具有什么内容',
+        'required': True,
+        'schema': {
+            'type': 'string'
+        }
     }]
     model_revision = 'v1.0.0'
     task = Tasks.text_to_image_synthesis
@@ -25,10 +29,14 @@ class TextToImageTool(ModelscopePipelineTool):
         return {'input': {'text': kwargs['text']}}
 
     def _remote_call(self, *args, **kwargs):
+
+        prompt = self._handle_input_fallback(**kwargs)
+        if prompt is None:
+            return None
         dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
         response = ImageSynthesis.call(
             model=ImageSynthesis.Models.wanx_v1,
-            prompt=kwargs['text'],
+            prompt=prompt,
             n=1,
             size='1024*1024',
             steps=10)
@@ -51,3 +59,30 @@ class TextToImageTool(ModelscopePipelineTool):
             image = origin_result.output['results'][0]['url']
 
         return {'result': ImageWrapper(image)}
+
+    def _handle_input_fallback(self, **kwargs):
+        """
+        an alternative method is to parse image is that get item between { and }
+        for last try
+
+        :param fallback_text:
+        :return: language, cocde
+        """
+
+        text = kwargs.get('text', None)
+        fallback = kwargs.get('fallback', None)
+
+        if text:
+            return text
+        elif fallback:
+            try:
+                text = fallback
+                json_block = re.search(r'\{([\s\S]+)\}', text)  # noqa W^05
+                if json_block:
+                    result = json_block.group(1)
+                    result_json = json.loads('{' + result + '}')
+                    return result_json['text']
+            except ValueError:
+                return text
+        else:
+            return text

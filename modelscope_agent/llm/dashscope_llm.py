@@ -5,6 +5,7 @@ from http import HTTPStatus
 from typing import Union
 
 import dashscope
+import json
 from dashscope import Generation
 from modelscope_agent.agent_types import AgentType
 

@@ -1,11 +1,12 @@
-import re
+import sys
 import traceback
 
 import gradio as gr
-from builder_core import (init_builder_chatbot_agent, init_user_chatbot_agent,
-                          parse_configuration)
-from config_utils import save_builder_configuration
+from config_utils import parse_configuration, save_builder_configuration
 from gradio_utils import ChatBot
+from user_core import init_user_chatbot_agent
+
+sys.path.append('../')
 
 
 def update_preview(messages, preview_chat_input, name, description,
@@ -42,15 +43,6 @@ def init_user(state):
     state['user_agent'] = user_agent
 
 
-def init_builder(state):
-    try:
-        builder_agent = init_builder_chatbot_agent()
-    except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
-    state['builder_agent'] = builder_agent
-
-
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     print("builder_cfg:", builder_cfg)
     # available models
@@ -67,7 +59,8 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
         builder_cfg.get('name', ''),
         builder_cfg.get('description'),
         builder_cfg.get('instruction'),
-        gr.Dropdown.update(value=builder_cfg.get("model", models[0]), choices=models),
+        gr.Dropdown.update(
+            value=builder_cfg.get("model", models[0]), choices=models),
         [[str] for str in suggests],
         builder_cfg.get("knowledge", [])
         if len(builder_cfg["knowledge"]) > 0 else None,
@@ -89,7 +82,6 @@ def init_all(state):
     ret = init_ui_config(state, builder_cfg, model_cfg, tool_cfg)
     yield ret
     init_user(state)
-    init_builder(state)
     yield ret
 
 
@@ -131,13 +123,12 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
         # is_final = frame.get("frame_is_final")
         llm_result = frame.get("llm_text", "")
         exec_result = frame.get('exec_result', '')
-        print(frame)
         # llm_result = llm_result.split("<|user|>")[0].strip()
         if len(exec_result) != 0:
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = exec_result
+            frame_text = f'Result: {exec_result}'
         else:
             # llm result
             frame_text = llm_result
@@ -166,12 +157,11 @@ def process_configuration(name, description, instructions, model, suggestions,
             for capability in map(lambda item: item[1], capabilities)
         },
         "model": model,
-        "builder_model": "qwen-plus"
     }
     save_builder_configuration(builder_cfg)
     init_user(state)
     return [
-        gr.HTML.update(visible=True, value=format_cover_html(builder_cfg)), 
+        gr.HTML.update(visible=True, value=format_cover_html(builder_cfg)),
         gr.Chatbot.update(visible=False),
         gr.Dataset.update(samples=suggestions)
     ]
@@ -212,8 +202,12 @@ with demo:
                             label='model')
                         suggestion_input = gr.Dataframe(
                             show_label=False,
-                            value=[['']], datatype=["str"], headers=['prompt suggestion'], 
-                            type="array", col_count=(1, "fixed"), interactive=True)
+                            value=[['']],
+                            datatype=["str"],
+                            headers=['prompt suggestion'],
+                            type="array",
+                            col_count=(1, "fixed"),
+                            interactive=True)
                         knowledge_input = gr.File(
                             label="Knowledge",
                             file_count="multiple",
@@ -250,9 +244,13 @@ with demo:
                 label="Send a message", placeholder="Type a message...")
             user_chat_bot_suggest = gr.Dataset(
                 label="Prompt Suggestions",
-                components=[preview_chat_input], samples=[])
+                components=[preview_chat_input],
+                samples=[])
             preview_send_button = gr.Button("Send")
-            user_chat_bot_suggest.select(lambda evt: evt[0], inputs=[user_chat_bot_suggest], outputs=[preview_chat_input])
+            user_chat_bot_suggest.select(
+                lambda evt: evt[0],
+                inputs=[user_chat_bot_suggest],
+                outputs=[preview_chat_input])
 
     # 配置 "Create" 标签页的消息发送功能
     create_send_button.click(
@@ -265,8 +263,7 @@ with demo:
         process_configuration,
         inputs=[
             name_input, description_input, instructions_input, model_selector,
-            suggestion_input, knowledge_input,
-            capabilities_checkboxes, state
+            suggestion_input, knowledge_input, capabilities_checkboxes, state
         ],
         outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest])
 
@@ -281,21 +278,23 @@ with demo:
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover])
 
-    demo.load(init_all, inputs=[state], outputs=[
-        state,
-        # config form
-        name_input,
-        description_input,
-        instructions_input,
-        model_selector,
-        suggestion_input,
-        knowledge_input,
-        capabilities_checkboxes,
-        # bot
-        user_chat_bot_cover,
-        user_chat_bot_suggest,
-    ])
-
+    demo.load(
+        init_all,
+        inputs=[state],
+        outputs=[
+            state,
+            # config form
+            name_input,
+            description_input,
+            instructions_input,
+            model_selector,
+            suggestion_input,
+            knowledge_input,
+            capabilities_checkboxes,
+            # bot
+            user_chat_bot_cover,
+            user_chat_bot_suggest,
+        ])
 
 demo.queue()
 demo.launch()
