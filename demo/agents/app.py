@@ -2,8 +2,9 @@ import sys
 import traceback
 
 import gradio as gr
-from config_utils import parse_configuration, save_builder_configuration
-from gradio_utils import ChatBot
+from config_utils import (get_avatar_image, parse_configuration,
+                          save_avatar_image, save_builder_configuration)
+from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
 sys.path.append('../')
@@ -52,10 +53,12 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
                     if tool_cfg[tool_key].get("is_active", False)]
     state["tool_cfg"] = tool_cfg
     state["capabilities"] = capabilities
+    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''))[1]
     suggests = builder_cfg.get("conversation_starters", [])
     return [
         state,
         # config form
+        gr.Image.update(value=bot_avatar),
         builder_cfg.get('name', ''),
         builder_cfg.get('description'),
         builder_cfg.get('instruction'),
@@ -71,7 +74,7 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
             ],
             choices=capabilities),
         # bot
-        format_cover_html(builder_cfg),
+        format_cover_html(builder_cfg, bot_avatar),
         gr.Dataset.update(samples=[[item] for item in suggests]),
     ]
 
@@ -89,18 +92,6 @@ def reset_agent(state):
     user_agent = state['user_agent']
     user_agent.reset()
     state['user_agent'] = user_agent
-
-
-def format_cover_html(configuration):
-    return f"""
-<div class="bot_cover">
-    <div class="bot_avatar">
-        <img src="//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg" />
-    </div>
-    <div class="bot_name">{configuration.get("name", "")}</div>
-    <div class="bot_desp">{configuration.get("description", "")}</div>
-</div>
-"""
 
 
 def format_preview_send_message_ret(preview_chatbot):
@@ -138,14 +129,15 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
         yield format_preview_send_message_ret(preview_chatbot)
 
 
-def process_configuration(name, description, instructions, model, suggestions,
-                          files, capabilities_checkboxes, state):
+def process_configuration(bot_avatar, name, description, instructions, model,
+                          suggestions, files, capabilities_checkboxes, state):
     tool_cfg = state["tool_cfg"]
     capabilities = state["capabilities"]
 
+    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar)
     builder_cfg = {
         "name": name,
-        "avatar": "",
+        "avatar": bot_avatar,
         "description": description,
         "instruction": instructions,
         "conversation_starters": [row[0] for row in suggestions],
@@ -159,11 +151,15 @@ def process_configuration(name, description, instructions, model, suggestions,
         },
         "model": model,
     }
+
     save_builder_configuration(builder_cfg)
     init_user(state)
     return [
-        gr.HTML.update(visible=True, value=format_cover_html(builder_cfg)),
-        gr.Chatbot.update(visible=False),
+        gr.HTML.update(
+            visible=True,
+            value=format_cover_html(builder_cfg, bot_avatar_path)),
+        gr.Chatbot.update(
+            visible=False, avatar_images=get_avatar_image(bot_avatar)),
         gr.Dataset.update(samples=suggestions)
     ]
 
@@ -188,12 +184,26 @@ with demo:
                 with gr.Tab("Configure"):
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
-                        name_input = gr.Textbox(
-                            label="Name", placeholder="Name your GPT")
-                        description_input = gr.Textbox(
-                            label="Description",
-                            placeholder=
-                            "Add a short description about what this GPT does")
+                        with gr.Row():
+                            bot_avatar_comp = gr.Image(
+                                label="Avatar",
+                                placeholder="Chatbot avatar image",
+                                source="upload",
+                                interactive=True,
+                                type="filepath",
+                                scale=1,
+                                width=182,
+                                height=182,
+                            )
+                            with gr.Column(scale=4):
+                                name_input = gr.Textbox(
+                                    label="Name", placeholder="Name your GPT")
+                                description_input = gr.Textbox(
+                                    label="Description",
+                                    placeholder=
+                                    "Add a short description about what this GPT does"
+                                )
+
                         instructions_input = gr.Textbox(
                             label="Instructions",
                             placeholder=
@@ -233,11 +243,13 @@ with demo:
             # Preview
             gr.HTML("""<div class="preview_header">Preview<div>""")
 
-            user_chat_bot_cover = gr.HTML(format_cover_html({}))
+            user_chat_bot_cover = gr.HTML(format_cover_html({}, None))
             user_chatbot = ChatBot(
                 value=[[None, None]],
                 elem_id="user_chatbot",
                 elem_classes=["markdown-body"],
+                avatar_images=get_avatar_image(""),
+                height=550,
                 latex_delimiters=[],
                 show_label=False,
                 visible=False)
@@ -263,8 +275,9 @@ with demo:
     configure_button.click(
         process_configuration,
         inputs=[
-            name_input, description_input, instructions_input, model_selector,
-            suggestion_input, knowledge_input, capabilities_checkboxes, state
+            bot_avatar_comp, name_input, description_input, instructions_input,
+            model_selector, suggestion_input, knowledge_input,
+            capabilities_checkboxes, state
         ],
         outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest])
 
@@ -285,6 +298,7 @@ with demo:
         outputs=[
             state,
             # config form
+            bot_avatar_comp,
             name_input,
             description_input,
             instructions_input,
