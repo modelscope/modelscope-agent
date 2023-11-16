@@ -8,24 +8,6 @@ from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import OpenAiFunctionsPromptGenerator
 
-PROMPT_INST = """Answer the following questions as best you can. You have access to the following tools:
-
-{tool_texts}
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Begin!
-
-Question: """
-
 SYSTEM = 'You are a helpful assistant.'
 
 TOOL_DESC = (
@@ -41,14 +23,6 @@ FORMAT_DESC = {
     + ' at the beginning and end of the code.'
 }
 
-CONFIG_FORMAT = """
-{
-"name": ... # CustomQwen的名字。
-"description": ... # CustomQwen 的简介。
-"instructions": ... # CustomQwen 的功能要求，类型是string。
-"conversation_starters": ... # CustomQwen 的起始交互语句，类型是一个字符串数组，起始为[]。
-}
-"""
 
 CONF_GENERATOR_INST = """你现在要扮演一个 CustomQwen 的配置生成器
 
@@ -83,7 +57,7 @@ Config: ... # 生成的配置文件，严格按照以上json格式
 RichConfig: ... # 格式和核心内容和Config相同，但是description和instructions等字段需要在Config的基础上扩充字数，使描述和指令更加详尽，并补充conversation_starters。请注意从用户的视角来描述description、instructions和conversation_starters，不要用QwenBuilder或CustomQwen的视角。
 
 
-请开始你的第一句话打招呼，询问用户想要制作一个什么样的 CustomQwen"""
+请开始你的第一句话打招呼，询问用户想要制作一个什么样的 CustomQwen"""  # noqa E501
 
 LOGO_TOOL_NAME = 'logo_designer'
 
