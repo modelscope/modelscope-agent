@@ -1,4 +1,5 @@
 import os
+import re
 
 import cv2
 import dashscope
@@ -8,6 +9,14 @@ from modelscope_agent.output_wrapper import ImageWrapper
 
 from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
+
+
+def is_multiply_format(s):
+    pattern = r'^\d+\*\d+$'
+    if re.match(pattern, s):
+        return True
+    else:
+        return False
 
 
 class TextToImageTool(ModelscopePipelineTool):
@@ -21,16 +30,34 @@ class TextToImageTool(ModelscopePipelineTool):
         'schema': {
             'type': 'string'
         }
+    }, {
+        'name': 'resolution',
+        'description': '格式是两个数字相乘，表示希望生成的图像的分辨率',
+        'required': True,
+        'schema': {
+            'type': 'string'
+        }
     }]
     model_revision = 'v1.0.0'
     task = Tasks.text_to_image_synthesis
 
     def _remote_parse_input(self, *args, **kwargs):
-        return {'input': {'text': kwargs['text']}}
+        return {
+            'input': {
+                'text': kwargs['text'],
+                'resolution': kwargs['resolution']
+            }
+        }
 
     def _remote_call(self, *args, **kwargs):
 
-        prompt = self._handle_input_fallback(**kwargs)
+        if 'resolution' in kwargs and is_multiply_format(kwargs['resolution']):
+            resolution = kwargs['resolution']
+            resolution = resolution.replace('x', '*')
+        else:
+            resolution = '1280*720'
+
+        prompt = kwargs['text']
         if prompt is None:
             return None
         dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
@@ -38,7 +65,7 @@ class TextToImageTool(ModelscopePipelineTool):
             model=ImageSynthesis.Models.wanx_v1,
             prompt=prompt,
             n=1,
-            size='1024*1024',
+            size=resolution,
             steps=10)
         final_result = self._parse_output(response, remote=True)
         return final_result

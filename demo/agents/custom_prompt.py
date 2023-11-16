@@ -49,8 +49,7 @@ class CustomPromptGenerator(PromptGenerator):
         self.addition_assistant_reply = kwargs.get('addition_assistant_reply',
                                                    '')
 
-    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
-                    **kwargs):
+    def init_prompt(self, task, tool_list, knowledge_list, llm_model):
         if len(self.history) == 0:
 
             self.history.append({

@@ -52,7 +52,7 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
                     if tool_cfg[tool_key].get("is_active", False)]
     state["tool_cfg"] = tool_cfg
     state["capabilities"] = capabilities
-    suggests = builder_cfg.get("suggests", [])
+    suggests = builder_cfg.get("conversation_starters", [])
     return [
         state,
         # config form
@@ -148,7 +148,7 @@ def process_configuration(name, description, instructions, model, suggestions,
         "avatar": "",
         "description": description,
         "instruction": instructions,
-        "suggests": [row[0] for row in suggestions],
+        "conversation_starters": [row[0] for row in suggestions],
         "knowledge": list(map(lambda file: file.name, files or [])),
         "tools": {
             capability: dict(

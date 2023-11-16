@@ -33,37 +33,54 @@ class OpenAiFunctionsPromptGenerator(PromptGenerator):
                  exec_template=None,
                  assistant_template='',
                  sep='\n\n',
-                 prompt_max_length=10000):
+                 prompt_max_length=10000,
+                 **kwargs):
         super().__init__(system_template, instruction_template, user_template,
                          exec_template, assistant_template, sep,
                          prompt_max_length)
+        self.custom_starter_messages = kwargs.get('custom_starter_message',
+                                                  None)
 
-    def init_prompt(self, task, tool_list, knowledge_list):
+    def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
         """
         in this function, the prompt will be initialized.
         """
-        system_message = f'{self.system_template}{self.sep}<knowledge>'
-
-        knowledge_str = self.get_knowledge_str(knowledge_list)
-
-        # knowledge
-        system_message = system_message.replace('<knowledge>', knowledge_str)
-
         prompt = self.user_template.replace('<user_input>', task)
-        messages = [{
-            'role': 'system',
-            'content': system_message
-        }, {
-            'role': 'user',
-            'content': prompt
-        }]
 
-        # store history
-        self.history = messages
+        if len(self.history) == 0:
+            if len(knowledge_list) > 0:
 
-        self.prompt = prompt
+                # knowledge
+                system_message = f'{self.system_template}{self.sep}<knowledge>'
+                knowledge_str = self.get_knowledge_str(knowledge_list)
+                system_message = system_message.replace(
+                    '<knowledge>', knowledge_str)
 
-        self.function_calls = self.get_function_list(tool_list)
+            else:
+                system_message = self.system_template
+
+            self.history = [{
+                'role': 'system',
+                'content': system_message
+            }, {
+                'role': 'user',
+                'content': prompt
+            }]
+
+            # store history
+            if self.custom_starter_messages:
+                assert isinstance(self.custom_starter_messages, list)
+                assert self.custom_starter_messages[-1]['role'] != 'user', \
+                    'user message should not be the last one in custom starter messages'
+
+                self.history = self.custom_starter_messages
+                self.history.append({'role': 'user', 'content': prompt})
+
+            self.prompt = prompt
+            self.function_calls = self.get_function_list(tool_list)
+
+        else:
+            self.history.append({'role': 'user', 'content': prompt})
 
     def generate(self, llm_result, exec_result: Union[str, dict]):
         if isinstance(exec_result, dict):
