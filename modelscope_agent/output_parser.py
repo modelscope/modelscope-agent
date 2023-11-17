@@ -2,18 +2,39 @@ import re
 from typing import Dict, Tuple
 
 import json
+from modelscope_agent.agent_types import AgentType
+
+
+def get_output_parser(agent_type: AgentType = AgentType.DEFAULT):
+    if AgentType.DEFAULT == agent_type or agent_type == AgentType.MS_AGENT:
+        return MsOutputParser()
+    elif AgentType.MRKL == agent_type:
+        return MRKLOutputParser()
+    elif AgentType.Messages == agent_type:
+        return OpenAiFunctionsOutputParser()
+    else:
+        raise NotImplementedError
 
 
 class OutputParser:
+    """Output parser for llm response
+    """
 
     def parse_response(self, response):
         raise NotImplementedError
 
+    # use to handle the case of false parsing the action_para result, if there is no valid action then
+    # throw Error
+    @staticmethod
+    def handle_fallback(action: str, action_para: str):
+        if action is not None and action != '':
+            parameters = {'fallback': action_para}
+            return action, parameters
+        else:
+            raise ValueError('Wrong response format for output parser')
+
 
 class MsOutputParser(OutputParser):
-
-    def __init__(self):
-        super().__init__()
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -27,6 +48,8 @@ class MsOutputParser(OutputParser):
 
         if '<|startofthink|>' not in response or '<|endofthink|>' not in response:
             return None, None
+
+        action, parameters = '', ''
         try:
             # use regular expression to get result
             re_pattern1 = re.compile(
@@ -42,14 +65,13 @@ class MsOutputParser(OutputParser):
             parameters = json_content.get('parameters', {})
 
             return action, parameters
-        except Exception:
-            raise ValueError('Wrong response format for output parser')
+        except Exception as e:
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return OutputParser.handle_fallback(action, parameters)
 
 
-class QwenOutputParser(OutputParser):
-
-    def __init__(self):
-        super().__init__()
+class MRKLOutputParser(OutputParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -63,8 +85,9 @@ class QwenOutputParser(OutputParser):
 
         if 'Action' not in response or 'Action Input:' not in response:
             return None, None
+        action, action_para = '', ''
         try:
-            # use regular expression to get result
+            # use regular expression to get result from MRKL format
             re_pattern1 = re.compile(
                 pattern=r'Action:([\s\S]+)Action Input:([\s\S]+)')
             res = re_pattern1.search(response)
@@ -74,5 +97,46 @@ class QwenOutputParser(OutputParser):
             parameters = json.loads(action_para.replace('\n', ''))
 
             return action, parameters
-        except Exception:
-            raise ValueError('Wrong response format for output parser')
+        except Exception as e:
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return OutputParser.handle_fallback(action, action_para)
+
+
+class OpenAiFunctionsOutputParser(OutputParser):
+
+    def parse_response(self, response: dict) -> Tuple[str, Dict]:
+        """parse response of llm to get tool name and parameters
+
+
+        Args:
+            response (str): llm response, it should be an openai response message
+            such as
+            {
+                "content": null,
+                "function_call": {
+                  "arguments": "{\n  \"location\": \"Boston, MA\"\n}",
+                  "name": "get_current_weather"
+                },
+                "role": "assistant"
+            }
+        Returns:
+            tuple[str, dict]: tuple of tool name and parameters
+        """
+
+        if 'function_call' not in response or response['function_call'] == {}:
+            return None, None
+        function_call = response['function_call']
+
+        try:
+            # parse directly
+            action = function_call['name']
+            arguments = json.loads(function_call['arguments'].replace(
+                '\n', ''))
+
+            return action, arguments
+        except Exception as e:
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return OutputParser.handle_fallback(function_call['name'],
+                                                function_call['arguments'])

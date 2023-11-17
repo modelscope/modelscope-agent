@@ -2,6 +2,9 @@ def get_llm_cls(llm_type):
     if llm_type == 'dashscope':
         from .dashscope_llm import DashScopeLLM
         return DashScopeLLM
+    elif llm_type == 'custom_llm':
+        from .custom_llm import CustomLLM
+        return CustomLLM
     elif llm_type == 'openai':
         from .openai import OpenAi
         return OpenAi

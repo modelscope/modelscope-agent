@@ -1,0 +1,38 @@
+{
+    "qwen-turbo": {
+        "type": "dashscope",
+        "model": "qwen-turbo",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "top_k": 1
+        }
+    },
+    "qwen-plus": {
+        "type": "dashscope",
+        "model": "qwen-plus",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "top_k": 1
+        }
+    },
+    "qwen-max": {
+        "type": "dashscope",
+        "model": "qwen-max",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "top_k": 1,
+            "stop": "Observation"
+        }
+    },
+    "gpt-3.5-turbo": {
+        "type": "openai",
+        "model": "gpt-3.5-turbo"
+    },
+    "gpt-4": {
+        "type": "openai",
+        "model": "gpt-4"
+    }
+  }

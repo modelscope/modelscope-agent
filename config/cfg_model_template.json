@@ -3,14 +3,25 @@
         "type": "dashscope",
         "model": "modelscope-agent-llm-v1",
         "generate_cfg": {
-            "parameters":{
-                "use_raw_prompt": true,
-                "top_p": 0.8,
-                "top_k": 10,
-                "seed": 123,
-                "debug": false
-            }
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "seed": 123,
+            "debug": false
         }
+    },
+    "qwen_plus": {
+        "type": "dashscope",
+        "model": "qwen-plus",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "top_k": 10,
+            "seed": 123,
+            "debug": false
+        }
+    },
+    "custom_llm": {
+        "type": "custom_llm"
     },
     "openai": {
         "type": "openai",
@@ -23,5 +34,4 @@
         "use_raw_generation_config": true,
         "custom_chat": true
     }
-
 }

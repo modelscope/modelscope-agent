@@ -10,7 +10,7 @@ import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
 
-ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
+ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
 
 
 class ChatBot(ChatBotBase):
@@ -18,22 +18,22 @@ class ChatBot(ChatBotBase):
     def normalize_markdown(self, bot_message, remove_media=False):
 
         if remove_media:
-            media_regex = r"(!\[[^\]]*\]\([^)]+\)|<audio[^>]+>.*?</audio>)\n*"
+            media_regex = r'(!\[[^\]]*\]\([^)]+\)|<audio[^>]+>.*?</audio>)\n*'
             # 使用正则表达式进行替换
-            bot_message = re.sub(media_regex, "", bot_message)
+            bot_message = re.sub(media_regex, '', bot_message)
 
-        lines = bot_message.split("\n")
+        lines = bot_message.split('\n')
         normalized_lines = []
         inside_list = False
 
         for i, line in enumerate(lines):
-            if re.match(r"^(\d+\.|-|\*|\+)\s", line.strip()):
-                if not inside_list and i > 0 and lines[i - 1].strip() != "":
-                    normalized_lines.append("")
+            if re.match(r'^(\d+\.|-|\*|\+)\s', line.strip()):
+                if not inside_list and i > 0 and lines[i - 1].strip() != '':
+                    normalized_lines.append('')
                 inside_list = True
                 normalized_lines.append(line)
-            elif inside_list and line.strip() == "":
-                if i < len(lines) - 1 and not re.match(r"^(\d+\.|-|\*|\+)\s",
+            elif inside_list and line.strip() == '':
+                if i < len(lines) - 1 and not re.match(r'^(\d+\.|-|\*|\+)\s',
                                                        lines[i + 1].strip()):
                     normalized_lines.append(line)
                 continue
@@ -41,7 +41,7 @@ class ChatBot(ChatBotBase):
                 inside_list = False
                 normalized_lines.append(line)
 
-        return "\n".join(normalized_lines)
+        return '\n'.join(normalized_lines)
 
     def convert_markdown(self, bot_message, remove_media=False):
         if bot_message.count('```') % 2 != 0:
@@ -70,7 +70,7 @@ class ChatBot(ChatBotBase):
                     'truly_sane': True,
                 }
             })
-        result = "".join(result)
+        result = ''.join(result)
         return result
 
     def convert_bot_message(self, bot_message):
@@ -180,7 +180,7 @@ class ChatBot(ChatBotBase):
 
     def process_exec_result(self, exec_result: str):
 
-        exec_result = exec_result.replace("{'result': ", "")
+        exec_result = exec_result.replace("{'result': ", '')
         exec_result = exec_result[:-1]
         exec_result = exec_result.replace("'", "\"")
         try:
@@ -214,6 +214,6 @@ class ChatBot(ChatBotBase):
         file_manager = gr.File()
         gr_file_path = file_manager.make_temp_copy_if_needed(file_path)
 
-        gr_file_path = f"./file={gr_file_path}"
+        gr_file_path = f'./file={gr_file_path}'
 
         return gr_file_path

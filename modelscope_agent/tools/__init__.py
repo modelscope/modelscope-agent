@@ -1,3 +1,4 @@
+from .code_interperter import CodeInterpreter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
 from .pipeline_tool import ModelscopePipelineTool
@@ -18,8 +19,9 @@ DEFAULT_TOOL_LIST = {
     'modelscope_text-ie': 'TextInfoExtractTool',
     'modelscope_text-ner': 'TextNerTool',
     'modelscope_text-address': 'TextAddressTool',
-    'modelscope_image-generation': 'TextToImageTool',
+    'image_gen': 'TextToImageTool',
     'modelscope_video-generation': 'TextToVideoTool',
     'modelscope_image-chat': 'ImageChatTool',
     'modelscope_speech-generation': 'TexttoSpeechTool',
+    'code_interpreter': 'CodeInterpreter',
 }

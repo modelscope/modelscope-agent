@@ -19,13 +19,13 @@ os.environ['MODEL_CONFIG_FILE'] = '../../config/cfg_model_template.json'
 os.environ['OUTPUT_FILE_DIRECTORY'] = './tmp'
 
 with open(
-        os.path.join(os.path.dirname(__file__), 'main.css'), "r",
-        encoding="utf-8") as f:
+        os.path.join(os.path.dirname(__file__), 'main.css'), 'r',
+        encoding='utf-8') as f:
     MAIN_CSS_CODE = f.read()
 
 with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
 
-    upload_image_url = gr.State("")
+    upload_image_url = gr.State('')
 
     # agent 对象
     tool_cfg_file = os.getenv('TOOL_CONFIG_FILE')
@@ -46,17 +46,17 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
             """<h1 align="left" style="min-width:200px; margin-top:0;">ModelScopeGPT</h1>"""
         )
         status_display = gr.HTML(
-            "", elem_id="status_display", visible=False, show_label=False)
+            '', elem_id='status_display', visible=False, show_label=False)
 
-    with gr.Row(elem_id="container_row").style(equal_height=True):
+    with gr.Row(elem_id='container_row').style(equal_height=True):
 
         with gr.Column(
                 scale=8,
-                elem_classes=["chatInterface", "chatDialog", "chatContent"]):
-            with gr.Row(elem_id="chat-container"):
+                elem_classes=['chatInterface', 'chatDialog', 'chatContent']):
+            with gr.Row(elem_id='chat-container'):
                 chatbot = ChatBot(
-                    elem_id="chatbot",
-                    elem_classes=["markdown-body"],
+                    elem_id='chatbot',
+                    elem_classes=['markdown-body'],
                     show_label=False)
                 chatbot_classic = gr.Textbox(
                     lines=20,
@@ -64,31 +64,31 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                     interactive=False,
                     label='classic_chatbot',
                     elem_id='chatbot_classic')
-            with gr.Row(elem_id="chat-bottom-container"):
+            with gr.Row(elem_id='chat-bottom-container'):
                 with gr.Column(min_width=70, scale=1):
                     clear_session_button = gr.Button(
-                        "清除", elem_id='clear_session_button')
+                        '清除', elem_id='clear_session_button')
                 with gr.Column(min_width=100, scale=1):
                     upload_button = gr.UploadButton(
-                        "上传图片", file_types=['image'])
+                        '上传图片', file_types=['image'])
                 with gr.Column(scale=12):
                     user_input = gr.Textbox(
                         show_label=False,
-                        placeholder="和我聊聊吧～",
-                        elem_id="chat-input").style(container=False)
+                        placeholder='和我聊聊吧～',
+                        elem_id='chat-input').style(container=False)
                     uploaded_image_box = gr.HTML(
-                        "", visible=False, show_label=False)
+                        '', visible=False, show_label=False)
                 with gr.Column(min_width=70, scale=1):
-                    submitBtn = gr.Button("发送", variant="primary")
+                    submitBtn = gr.Button('发送', variant='primary')
                 with gr.Column(min_width=110, scale=1):
                     regenerate_button = gr.Button(
-                        "重新生成", elem_id='regenerate_button')
+                        '重新生成', elem_id='regenerate_button')
 
         with gr.Column(min_width=470, scale=4, elem_id='settings'):
-            icon_path = "https://img.alicdn.com/imgextra/i4/O1CN01kpkVcX1wSCO362MH4_!!6000000006306-1-tps-805-805.gif"
-            info_text = "我是ModelScopeGPT（魔搭GPT）， 是一个大小模型协同的agent系统。\
+            icon_path = 'https://img.alicdn.com/imgextra/i4/O1CN01kpkVcX1wSCO362MH4_!!6000000006306-1-tps-805-805.gif'
+            info_text = '我是ModelScopeGPT（魔搭GPT）， 是一个大小模型协同的agent系统。\
                 我具备多种能力，可以通过大模型做中枢（controller），来控制魔搭社区的各种多模态模型api回复用户的问题。\
-                除此之外，我还集成了知识库检索引擎，可以解答用户在魔搭社区使用模型遇到的问题以及模型知识相关问答。"
+                除此之外，我还集成了知识库检索引擎，可以解答用户在魔搭社区使用模型遇到的问题以及模型知识相关问答。'
 
             gr.HTML(f"""
                 <div class="robot-info">
@@ -109,8 +109,8 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
                 ],
                 inputs=[user_input],
                 examples_per_page=20,
-                label="示例",
-                elem_id="chat-examples")
+                label='示例',
+                elem_id='chat-examples')
 
     stream_predict_input = [chatbot, user_input, upload_image_url]
     stream_predict_output = [chatbot, status_display]
@@ -158,6 +158,6 @@ with gr.Blocks(css=MAIN_CSS_CODE, theme=gr.themes.Soft()) as demo:
         inputs=[],
         outputs=[chatbot, uploaded_image_box, upload_image_url])
 
-    demo.title = "ModelScopeGPT 🎁"
+    demo.title = 'ModelScopeGPT 🎁'
     demo.queue(concurrency_count=10, status_update_rate='auto', api_open=False)
     demo.launch(show_api=False, share=False)

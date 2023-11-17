@@ -10,13 +10,14 @@ class MockLLM(LLM):
         super().__init__({})
         self.responses = responses
         self.idx = -1
+        self.model = 'mock_llm'
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, function_list=[], **kwargs) -> str:
         self.idx += 1
         return self.responses[self.idx] if self.idx < len(
             self.responses) else 'mock llm response'
 
-    def stream_generate(self, prompt: str) -> str:
+    def stream_generate(self, prompt: str, function_list=[], **kwargs) -> str:
         yield 'mock llm response'
 
 
@@ -28,13 +29,18 @@ class MockPromptGenerator(PromptGenerator):
 
 class MockOutParser(OutputParser):
 
-    def __init__(self, action, args):
+    def __init__(self, action, args, count=1):
         super().__init__()
         self.action = action
         self.args = args
+        self.count = count
 
     def parse_response(self, response: str):
-        return self.action, self.args
+        if self.count > 0:
+            self.count -= 1
+            return self.action, self.args
+        else:
+            return None, None
 
 
 class MockTool(Tool):

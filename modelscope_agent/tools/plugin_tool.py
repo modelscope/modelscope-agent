@@ -1,13 +1,13 @@
 from copy import deepcopy
 
-from langchain.tools import BaseTool
-
 from .tool import Tool
 
 
 class LangchainTool(Tool):
 
     def __init__(self, langchain_tool):
+        from langchain.tools import BaseTool
+
         if not isinstance(langchain_tool, BaseTool):
             raise ValueError('langchain_tool should be type of langchain tool')
         self.langchain_tool = langchain_tool

@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Union
 
 import json
 from langchain.document_loaders import TextLoader, UnstructuredFileLoader
@@ -73,7 +73,7 @@ class KnowledgeRetrieval(Retrieval):
 
     @classmethod
     def from_file(cls,
-                  file_path: str,
+                  file_path: Union[str, list],
                   embedding: Embeddings = None,
                   vs_cls: VectorStore = None,
                   top_k: int = 5,
@@ -81,8 +81,10 @@ class KnowledgeRetrieval(Retrieval):
 
         textsplitter = CharacterTextSplitter()
         all_files = []
-        if os.path.isfile(file_path):
+        if isinstance(file_path, str) and os.path.isfile(file_path):
             all_files.append(file_path)
+        elif isinstance(file_path, list):
+            all_files = file_path
         elif os.path.isdir(file_path):
             for root, dirs, files in os.walk(file_path):
                 for f in files:
@@ -98,5 +100,8 @@ class KnowledgeRetrieval(Retrieval):
             elif f.lower().endswith('.md'):
                 loader = UnstructuredFileLoader(f, mode='elements')
                 docs += loader.load()
+            else:
+                raise ValueError(
+                    f'not support file type: {f}, will be support soon')
 
         return cls(docs, embedding, vs_cls, top_k, vs_params)

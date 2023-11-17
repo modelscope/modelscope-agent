@@ -23,7 +23,7 @@
     "modelscope_text-translation-zh2en": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en"
     },
-    "modelscope_image-generation": {
+    "image_gen": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/AI-ModelScope/stable-diffusion-xl-base-1.0",
         "pipeline_params": {
             "use_safetensors": true
