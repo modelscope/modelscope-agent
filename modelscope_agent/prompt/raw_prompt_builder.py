@@ -22,8 +22,8 @@ def qwen_chatml_prompt_preprocessor(messages):
     return prompt
 
 
-def plate_preprocessor(messages, system_prompt):
-    return system_prompt + messages[-1]['content']
+def plate_preprocessor(messages):
+    return qwen_chatml_prompt_preprocessor(messages)
 
 
 def build_raw_prompt(model_name):
