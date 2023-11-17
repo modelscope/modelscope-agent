@@ -75,8 +75,7 @@ class BuilderChatbotAgent(AgentExecutor):
         llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
 
         # prompt generator
-        prompt_generator = OpenAiFunctionsPromptGenerator(
-            system_template=SYSTEM)
+        _ = OpenAiFunctionsPromptGenerator(system_template=SYSTEM)
 
         super().__init__(
             llm=llm,

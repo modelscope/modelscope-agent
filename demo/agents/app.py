@@ -125,7 +125,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             # llm result
             frame_text = llm_result
 
-        ## important! do not change this
+        # important! do not change this
         response += frame_text
         preview_chatbot[-1] = (preview_chat_input, response)
         yield format_preview_send_message_ret(preview_chatbot)
