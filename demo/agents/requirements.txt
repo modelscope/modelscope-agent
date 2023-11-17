@@ -7,3 +7,4 @@ markdown-cjk-spacing
 open-interpreter
 pymdown-extensions
 python-slugify
+fasis-cpu
