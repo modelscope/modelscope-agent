@@ -20,7 +20,7 @@ clone repo and install dependency：
 
 ```bash
 git clone https://github.com/modelscope/modelscope-agent.git
-cd modelscope-agent  && pip install -r requirements.txt && pip install -r demo/agents/requirements.txt
+cd modelscope-agent  && pip install -r requirements.txt && pip install -r apps/agents/requirements.txt
 ```
 
 ## Prerequisites
@@ -33,7 +33,7 @@ cd modelscope-agent  && pip install -r requirements.txt && pip install -r demo/a
 ```bash
 export PYTHONPATH=$PYTHONPATH:/path/to/your/modelscope-agent
 export DASHSCOPE_API_KEY=your_api_key
-cd modelscope-agent/demo/agents
+cd modelscope-agent/apps/agents
 python app.py
 ```
 
@@ -43,3 +43,6 @@ python app.py
 - [on going] handle long text input to memory
 - [todo] support multi-users preview on modelscope space
 - [todo] allow upload user customized agents to modelscope space
+- [todo] optimize knowledge management
+- [todo] add knowledge type pdf
+- [todo] gradio update
