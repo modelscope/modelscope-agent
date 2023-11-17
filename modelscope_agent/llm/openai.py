@@ -19,9 +19,6 @@ class OpenAi(LLM):
         self.api_base = self.cfg.get('api_base', 'https://api.openai.com/v1')
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def set_agent_type(self, agent_type):
-        self.agent_type = agent_type
-
     def generate(self,
                  llm_artifacts,
                  functions=[],

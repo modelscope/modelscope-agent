@@ -27,7 +27,7 @@ class OutputParser:
     # throw Error
     @staticmethod
     def handle_fallback(action: str, action_para: str):
-        if action is not None:
+        if action is not None and action != '':
             parameters = {'fallback': action_para}
             return action, parameters
         else:

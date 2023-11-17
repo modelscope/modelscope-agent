@@ -1,10 +1,8 @@
+import os
 import re
 import traceback
 
-from interpreter.code_interpreters.create_code_interpreter import \
-    create_code_interpreter
-from interpreter.code_interpreters.language_map import language_map
-from interpreter.utils.truncate_output import truncate_output
+import appdirs
 
 from .tool import Tool
 
@@ -29,6 +27,25 @@ class CodeInterpreter(Tool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
+
+        # make sure open interpreter is in local mode
+        config_dir = appdirs.user_config_dir('Open Interpreter')
+        config_filename = 'config.yaml'
+        open_interpreter_config_path = os.path.join(config_dir,
+                                                    config_filename)
+        os.makedirs(config_dir, exist_ok=True)
+
+        with open(open_interpreter_config_path, 'w') as file:
+            file.write('local: true\n')
+
+        from interpreter.code_interpreters.create_code_interpreter import \
+            create_code_interpreter
+        from interpreter.code_interpreters.language_map import language_map
+        from interpreter.utils.truncate_output import truncate_output
+        self.create_code_interpreter = create_code_interpreter
+        self.language_map = language_map
+        self.truncate_output = truncate_output
+
         self._code_interpreters = {}
         self.max_output = self.cfg.get('max_output', 2000)
 
@@ -42,10 +59,10 @@ class CodeInterpreter(Tool):
                 code = code[1:]
                 language = 'shell'
 
-            if language in language_map:
+            if language in self.language_map:
                 if language not in self._code_interpreters:
                     self._code_interpreters[
-                        language] = create_code_interpreter(language)
+                        language] = self.create_code_interpreter(language)
                 code_interpreter = self._code_interpreters[language]
             else:
                 # This still prints code but don't allow code to run. Let Open-Interpreter know through output message
@@ -60,7 +77,7 @@ class CodeInterpreter(Tool):
                     output += '\n' + line['output']
 
                     # Truncate output
-                    output = truncate_output(output, self.max_output)
+                    output = self.truncate_output(output, self.max_output)
         except Exception as e:
             error = traceback.format_exc()
             output = ' '.join(f'{key}:{value}'

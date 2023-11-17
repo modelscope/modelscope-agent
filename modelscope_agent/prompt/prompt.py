@@ -9,7 +9,7 @@ class PromptGenerator:
     def __init__(self,
                  system_template: str = '',
                  instruction_template: str = '',
-                 user_template: str = '',
+                 user_template: str = '<user_input>',
                  exec_template: str = '',
                  assistant_template: str = '',
                  sep='\n\n',
