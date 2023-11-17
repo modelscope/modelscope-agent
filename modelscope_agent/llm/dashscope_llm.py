@@ -24,9 +24,6 @@ class DashScopeLLM(LLM):
         self.generate_cfg = self.cfg.get('generate_cfg', {})
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def set_agent_type(self, agent_type):
-        self.agent_type = agent_type
-
     def generate(self,
                  llm_artifacts: Union[str, dict],
                  functions=[],

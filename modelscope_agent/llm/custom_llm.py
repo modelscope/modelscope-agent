@@ -26,9 +26,6 @@ class CustomLLM(LLM):
             raise ValueError('HTTP_LLM_TOKEN is not set')
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def set_agent_type(self, agent_type):
-        self.agent_type = agent_type
-
     def http_request(self, data):
         headers = {
             'Content-Type': 'application/json',

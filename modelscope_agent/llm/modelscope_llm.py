@@ -44,9 +44,6 @@ class ModelScopeLLM(LLM):
         self.setup()
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def set_agent_type(self, agent_type):
-        self.agent_type = agent_type
-
     def setup(self):
         model_cls = self.model_cls
         tokenizer_cls = self.tokenizer_cls
