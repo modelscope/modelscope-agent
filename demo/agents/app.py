@@ -1,3 +1,4 @@
+import random
 import sys
 import traceback
 
@@ -65,11 +66,14 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
 
 def init_user(state):
     try:
+        seed = state.get('session_seed', random.randint(0, 1000000000))
         user_agent = init_user_chatbot_agent()
+        user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
+    return state
 
 
 def init_builder(state):
@@ -79,6 +83,7 @@ def init_builder(state):
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
+    return state
 
 
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
@@ -115,6 +120,7 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
         format_cover_html(builder_cfg, bot_avatar),
         gr.Dataset.update(samples=[[item] for item in suggests]),
     ]
+    return state
 
 
 def init_all(state):
@@ -204,7 +210,8 @@ def process_configuration(bot_avatar, name, description, instructions, model,
 # 创建 Gradio 界面
 demo = gr.Blocks(css="assets/app.css")
 with demo:
-    state = gr.State({})
+    draw_seed = random.randint(0, 1000000000)
+    state = gr.State({'session_seed': draw_seed})
 
     with gr.Row():
         with gr.Column():
