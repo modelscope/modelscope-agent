@@ -37,7 +37,7 @@ class OpenAi(LLM):
 
         # call openai function call api
         assert isinstance(functions, list)
-        if len(functions) > 0:
+        if len(functions) > 0 and self.agent_type == AgentType.Messages:
             function_call = 'auto'
 
         # covert to stream=True with stream updating
