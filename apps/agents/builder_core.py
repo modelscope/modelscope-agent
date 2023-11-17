@@ -38,7 +38,7 @@ def init_builder_chatbot_agent():
     tool_cfg = {LOGO_TOOL_NAME: {'is_remote_tool': True}}
 
     # build llm
-    print(f'using model {builder_cfg.model}')
+    print(f'using builder model {builder_cfg.model}')
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
     llm.set_agent_type(AgentType.Messages)
 
@@ -94,13 +94,7 @@ class BuilderChatbotAgent(AgentExecutor):
 
             llm_result = ''
             try:
-                for s in self.llm.stream_generate(llm_artifacts,
-                                                  function_list):
-                    # TODO s is a delta object in message set, should handle this part here
-                    llm_result += s
-                    yield {'llm_text': s}
-
-            except Exception:
+                # no stream yet
                 llm_result = self.llm.generate(llm_artifacts)
                 if print_info:
                     print(f'|LLM output in round {idx}:\n{llm_result}')
@@ -110,6 +104,8 @@ class BuilderChatbotAgent(AgentExecutor):
                 res = re_pattern_answer.search(llm_result['content'])
                 llm_text = res.group(1).strip()
                 yield {'llm_text': llm_text}
+            except Exception:
+                yield {'error': 'llm result is not valid'}
 
             try:
                 if self.agent_type == AgentType.Messages:
