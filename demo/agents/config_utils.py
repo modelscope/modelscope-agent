@@ -1,6 +1,7 @@
 import os
-import json
 import shutil
+
+import json
 
 from modelscope.utils.config import Config
 
@@ -16,19 +17,25 @@ def save_builder_configuration(builder_cfg):
     with open(builder_cfg_file, 'w', encoding='utf-8') as f:
         f.write(json.dumps(builder_cfg, indent=2, ensure_ascii=False))
 
+
 def get_avatar_image(bot_avatar):
-    user_avatar_path = os.path.join(os.path.dirname(__file__), 'assets/user.jpg')
+    user_avatar_path = os.path.join(
+        os.path.dirname(__file__), 'assets/user.jpg')
     bot_avatar_path = os.path.join(os.path.dirname(__file__), 'assets/bot.jpg')
     if len(bot_avatar) > 0:
-        bot_avatar_path = os.path.join(os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, bot_avatar)
+        bot_avatar_path = os.path.join(
+            os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, bot_avatar)
     return [user_avatar_path, bot_avatar_path]
+
 
 def save_avatar_image(image_path):
     file_extension = os.path.splitext(image_path)[1]
     bot_avatar = f"custom_bot_avatar{file_extension}"
-    bot_avatar_path = os.path.join(os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, bot_avatar)
+    bot_avatar_path = os.path.join(
+        os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, bot_avatar)
     shutil.copy(image_path, bot_avatar_path)
     return bot_avatar, bot_avatar_path
+
 
 def parse_configuration():
     """parse configuration

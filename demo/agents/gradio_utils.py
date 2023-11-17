@@ -241,9 +241,9 @@ class ChatBot(ChatBotBase):
     def convert_bot_message_for_qwen(self, bot_message):
 
         #bot_message = ChatBot.prompt_parse(bot_message)
-        print('processed bot message---------------------------------' )
+        print('processed bot message---------------------------------')
         print(bot_message)
-        print('processed bot message done---------------------------------' )
+        print('processed bot message done---------------------------------')
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
@@ -261,19 +261,22 @@ class ChatBot(ChatBotBase):
                 if start_pos < tool_call_pos:
                     result += self.convert_markdown(
                         bot_message[start_pos:tool_call_pos])
-                
+
                 # 工具调用
 
                 # Action: image_gen
                 # Action Input
                 # {"text": "金庸武侠 世界", "resolution": "128 0x720"}
                 # Observation: <result>![IMAGEGEN](https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e9/20231116/723609ee/d046d2d9-0c95-420b-9467-f0e831f5e2b7-1.png?Expires=1700227460&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=R0PlEazQF9uBD%2Fh9tkzOkJMGyg8%3D)<result>
-                action_name = bot_message[action_pos + len(ACTION):action_input_pos].strip()
+                action_name = bot_message[action_pos
+                                          + len(ACTION
+                                                ):action_input_pos].strip()
                 # TODO @wenmeng.zwm tricky method,  need to add action_start action_end
-                action_input_end = bot_message[action_input_pos:].index('\n') 
-                action_input = bot_message[action_input_pos:action_input_pos + action_input_end].strip()
+                action_input_end = bot_message[action_input_pos:].index('\n')
+                action_input = bot_message[action_input_pos:action_input_pos
+                                           + action_input_end].strip()
                 action_input = find_json_pattern.search(action_input).group()
-                
+
                 summary = f'调用工具 {action_name}'
                 detail = f'```json\n\n{json.dumps(json.loads(action_input), indent=4, ensure_ascii=False)}\n\n```'
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
@@ -283,17 +286,19 @@ class ChatBot(ChatBotBase):
                     observation_pos = bot_message.index(OBSERVATION, start_pos)
                     idx = observation_pos + len(OBSERVATION)
                     obs_message = bot_message[idx:]
-                    observation_start_id = obs_message.index(RESULT_START) + len(RESULT_START)
+                    observation_start_id = obs_message.index(
+                        RESULT_START) + len(RESULT_START)
                     observation_end_idx = obs_message.index(RESULT_END)
                     summary = '完成调用'
-                    exec_content = obs_message[observation_start_id:observation_end_idx]
+                    exec_content = obs_message[
+                        observation_start_id:observation_end_idx]
                     detail = f'```json\n\n{exec_content}\n\n```'
                     start_pos = idx + observation_end_idx + len(RESULT_END)
                 except Exception:
-                    summary  = '执行中...'
+                    summary = '执行中...'
                     detail = ''
                     exec_content = None
-                
+
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                     detail) + '</details>'
                 if exec_content is not None and '[IMAGEGEN]' in exec_content:
@@ -352,7 +357,8 @@ class ChatBot(ChatBotBase):
                 if bot_message and not bot_message.endswith(
                         ALREADY_CONVERTED_MARK):
                     #bot_message = self.convert_bot_message(bot_message)
-                    bot_message = self.convert_bot_message_for_qwen(bot_message)
+                    bot_message = self.convert_bot_message_for_qwen(
+                        bot_message)
                 processed_messages.append([
                     user_message,
                     bot_message,

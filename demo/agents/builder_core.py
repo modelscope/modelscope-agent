@@ -23,7 +23,6 @@ FORMAT_DESC = {
     + ' at the beginning and end of the code.'
 }
 
-
 CONF_GENERATOR_INST = """你现在要扮演一个 CustomQwen 的配置生成器
 
 在接下来的对话中，每次均生成如下格式的内容：

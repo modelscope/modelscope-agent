@@ -108,7 +108,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
     yield format_preview_send_message_ret(preview_chatbot)
 
     response = ''
-    
+
     for frame in user_agent.stream_run(
             preview_chat_input, print_info=True, remote=False):
         # is_final = frame.get("frame_is_final")
