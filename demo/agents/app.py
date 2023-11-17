@@ -135,12 +135,13 @@ def process_configuration(bot_avatar, name, description, instructions, model,
     capabilities = state["capabilities"]
 
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar)
+    suggestions_filtered = [row for row in suggestions if row[0]]
     builder_cfg = {
         "name": name,
         "avatar": bot_avatar,
         "description": description,
         "instruction": instructions,
-        "conversation_starters": [row[0] for row in suggestions],
+        "conversation_starters":  [row[0] for row in suggestions_filtered],
         "knowledge": list(map(lambda file: file.name, files or [])),
         "tools": {
             capability: dict(
@@ -160,7 +161,8 @@ def process_configuration(bot_avatar, name, description, instructions, model,
             value=format_cover_html(builder_cfg, bot_avatar_path)),
         gr.Chatbot.update(
             visible=False, avatar_images=get_avatar_image(bot_avatar)),
-        gr.Dataset.update(samples=suggestions)
+        gr.Dataset.update(samples=suggestions_filtered),
+        gr.DataFrame.update(value=suggestions_filtered)
     ]
 
 
@@ -279,7 +281,7 @@ with demo:
             model_selector, suggestion_input, knowledge_input,
             capabilities_checkboxes, state
         ],
-        outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest])
+        outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest, suggestion_input])
 
     # Preview 列消息发送
     # preview_send_button.click(
