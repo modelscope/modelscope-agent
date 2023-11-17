@@ -279,8 +279,7 @@ with demo:
                         # "Create" 标签页的 Chatbot 组件
                         create_chatbot = gr.Chatbot(label='Create Chatbot')
                         create_chat_input = gr.Textbox(
-                            label='Message',
-                            placeholder='Type a message here...')
+                            label='Message', placeholder='输入例如：一个多啦A梦的角色')
                         create_send_button = gr.Button('Send')
 
         with gr.Column():
