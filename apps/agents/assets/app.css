@@ -35,3 +35,7 @@
 .bot_desp {
   color: #ddd;
 }
+
+.markdown-body .message {
+  white-space: pre-wrap;
+}

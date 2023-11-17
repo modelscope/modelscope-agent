@@ -1,3 +1,4 @@
+import random
 import sys
 import traceback
 
@@ -18,7 +19,9 @@ customTheme = gr.themes.Default(
 
 def init_user(state):
     try:
+        seed = state.get('session_seed', random.randint(0, 1000000000))
         user_agent = init_user_chatbot_agent()
+        user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
         error = traceback.format_exc()
@@ -57,6 +60,28 @@ def send_message(preview_chatbot, preview_chat_input, state):
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/appBot.css', theme=customTheme)
 with demo:
+    draw_seed = random.randint(0, 1000000000)
+    state = gr.State({'session_seed': draw_seed})
+    with gr.Row(elem_classes='container'):
+        with gr.Column(scale=4):
+            with gr.Column():
+                # Preview
+                user_chatbot = ChatBot(
+                    value=[[None, '尝试问我一点什么吧～']],
+                    elem_id='user_chatbot',
+                    elem_classes=['markdown-body'],
+                    avatar_images=avatar_pairs,
+                    height=600,
+                    latex_delimiters=[],
+                    show_label=False)
+            with gr.Row():
+                with gr.Column(scale=12):
+                    preview_chat_input = gr.Textbox(
+                        show_label=False,
+                        container=False,
+                        placeholder='跟我聊聊吧～')
+                with gr.Column(min_width=70, scale=1):
+                    preview_send_button = gr.Button('发送', variant='primary')
     state = gr.State({})
     with gr.Row(elem_classes='container'):
         with gr.Column(scale=4):
@@ -78,6 +103,14 @@ with demo:
                         placeholder='跟我聊聊吧～')
                 with gr.Column(min_width=70, scale=1):
                     preview_send_button = gr.Button('发送', variant='primary')
+
+        with gr.Column(scale=1):
+            user_chat_bot_cover = gr.HTML(
+                format_cover_html(builder_cfg, avatar_pairs[1]))
+            user_chat_bot_suggest = gr.Examples(
+                label='Prompt Suggestions',
+                examples=suggests,
+                inputs=[preview_chat_input])
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(

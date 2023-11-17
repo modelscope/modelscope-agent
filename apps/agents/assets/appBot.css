@@ -38,3 +38,7 @@
 .container {
   flex-direction: row-reverse;
 }
+
+.markdown-body .message {
+  white-space: pre-wrap;
+}
