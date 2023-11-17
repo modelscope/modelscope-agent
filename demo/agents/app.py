@@ -13,7 +13,7 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     builder_agent = state['builder_agent']
     preview_chatbot.append((preview_chat_input, ""))
-    yield preview_chatbot
+    yield format_create_send_message_ret(state, preview_chatbot)
     response = ''
     for frame in builder_agent.stream_run(preview_chat_input, print_info=True):
         llm_result = frame.get("llm_text", "")
@@ -21,8 +21,9 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
         print(frame)
         if len(exec_result) != 0:
             if isinstance(exec_result, dict):
-                exec_result = str(exec_result['result'])
+                exec_result = exec_result['result']
                 assert isinstance(exec_result, Config)
+                yield format_create_send_message_ret(state, preview_chatbot, exec_result.to_dict())
         else:
             # llm result
             if isinstance(llm_result, dict):
@@ -32,26 +33,50 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
             frame_text = content
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
-        yield preview_chatbot
+        yield format_create_send_message_ret(state, preview_chatbot)
 
+def format_create_send_message_ret(state, chatbot, builder_cfg=None):
+    if builder_cfg:
+        bot_avatar = builder_cfg.get('avatar', '')
+        conversation_starters = builder_cfg.get('conversation_starters', [])
+        suggestion = [[row] for row in conversation_starters]
+        bot_avatar_path = get_avatar_image(bot_avatar)[1]
+        save_builder_configuration(builder_cfg)
+        state['configure_updated'] = True
+        return [
+            state,
+            chatbot,
+            gr.HTML.update(
+                visible=True,
+                value=format_cover_html(builder_cfg, bot_avatar_path)),
+            gr.Chatbot.update(
+                visible=False, avatar_images=get_avatar_image(bot_avatar)),
+            gr.Dataset.update(samples=suggestion)
+        ]
+    else:
+        return [
+            state, 
+            chatbot, 
+            gr.HTML.update(), 
+            gr.Chatbot.update(), 
+            gr.Dataset.update(samples=None)
+        ]
 
 def init_user(state):
     try:
         user_agent = init_user_chatbot_agent()
+        state['user_agent'] = user_agent
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
-    state['user_agent'] = user_agent
-
 
 def init_builder(state):
     try:
         builder_agent = init_builder_chatbot_agent()
+        state['builder_agent'] = builder_agent
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
-    state['builder_agent'] = builder_agent
-
 
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     print("builder_cfg:", builder_cfg)
@@ -60,6 +85,7 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     capabilities = [(tool_cfg[tool_key]["name"], tool_key)
                     for tool_key in tool_cfg.keys()
                     if tool_cfg[tool_key].get("is_active", False)]
+    state["model_cfg"] =  model_cfg
     state["tool_cfg"] = tool_cfg
     state["capabilities"] = capabilities
     bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''))[1]
@@ -187,7 +213,8 @@ with demo:
                             placeholder="Type a message here...")
                         create_send_button = gr.Button("Send")
 
-                with gr.Tab("Configure"):
+                configure_tab = gr.Tab("Configure")
+                with configure_tab:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
                         with gr.Row():
@@ -271,11 +298,39 @@ with demo:
                 inputs=[user_chat_bot_suggest],
                 outputs=[preview_chat_input])
 
+    configure_updated_outputs = [
+        state,
+        # config form
+        bot_avatar_comp,
+        name_input,
+        description_input,
+        instructions_input,
+        model_selector,
+        suggestion_input,
+        knowledge_input,
+        capabilities_checkboxes,
+        # bot
+        user_chat_bot_cover,
+        user_chat_bot_suggest
+    ]
+
+    # tab 切换的事件处理
+    def on_congifure_tab_select(_state):
+        configure_updated = _state.get('configure_updated', False)
+        if configure_updated:
+            builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
+            _state['configure_updated'] = False
+            return init_ui_config(_state, builder_cfg, model_cfg, tool_cfg)
+        else:
+            return {state: _state}
+    
+    configure_tab.select(on_congifure_tab_select, inputs=[state], outputs=configure_updated_outputs)
+
     # 配置 "Create" 标签页的消息发送功能
     create_send_button.click(
         create_send_message,
         inputs=[create_chatbot, create_chat_input, state],
-        outputs=[create_chatbot])
+        outputs=[state, create_chatbot, user_chat_bot_cover, user_chatbot, user_chat_bot_suggest])
 
     # 配置 "Configure" 标签页的提交按钮功能
     configure_button.click(
@@ -295,21 +350,7 @@ with demo:
     demo.load(
         init_all,
         inputs=[state],
-        outputs=[
-            state,
-            # config form
-            bot_avatar_comp,
-            name_input,
-            description_input,
-            instructions_input,
-            model_selector,
-            suggestion_input,
-            knowledge_input,
-            capabilities_checkboxes,
-            # bot
-            user_chat_bot_cover,
-            user_chat_bot_suggest,
-        ])
+        outputs=configure_updated_outputs)
 
 demo.queue()
 demo.launch()
