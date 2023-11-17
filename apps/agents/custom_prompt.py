@@ -23,7 +23,7 @@ Observation: 工具返回的结果
 
 # 指令
 """
-DEFAULT_INSTRUCTION_TEMPLATE = ""
+DEFAULT_INSTRUCTION_TEMPLATE = ''
 
 DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list>) <user_input>"""
 

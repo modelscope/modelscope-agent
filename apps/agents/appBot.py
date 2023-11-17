@@ -7,7 +7,7 @@ from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
 builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
-suggests = builder_cfg.get("conversation_starters", [])
+suggests = builder_cfg.get('conversation_starters', [])
 avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''))
 
 customTheme = gr.themes.Default(
@@ -29,7 +29,7 @@ def init_user(state):
 def send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
-    preview_chatbot.append((preview_chat_input, ""))
+    preview_chatbot.append((preview_chat_input, ''))
     yield preview_chatbot
 
     response = ''
@@ -37,7 +37,7 @@ def send_message(preview_chatbot, preview_chat_input, state):
     for frame in user_agent.stream_run(
             preview_chat_input, print_info=True, remote=False):
         # is_final = frame.get("frame_is_final")
-        llm_result = frame.get("llm_text", "")
+        llm_result = frame.get('llm_text', '')
         exec_result = frame.get('exec_result', '')
         print(frame)
         # llm_result = llm_result.split("<|user|>")[0].strip()
@@ -55,17 +55,17 @@ def send_message(preview_chatbot, preview_chat_input, state):
 
 
 # 创建 Gradio 界面
-demo = gr.Blocks(css="assets/appBot.css", theme=customTheme)
+demo = gr.Blocks(css='assets/appBot.css', theme=customTheme)
 with demo:
     state = gr.State({})
-    with gr.Row(elem_classes="container"):
+    with gr.Row(elem_classes='container'):
         with gr.Column(scale=4):
             with gr.Column():
                 # Preview
                 user_chatbot = ChatBot(
                     value=[[None, '尝试问我一点什么吧～']],
-                    elem_id="user_chatbot",
-                    elem_classes=["markdown-body"],
+                    elem_id='user_chatbot',
+                    elem_classes=['markdown-body'],
                     avatar_images=avatar_pairs,
                     height=600,
                     latex_delimiters=[],
@@ -75,15 +75,15 @@ with demo:
                     preview_chat_input = gr.Textbox(
                         show_label=False,
                         container=False,
-                        placeholder="跟我聊聊吧～")
+                        placeholder='跟我聊聊吧～')
                 with gr.Column(min_width=70, scale=1):
-                    preview_send_button = gr.Button("发送", variant="primary")
+                    preview_send_button = gr.Button('发送', variant='primary')
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(
                 format_cover_html(builder_cfg, avatar_pairs[1]))
             user_chat_bot_suggest = gr.Examples(
-                label="Prompt Suggestions",
+                label='Prompt Suggestions',
                 examples=suggests,
                 inputs=[preview_chat_input])
 

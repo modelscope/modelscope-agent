@@ -25,7 +25,7 @@ cd modelscope-agent  && pip install -r requirements.txt && pip install -r demo/a
 
 ## Prerequisites
 
-- Python 3.10 
+- Python 3.10
 - Qwen max/plus Api key [from dashscope](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key?spm=a2c4g.11186623.0.0.73d348f4zPlBdu)
 
 ## Usage

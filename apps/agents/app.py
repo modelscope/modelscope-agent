@@ -12,11 +12,11 @@ from user_core import init_user_chatbot_agent
 def create_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     builder_agent = state['builder_agent']
-    preview_chatbot.append((preview_chat_input, ""))
+    preview_chatbot.append((preview_chat_input, ''))
     yield format_create_send_message_ret(state, preview_chatbot)
     response = ''
     for frame in builder_agent.stream_run(preview_chat_input, print_info=True):
-        llm_result = frame.get("llm_text", "")
+        llm_result = frame.get('llm_text', '')
         exec_result = frame.get('exec_result', '')
         print(frame)
         if len(exec_result) != 0:
@@ -82,17 +82,17 @@ def init_builder(state):
 
 
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
-    print("builder_cfg:", builder_cfg)
+    print('builder_cfg:', builder_cfg)
     # available models
     models = list(model_cfg.keys())
-    capabilities = [(tool_cfg[tool_key]["name"], tool_key)
+    capabilities = [(tool_cfg[tool_key]['name'], tool_key)
                     for tool_key in tool_cfg.keys()
-                    if tool_cfg[tool_key].get("is_active", False)]
-    state["model_cfg"] = model_cfg
-    state["tool_cfg"] = tool_cfg
-    state["capabilities"] = capabilities
+                    if tool_cfg[tool_key].get('is_active', False)]
+    state['model_cfg'] = model_cfg
+    state['tool_cfg'] = tool_cfg
+    state['capabilities'] = capabilities
     bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''))[1]
-    suggests = builder_cfg.get("conversation_starters", [])
+    suggests = builder_cfg.get('conversation_starters', [])
     return [
         state,
         # config form
@@ -101,14 +101,14 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
         builder_cfg.get('description'),
         builder_cfg.get('instruction'),
         gr.Dropdown.update(
-            value=builder_cfg.get("model", models[0]), choices=models),
+            value=builder_cfg.get('model', models[0]), choices=models),
         [[str] for str in suggests],
-        builder_cfg.get("knowledge", [])
-        if len(builder_cfg["knowledge"]) > 0 else None,
+        builder_cfg.get('knowledge', [])
+        if len(builder_cfg['knowledge']) > 0 else None,
         gr.CheckboxGroup.update(
             value=[
-                tool for tool in builder_cfg.get("tools", {}).keys()
-                if builder_cfg.get("tools").get(tool).get("use", False)
+                tool for tool in builder_cfg.get('tools', {}).keys()
+                if builder_cfg.get('tools').get(tool).get('use', False)
             ],
             choices=capabilities),
         # bot
@@ -137,7 +137,7 @@ def format_preview_send_message_ret(preview_chatbot):
 def preview_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
-    preview_chatbot.append((preview_chat_input, ""))
+    preview_chatbot.append((preview_chat_input, ''))
     yield format_preview_send_message_ret(preview_chatbot)
 
     response = ''
@@ -145,7 +145,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
     for frame in user_agent.stream_run(
             preview_chat_input, print_info=True, remote=False):
         # is_final = frame.get("frame_is_final")
-        llm_result = frame.get("llm_text", "")
+        llm_result = frame.get('llm_text', '')
         exec_result = frame.get('exec_result', '')
         print(frame)
         # llm_result = llm_result.split("<|user|>")[0].strip()
@@ -166,26 +166,26 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
 
 def process_configuration(bot_avatar, name, description, instructions, model,
                           suggestions, files, capabilities_checkboxes, state):
-    tool_cfg = state["tool_cfg"]
-    capabilities = state["capabilities"]
+    tool_cfg = state['tool_cfg']
+    capabilities = state['capabilities']
 
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar)
     suggestions_filtered = [row for row in suggestions if row[0]]
     builder_cfg = {
-        "name": name,
-        "avatar": bot_avatar,
-        "description": description,
-        "instruction": instructions,
-        "conversation_starters": [row[0] for row in suggestions_filtered],
-        "knowledge": list(map(lambda file: file.name, files or [])),
-        "tools": {
+        'name': name,
+        'avatar': bot_avatar,
+        'description': description,
+        'instruction': instructions,
+        'conversation_starters': [row[0] for row in suggestions_filtered],
+        'knowledge': list(map(lambda file: file.name, files or [])),
+        'tools': {
             capability: dict(
-                name=tool_cfg[capability]["name"],
-                is_active=tool_cfg[capability]["is_active"],
+                name=tool_cfg[capability]['name'],
+                is_active=tool_cfg[capability]['is_active'],
                 use=True if capability in capabilities_checkboxes else False)
             for capability in map(lambda item: item[1], capabilities)
         },
-        "model": model,
+        'model': model,
     }
 
     save_builder_configuration(builder_cfg)
@@ -202,80 +202,80 @@ def process_configuration(bot_avatar, name, description, instructions, model,
 
 
 # 创建 Gradio 界面
-demo = gr.Blocks(css="assets/app.css")
+demo = gr.Blocks(css='assets/app.css')
 with demo:
     state = gr.State({})
 
     with gr.Row():
         with gr.Column():
             with gr.Tabs():
-                with gr.Tab("Create"):
+                with gr.Tab('Create'):
                     with gr.Column():
                         # "Create" 标签页的 Chatbot 组件
-                        create_chatbot = gr.Chatbot(label="Create Chatbot")
+                        create_chatbot = gr.Chatbot(label='Create Chatbot')
                         create_chat_input = gr.Textbox(
-                            label="Message",
-                            placeholder="Type a message here...")
-                        create_send_button = gr.Button("Send")
+                            label='Message',
+                            placeholder='Type a message here...')
+                        create_send_button = gr.Button('Send')
 
-                configure_tab = gr.Tab("Configure")
+                configure_tab = gr.Tab('Configure')
                 with configure_tab:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
                         with gr.Row():
                             bot_avatar_comp = gr.Image(
-                                label="Avatar",
-                                placeholder="Chatbot avatar image",
-                                source="upload",
+                                label='Avatar',
+                                placeholder='Chatbot avatar image',
+                                source='upload',
                                 interactive=True,
-                                type="filepath",
+                                type='filepath',
                                 scale=1,
                                 width=182,
                                 height=182,
                             )
                             with gr.Column(scale=4):
                                 name_input = gr.Textbox(
-                                    label="Name", placeholder="Name your GPT")
+                                    label='Name', placeholder='Name your GPT')
                                 description_input = gr.Textbox(
-                                    label="Description",
+                                    label='Description',
                                     placeholder=
-                                    "Add a short description about what this GPT does"
+                                    'Add a short description about what this GPT does'
                                 )
 
                         instructions_input = gr.Textbox(
-                            label="Instructions",
+                            label='Instructions',
                             placeholder=
-                            "What does this GPT do? How does it behave? What should it avoid doing?",
+                            'What does this GPT do? How does it behave? What should it avoid doing?',
                             lines=3)
                         model_selector = model_selector = gr.Dropdown(
                             label='model')
                         suggestion_input = gr.Dataframe(
                             show_label=False,
                             value=[['']],
-                            datatype=["str"],
+                            datatype=['str'],
                             headers=['prompt suggestion'],
-                            type="array",
-                            col_count=(1, "fixed"),
+                            type='array',
+                            col_count=(1, 'fixed'),
                             interactive=True)
                         knowledge_input = gr.File(
-                            label="Knowledge",
-                            file_count="multiple",
-                            file_types=["text", ".json", ".csv"])
+                            label='Knowledge',
+                            file_count='multiple',
+                            file_types=['text', '.json', '.csv'])
                         capabilities_checkboxes = gr.CheckboxGroup(
-                            label="Capabilities")
+                            label='Capabilities')
 
-                        with gr.Accordion("配置选项", open=False):
+                        with gr.Accordion('配置选项', open=False):
                             schema1 = gr.Textbox(
-                                label="Schema",
-                                placeholder="Enter your OpenAPI schema here")
+                                label='Schema',
+                                placeholder='Enter your OpenAPI schema here')
                             auth1 = gr.Radio(
-                                label="Authentication",
-                                choices=["None", "API Key", "OAuth"])
+                                label='Authentication',
+                                choices=['None', 'API Key', 'OAuth'])
                             privacy_policy1 = gr.Textbox(
-                                label="Privacy Policy",
-                                placeholder="Enter privacy policy URL")
+                                label='Privacy Policy',
+                                placeholder='Enter privacy policy URL')
 
-                        configure_button = gr.Button("Update Configuration")
+                        configure_button = gr.Button('Update Configuration')
 
         with gr.Column():
             # Preview
@@ -284,20 +284,20 @@ with demo:
             user_chat_bot_cover = gr.HTML(format_cover_html({}, None))
             user_chatbot = ChatBot(
                 value=[[None, None]],
-                elem_id="user_chatbot",
-                elem_classes=["markdown-body"],
-                avatar_images=get_avatar_image(""),
+                elem_id='user_chatbot',
+                elem_classes=['markdown-body'],
+                avatar_images=get_avatar_image(''),
                 height=550,
                 latex_delimiters=[],
                 show_label=False,
                 visible=False)
             preview_chat_input = gr.Textbox(
-                label="Send a message", placeholder="Type a message...")
+                label='Send a message', placeholder='Type a message...')
             user_chat_bot_suggest = gr.Dataset(
-                label="Prompt Suggestions",
+                label='Prompt Suggestions',
                 components=[preview_chat_input],
                 samples=[])
-            preview_send_button = gr.Button("Send")
+            preview_send_button = gr.Button('Send')
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],

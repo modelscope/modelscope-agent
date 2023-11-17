@@ -35,7 +35,7 @@ def init_builder_chatbot_agent():
 
     # additional tool
     additional_tool_list = {LOGO_TOOL_NAME: LogoGeneratorTool()}
-    tool_cfg = {LOGO_TOOL_NAME: {"is_remote_tool": True}}
+    tool_cfg = {LOGO_TOOL_NAME: {'is_remote_tool': True}}
 
     # build llm
     print(f'using model {builder_cfg.model}')
@@ -51,7 +51,7 @@ def init_builder_chatbot_agent():
         'content': PROMPT_CUSTOM
     }, {
         'role': 'assistant',
-        'content': "好的。"
+        'content': '好的。'
     }]
 
     # prompt generator

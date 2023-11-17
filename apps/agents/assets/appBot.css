@@ -9,10 +9,9 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 550px;
+  min-height: 300px;
   border: 1px solid rgb(229, 231, 235);
-  border-radius: 8px;
-  padding: 20px 40px;
+  padding: 20px 20px;
 }
 
 .bot_avatar {
@@ -34,4 +33,8 @@
 
 .bot_desp {
   color: #ddd;
+}
+
+.container {
+  flex-direction: row-reverse;
 }

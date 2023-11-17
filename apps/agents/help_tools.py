@@ -63,14 +63,14 @@ def call_wanx(prompt, save_path):
 
 
 class LogoGeneratorTool(Tool):
-    description = "logo_designer是一个AI绘制logo的服务，输入用户对 CustomGPT 的要求，会生成 CustomGPT 的logo。"
+    description = 'logo_designer是一个AI绘制logo的服务，输入用户对 CustomGPT 的要求，会生成 CustomGPT 的logo。'
     name = 'logo_designer'
     parameters: list = [{
-        "name": "user_requirement",
-        "description": "用户对 CustomGPT logo的要求和建议",
-        "required": True,
-        "schema": {
-            "type": "string"
+        'name': 'user_requirement',
+        'description': '用户对 CustomGPT logo的要求和建议',
+        'required': True,
+        'schema': {
+            'type': 'string'
         },
     }]
 

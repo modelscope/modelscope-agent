@@ -10,22 +10,22 @@ from gradio.components import Chatbot as ChatBotBase
 from modelscope_agent.output_parser import MRKLOutputParser
 from PIL import Image
 
-ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"
+ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
 
 
 # 图片本地路径转换为 base64 格式
 def covert_image_to_base64(image_path):
-    image = Image.open(image_path).convert("RGB")
+    image = Image.open(image_path).convert('RGB')
     # 创建一个内存字节流
     image_stream = io.BytesIO()
     # 将图片保存到字节流中，格式自动识别
-    image.save(image_stream, format="JPEG")
+    image.save(image_stream, format='JPEG')
     # 获取字节流内容
     image_data = image_stream.getvalue()
     # 转换为base64编码
     base64_data = base64.b64encode(image_data).decode('utf-8')
     # 生成base64编码的地址
-    base64_url = f"data:image/jpeg;base64,{base64_data}"
+    base64_url = f'data:image/jpeg;base64,{base64_data}'
     return base64_url
 
 
@@ -33,7 +33,7 @@ def format_cover_html(configuration, bot_avatar_path):
     if bot_avatar_path:
         image_src = covert_image_to_base64(bot_avatar_path)
     else:
-        image_src = "//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg"
+        image_src = '//img.alicdn.com/imgextra/i3/O1CN01YPqZFO1YNZerQfSBk_!!6000000003047-0-tps-225-225.jpg'
     return f"""
 <div class="bot_cover">
     <div class="bot_avatar">
@@ -48,18 +48,18 @@ def format_cover_html(configuration, bot_avatar_path):
 class ChatBot(ChatBotBase):
 
     def normalize_markdown(self, bot_message):
-        lines = bot_message.split("\n")
+        lines = bot_message.split('\n')
         normalized_lines = []
         inside_list = False
 
         for i, line in enumerate(lines):
-            if re.match(r"^(\d+\.|-|\*|\+)\s", line.strip()):
-                if not inside_list and i > 0 and lines[i - 1].strip() != "":
-                    normalized_lines.append("")
+            if re.match(r'^(\d+\.|-|\*|\+)\s', line.strip()):
+                if not inside_list and i > 0 and lines[i - 1].strip() != '':
+                    normalized_lines.append('')
                 inside_list = True
                 normalized_lines.append(line)
-            elif inside_list and line.strip() == "":
-                if i < len(lines) - 1 and not re.match(r"^(\d+\.|-|\*|\+)\s",
+            elif inside_list and line.strip() == '':
+                if i < len(lines) - 1 and not re.match(r'^(\d+\.|-|\*|\+)\s',
                                                        lines[i + 1].strip()):
                     normalized_lines.append(line)
                 continue
@@ -67,7 +67,7 @@ class ChatBot(ChatBotBase):
                 inside_list = False
                 normalized_lines.append(line)
 
-        return "\n".join(normalized_lines)
+        return '\n'.join(normalized_lines)
 
     def convert_markdown(self, bot_message):
         if bot_message.count('```') % 2 != 0:
@@ -95,7 +95,7 @@ class ChatBot(ChatBotBase):
                     'truly_sane': True,
                 }
             })
-        result = "".join(result)
+        result = ''.join(result)
         return result
 
     @staticmethod
@@ -326,10 +326,10 @@ class ChatBot(ChatBotBase):
         for message_pair in message_pairs:
             assert isinstance(
                 message_pair, (tuple, list)
-            ), f"Expected a list of lists or list of tuples. Received: {message_pair}"
+            ), f'Expected a list of lists or list of tuples. Received: {message_pair}'
             assert (
                 len(message_pair) == 2
-            ), f"Expected a list of lists of length 2 or list of tuples of length 2. Received: {message_pair}"
+            ), f'Expected a list of lists of length 2 or list of tuples of length 2. Received: {message_pair}'
             if isinstance(message_pair[0], tuple) or isinstance(
                     message_pair[1], tuple):
                 processed_messages.append([
@@ -344,7 +344,7 @@ class ChatBot(ChatBotBase):
                         ALREADY_CONVERTED_MARK):
                     convert_md = self.convert_markdown(
                         html.escape(user_message))
-                    user_message = f"{convert_md}" + ALREADY_CONVERTED_MARK
+                    user_message = f'{convert_md}' + ALREADY_CONVERTED_MARK
                 if bot_message and not bot_message.endswith(
                         ALREADY_CONVERTED_MARK):
                     # bot_message = self.convert_bot_message(bot_message)

@@ -5,10 +5,10 @@ import json
 
 from modelscope.utils.config import Config
 
-DEFAULT_BUILDER_CONFIG_DIR = "./config"
-DEFAULT_BUILDER_CONFIG_FILE = "./config/builder_config.json"
-DEFAULT_MODEL_CONFIG_FILE = "./config/model_config.json"
-DEFAULT_TOOL_CONFIG_FILE = "./config/tool_config.json"
+DEFAULT_BUILDER_CONFIG_DIR = './config'
+DEFAULT_BUILDER_CONFIG_FILE = './config/builder_config.json'
+DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
+DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 
 
 def save_builder_configuration(builder_cfg):
@@ -30,7 +30,7 @@ def get_avatar_image(bot_avatar):
 
 def save_avatar_image(image_path):
     file_extension = os.path.splitext(image_path)[1]
-    bot_avatar = f"custom_bot_avatar{file_extension}"
+    bot_avatar = f'custom_bot_avatar{file_extension}'
     bot_avatar_path = os.path.join(
         os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, bot_avatar)
     shutil.copy(image_path, bot_avatar_path)
