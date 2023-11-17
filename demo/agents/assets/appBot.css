@@ -1,0 +1,40 @@
+.preview_header {
+  font-size: 24px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.bot_cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  border: 1px solid rgb(229, 231, 235);
+  padding: 20px 20px;
+}
+
+.bot_avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.bot_avatar img {
+  width: 100px;
+  height: 100px;
+}
+
+.bot_name {
+  font-size: 36px;
+  margin-top: 10px;
+}
+
+.bot_desp {
+  color: #ddd;
+}
+
+.container {
+  flex-direction: row-reverse;
+}
