@@ -1,5 +1,5 @@
 dashscope
-fasis-cpu
+faiss-cpu
 gradio==3.47.1
 langchain
 markdown-cjk-spacing
