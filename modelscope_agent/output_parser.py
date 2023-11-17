@@ -10,7 +10,7 @@ def get_output_parser(agent_type: AgentType = AgentType.DEFAULT):
         return MsOutputParser()
     elif AgentType.MRKL == agent_type:
         return MRKLOutputParser()
-    elif AgentType.OPENAI_FUNCTIONS == agent_type:
+    elif AgentType.Messages == agent_type:
         return OpenAiFunctionsOutputParser()
     else:
         raise NotImplementedError

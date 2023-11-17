@@ -24,7 +24,7 @@ applications. Packages like ffmpeg and pandoc that are well-supported and powerf
 """
 
 
-class OpenAiFunctionsPromptGenerator(PromptGenerator):
+class MessagesGenerator(PromptGenerator):
 
     def __init__(self,
                  system_template=OPENAI_DEFAULT_SYSTEM_TEMPLATE,
@@ -38,10 +38,11 @@ class OpenAiFunctionsPromptGenerator(PromptGenerator):
         super().__init__(system_template, instruction_template, user_template,
                          exec_template, assistant_template, sep,
                          prompt_max_length)
-        self.custom_starter_messages = kwargs.get('custom_starter_message',
+        self.custom_starter_messages = kwargs.get('custom_starter_messages',
                                                   None)
 
-    def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
+    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
+                    **kwargs):
         """
         in this function, the prompt will be initialized.
         """

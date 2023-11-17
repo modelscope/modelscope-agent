@@ -27,7 +27,7 @@ class OpenAi(LLM):
                  functions=[],
                  function_call='none',
                  **kwargs):
-        if self.agent_type != AgentType.OPENAI_FUNCTIONS:
+        if self.agent_type != AgentType.Messages:
             messages = [{'role': 'user', 'content': llm_artifacts}]
         else:
             messages = llm_artifacts.get(
@@ -67,7 +67,7 @@ class OpenAi(LLM):
             if idx != -1:
                 content = content[:idx + len('<|endofthink|>')]
             return content
-        elif self.agent_type == AgentType.OPENAI_FUNCTIONS:
+        elif self.agent_type == AgentType.Messages:
             return message
         else:
             return content

@@ -7,9 +7,7 @@ import re
 import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
-from modelscope_agent.agent_types import AgentType
-from modelscope_agent.output_parser import (MRKLOutputParser, MsOutputParser,
-                                            OpenAiFunctionsOutputParser)
+from modelscope_agent.output_parser import MRKLOutputParser
 from PIL import Image
 
 ALREADY_CONVERTED_MARK = "<!-- ALREADY CONVERTED BY PARSER. -->"

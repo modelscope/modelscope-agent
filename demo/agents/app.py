@@ -2,37 +2,37 @@ import sys
 import traceback
 
 import gradio as gr
-from config_utils import (get_avatar_image, parse_configuration,
+from builder_core import init_builder_chatbot_agent
+from config_utils import (Config, get_avatar_image, parse_configuration,
                           save_avatar_image, save_builder_configuration)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
-sys.path.append('../')
 
-
-def update_preview(messages, preview_chat_input, name, description,
-                   instructions, conversation_starters, knowledge_files,
-                   capabilities_checkboxes):
-    # 如果有文件被上传，获取所有文件名
-    filenames = [f.name for f in knowledge_files
-                 ] if knowledge_files else ["No files uploaded"]
-    # 模拟生成预览，这里只是简单地返回输入的文本和选择的功能
-    preview_text = f"Name: {name}\n"
-    preview_text += f"Description: {description}\n"
-    preview_text += f"Conversation starters: {', '.join(conversation_starters)}\n"
-    preview_text += f"knowledge files: {', '.join(filenames)}\n"
-    preview_text += f"Capabilities: {', '.join(capabilities_checkboxes)}\n"
-    messages.append((preview_chat_input, preview_text))
-    return messages, preview_chat_input
-
-
-def create_send_message(messages, message):
-    # 模拟发送消息
-    messages.append(("You", message))
-    # 假设这里有一个生成响应的逻辑
-    bot_response = "这是模拟的回应。"
-    messages.append(("Bot", bot_response))
-    return messages, ""
+def create_send_message(preview_chatbot, preview_chat_input, state):
+    # 将发送的消息添加到聊天历史
+    builder_agent = state['builder_agent']
+    preview_chatbot.append((preview_chat_input, ""))
+    yield preview_chatbot
+    response = ''
+    for frame in builder_agent.stream_run(preview_chat_input, print_info=True):
+        llm_result = frame.get("llm_text", "")
+        exec_result = frame.get('exec_result', '')
+        print(frame)
+        if len(exec_result) != 0:
+            if isinstance(exec_result, dict):
+                exec_result = str(exec_result['result'])
+                assert isinstance(exec_result, Config)
+        else:
+            # llm result
+            if isinstance(llm_result, dict):
+                content = llm_result['content']
+            else:
+                content = llm_result
+            frame_text = content
+        response = f'{response}\n{frame_text}'
+        preview_chatbot[-1] = (preview_chat_input, response)
+        yield preview_chatbot
 
 
 def init_user(state):
@@ -42,6 +42,15 @@ def init_user(state):
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
     state['user_agent'] = user_agent
+
+
+def init_builder(state):
+    try:
+        builder_agent = init_builder_chatbot_agent()
+    except Exception as e:
+        error = traceback.format_exc()
+        print(f'Error:{e}, with detail: {error}')
+    state['builder_agent'] = builder_agent
 
 
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
@@ -85,13 +94,8 @@ def init_all(state):
     ret = init_ui_config(state, builder_cfg, model_cfg, tool_cfg)
     yield ret
     init_user(state)
+    init_builder(state)
     yield ret
-
-
-def reset_agent(state):
-    user_agent = state['user_agent']
-    user_agent.reset()
-    state['user_agent'] = user_agent
 
 
 def format_preview_send_message_ret(preview_chatbot):
@@ -105,7 +109,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
     preview_chatbot.append((preview_chat_input, ""))
-    yield format_preview_send_message_ret(preview_chatbot)
+    yield preview_chatbot
 
     response = ''
 
@@ -126,7 +130,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             frame_text = llm_result
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
-        yield format_preview_send_message_ret(preview_chatbot)
+        yield preview_chatbot
 
 
 def process_configuration(bot_avatar, name, description, instructions, model,
@@ -270,8 +274,8 @@ with demo:
     # 配置 "Create" 标签页的消息发送功能
     create_send_button.click(
         create_send_message,
-        inputs=[create_chatbot, create_chat_input],
-        outputs=[create_chatbot, create_chat_input])
+        inputs=[create_chatbot, create_chat_input, state],
+        outputs=[create_chatbot])
 
     # 配置 "Configure" 标签页的提交按钮功能
     configure_button.click(
@@ -283,12 +287,6 @@ with demo:
         ],
         outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest, suggestion_input])
 
-    # Preview 列消息发送
-    # preview_send_button.click(
-    #     lambda _: [gr.Chatbot.update(visible=True), gr.HTML.update(visible=False)],
-    #     inputs=[],
-    #     outputs=[user_chatbot, user_chat_bot_cover]
-    # )
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],

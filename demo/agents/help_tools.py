@@ -3,15 +3,14 @@ from http import HTTPStatus
 
 import json
 import requests
-from config_utils import DEFAULT_BUILDER_CONFIG_FILE, DEFAULT_MODEL_CONFIG_FILE
-from dashscope import Generation, ImageSynthesis
-from modelscope_agent.agent_types import AgentType
-from modelscope_agent.llm import LLMFactory
+from config_utils import DEFAULT_BUILDER_CONFIG_FILE
+from dashscope import ImageSynthesis
 from modelscope_agent.tools import Tool
 
 from modelscope.utils.config import Config
 
-LOGO_PATH = 'logo.png'
+LOGO_PATH = './config/logo.png'
+LOGO_NAME = 'logo.png'
 
 CONFIG_FORMAT = """
 {
@@ -85,17 +84,19 @@ class LogoGeneratorTool(Tool):
             description=builder_cfg.description,
             user_requirement=user_requirement)
         call_wanx(prompt=avatar_prompt, save_path=LOGO_PATH)
-        builder_cfg.avatar = LOGO_PATH
-        builder_cfg.dump(builder_cfg_file)
-        return {'result': 'logo已经生成啦'}
+        builder_cfg.avatar = LOGO_NAME
+        return {'result': builder_cfg}
 
 
-def config_conversion(generated_config: dict):
+def config_conversion(generated_config: dict, save=False):
     """
     convert
     {
         name: "铁人",
-        description: "我希望我的CustomQwen是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。它还可以帮我跟踪和记录每次的力量训练数据，以及提供相应的反馈和建议，帮助我不断改进和优化我的训练计划。此外，我希望它可以拥有一些特殊技能和功能，让它更加实用和有趣。例如，它可以帮助我预测未来的身体状况、分析我的营养摄入情况、提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",
+        description: "我希望我的CustomQwen是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。
+        它还可以帮我跟踪和记录每次的力量训练数据，以及提供相应的反馈和建议，帮助我不断改进和优化我的训练计划。
+        此外，我希望它可以拥有一些特殊技能和功能，让它更加实用和有趣。例如，它可以帮助我预测未来的身体状况、分析我的营养摄入情况、
+        提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",
         instructions: [
             "提供力量训练相关的建议和指南",
             "跟踪和记录每次的力量训练数据",
@@ -115,8 +116,12 @@ def config_conversion(generated_config: dict):
     to
     {
         name: "铁人",
-        description: "我希望我的CustomQwen是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。它还可以帮我跟踪和记录每次的力量训练数据，以及提供相应的反馈和建议，帮助我不断改进和优化我的训练计划。此外，我希望它可以拥有一些特殊技能和功能，让它更加实用和有趣。例如，它可以帮助我预测未来的身体状况、分析我的营养摄入情况、提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",
-        instructions: "提供力量训练相关的建议和指南；跟踪和记录每次的力量训练数据；提供反馈和建议，帮助改进和优化训练计划；预测未来的身体状况；分析营养摄入情况；提供心理支持",
+        description: "我希望我的CustomQwen是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。
+        它还可以帮我跟踪和记录每次的力量训练数据，以及提供相应的反馈和建议，帮助我不断改进和优化我的训练计划。
+        此外，我希望它可以拥有一些特殊技能和功能，让它更加实用和有趣。例如，它可以帮助我预测未来的身体状况、
+        分析我的营养摄入情况、提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",
+        instructions: "提供力量训练相关的建议和指南；跟踪和记录每次的力量训练数据；提供反馈和建议，帮助改进和优化训练计划；
+        预测未来的身体状况；分析营养摄入情况；提供心理支持",
         conversation_starters: [
             "你好，今天的锻炼计划是什么呢？",
             "你觉得哪种器械最适合练背部肌肉呢？",
@@ -137,7 +142,13 @@ def config_conversion(generated_config: dict):
         builder_cfg.description = generated_config['description']
         builder_cfg.conversation_starters = generated_config[
             'conversation_starters']
-        builder_cfg.instructions = '；'.join(generated_config['instructions'])
-        builder_cfg.dump(builder_cfg_file)
+        builder_cfg.instruction = '；'.join(generated_config['instructions'])
+        if save:
+            json.dump(
+                builder_cfg.to_dict(),
+                open(builder_cfg_file, 'w'),
+                indent=2,
+                ensure_ascii=False)
+        return builder_cfg
     except ValueError as e:
         raise ValueError(f'failed to save the configuration with info: {e}')
