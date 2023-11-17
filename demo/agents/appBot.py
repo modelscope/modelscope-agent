@@ -2,7 +2,7 @@ import sys
 import traceback
 
 import gradio as gr
-from config_utils import parse_configuration, get_avatar_image
+from config_utils import get_avatar_image, parse_configuration
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
@@ -15,6 +15,7 @@ customTheme = gr.themes.Default(
     radius_size=gr.themes.utils.sizes.radius_none,
 )
 
+
 def init_user(state):
     try:
         user_agent = init_user_chatbot_agent()
@@ -23,6 +24,7 @@ def init_user(state):
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
     return state
+
 
 def send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
@@ -51,44 +53,46 @@ def send_message(preview_chatbot, preview_chat_input, state):
         preview_chatbot[-1] = (preview_chat_input, response)
         yield preview_chatbot
 
+
 # 创建 Gradio 界面
 demo = gr.Blocks(css="assets/appBot.css", theme=customTheme)
 with demo:
     state = gr.State({})
     with gr.Row(elem_classes="container"):
-      with gr.Column(scale=4):
-        with gr.Column():
-          # Preview
-          user_chatbot = ChatBot(
-              value=[[None, '尝试问我一点什么吧～']],
-              elem_id="user_chatbot",
-              elem_classes=["markdown-body"],
-              avatar_images=avatar_pairs,
-              height=600,
-              latex_delimiters=[],
-              show_label=False)
-        with gr.Row():
-            with gr.Column(scale=12):
-                preview_chat_input = gr.Textbox(show_label=False, container=False, placeholder="跟我聊聊吧～")
-            with gr.Column(min_width=70, scale=1):
-                preview_send_button = gr.Button("发送", variant="primary")
+        with gr.Column(scale=4):
+            with gr.Column():
+                # Preview
+                user_chatbot = ChatBot(
+                    value=[[None, '尝试问我一点什么吧～']],
+                    elem_id="user_chatbot",
+                    elem_classes=["markdown-body"],
+                    avatar_images=avatar_pairs,
+                    height=600,
+                    latex_delimiters=[],
+                    show_label=False)
+            with gr.Row():
+                with gr.Column(scale=12):
+                    preview_chat_input = gr.Textbox(
+                        show_label=False,
+                        container=False,
+                        placeholder="跟我聊聊吧～")
+                with gr.Column(min_width=70, scale=1):
+                    preview_send_button = gr.Button("发送", variant="primary")
 
-      with gr.Column(scale=1):
-        user_chat_bot_cover = gr.HTML(format_cover_html(builder_cfg, avatar_pairs[1]))
-        user_chat_bot_suggest = gr.Examples(
-            label="Prompt Suggestions",
-            examples=suggests,
-            inputs=[preview_chat_input])
-      
+        with gr.Column(scale=1):
+            user_chat_bot_cover = gr.HTML(
+                format_cover_html(builder_cfg, avatar_pairs[1]))
+            user_chat_bot_suggest = gr.Examples(
+                label="Prompt Suggestions",
+                examples=suggests,
+                inputs=[preview_chat_input])
+
     preview_send_button.click(
         send_message,
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot])
 
-    demo.load(
-        init_user,
-        inputs=[state],
-        outputs=[state])
+    demo.load(init_user, inputs=[state], outputs=[state])
 
 demo.queue()
 demo.launch()
