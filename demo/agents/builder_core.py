@@ -115,7 +115,8 @@ class BuilderChatbotAgent(AgentExecutor):
                 config = content[content.rfind('RichConfig:')
                                  + len('RichConfig:'):].strip()
                 answer = json.loads(config)
-                config_conversion(answer)
+                builder_cfg = config_conversion(answer)
+                yield {'exec_result': {'result': builder_cfg}}
             except ValueError as e:
                 print(e)
                 yield {'error content=[{}]'.format(content)}

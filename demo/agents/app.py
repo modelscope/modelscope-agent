@@ -3,7 +3,7 @@ import traceback
 
 import gradio as gr
 from builder_core import init_builder_chatbot_agent
-from config_utils import (get_avatar_image, parse_configuration,
+from config_utils import (Config, get_avatar_image, parse_configuration,
                           save_avatar_image, save_builder_configuration)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
@@ -20,7 +20,9 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
         exec_result = frame.get('exec_result', '')
         print(frame)
         if len(exec_result) != 0:
-            frame_text = ''
+            if isinstance(exec_result, dict):
+                exec_result = str(exec_result['result'])
+                assert isinstance(exec_result, Config)
         else:
             # llm result
             if isinstance(llm_result, dict):

@@ -85,16 +85,10 @@ class LogoGeneratorTool(Tool):
             user_requirement=user_requirement)
         call_wanx(prompt=avatar_prompt, save_path=LOGO_PATH)
         builder_cfg.avatar = LOGO_NAME
-        json.dump(
-            builder_cfg.to_dict(),
-            open(builder_cfg_file, 'w'),
-            indent=2,
-            ensure_ascii=False)
-
-        return {'result': 'logo已经生成啦'}
+        return {'result': builder_cfg}
 
 
-def config_conversion(generated_config: dict):
+def config_conversion(generated_config: dict, save=False):
     """
     convert
     {
@@ -149,10 +143,12 @@ def config_conversion(generated_config: dict):
         builder_cfg.conversation_starters = generated_config[
             'conversation_starters']
         builder_cfg.instruction = '；'.join(generated_config['instructions'])
-        json.dump(
-            builder_cfg.to_dict(),
-            open(builder_cfg_file, 'w'),
-            indent=2,
-            ensure_ascii=False)
+        if save:
+            json.dump(
+                builder_cfg.to_dict(),
+                open(builder_cfg_file, 'w'),
+                indent=2,
+                ensure_ascii=False)
+        return builder_cfg
     except ValueError as e:
         raise ValueError(f'failed to save the configuration with info: {e}')
