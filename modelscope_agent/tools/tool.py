@@ -58,7 +58,7 @@ class Tool:
         except ValidationError:
             raise ValueError(f'Error when parsing parameters of {self.name}')
 
-        self._str = self.tool_schema.model_dump_json()
+        self._str = self.tool_schema.json(ensure_ascii=False)
 
     def __call__(self, remote=False, *args, **kwargs):
         if self.is_remote_tool or remote:

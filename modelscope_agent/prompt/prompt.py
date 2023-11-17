@@ -1,6 +1,7 @@
 import re
-
-
+from ..memory import memory,LTM
+from ..memory.long_term_memroy import DATA_PATH
+from pathlib import Path
 class PromptGenerator:
 
     def __init__(self,
@@ -44,10 +45,16 @@ class PromptGenerator:
         """
         prompt = self.sep.join(
             [self.system_template, self.instruction_template])
-        prompt += f'<knowledge><history>{self.sep}{self.user_template}'
+        prompt += f'这里是参考的历史信息,若没有信息则无需参考。<long_term_memory><knowledge>这里是多轮对话历史。<history>{self.sep}{self.user_template}'
 
         knowledge_str = self.get_knowledge_str(knowledge_list)
-
+        # long_term_memory
+        existing_files = list(Path(DATA_PATH / 'faiss_index').glob("*.pkl"))  # 获取路径下所有的.pkl文件
+        if existing_files:  # 如果存在.pkl文件，表示已有旧的向量库
+            long_term_memory_str = LTM().search(task)
+        else:
+            long_term_memory_str = ""
+        prompt = prompt.replace('<long_term_memory>', long_term_memory_str)
         # knonwledge
         prompt = prompt.replace('<knowledge>', knowledge_str)
         # user input
@@ -61,18 +68,22 @@ class PromptGenerator:
 
         prompt = prompt.replace('<history>', history_str)
         prompt += f'{self.sep}{self.assistant_template}'
-
+        #print("wwwwwwww",self.assistant_template)
         # store history
-        self.history.append({
-            'role':
-            'user',
-            'content':
-            self.user_template.replace('<user_input>', task)
-        })
-        self.history.append({
-            'role': 'assistant',
-            'content': self.assistant_template
-        })
+        try:
+            self.history = memory(self.user_template,self.assistant_template).store(task)
+        except Exception as e:
+            print(f"存储工作记忆时发生异常: {e}")
+        # self.history.append({
+        #     'role':
+        #     'user',
+        #     'content':
+        #     self.user_template.replace('<user_input>', task)
+        # })
+        # self.history.append({
+        #     'role': 'assistant',
+        #     'content': self.assistant_template
+        # })
 
         self.prompt = prompt
         return self.prompt
@@ -89,8 +100,9 @@ class PromptGenerator:
                                                      str(exec_result))
             self.prompt = f'{self.prompt}{self.sep}{exec_result}'
             self.history[-1]['content'] += f'{self.sep}{exec_result}'
-
-        return self.prompt
+        # print("wwwwww",self.history[-1]['content'])
+        #print("wwwwwwwww",self.history)
+        return self.prompt,self.history
 
     def get_tool_str(self, tool_list):
         """generate tool list string
