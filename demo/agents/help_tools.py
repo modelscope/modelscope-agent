@@ -9,8 +9,8 @@ from modelscope_agent.tools import Tool
 
 from modelscope.utils.config import Config
 
-LOGO_PATH = './config/logo.png'
-LOGO_NAME = 'logo.png'
+LOGO_PATH = './config/custom_bot_avatar.png'
+LOGO_NAME = 'custom_bot_avatar.png'
 
 CONFIG_FORMAT = """
 {
@@ -93,7 +93,7 @@ def config_conversion(generated_config: dict, save=False):
     convert
     {
         name: "铁人",
-        description: "我希望我的CustomQwen是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。
+        description: "我希望我的AI-Agent是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。
         它还可以帮我跟踪和记录每次的力量训练数据，以及提供相应的反馈和建议，帮助我不断改进和优化我的训练计划。
         此外，我希望它可以拥有一些特殊技能和功能，让它更加实用和有趣。例如，它可以帮助我预测未来的身体状况、分析我的营养摄入情况、
         提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",
@@ -116,7 +116,7 @@ def config_conversion(generated_config: dict, save=False):
     to
     {
         name: "铁人",
-        description: "我希望我的CustomQwen是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。
+        description: "我希望我的AI-Agent是一个专业的健身教练，专注于力量训练方面，可以提供相关的建议和指南。
         它还可以帮我跟踪和记录每次的力量训练数据，以及提供相应的反馈和建议，帮助我不断改进和优化我的训练计划。
         此外，我希望它可以拥有一些特殊技能和功能，让它更加实用和有趣。例如，它可以帮助我预测未来的身体状况、
         分析我的营养摄入情况、提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",

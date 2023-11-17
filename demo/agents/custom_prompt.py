@@ -170,10 +170,10 @@ def parse_role_config(config: dict):
     # replace special words
     for key in config:
         if isinstance(config[key], str):
-            config[key] = config[key].replace('CustomQwen', 'AI助手')
+            config[key] = config[key].replace('AI-Agent', 'AI助手')
         elif isinstance(config[key], list):
             for i in range(len(config[key])):
-                config[key][i] = config[key][i].replace('CustomQwen', 'AI助手')
+                config[key][i] = config[key][i].replace('AI-Agent', 'AI助手')
         else:
             pass
 

@@ -23,7 +23,8 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
             if isinstance(exec_result, dict):
                 exec_result = exec_result['result']
                 assert isinstance(exec_result, Config)
-                yield format_create_send_message_ret(state, preview_chatbot, exec_result.to_dict())
+                yield format_create_send_message_ret(state, preview_chatbot,
+                                                     exec_result.to_dict())
         else:
             # llm result
             if isinstance(llm_result, dict):
@@ -31,9 +32,10 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
             else:
                 content = llm_result
             frame_text = content
-        response = f'{response}\n{frame_text}'
-        preview_chatbot[-1] = (preview_chat_input, response)
-        yield format_create_send_message_ret(state, preview_chatbot)
+            response = f'{response}\n{frame_text}'
+            preview_chatbot[-1] = (preview_chat_input, response)
+            yield format_create_send_message_ret(state, preview_chatbot)
+
 
 def format_create_send_message_ret(state, chatbot, builder_cfg=None):
     if builder_cfg:
@@ -44,8 +46,7 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
         save_builder_configuration(builder_cfg)
         state['configure_updated'] = True
         return [
-            state,
-            chatbot,
+            state, chatbot,
             gr.HTML.update(
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
@@ -55,12 +56,12 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
         ]
     else:
         return [
-            state, 
-            chatbot, 
-            gr.HTML.update(), 
-            gr.Chatbot.update(), 
+            state, chatbot,
+            gr.HTML.update(),
+            gr.Chatbot.update(),
             gr.Dataset.update(samples=None)
         ]
+
 
 def init_user(state):
     try:
@@ -70,6 +71,7 @@ def init_user(state):
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
 
+
 def init_builder(state):
     try:
         builder_agent = init_builder_chatbot_agent()
@@ -78,6 +80,7 @@ def init_builder(state):
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
 
+
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     print("builder_cfg:", builder_cfg)
     # available models
@@ -85,7 +88,7 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     capabilities = [(tool_cfg[tool_key]["name"], tool_key)
                     for tool_key in tool_cfg.keys()
                     if tool_cfg[tool_key].get("is_active", False)]
-    state["model_cfg"] =  model_cfg
+    state["model_cfg"] = model_cfg
     state["tool_cfg"] = tool_cfg
     state["capabilities"] = capabilities
     bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''))[1]
@@ -171,7 +174,7 @@ def process_configuration(bot_avatar, name, description, instructions, model,
         "avatar": bot_avatar,
         "description": description,
         "instruction": instructions,
-        "conversation_starters":  [row[0] for row in suggestions_filtered],
+        "conversation_starters": [row[0] for row in suggestions_filtered],
         "knowledge": list(map(lambda file: file.name, files or [])),
         "tools": {
             capability: dict(
@@ -318,19 +321,26 @@ with demo:
     def on_congifure_tab_select(_state):
         configure_updated = _state.get('configure_updated', False)
         if configure_updated:
-            builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
+            builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+            )
             _state['configure_updated'] = False
             return init_ui_config(_state, builder_cfg, model_cfg, tool_cfg)
         else:
             return {state: _state}
-    
-    configure_tab.select(on_congifure_tab_select, inputs=[state], outputs=configure_updated_outputs)
+
+    configure_tab.select(
+        on_congifure_tab_select,
+        inputs=[state],
+        outputs=configure_updated_outputs)
 
     # 配置 "Create" 标签页的消息发送功能
     create_send_button.click(
         create_send_message,
         inputs=[create_chatbot, create_chat_input, state],
-        outputs=[state, create_chatbot, user_chat_bot_cover, user_chatbot, user_chat_bot_suggest])
+        outputs=[
+            state, create_chatbot, user_chat_bot_cover, user_chatbot,
+            user_chat_bot_suggest
+        ])
 
     # 配置 "Configure" 标签页的提交按钮功能
     configure_button.click(
@@ -340,17 +350,17 @@ with demo:
             model_selector, suggestion_input, knowledge_input,
             capabilities_checkboxes, state
         ],
-        outputs=[user_chat_bot_cover, user_chatbot, user_chat_bot_suggest, suggestion_input])
+        outputs=[
+            user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,
+            suggestion_input
+        ])
 
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover])
 
-    demo.load(
-        init_all,
-        inputs=[state],
-        outputs=configure_updated_outputs)
+    demo.load(init_all, inputs=[state], outputs=configure_updated_outputs)
 
 demo.queue()
 demo.launch()
