@@ -244,7 +244,6 @@ class ChatBot(ChatBotBase):
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
-        TOOL_CALL = '工具调用'
         ACTION = 'Action:'
         ACTION_INPUT = 'Action Input'
         OBSERVATION = 'Observation'
@@ -252,15 +251,10 @@ class ChatBot(ChatBotBase):
         RESULT_END = '</result>'
         while start_pos < len(bot_message):
             try:
-                tool_call_pos = bot_message.index(TOOL_CALL, start_pos)
                 action_pos = bot_message.index(ACTION, start_pos)
                 action_input_pos = bot_message.index(ACTION_INPUT, start_pos)
-                if start_pos < tool_call_pos:
-                    result += self.convert_markdown(
-                        bot_message[start_pos:tool_call_pos])
-
-                # 工具调用
-
+                result += self.convert_markdown(
+                    bot_message[start_pos:action_pos])
                 # Action: image_gen
                 # Action Input
                 # {"text": "金庸武侠 世界", "resolution": "128 0x720"}
