@@ -4,7 +4,11 @@ class CustomOutputWrapper:
     def handle_message_chat_completion(response):
         message = {'content': ''}
         try:
-            message = response['choices'][0]['message']
+            # handle dashscope response
+            if 'choices' not in response:
+                response = response['output']
+
+            return response['choices'][0]['message']
         except Exception as e:
             print(f'input: {response}, original error: {str(e)}')
             return message

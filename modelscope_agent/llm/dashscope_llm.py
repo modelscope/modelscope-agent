@@ -34,9 +34,10 @@ class DashScopeLLM(LLM):
 
         # TODO retry and handle message
         try:
-            if self.agent_type == AgentType.OPENAI_FUNCTIONS:
+            if self.agent_type == AgentType.Messages:
                 messages = llm_artifacts if len(
                     llm_artifacts) > 0 else DEFAULT_MESSAGE
+                self.generate_cfg['use_raw_prompt'] = False
                 response = dashscope.Generation.call(
                     model=self.model,
                     messages=messages,
@@ -70,7 +71,7 @@ class DashScopeLLM(LLM):
             if idx != -1:
                 llm_result = llm_result[:idx + len('<|endofthink|>')]
             return llm_result
-        elif self.agent_type == AgentType.OPENAI_FUNCTIONS:
+        elif self.agent_type == AgentType.Messages:
             # in the form of message
             return llm_result
         else:
