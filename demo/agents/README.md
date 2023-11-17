@@ -20,7 +20,7 @@ clone repo and install dependency：
 
 ```bash
 git clone https://github.com/modelscope/modelscope-agent.git
-cd modelscope-agent && pip install -r demo/agents/requirements.txt
+cd modelscope-agent  && pip install -r requirements.txt && pip install -r demo/agents/requirements.txt
 ```
 
 ## Prerequisites
