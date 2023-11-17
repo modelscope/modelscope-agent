@@ -212,20 +212,10 @@ demo = gr.Blocks(css='assets/app.css')
 with demo:
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed})
-
     with gr.Row():
         with gr.Column():
-            with gr.Tabs():
-                with gr.Tab('Create'):
-                    with gr.Column():
-                        # "Create" 标签页的 Chatbot 组件
-                        create_chatbot = gr.Chatbot(label='Create Chatbot')
-                        create_chat_input = gr.Textbox(
-                            label='Message',
-                            placeholder='Type a message here...')
-                        create_send_button = gr.Button('Send')
-
-                configure_tab = gr.Tab('Configure')
+            with gr.Tabs() as tabs:
+                configure_tab = gr.Tab('Configure', id=1)
                 with configure_tab:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
@@ -283,6 +273,15 @@ with demo:
                                 placeholder='Enter privacy policy URL')
 
                         configure_button = gr.Button('Update Configuration')
+
+                with gr.TabItem('Create', id=0):
+                    with gr.Column():
+                        # "Create" 标签页的 Chatbot 组件
+                        create_chatbot = gr.Chatbot(label='Create Chatbot')
+                        create_chat_input = gr.Textbox(
+                            label='Message',
+                            placeholder='Type a message here...')
+                        create_send_button = gr.Button('Send')
 
         with gr.Column():
             # Preview
