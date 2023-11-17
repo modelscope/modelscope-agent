@@ -1,4 +1,4 @@
-# flake8: noqa
+# flake8: noqa E501
 import re
 from typing import Dict
 
