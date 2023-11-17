@@ -108,7 +108,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
     yield format_preview_send_message_ret(preview_chatbot)
 
     response = ''
-
+    
     for frame in user_agent.stream_run(
             preview_chat_input, print_info=True, remote=False):
         # is_final = frame.get("frame_is_final")
@@ -120,11 +120,13 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = f'Observation: {exec_result}'
+            frame_text = f'Observation: <result>{exec_result}</result>'
         else:
             # llm result
             frame_text = llm_result
-        response = f'{response}\n{frame_text}'
+
+        ## important! do not change this
+        response += frame_text
         preview_chatbot[-1] = (preview_chat_input, response)
         yield format_preview_send_message_ret(preview_chatbot)
 

@@ -77,23 +77,23 @@ class DashScopeLLM(LLM):
             # in the form of text
             return llm_result
 
-    #
-    # def stream_generate(self, prompt, functions, **kwargs):
-    #
-    #     total_response = ''
-    #     responses = Generation.call(
-    #         model=self.model, prompt=prompt, stream=True, **self.generate_cfg)
-    #
-    #     for response in responses:
-    #         if response.status_code == HTTPStatus.OK:
-    #             new_response = response.output['text']
-    #             frame_text = new_response[len(total_response):]
-    #             yield frame_text
-    #
-    #             idx = total_response.find('<|endofthink|>')
-    #             if idx != -1:
-    #                 break
-    #             total_response = new_response
-    #         else:
-    #             print('Code: %d, status: %s, message: %s' %
-    #                   (response.status_code, response.code, response.message))
+    
+    def stream_generate(self, prompt, functions, **kwargs):
+    
+        total_response = ''
+        responses = Generation.call(
+            model=self.model, prompt=prompt, stream=True, **self.generate_cfg)
+    
+        for response in responses:
+            if response.status_code == HTTPStatus.OK:
+                new_response = response.output['text']
+                frame_text = new_response[len(total_response):]
+                yield frame_text
+    
+                # idx = total_response.find('<|endofthink|>')
+                # if idx != -1:
+                #     break
+                total_response = new_response
+            else:
+                print('Code: %d, status: %s, message: %s' %
+                      (response.status_code, response.code, response.message))
