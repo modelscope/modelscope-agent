@@ -109,7 +109,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
     # 将发送的消息添加到聊天历史
     user_agent = state['user_agent']
     preview_chatbot.append((preview_chat_input, ""))
-    yield preview_chatbot
+    yield format_preview_send_message_ret(preview_chatbot)
 
     response = ''
 
@@ -130,7 +130,7 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
             frame_text = llm_result
         response = f'{response}\n{frame_text}'
         preview_chatbot[-1] = (preview_chat_input, response)
-        yield preview_chatbot
+        yield format_preview_send_message_ret(preview_chatbot)
 
 
 def process_configuration(bot_avatar, name, description, instructions, model,

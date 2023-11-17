@@ -1,8 +1,12 @@
 import copy
+import os
 import re
 
 import json
+from config_utils import DEFAULT_BUILDER_CONFIG_FILE
 from modelscope_agent.prompt.prompt import PromptGenerator, build_raw_prompt
+
+from modelscope.utils.config import Config
 
 DEFAULT_SYSTEM_TEMPLATE = """# 工具
 
@@ -21,7 +25,7 @@ Observation: 工具返回的结果
 """
 DEFAULT_INSTRUCTION_TEMPLATE = ""
 
-DEFAULT_USER_TEMPLATE = """<user_input>"""
+DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list>) <user_input>"""
 
 DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>"""
 
@@ -48,6 +52,10 @@ class CustomPromptGenerator(PromptGenerator):
         self.add_addition_round = kwargs.get('add_addition_round', False)
         self.addition_assistant_reply = kwargs.get('addition_assistant_reply',
                                                    '')
+        builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
+                                     DEFAULT_BUILDER_CONFIG_FILE)
+        builder_cfg = Config.from_file(builder_cfg_file)
+        self.builder_cfg = builder_cfg
 
     def init_prompt(self, task, tool_list, knowledge_list, llm_model):
         if len(self.history) == 0:
@@ -73,6 +81,11 @@ class CustomPromptGenerator(PromptGenerator):
 
             # user input
             user_input = self.user_template.replace('<user_input>', task)
+            user_input = user_input.replace('<role_name>',
+                                            self.builder_cfg.name)
+            user_input = user_input.replace(
+                '<tool_name_list>',
+                ','.join([tool.name for tool in tool_list]))
 
             self.system_prompt = copy.deepcopy(prompt)
 
