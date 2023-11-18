@@ -293,7 +293,7 @@ with demo:
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
                 avatar_images=get_avatar_image(''),
-                height=550,
+                height=650,
                 latex_delimiters=[],
                 show_label=False,
                 visible=False)

@@ -42,3 +42,17 @@
 .markdown-body .message {
   white-space: pre-wrap;
 }
+
+.markdown-body details {
+  white-space: nowrap;
+}
+.markdown-body .bot details:not(:last-child) {
+  margin-bottom: 1px;
+}
+.markdown-body summary {
+  background-color: #4b5563;
+  color: #eee;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
