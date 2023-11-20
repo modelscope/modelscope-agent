@@ -48,11 +48,13 @@ def send_message(preview_chatbot, preview_chat_input, state):
             # action_exec_result
             if isinstance(exec_result, dict):
                 exec_result = str(exec_result['result'])
-            frame_text = f'Observation: {exec_result}'
+            frame_text = f'Observation: <result>{exec_result}</result>'
         else:
             # llm result
             frame_text = llm_result
-        response = f'{response}\n{frame_text}'
+
+        # important! do not change this
+        response += frame_text
         preview_chatbot[-1] = (preview_chat_input, response)
         yield preview_chatbot
 
