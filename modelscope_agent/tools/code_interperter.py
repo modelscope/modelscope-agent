@@ -3,7 +3,11 @@ import re
 import traceback
 
 import appdirs
+import json
 
+from .code_interpreters.create_code_interpreter import create_code_interpreter
+from .code_interpreters.language_map import language_map
+from .code_interpreters.truncate_output import truncate_output
 from .tool import Tool
 
 
@@ -27,21 +31,6 @@ class CodeInterpreter(Tool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
-
-        # make sure open interpreter is in local mode
-        config_dir = appdirs.user_config_dir('Open Interpreter')
-        config_filename = 'config.yaml'
-        open_interpreter_config_path = os.path.join(config_dir,
-                                                    config_filename)
-        os.makedirs(config_dir, exist_ok=True)
-
-        with open(open_interpreter_config_path, 'w') as file:
-            file.write('local: true\n')
-
-        from interpreter.code_interpreters.create_code_interpreter import \
-            create_code_interpreter
-        from interpreter.code_interpreters.language_map import language_map
-        from interpreter.utils.truncate_output import truncate_output
         self.create_code_interpreter = create_code_interpreter
         self.language_map = language_map
         self.truncate_output = truncate_output
@@ -114,12 +103,19 @@ class CodeInterpreter(Tool):
                 if code_block:
                     result = code_block.group(1)
                     language = result.split('\n')[0]
-                    code = '\n'.join(result.split('\n')[1:])
-
-                    # handle py case
-                    if language == 'py':
+                    if language == 'py' or language == 'python':
+                        # handle py case
+                        # ```py code ```
                         language = 'python'
-                    return language, code
+                        code = '\n'.join(result.split('\n')[1:])
+                        return language, code
+
+                    if language == 'json':
+                        # handle json case
+                        # ```json {language,code}```
+                        parameters = json.loads('\n'.join(
+                            result.split('\n')[1:]).replace('\n', ''))
+                        return parameters['language'], parameters['code']
             except ValueError:
                 return language, code
         else:

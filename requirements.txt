@@ -5,7 +5,6 @@ langchain<=0.0.292
 modelscope>=1.7.0
 moviepy
 ms-swift
-open-interpreter==0.1.10; python_version>"3.9"
 openai
 opencv-python
 Pillow
