@@ -4,7 +4,8 @@ import re
 
 import json
 from config_utils import DEFAULT_BUILDER_CONFIG_FILE
-from modelscope_agent.prompt.prompt import PromptGenerator, build_raw_prompt, KNOWLEDGE_RESULT_PROMPT
+from modelscope_agent.prompt.prompt import (KNOWLEDGE_RESULT_PROMPT,
+                                            PromptGenerator, build_raw_prompt)
 
 from modelscope.utils.config import Config
 
@@ -142,10 +143,12 @@ class CustomPromptGenerator(PromptGenerator):
         for i in range(0, len(self.history)):
             if self.history[i]['role'] == 'user':
                 content: str = self.history[i]['content']
-                start_pos = content.find(f'{self.sep}{KNOWLEDGE_RESULT_PROMPT}{self.sep}')
+                start_pos = content.find(
+                    f'{self.sep}{KNOWLEDGE_RESULT_PROMPT}{self.sep}')
                 end_pos = content.rfind('# 工具\n\n')
                 if start_pos >= 0 and end_pos >= 0:
-                    self.history[i]['content'] = content[0: start_pos] + knowledge_str + content[end_pos:]
+                    self.history[i]['content'] = content[
+                        0:start_pos] + knowledge_str + content[end_pos:]
                 else:
                     continue
         return knowledge_str
