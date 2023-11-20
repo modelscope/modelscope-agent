@@ -1,4 +1,4 @@
-# all the utility functions under code_interpreters_utils are borrowed from project
+# all the utility functions under code_interpreters are borrowed from project
 # in order to use python lower than 3.10
 # https://github.com/KillianLucas/open-interpreter
 
