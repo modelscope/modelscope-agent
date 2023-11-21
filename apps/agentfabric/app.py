@@ -44,7 +44,7 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
         bot_avatar = builder_cfg.get('avatar', '')
         conversation_starters = builder_cfg.get('conversation_starters', [])
         suggestion = [[row] for row in conversation_starters]
-        bot_avatar_path = get_avatar_image(bot_avatar)[1]
+        bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
         save_builder_configuration(builder_cfg, uuid_str)
         state['configure_updated'] = True
         return [
@@ -53,7 +53,8 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             gr.Chatbot.update(
-                visible=False, avatar_images=get_avatar_image(bot_avatar)),
+                visible=False,
+                avatar_images=get_avatar_image(bot_avatar, uuid_str)),
             gr.Dataset.update(samples=suggestion)
         ]
     else:
@@ -208,7 +209,8 @@ def process_configuration(bot_avatar, name, description, instructions, model,
             visible=True,
             value=format_cover_html(builder_cfg, bot_avatar_path)),
         gr.Chatbot.update(
-            visible=False, avatar_images=get_avatar_image(bot_avatar)),
+            visible=False,
+            avatar_images=get_avatar_image(bot_avatar, uuid_str)),
         gr.Dataset.update(samples=suggestions_filtered),
         gr.DataFrame.update(value=suggestions_filtered)
     ]
@@ -222,7 +224,7 @@ with demo:
         if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
             raise gr.Error('请登陆后使用! (Please login first)')
         else:
-            uuid_str = 'test'
+            uuid_str = 'local_user'
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed, 'uuid_str': uuid_str})
     with gr.Row():
@@ -305,7 +307,7 @@ with demo:
                 value=[[None, None]],
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
-                avatar_images=get_avatar_image(''),
+                avatar_images=get_avatar_image('', uuid_str),
                 height=650,
                 latex_delimiters=[],
                 show_label=False,
