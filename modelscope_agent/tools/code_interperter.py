@@ -45,7 +45,7 @@ class CodeInterpreter(Tool):
             if language in language_map:
                 if language not in self._code_interpreters:
                     self._code_interpreters[
-                        language] = create_code_interpreter(language)
+                        language] = create_code_interpreter({'language': language, 'vision': '1'})
                 code_interpreter = self._code_interpreters[language]
             else:
                 # This still prints code but don't allow code to run. Let Open-Interpreter know through output message
