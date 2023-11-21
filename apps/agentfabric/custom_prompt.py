@@ -151,7 +151,6 @@ class CustomPromptGenerator(PromptGenerator):
                         0:start_pos] + knowledge_str + content[end_pos:]
                 else:
                     continue
-        return knowledge_str
 
     def get_tool_str(self, tool_list):
         tool_texts = []
