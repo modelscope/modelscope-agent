@@ -22,8 +22,7 @@
         "model": "qwen-max",
         "generate_cfg": {
             "use_raw_prompt": true,
-            "top_p": 0.8,
-            "top_k": 1,
+            "top_p": 0.5,
             "stop": "Observation"
         }
     },

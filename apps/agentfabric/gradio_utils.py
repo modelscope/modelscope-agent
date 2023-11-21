@@ -156,9 +156,9 @@ class ChatBot(ChatBotBase):
     def convert_bot_message(self, bot_message):
 
         bot_message = ChatBot.prompt_parse(bot_message)
-        print('processed bot message----------')
-        print(bot_message)
-        print('processed bot message done')
+        # print('processed bot message----------')
+        # print(bot_message)
+        # print('processed bot message done')
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
