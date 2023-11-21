@@ -24,7 +24,8 @@ class TextToImageTool(ModelscopePipelineTool):
         }
     }, {
         'name': 'resolution',
-        'description': '格式是 数字*数字，表示希望生成的图像的分辨率大小，选项有[1024*1024, 720*1280, 1280*720]',
+        'description':
+        '格式是 数字*数字，表示希望生成的图像的分辨率大小，选项有[1024*1024, 720*1280, 1280*720]',
         'required': True,
         'schema': {
             'type': 'string'
@@ -46,7 +47,9 @@ class TextToImageTool(ModelscopePipelineTool):
 
     def _remote_call(self, *args, **kwargs):
 
-        if ('resolution' in kwargs) and (kwargs['resolution'] in ['1024*1024', '720*1280', '1280*720']):
+        if ('resolution' in kwargs) and (kwargs['resolution'] in [
+                '1024*1024', '720*1280', '1280*720'
+        ]):
             resolution = kwargs['resolution']
         else:
             resolution = '1280*720'
