@@ -29,9 +29,9 @@ RichConfig: ... # 格式和核心内容和Config相同，但是description和ins
 LOGO_TOOL_NAME = 'logo_designer'
 
 
-def init_builder_chatbot_agent():
+def init_builder_chatbot_agent(uuid_str):
     # build model
-    builder_cfg, model_cfg, _, _ = parse_configuration()
+    builder_cfg, model_cfg, _, _ = parse_configuration(uuid_str)
 
     # additional tool
     additional_tool_list = {LOGO_TOOL_NAME: LogoGeneratorTool()}

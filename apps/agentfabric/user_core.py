@@ -14,9 +14,9 @@ from modelscope_agent.retrieve import KnowledgeRetrieval
 
 
 # init user chatbot_agent
-def init_user_chatbot_agent():
+def init_user_chatbot_agent(uuid_str=''):
     builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
-    )
+        uuid_str)
 
     # build model
     print(f'using model {builder_cfg.model}')

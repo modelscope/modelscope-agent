@@ -1,5 +1,5 @@
+import os
 import random
-import sys
 import traceback
 
 import gradio as gr
@@ -39,12 +39,13 @@ def create_send_message(preview_chatbot, preview_chat_input, state):
 
 
 def format_create_send_message_ret(state, chatbot, builder_cfg=None):
+    uuid_str = state['uuid_str']
     if builder_cfg:
         bot_avatar = builder_cfg.get('avatar', '')
         conversation_starters = builder_cfg.get('conversation_starters', [])
         suggestion = [[row] for row in conversation_starters]
         bot_avatar_path = get_avatar_image(bot_avatar)[1]
-        save_builder_configuration(builder_cfg)
+        save_builder_configuration(builder_cfg, uuid_str)
         state['configure_updated'] = True
         return [
             state, chatbot,
@@ -65,9 +66,11 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
 
 
 def init_user(state):
+    uuid_str = state['uuid_str']
+
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent()
+        user_agent = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
@@ -77,8 +80,10 @@ def init_user(state):
 
 
 def init_builder(state):
+    uuid_str = state['uuid_str']
+
     try:
-        builder_agent = init_builder_chatbot_agent()
+        builder_agent = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
     except Exception as e:
         error = traceback.format_exc()
@@ -88,6 +93,7 @@ def init_builder(state):
 
 def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     print('builder_cfg:', builder_cfg)
+    uuid_str = state['uuid_str']
     # available models
     models = list(model_cfg.keys())
     capabilities = [(tool_cfg[tool_key]['name'], tool_key)
@@ -96,7 +102,7 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     state['model_cfg'] = model_cfg
     state['tool_cfg'] = tool_cfg
     state['capabilities'] = capabilities
-    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''))[1]
+    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)[1]
     suggests = builder_cfg.get('conversation_starters', [])
     return [
         state,
@@ -124,8 +130,9 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
 
 
 def init_all(state):
+    uuid_str = state['uuid_str']
     builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
-    )
+        uuid_str)
     ret = init_ui_config(state, builder_cfg, model_cfg, tool_cfg)
     yield ret
     init_user(state)
@@ -174,8 +181,8 @@ def process_configuration(bot_avatar, name, description, instructions, model,
                           suggestions, files, capabilities_checkboxes, state):
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
-
-    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar)
+    uuid_str = state['uuid_str']
+    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
     builder_cfg = {
         'name': name,
@@ -194,7 +201,7 @@ def process_configuration(bot_avatar, name, description, instructions, model,
         'model': model,
     }
 
-    save_builder_configuration(builder_cfg)
+    save_builder_configuration(builder_cfg, uuid_str)
     init_user(state)
     return [
         gr.HTML.update(
@@ -210,8 +217,14 @@ def process_configuration(bot_avatar, name, description, instructions, model,
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
+    uuid_str = gr.Textbox(label='modelscope_uuid', visible=False).value
+    if not uuid_str or uuid_str == '':
+        if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
+            raise gr.Error('请登陆后使用! (Please login first)')
+        else:
+            uuid_str = 'test'
     draw_seed = random.randint(0, 1000000000)
-    state = gr.State({'session_seed': draw_seed})
+    state = gr.State({'session_seed': draw_seed, 'uuid_str': uuid_str})
     with gr.Row():
         with gr.Column():
             with gr.Tabs() as tabs:
