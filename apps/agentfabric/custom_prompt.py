@@ -15,13 +15,13 @@ DEFAULT_SYSTEM_TEMPLATE = """# 工具
 
 <tool_list>
 
-## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令：
+## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令，可以根据需求调用零次或多次：
 
 工具调用
-Action: 工具的名字
+Action: 工具的名称，必须是<tool_name_list>之一
 Action Input: 工具的输入，需格式化为一个JSON
 Observation: <result>工具返回的结果</result>
-Answer: 用自然语言总结Observation的内容，作为工具调用结果回复
+
 
 # 指令
 """
@@ -80,6 +80,9 @@ class CustomPromptGenerator(PromptGenerator):
             # get tool description str
             tool_str = self.get_tool_str(tool_list)
             prompt = prompt.replace('<tool_list>', tool_str)
+
+            tool_name_str = self.get_tool_name_str(tool_list)
+            prompt = prompt.replace('<tool_name_list>', tool_name_str)
 
             # user input
             user_input = self.user_template.replace('<user_input>', task)
@@ -166,6 +169,14 @@ class CustomPromptGenerator(PromptGenerator):
             # + ' ' + FORMAT_DESC['json'])
         tool_str = '\n\n'.join(tool_texts)
         return tool_str
+
+    def get_tool_name_str(self, tool_list):
+        tool_name = []
+        for tool in tool_list:
+            tool_name.append(tool.name)
+
+        tool_name_str = json.dumps(tool_name, ensure_ascii=False)
+        return tool_name_str
 
     def _generate(self, llm_result, exec_result: str):
         """
