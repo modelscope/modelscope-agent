@@ -21,7 +21,7 @@ DEFAULT_SYSTEM_TEMPLATE = """# 工具
 Action: 工具的名称，必须是<tool_name_list>之一
 Action Input: 工具的输入，需格式化为一个JSON
 Observation: <result>工具返回的结果</result>
-
+Answer: 根据Observation总结本次工具调用返回的结果
 
 # 指令
 """
@@ -29,7 +29,7 @@ DEFAULT_INSTRUCTION_TEMPLATE = ''
 
 DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list>) <user_input>"""
 
-DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>"""
+DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
 
 TOOL_DESC = (
     '{name_for_model}: {name_for_human} API。 {description_for_model} 输入参数: {parameters}'
