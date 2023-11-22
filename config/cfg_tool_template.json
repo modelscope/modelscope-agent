@@ -28,5 +28,8 @@
         "pipeline_params": {
             "use_safetensors": true
         }
+    },
+    "amap_weather": {
+        "token": "need to be filled when you use weather"
     }
 }

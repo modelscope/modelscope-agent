@@ -18,6 +18,11 @@
       "name": "Code Interpreter",
       "is_active": true,
       "use": false
+    },
+    "amap_weather": {
+      "name": "高德天气",
+      "is_active": true,
+      "use": true
     }
   },
   "model": "qwen-max"
