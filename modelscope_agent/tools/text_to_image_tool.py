@@ -11,28 +11,21 @@ from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
-def is_multiply_format(s):
-    pattern = r'^\d+\*\d+$'
-    if re.match(pattern, s):
-        return True
-    else:
-        return False
-
-
 class TextToImageTool(ModelscopePipelineTool):
     default_model = 'AI-ModelScope/stable-diffusion-xl-base-1.0'
-    description = 'AI绘画（图像生成）服务，输入文本描述，返回根据文本信息绘制的图片URL。'
+    description = 'AI绘画（图像生成）服务，输入文本描述和图像分辨率，返回根据文本信息绘制的图片URL。'
     name = 'image_gen'
     parameters: list = [{
         'name': 'text',
-        'description': '中文的文本提示词，描述了希望生成的图像具有什么内容',
+        'description': '详细描述了希望生成的图像具有什么内容，例如人物、环境、动作等细节描述',
         'required': True,
         'schema': {
             'type': 'string'
         }
     }, {
         'name': 'resolution',
-        'description': '格式是两个数字相乘，表示希望生成的图像的分辨率',
+        'description':
+        '格式是 数字*数字，表示希望生成的图像的分辨率大小，选项有[1024*1024, 720*1280, 1280*720]',
         'required': True,
         'schema': {
             'type': 'string'
@@ -54,9 +47,10 @@ class TextToImageTool(ModelscopePipelineTool):
 
     def _remote_call(self, *args, **kwargs):
 
-        if 'resolution' in kwargs and is_multiply_format(kwargs['resolution']):
+        if ('resolution' in kwargs) and (kwargs['resolution'] in [
+                '1024*1024', '720*1280', '1280*720'
+        ]):
             resolution = kwargs['resolution']
-            resolution = resolution.replace('x', '*')
         else:
             resolution = '1280*720'
 
