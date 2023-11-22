@@ -92,51 +92,5 @@ class DashScopeLLM(LLM):
                 #     break
                 total_response = new_response
             else:
-                response = Generation.call(
-                    model=self.model,
-                    prompt=llm_artifacts,
-                    stream=False,
-                    **self.generate_cfg)
-                llm_result = CustomOutputWrapper.handle_message_text_completion(
-                    response)
-            return llm_result
-        except Exception as e:
-            error = traceback.format_exc()
-            print(
-                f'LLM error with input {llm_artifacts}, original error: {str(e)} with detail {error}'
-            )
-            raise RuntimeError(error)
-
-        if self.agent_type == AgentType.MS_AGENT:
-            # in the form of text
-            idx = llm_result.find('<|endofthink|>')
-            if idx != -1:
-                llm_result = llm_result[:idx + len('<|endofthink|>')]
-            return llm_result
-        elif self.agent_type == AgentType.OPENAI_FUNCTIONS:
-            # in the form of message
-            return llm_result
-        else:
-            # in the form of text
-            return llm_result
-
-    #
-    # def stream_generate(self, prompt, functions, **kwargs):
-    #
-    #     total_response = ''
-    #     responses = Generation.call(
-    #         model=self.model, prompt=prompt, stream=True, **self.generate_cfg)
-    #
-    #     for response in responses:
-    #         if response.status_code == HTTPStatus.OK:
-    #             new_response = response.output['text']
-    #             frame_text = new_response[len(total_response):]
-    #             yield frame_text
-    #
-    #             idx = total_response.find('<|endofthink|>')
-    #             if idx != -1:
-    #                 break
-    #             total_response = new_response
-    #         else:
-    #             print('Code: %d, status: %s, message: %s' %
-    #                   (response.status_code, response.code, response.message))
+                print('Code: %d, status: %s, message: %s' %
+                      (response.status_code, response.code, response.message))
