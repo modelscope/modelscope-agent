@@ -5,6 +5,5 @@ langchain
 markdown-cjk-spacing
 markdown_katex
 mdx_truly_sane_lists
-open-interpreter
 pymdown-extensions
 python-slugify
