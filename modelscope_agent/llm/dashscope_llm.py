@@ -76,7 +76,7 @@ class DashScopeLLM(LLM):
             return llm_result
 
     def stream_generate(self, prompt, functions, **kwargs):
-
+        print('repr(prompt): ', repr(prompt))
         total_response = ''
         responses = Generation.call(
             model=self.model, prompt=prompt, stream=True, **self.generate_cfg)
