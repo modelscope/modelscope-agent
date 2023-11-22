@@ -1,8 +1,8 @@
 from modelscope_agent.agent_types import AgentType
 
+from .messages_prompt import MessagesGenerator
 from .mrkl_prompt import MrklPromptGenerator
 from .ms_prompt import MSPromptGenerator
-from .openai_function_prompt import OpenAiFunctionsPromptGenerator
 
 
 def get_prompt_generator(agent_type: AgentType = AgentType.DEFAULT, **kwargs):
@@ -10,7 +10,7 @@ def get_prompt_generator(agent_type: AgentType = AgentType.DEFAULT, **kwargs):
         return MSPromptGenerator(**kwargs)
     elif AgentType.MRKL == agent_type:
         return MrklPromptGenerator(**kwargs)
-    elif AgentType.OPENAI_FUNCTIONS == agent_type:
-        return OpenAiFunctionsPromptGenerator(**kwargs)
+    elif AgentType.Messages == agent_type:
+        return MessagesGenerator(**kwargs)
     else:
         raise NotImplementedError

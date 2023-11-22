@@ -10,13 +10,14 @@ class MockLLM(LLM):
         super().__init__({})
         self.responses = responses
         self.idx = -1
+        self.model = 'mock_llm'
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, function_list=[], **kwargs) -> str:
         self.idx += 1
         return self.responses[self.idx] if self.idx < len(
             self.responses) else 'mock llm response'
 
-    def stream_generate(self, prompt: str) -> str:
+    def stream_generate(self, prompt: str, function_list=[], **kwargs) -> str:
         yield 'mock llm response'
 
 

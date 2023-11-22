@@ -16,5 +16,5 @@ class AgentType(str, Enum):
     REACT = 'react'
     """An agent that does a reasoning step before acting with react"""
 
-    OPENAI_FUNCTIONS = 'openai-functions'
+    Messages = 'messages'
     """An agent optimized for using open AI functions."""

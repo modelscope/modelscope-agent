@@ -26,9 +26,6 @@ class CustomLLM(LLM):
             raise ValueError('HTTP_LLM_TOKEN is not set')
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def set_agent_type(self, agent_type):
-        self.agent_type = agent_type
-
     def http_request(self, data):
         headers = {
             'Content-Type': 'application/json',
@@ -42,7 +39,7 @@ class CustomLLM(LLM):
                  functions=[],
                  function_call='none',
                  **kwargs):
-        if self.agent_type != AgentType.OPENAI_FUNCTIONS:
+        if self.agent_type != AgentType.Messages:
             messages = [{'role': 'user', 'content': llm_artifacts}]
         else:
             messages = llm_artifacts if len(
@@ -85,7 +82,7 @@ class CustomLLM(LLM):
             if idx != -1:
                 content = content[:idx + len('<|endofthink|>')]
             return content
-        elif self.agent_type == AgentType.OPENAI_FUNCTIONS:
+        elif self.agent_type == AgentType.Messages:
             new_message = {
                 'content': content,
                 'role': message.get('response_role', 'assistant')

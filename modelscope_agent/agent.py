@@ -62,6 +62,7 @@ class AgentExecutor:
                 [str(t) for t in self.tool_list.values()])
         self.knowledge_retrieval = knowledge_retrieval
         self.reset()
+        self.seed = None
 
     def _init_tools(self,
                     tool_cfg: Dict = {},
@@ -162,7 +163,7 @@ class AgentExecutor:
                 action, action_args = self.output_parser.parse_response(
                     llm_result)
             except ValueError as e:
-                return [{'error': f'{e}'}]
+                return [{'exec_result': f'{e}'}]
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 _ = self.prompt_generator.generate(llm_result, '')
@@ -174,6 +175,10 @@ class AgentExecutor:
             if action in self.available_tool_list:
                 action_args = self.parse_action_args(action_args)
                 tool = self.tool_list[action]
+
+                # TODO @wenmeng.zwm remove this hack logic for image generation
+                if action == 'image_gen' and self.seed:
+                    action_args['seed'] = self.seed
                 try:
                     exec_result = tool(**action_args, remote=remote)
                     if print_info:
@@ -184,10 +189,10 @@ class AgentExecutor:
                     self.parse_exec_result(exec_result)
                 except Exception as e:
                     exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
-                    return [{'error': exec_result}]
+                    return [{'exec_result': exec_result}]
             else:
                 exec_result = f"Unknown action: '{action}'. "
-                return [{'error': exec_result}]
+                return [{'exec_result': exec_result}]
 
             # display result
             display(llm_result, exec_result, idx, self.agent_type)
@@ -225,7 +230,7 @@ class AgentExecutor:
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
             if print_info:
-                print(f'|LLM inputs in round {idx}: {llm_artifacts}')
+                print(f'|LLM inputs in round {idx}:\n{llm_artifacts}')
 
             llm_result = ''
             try:
@@ -244,7 +249,7 @@ class AgentExecutor:
                 action, action_args = self.output_parser.parse_response(
                     llm_result)
             except ValueError as e:
-                yield {'error': f'{e}'}
+                yield {'exec_result': f'{e}'}
                 return
 
             if action is None:
@@ -256,6 +261,10 @@ class AgentExecutor:
             if action in self.available_tool_list:
                 action_args = self.parse_action_args(action_args)
                 tool = self.tool_list[action]
+
+                # TODO @wenmeng.zwm remove this hack logic for image generation
+                if action == 'image_gen' and self.seed:
+                    action_args['seed'] = self.seed
                 try:
                     exec_result = tool(**action_args, remote=remote)
                     yield {'exec_result': exec_result}
@@ -264,11 +273,13 @@ class AgentExecutor:
                     self.parse_exec_result(exec_result)
                 except Exception as e:
                     exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
-                    yield {'error': exec_result}
+                    yield {'exec_result': exec_result}
+                    self.prompt_generator.reset()
                     return
             else:
                 exec_result = f"Unknown action: '{action}'. "
-                yield {'error': exec_result}
+                yield {'exec_result': exec_result}
+                self.prompt_generator.reset()
                 return
 
     def reset(self):

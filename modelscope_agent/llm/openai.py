@@ -19,15 +19,12 @@ class OpenAi(LLM):
         self.api_base = self.cfg.get('api_base', 'https://api.openai.com/v1')
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
-    def set_agent_type(self, agent_type):
-        self.agent_type = agent_type
-
     def generate(self,
                  llm_artifacts,
                  functions=[],
                  function_call='none',
                  **kwargs):
-        if self.agent_type != AgentType.OPENAI_FUNCTIONS:
+        if self.agent_type != AgentType.Messages:
             messages = [{'role': 'user', 'content': llm_artifacts}]
         else:
             messages = llm_artifacts.get(
@@ -40,7 +37,7 @@ class OpenAi(LLM):
 
         # call openai function call api
         assert isinstance(functions, list)
-        if len(functions) > 0:
+        if len(functions) > 0 and self.agent_type == AgentType.Messages:
             function_call = 'auto'
 
         # covert to stream=True with stream updating
@@ -67,7 +64,7 @@ class OpenAi(LLM):
             if idx != -1:
                 content = content[:idx + len('<|endofthink|>')]
             return content
-        elif self.agent_type == AgentType.OPENAI_FUNCTIONS:
+        elif self.agent_type == AgentType.Messages:
             return message
         else:
             return content

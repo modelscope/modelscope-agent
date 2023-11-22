@@ -1,0 +1,17 @@
+{
+  "image_gen": {
+    "name": "Wanx Image Generation",
+    "is_active": true,
+    "is_remote_tool": true
+  },
+  "code_interpreter": {
+    "name": "Code Interpreter",
+    "is_active": true,
+    "is_remote_tool": false,
+    "max_output": 2000
+  },
+  "web_browser": {
+    "name": "Web Browsing",
+    "is_active": false
+  }
+}

@@ -1,11 +1,13 @@
+import os
 import re
 import traceback
 
-from interpreter.code_interpreters.create_code_interpreter import \
-    create_code_interpreter
-from interpreter.code_interpreters.language_map import language_map
-from interpreter.utils.truncate_output import truncate_output
+import appdirs
+import json
 
+from .code_interpreters.create_code_interpreter import create_code_interpreter
+from .code_interpreters.language_map import language_map
+from .code_interpreters.truncate_output import truncate_output
 from .tool import Tool
 
 
@@ -29,6 +31,10 @@ class CodeInterpreter(Tool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
+        self.create_code_interpreter = create_code_interpreter
+        self.language_map = language_map
+        self.truncate_output = truncate_output
+
         self._code_interpreters = {}
         self.max_output = self.cfg.get('max_output', 2000)
 
@@ -42,10 +48,10 @@ class CodeInterpreter(Tool):
                 code = code[1:]
                 language = 'shell'
 
-            if language in language_map:
+            if language in self.language_map:
                 if language not in self._code_interpreters:
                     self._code_interpreters[
-                        language] = create_code_interpreter({'language': language, 'vision': '1'})
+                        language] = self.create_code_interpreter({'language': language, 'vision': '1'})
                 code_interpreter = self._code_interpreters[language]
             else:
                 # This still prints code but don't allow code to run. Let Open-Interpreter know through output message
@@ -60,7 +66,7 @@ class CodeInterpreter(Tool):
                     output += '\n' + line['output']
 
                     # Truncate output
-                    output = truncate_output(output, self.max_output)
+                    output = self.truncate_output(output, self.max_output)
         except Exception as e:
             error = traceback.format_exc()
             output = ' '.join(f'{key}:{value}'
@@ -97,12 +103,19 @@ class CodeInterpreter(Tool):
                 if code_block:
                     result = code_block.group(1)
                     language = result.split('\n')[0]
-                    code = '\n'.join(result.split('\n')[1:])
-
-                    # handle py case
-                    if language == 'py':
+                    if language == 'py' or language == 'python':
+                        # handle py case
+                        # ```py code ```
                         language = 'python'
-                    return language, code
+                        code = '\n'.join(result.split('\n')[1:])
+                        return language, code
+
+                    if language == 'json':
+                        # handle json case
+                        # ```json {language,code}```
+                        parameters = json.loads('\n'.join(
+                            result.split('\n')[1:]).replace('\n', ''))
+                        return parameters['language'], parameters['code']
             except ValueError:
                 return language, code
         else:

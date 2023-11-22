@@ -3,13 +3,15 @@ from typing import Union
 
 from .raw_prompt_builder import build_raw_prompt
 
+KNOWLEDGE_RESULT_PROMPT = 'Web search results: '
+
 
 class PromptGenerator:
 
     def __init__(self,
                  system_template: str = '',
                  instruction_template: str = '',
-                 user_template: str = '',
+                 user_template: str = '<user_input>',
                  exec_template: str = '',
                  assistant_template: str = '',
                  sep='\n\n',
@@ -171,7 +173,7 @@ class PromptGenerator:
 
         knowledge = self.sep.join(
             [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        knowledge_str = f'{self.sep}Web search results: {self.sep}{knowledge}' if len(
+        knowledge_str = f'{self.sep}{KNOWLEDGE_RESULT_PROMPT}{self.sep}{knowledge}' if len(
             knowledge_list) > 0 else ''
         return knowledge_str
 

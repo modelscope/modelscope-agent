@@ -1,0 +1,58 @@
+.preview_header {
+  font-size: 24px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.bot_cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  border: 1px solid rgb(229, 231, 235);
+  padding: 20px 20px;
+}
+
+.bot_avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.bot_avatar img {
+  width: 100px;
+  height: 100px;
+}
+
+.bot_name {
+  font-size: 36px;
+  margin-top: 10px;
+}
+
+.bot_desp {
+  color: #ddd;
+}
+
+.container {
+  flex-direction: row-reverse;
+}
+
+.markdown-body .message {
+  white-space: pre-wrap;
+}
+
+.markdown-body details {
+  white-space: nowrap;
+}
+.markdown-body .bot details:not(:last-child) {
+  margin-bottom: 1px;
+}
+.markdown-body summary {
+  background-color: #4b5563;
+  color: #eee;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
