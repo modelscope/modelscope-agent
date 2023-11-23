@@ -10,60 +10,6 @@ from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
 
-def create_send_message(preview_chatbot, preview_chat_input, state):
-    # 将发送的消息添加到聊天历史
-    builder_agent = state['builder_agent']
-    preview_chatbot.append((preview_chat_input, ''))
-    yield format_create_send_message_ret(state, preview_chatbot)
-    response = ''
-    for frame in builder_agent.stream_run(preview_chat_input, print_info=True):
-        llm_result = frame.get('llm_text', '')
-        exec_result = frame.get('exec_result', '')
-        print(frame)
-        if len(exec_result) != 0:
-            if isinstance(exec_result, dict):
-                exec_result = exec_result['result']
-                assert isinstance(exec_result, Config)
-                yield format_create_send_message_ret(state, preview_chatbot,
-                                                     exec_result.to_dict())
-        else:
-            # llm result
-            if isinstance(llm_result, dict):
-                content = llm_result['content']
-            else:
-                content = llm_result
-            frame_text = content
-            response = f'{response}\n{frame_text}'
-            preview_chatbot[-1] = (preview_chat_input, response)
-            yield format_create_send_message_ret(state, preview_chatbot)
-
-
-def format_create_send_message_ret(state, chatbot, builder_cfg=None):
-    if builder_cfg:
-        bot_avatar = builder_cfg.get('avatar', '')
-        conversation_starters = builder_cfg.get('conversation_starters', [])
-        suggestion = [[row] for row in conversation_starters]
-        bot_avatar_path = get_avatar_image(bot_avatar)[1]
-        save_builder_configuration(builder_cfg)
-        state['configure_updated'] = True
-        return [
-            state, chatbot,
-            gr.HTML.update(
-                visible=True,
-                value=format_cover_html(builder_cfg, bot_avatar_path)),
-            gr.Chatbot.update(
-                visible=False, avatar_images=get_avatar_image(bot_avatar)),
-            gr.Dataset.update(samples=suggestion)
-        ]
-    else:
-        return [
-            state, chatbot,
-            gr.HTML.update(),
-            gr.Chatbot.update(),
-            gr.Dataset.update(samples=None)
-        ]
-
-
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
@@ -120,7 +66,6 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
         format_cover_html(builder_cfg, bot_avatar),
         gr.Dataset.update(samples=[[item] for item in suggests]),
     ]
-    return state
 
 
 def init_all(state):
@@ -131,43 +76,6 @@ def init_all(state):
     init_user(state)
     init_builder(state)
     yield ret
-
-
-def format_preview_send_message_ret(preview_chatbot):
-    return [
-        gr.Chatbot.update(visible=True, value=preview_chatbot),
-        gr.HTML.update(visible=False)
-    ]
-
-
-def preview_send_message(preview_chatbot, preview_chat_input, state):
-    # 将发送的消息添加到聊天历史
-    user_agent = state['user_agent']
-    preview_chatbot.append((preview_chat_input, ''))
-    yield format_preview_send_message_ret(preview_chatbot)
-
-    response = ''
-
-    for frame in user_agent.stream_run(
-            preview_chat_input, print_info=True, remote=False):
-        # is_final = frame.get("frame_is_final")
-        llm_result = frame.get('llm_text', '')
-        exec_result = frame.get('exec_result', '')
-        print(frame)
-        # llm_result = llm_result.split("<|user|>")[0].strip()
-        if len(exec_result) != 0:
-            # action_exec_result
-            if isinstance(exec_result, dict):
-                exec_result = str(exec_result['result'])
-            frame_text = f'Observation: <result>{exec_result}</result>'
-        else:
-            # llm result
-            frame_text = llm_result
-
-        # important! do not change this
-        response += frame_text
-        preview_chatbot[-1] = (preview_chat_input, response)
-        yield format_preview_send_message_ret(preview_chatbot)
 
 
 def process_configuration(bot_avatar, name, description, instructions, model,
@@ -342,12 +250,65 @@ with demo:
         outputs=configure_updated_outputs)
 
     # 配置 "Create" 标签页的消息发送功能
+    def format_message_with_builder_cfg(_state, chatbot, builder_cfg):
+        bot_avatar = builder_cfg.get('avatar', '')
+        conversation_starters = builder_cfg.get('conversation_starters', [])
+        suggestion = [[row] for row in conversation_starters]
+        bot_avatar_path = get_avatar_image(bot_avatar)[1]
+        save_builder_configuration(builder_cfg)
+        _state['configure_updated'] = True
+        return {
+            create_chatbot:
+            chatbot,
+            user_chat_bot_cover:
+            gr.HTML.update(
+                visible=True,
+                value=format_cover_html(builder_cfg, bot_avatar_path)),
+            user_chatbot:
+            gr.Chatbot.update(
+                visible=False, avatar_images=get_avatar_image(bot_avatar)),
+            user_chat_bot_suggest:
+            gr.Dataset.update(samples=suggestion)
+        }
+
+    def create_send_message(chatbot, input, _state):
+        # 将发送的消息添加到聊天历史
+        builder_agent = _state['builder_agent']
+        chatbot.append((input, ''))
+        yield {
+            create_chatbot: chatbot,
+            create_chat_input: gr.Textbox.update(value=''),
+        }
+        response = ''
+        for frame in builder_agent.stream_run(input, print_info=True):
+            llm_result = frame.get('llm_text', '')
+            exec_result = frame.get('exec_result', '')
+            print(frame)
+            if len(exec_result) != 0:
+                if isinstance(exec_result, dict):
+                    exec_result = exec_result['result']
+                    assert isinstance(exec_result, Config)
+                    yield format_message_with_builder_cfg(
+                        _state, chatbot, exec_result.to_dict())
+            else:
+                # llm result
+                if isinstance(llm_result, dict):
+                    content = llm_result['content']
+                else:
+                    content = llm_result
+                frame_text = content
+                response = f'{response}\n{frame_text}'
+                chatbot[-1] = (input, response)
+                yield {
+                    create_chatbot: chatbot,
+                }
+
     create_send_button.click(
         create_send_message,
         inputs=[create_chatbot, create_chat_input, state],
         outputs=[
-            state, create_chatbot, user_chat_bot_cover, user_chatbot,
-            user_chat_bot_suggest
+            create_chatbot, user_chat_bot_cover, user_chatbot,
+            user_chat_bot_suggest, create_chat_input
         ])
 
     # 配置 "Configure" 标签页的提交按钮功能
@@ -363,10 +324,44 @@ with demo:
             suggestion_input
         ])
 
+    # 配置 "Preview" 的消息发送功能
+    def preview_send_message(chatbot, input, _state):
+        # 将发送的消息添加到聊天历史
+        user_agent = _state['user_agent']
+        chatbot.append((input, ''))
+        yield {
+            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML.update(visible=False),
+            preview_chat_input: gr.Textbox.update(value='')
+        }
+
+        response = ''
+
+        for frame in user_agent.stream_run(
+                input, print_info=True, remote=False):
+            # is_final = frame.get("frame_is_final")
+            llm_result = frame.get('llm_text', '')
+            exec_result = frame.get('exec_result', '')
+            print(frame)
+            # llm_result = llm_result.split("<|user|>")[0].strip()
+            if len(exec_result) != 0:
+                # action_exec_result
+                if isinstance(exec_result, dict):
+                    exec_result = str(exec_result['result'])
+                frame_text = f'Observation: <result>{exec_result}</result>'
+            else:
+                # llm result
+                frame_text = llm_result
+
+            # important! do not change this
+            response += frame_text
+            chatbot[-1] = (input, response)
+            yield {user_chatbot: chatbot}
+
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
-        outputs=[user_chatbot, user_chat_bot_cover])
+        outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     demo.load(init_all, inputs=[state], outputs=configure_updated_outputs)
 
