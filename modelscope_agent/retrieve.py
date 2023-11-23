@@ -36,7 +36,8 @@ class Retrieval:
 
     def retrieve(self, query: str) -> List[str]:
         res = self.vs.similarity_search(query, k=self.top_k)
-        res.sort(key=lambda doc: doc.metadata['page'])
+        if 'page' in res[0].metadata:
+            res.sort(key=lambda doc: doc.metadata['page'])
         return [r.page_content for r in res]
 
 
