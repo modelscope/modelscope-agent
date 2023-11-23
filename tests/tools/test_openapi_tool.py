@@ -5,7 +5,7 @@ import json
 from modelscope_agent.tools.openapi_tool import openapi_schema_convert
 from modelscope_agent.tools.openapi_tool import OpenAPISchemaTool
 from modelscope.utils.config import Config
-#make sure YOUR_API_TOKEN 
+#before run test,add your tokeen 
 def test_openapi_schema_convert(token):
     schema_json = '''
   {
