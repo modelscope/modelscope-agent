@@ -37,10 +37,18 @@
     "chatglm3-6b": {
         "type": "modelscope",
         "model_id": "ZhipuAI/chatglm3-6b",
-        "model_revision": "v1.0.2"
+        "model_revision": "v1.0.2",
+        "generate_cfg": {
+            "max_length": 2000,
+            "top_k": 1
+        }
     },
     "chatglm3-6b-dashscope": {
         "type": "dashscope",
-        "model": "chatglm3-6b"
+        "model": "chatglm3-6b",
+        "generate_cfg": {
+            "max_length": 512,
+            "top_k": 1
+        }
     }
   }

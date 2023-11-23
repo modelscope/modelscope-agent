@@ -1,9 +1,9 @@
 import json
 from .prompt import PromptGenerator
 
-CHATGLM_DEFAULT_SYSTEM_TEMPLATE = """<|system|>\nAnswer the following questions as best you can. You have access to the following tools:"""
+CHATGLM_DEFAULT_SYSTEM_TEMPLATE = """<|system|>\nAnswer the following questions as best you can. You have access to the following tools:\n<tool_list>"""
 
-CHATGLM_DEFAULT_INSTRUCTION_TEMPLATE = "<tool_list>"
+CHATGLM_DEFAULT_INSTRUCTION_TEMPLATE = ""
 
 CHATGLM_DEFAULT_USER_TEMPLATE = """<|user|>\n<user_input>"""
 

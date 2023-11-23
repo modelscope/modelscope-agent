@@ -84,11 +84,10 @@ class ChatGLMOutputParser(OutputParser):
         if 'tool_call' not in response:
             return None, None
         action, action_para = '', ''
-        print(f'response: {response}')
         try:
             # use regular expression to get result from MRKL format
             re_pattern1 = re.compile(
-                pattern=r'([\s\S]+)```python\ntool_call\(([\s\S]+)```')
+                pattern=r'([\s\S]+)```([\s\S]+)tool_call\(([\s\S]+)```')
             res = re_pattern1.search(response)
             #action = res.group(1).split('>')[-1]
             action_list = re.split("<|>|\|", res.group(1).strip())
@@ -96,7 +95,7 @@ class ChatGLMOutputParser(OutputParser):
                 if len(action_list[idx]) > 1:
                     action = action_list[idx]
                     break
-            action_para = [item.strip() for item in res.group(2).split(',')]
+            action_para = [item.strip() for item in res.group(3).split(',')]
             parameters = {}
             re_pattern2 = re.compile(
                 pattern=r'([\s\S]+)=\'([\s\S]+)\'')

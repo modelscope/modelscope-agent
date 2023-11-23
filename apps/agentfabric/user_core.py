@@ -12,6 +12,8 @@ from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 
+from modelscope_agent.output_parser import ChatGLMOutputParser
+from modelscope_agent.prompt.chatglm3_prompt import ChatGLMPromptGenerator
 
 # init user chatbot_agent
 def init_user_chatbot_agent():
@@ -19,19 +21,19 @@ def init_user_chatbot_agent():
     )
 
     # build model
-    print(f'using model {builder_cfg.model}')
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
 
     # build prompt with zero shot react template
     instruction_template = parse_role_config(builder_cfg)
-    prompt_generator = CustomPromptGenerator(
-        system_template=DEFAULT_SYSTEM_TEMPLATE,
-        user_template=DEFAULT_USER_TEMPLATE,
-        exec_template=DEFAULT_EXEC_TEMPLATE,
-        instruction_template=instruction_template,
-        add_addition_round=True,
-        addition_assistant_reply='好的。',
-    )
+    prompt_generator = ChatGLMPromptGenerator(instruction_template=instruction_template)
+    #prompt_generator = CustomPromptGenerator(
+    #    system_template=DEFAULT_SYSTEM_TEMPLATE,
+    #    user_template=DEFAULT_USER_TEMPLATE,
+    #    exec_template=DEFAULT_EXEC_TEMPLATE,
+    #    instruction_template=instruction_template,
+    #    add_addition_round=True,
+    #    addition_assistant_reply='好的。',
+    #)
 
     # get knowledge
     # 开源版本的向量库配置
@@ -47,12 +49,15 @@ def init_user_chatbot_agent():
     else:
         knowledge_retrieval = None
 
+    output_parser = ChatGLMOutputParser()
+
     # build agent
     agent = AgentExecutor(
         llm,
         tool_cfg,
         agent_type=AgentType.MRKL,
         prompt_generator=prompt_generator,
+        output_parser=output_parser,
         knowledge_retrieval=knowledge_retrieval,
         tool_retrieval=False)
     agent.set_available_tools(available_tool_list)
