@@ -42,9 +42,9 @@ python app.py
 ## 🚀 发展路线规划
 - [x] 支持人工配置构建智能体
 - [x] 基于LLM对话构建智能体
-- [ ] 支持在ModelScope创空间上使用
-- [ ] 知识库检索效果优化
-- [ ] 支持智能体发布和分享
+- [x] 支持在ModelScope创空间上使用 [link](https://modelscope.cn/studios/wenmengzhou/AgentFabric/summary)
+- [ ] 知识库检索效果优化 (ing)
+- [ ] 支持智能体发布和分享 (ing)
 - [ ] 支持其他多种LLM模型API和ModelScope模型
 - [ ] 处理长文本输入到内存
 - [ ] 生产级支持：日志和性能分析
