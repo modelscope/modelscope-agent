@@ -221,10 +221,9 @@ demo = gr.Blocks(css='assets/app.css')
 with demo:
     uuid_str = gr.Textbox(label='modelscope_uuid', visible=False).value
     if not uuid_str or uuid_str == '':
+        uuid_str = 'local_user'
         if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
-            raise gr.Error('请登陆后使用! (Please login first)')
-        else:
-            uuid_str = 'local_user'
+            pass
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed, 'uuid_str': uuid_str})
     with gr.Row():
