@@ -31,7 +31,7 @@ def init_user_chatbot_agent(uuid_str=''):
         instruction_template=instruction_template,
         add_addition_round=True,
         addition_assistant_reply='好的。',
-    )
+        knowledge_file_name=os.path.basename(builder_cfg.knowledge[0]))
 
     # get knowledge
     # 开源版本的向量库配置

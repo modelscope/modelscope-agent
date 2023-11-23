@@ -33,14 +33,6 @@ def save_builder_configuration(builder_cfg, uuid_str=''):
         f.write(json.dumps(builder_cfg, indent=2, ensure_ascii=False))
 
 
-def get_builder_configuration() -> Dict:
-    builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
-                                 DEFAULT_BUILDER_CONFIG_FILE)
-    with open(builder_cfg_file, 'r') as f:
-        config = json.load(f)
-    return config
-
-
 def get_avatar_image(bot_avatar, uuid_str=''):
     user_avatar_path = os.path.join(
         os.path.dirname(__file__), 'assets/user.jpg')
