@@ -1,11 +1,10 @@
-import sys
-sys.path.append("../../")
 import os
+import sys
 import json
-from modelscope_agent.tools.openapi_tool import openapi_schema_convert
-from modelscope_agent.tools.openapi_tool import OpenAPISchemaTool
+from modelscope_agent.tools.openapi_tool import (OpenAPISchemaTool,openapi_schema_convert)
 from modelscope.utils.config import Config
-#before run test,add your tokeen 
+sys.path.append('../../')
+#before run test,add your tokeen
 def test_openapi_schema_convert(token):
     schema_json = '''
   {
@@ -125,46 +124,50 @@ def test_openapi_schema_convert(token):
   }
 
   '''
-      
+
     schema = json.loads(schema_json)
-    openapi_schema_convert(schema, YOUR_API_TOKEN = token)
+    config_data = openapi_schema_convert(schema, YOUR_API_TOKEN=token)
+
+    with open(
+            '../../apps/agentfabric/config/additional_tool_config.json',
+            'a',
+            encoding='utf-8') as config_file:
+        json.dump(config_data, config_file, ensure_ascii=False, indent=4)
+
 
 def test_openapi_tool_remote_call():
     DEFAULT_TOOL_CONFIG_FILE = '../../apps/agentfabric/config/tool_config.json'
     tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', DEFAULT_TOOL_CONFIG_FILE)
     tool_cfg = Config.from_file(tool_cfg_file)
-    tool = OpenAPISchemaTool(cfg=tool_cfg,name='Detect Faces in Images')
+    tool = OpenAPISchemaTool(cfg=tool_cfg, name='Detect Faces in Images')
     restored_dict = {}
     mock_kwargs = {
-        'model': 'facechain-facedetect', 
-        "input.images":[
-        "http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/1E1D5AFA-3C3A-4B6F-ABD6-8742CA983C42.png",
-        "http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/3.JPG",
-        "http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/F2EA3984-6EE2-44CD-928F-109B7276BCB6.png"
+        'model':
+        'facechain-facedetect',
+        'input.images': [
+            'http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/1E1D5AFA-3C3A-4B6F-ABD6-8742CA983C42.png',
+            'http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/3.JPG',
+            'http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/F2EA3984-6EE2-44CD-928F-109B7276BCB6.png'
         ]
-    
     }
-    # 遍历 mock_kwargs 中的键和值
     for key, value in mock_kwargs.items():
-        # 检查键中是否包含 "."
-        if "." in key:
-            # 按 "." 分割键，并创建嵌套字典结构
-            keys = key.split(".")
+        if '.' in key:
+            keys = key.split('.')
             temp_dict = restored_dict
             for k in keys[:-1]:
                 temp_dict = temp_dict.setdefault(k, {})
             temp_dict[keys[-1]] = value
         else:
-            # 如果键中不包含 "."，直接将键值对存入 restored_dict
             restored_dict[key] = value
     mock_kwargs = restored_dict
-    # 调用远程请求，并传递模拟的 kwargs
     try:
         result = tool(remote=True, **mock_kwargs)
-        print(result)   #{'result': "{'output': {'is_face': [True, True, True]}, 'usage': {}, 'request_id': '355cca45-b1f2-942e-8f55-a63c3b34fdf3'}"}
+        print(
+            result
+        )  #{'result': "{'output': {'is_face': [True, True, True]}, 'usage': {}, 'request_id': '355cca45-b1f2-942e-8f55-a63c3b34fdf3'}"}
     except Exception as e:
-        print("Error:", str(e))
+        print('Error:', str(e))
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     test_openapi_schema_convert(token='xxxxxxxx')
     test_openapi_tool_remote_call()
