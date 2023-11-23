@@ -33,5 +33,14 @@
     "gpt-4": {
         "type": "openai",
         "model": "gpt-4"
+    },
+    "chatglm3-6b": {
+        "type": "modelscope",
+        "model_id": "ZhipuAI/chatglm3-6b",
+        "model_revision": "v1.0.2"
+    },
+    "chatglm3-6b-dashscope": {
+        "type": "dashscope",
+        "model": "chatglm3-6b"
     }
   }
