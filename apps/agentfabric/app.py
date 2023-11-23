@@ -66,8 +66,7 @@ def format_create_send_message_ret(state, chatbot, builder_cfg=None):
         ]
 
 
-def init_user(state):
-    uuid_str = state['uuid_str']
+def init_user(uuid_str, state):
 
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
@@ -80,8 +79,7 @@ def init_user(state):
     return state
 
 
-def init_builder(state):
-    uuid_str = state['uuid_str']
+def init_builder(uuid_str, state):
 
     try:
         builder_agent = init_builder_chatbot_agent(uuid_str)
@@ -92,9 +90,8 @@ def init_builder(state):
     return state
 
 
-def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
+def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
     print('builder_cfg:', builder_cfg)
-    uuid_str = state['uuid_str']
     # available models
     models = list(model_cfg.keys())
     capabilities = [(tool_cfg[tool_key]['name'], tool_key)
@@ -130,14 +127,14 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     return state
 
 
-def init_all(state):
-    uuid_str = state['uuid_str']
+def init_all(uuid_str, state):
+    uuid_str = check_uuid(uuid_str)
     builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
         uuid_str)
-    ret = init_ui_config(state, builder_cfg, model_cfg, tool_cfg)
+    ret = init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg)
     yield ret
-    init_user(state)
-    init_builder(state)
+    init_user(uuid_str, state)
+    init_builder(uuid_str, state)
     yield ret
 
 
@@ -178,11 +175,21 @@ def preview_send_message(preview_chatbot, preview_chat_input, state):
         yield format_preview_send_message_ret(preview_chatbot)
 
 
-def process_configuration(bot_avatar, name, description, instructions, model,
-                          suggestions, files, capabilities_checkboxes, state):
+def check_uuid(uuid_str):
+    if not uuid_str or uuid_str == '':
+        if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
+            raise gr.Error('请登陆后使用! (Please login first)')
+        else:
+            uuid_str = 'local_user'
+    return uuid_str
+
+
+def process_configuration(uuid_str, bot_avatar, name, description,
+                          instructions, model, suggestions, files,
+                          capabilities_checkboxes, state):
+    uuid_str = check_uuid(uuid_str)
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
-    uuid_str = state['uuid_str']
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
     builder_cfg = {
@@ -203,7 +210,7 @@ def process_configuration(bot_avatar, name, description, instructions, model,
     }
 
     save_builder_configuration(builder_cfg, uuid_str)
-    init_user(state)
+    init_user(uuid_str, state)
     return [
         gr.HTML.update(
             visible=True,
@@ -219,13 +226,9 @@ def process_configuration(bot_avatar, name, description, instructions, model,
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
-    uuid_str = gr.Textbox(label='modelscope_uuid', visible=False).value
-    if not uuid_str or uuid_str == '':
-        uuid_str = 'local_user'
-        if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
-            pass
+    uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
-    state = gr.State({'session_seed': draw_seed, 'uuid_str': uuid_str})
+    state = gr.State({'session_seed': draw_seed})
     with gr.Row():
         with gr.Column():
             with gr.Tabs() as tabs:
@@ -368,9 +371,9 @@ with demo:
     configure_button.click(
         process_configuration,
         inputs=[
-            bot_avatar_comp, name_input, description_input, instructions_input,
-            model_selector, suggestion_input, knowledge_input,
-            capabilities_checkboxes, state
+            uuid_str, bot_avatar_comp, name_input, description_input,
+            instructions_input, model_selector, suggestion_input,
+            knowledge_input, capabilities_checkboxes, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,
@@ -382,7 +385,8 @@ with demo:
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover])
 
-    demo.load(init_all, inputs=[state], outputs=configure_updated_outputs)
+    demo.load(
+        init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
 
 demo.queue()
 demo.launch()
