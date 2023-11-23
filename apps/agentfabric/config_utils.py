@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Dict
 
 import json
 
@@ -30,6 +31,14 @@ def save_builder_configuration(builder_cfg, uuid_str=''):
         os.makedirs(os.path.dirname(builder_cfg_file))
     with open(builder_cfg_file, 'w', encoding='utf-8') as f:
         f.write(json.dumps(builder_cfg, indent=2, ensure_ascii=False))
+
+
+def get_builder_configuration() -> Dict:
+    builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
+                                 DEFAULT_BUILDER_CONFIG_FILE)
+    with open(builder_cfg_file, 'r') as f:
+        config = json.load(f)
+    return config
 
 
 def get_avatar_image(bot_avatar, uuid_str=''):

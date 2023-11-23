@@ -3,7 +3,7 @@ from typing import Union
 
 from .raw_prompt_builder import build_raw_prompt
 
-KNOWLEDGE_RESULT_PROMPT = 'Web search results: '
+KNOWLEDGE_RESULT_PROMPT = '知识库结果如下: '
 
 
 class PromptGenerator:
