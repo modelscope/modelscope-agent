@@ -1,5 +1,6 @@
 # flake8: noqa E501
 import re
+import traceback
 from typing import Dict
 
 import json
@@ -27,6 +28,8 @@ RichConfig: ... # 格式和核心内容和Config相同，但是description和ins
 明白了请说“好的。”， 不要说其他的。"""
 
 LOGO_TOOL_NAME = 'logo_designer'
+
+ASSISTANT_PROMPT = """Answer: <answer>\nConfig: <config>\nRichConfig: <rich_config>"""
 
 
 def init_builder_chatbot_agent():
@@ -71,6 +74,19 @@ def init_builder_chatbot_agent():
 
 class BuilderChatbotAgent(AgentExecutor):
 
+    def __init__(self, llm, tool_cfg, agent_type, prompt_generator,
+                 additional_tool_list):
+
+        super().__init__(
+            llm,
+            tool_cfg,
+            agent_type=agent_type,
+            additional_tool_list=additional_tool_list,
+            prompt_generator=prompt_generator)
+
+        # used to reconstruct assistant message when builder config is updated
+        self._last_assistant_structured_response = {}
+
     def stream_run(self,
                    task: str,
                    remote: bool = True,
@@ -103,6 +119,8 @@ class BuilderChatbotAgent(AgentExecutor):
                     pattern=r'Answer:([\s\S]+)\nConfig:')
                 res = re_pattern_answer.search(llm_result['content'])
                 llm_text = res.group(1).strip()
+                self._last_assistant_structured_response[
+                    'answer_str'] = llm_text
                 yield {'llm_text': llm_text}
             except Exception:
                 yield {'error': 'llm result is not valid'}
@@ -112,9 +130,18 @@ class BuilderChatbotAgent(AgentExecutor):
                     content = llm_result['content']
                 else:
                     content = llm_result
-                config = content[content.rfind('RichConfig:')
-                                 + len('RichConfig:'):].strip()
-                answer = json.loads(config)
+
+                re_pattern_config = re.compile(
+                    pattern=r'Config: ([\s\S]+)\nRichConfig')
+                res = re_pattern_config.search(llm_result['content'])
+                config = res.group(1).strip()
+                self._last_assistant_structured_response['config_str'] = config
+
+                rich_config = content[content.rfind('RichConfig:')
+                                      + len('RichConfig:'):].strip()
+                answer = json.loads(rich_config)
+                self._last_assistant_structured_response[
+                    'rich_config_dict'] = answer
                 builder_cfg = config_conversion(answer)
                 yield {'exec_result': {'result': builder_cfg}}
             except ValueError as e:
@@ -144,3 +171,31 @@ class BuilderChatbotAgent(AgentExecutor):
                     return
             else:
                 return
+
+    def update_config_to_history(self, config: Dict):
+        """ update builder config to message when user modify configuration
+
+        Args:
+            config info read from builder config file
+        """
+        if len(
+                self.prompt_generator.history
+        ) > 0 and self.prompt_generator.history[-1]['role'] == 'assistant':
+            answer = self._last_assistant_structured_response['answer_str']
+            simple_config = self._last_assistant_structured_response[
+                'config_str']
+
+            rich_config_dict = {
+                k: config[k]
+                for k in ['name', 'description', 'conversation_starters']
+            }
+            rich_config_dict[
+                'logo_prompt'] = self._last_assistant_structured_response[
+                    'rich_config_dict']['logo_prompt']
+            rich_config_dict['instructions'] = config['instruction'].split('；')
+
+            rich_config = json.dumps(rich_config_dict, ensure_ascii=False)
+            new_content = ASSISTANT_PROMPT.replace('<answer>', answer).replace(
+                '<config>', simple_config).replace('<rich_config>',
+                                                   rich_config)
+            self.prompt_generator.history[-1]['content'] = new_content
