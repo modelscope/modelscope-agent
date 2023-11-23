@@ -173,6 +173,11 @@ class BuilderChatbotAgent(AgentExecutor):
                 return
 
     def update_config_to_history(self, config: Dict):
+        """ update builder config to message when user modify configuration
+
+        Args:
+            config info read from builder config file
+        """
         if len(
                 self.prompt_generator.history
         ) > 0 and self.prompt_generator.history[-1]['role'] == 'assistant':
