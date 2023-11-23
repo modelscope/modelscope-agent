@@ -4,8 +4,9 @@ import traceback
 
 import gradio as gr
 from builder_core import init_builder_chatbot_agent
-from config_utils import (Config, get_avatar_image, parse_configuration,
-                          save_avatar_image, save_builder_configuration)
+from config_utils import (Config, get_avatar_image, get_builder_configuration,
+                          parse_configuration, save_avatar_image,
+                          save_builder_configuration)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
@@ -26,6 +27,18 @@ def init_builder(state):
     try:
         builder_agent = init_builder_chatbot_agent()
         state['builder_agent'] = builder_agent
+    except Exception as e:
+        error = traceback.format_exc()
+        print(f'Error:{e}, with detail: {error}')
+    return state
+
+
+def update_builder(state):
+    builder_agent = state['builder_agent']
+
+    try:
+        config = get_builder_configuration()
+        builder_agent.update_config_to_history(config)
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
@@ -103,6 +116,7 @@ def process_configuration(bot_avatar, name, description, instructions, model,
     }
 
     save_builder_configuration(builder_cfg)
+    update_builder(state)
     init_user(state)
     return [
         gr.HTML.update(
