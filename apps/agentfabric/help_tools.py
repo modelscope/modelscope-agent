@@ -17,7 +17,7 @@ CONFIG_FORMAT = """
     "name": ... # CustomGPT的名字。
     "description": ... # CustomGPT 的简介。
     "instructions": ... # CustomGPT 的功能要求，类型是string。
-    "conversation_starters": ... # CustomGPT 的起始交互语句，类型是一个字符串数组，起始为[]。
+    "prompt_recommend": ... # CustomGPT 的起始交互语句，类型是一个字符串数组，起始为[]。
 }
 """
 
@@ -105,7 +105,7 @@ def config_conversion(generated_config: dict, save=False):
             "分析营养摄入情况",
             "提供心理支持",
         ],
-        conversation_starters: [
+        prompt_recommend: [
             "你好，今天的锻炼计划是什么呢？",
             "你觉得哪种器械最适合练背部肌肉呢？",
             "你觉得我现在的训练强度合适吗？",
@@ -122,7 +122,7 @@ def config_conversion(generated_config: dict, save=False):
         分析我的营养摄入情况、提供心理支持等等。我相信，在它的帮助下，我可以更快地达到自己的目标，变得更加强壮和健康。",
         instructions: "提供力量训练相关的建议和指南；跟踪和记录每次的力量训练数据；提供反馈和建议，帮助改进和优化训练计划；
         预测未来的身体状况；分析营养摄入情况；提供心理支持",
-        conversation_starters: [
+        prompt_recommend: [
             "你好，今天的锻炼计划是什么呢？",
             "你觉得哪种器械最适合练背部肌肉呢？",
             "你觉得我现在的训练强度合适吗？",
@@ -140,8 +140,7 @@ def config_conversion(generated_config: dict, save=False):
     try:
         builder_cfg.name = generated_config['name']
         builder_cfg.description = generated_config['description']
-        builder_cfg.conversation_starters = generated_config[
-            'conversation_starters']
+        builder_cfg.prompt_recommend = generated_config['prompt_recommend']
         builder_cfg.instruction = '；'.join(generated_config['instructions'])
         if save:
             json.dump(

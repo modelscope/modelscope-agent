@@ -60,7 +60,7 @@ def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
     state['tool_cfg'] = tool_cfg
     state['capabilities'] = capabilities
     bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)[1]
-    suggests = builder_cfg.get('conversation_starters', [])
+    suggests = builder_cfg.get('prompt_recommend', [])
     return [
         state,
         # config form
@@ -118,7 +118,7 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         'avatar': bot_avatar,
         'description': description,
         'instruction': instructions,
-        'conversation_starters': [row[0] for row in suggestions_filtered],
+        'prompt_recommend': [row[0] for row in suggestions_filtered],
         'knowledge': list(map(lambda file: file.name, files or [])),
         'tools': {
             capability: dict(
@@ -287,8 +287,8 @@ with demo:
                                         uuid_str):
         uuid_str = check_uuid(uuid_str)
         bot_avatar = builder_cfg.get('avatar', '')
-        conversation_starters = builder_cfg.get('conversation_starters', [])
-        suggestion = [[row] for row in conversation_starters]
+        prompt_recommend = builder_cfg.get('prompt_recommend', [])
+        suggestion = [[row] for row in prompt_recommend]
         bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
         save_builder_configuration(builder_cfg, uuid_str)
         _state['configure_updated'] = True
