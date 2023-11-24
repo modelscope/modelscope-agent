@@ -5,9 +5,9 @@ import traceback
 import gradio as gr
 import json
 from builder_core import init_builder_chatbot_agent
-from config_utils import (Config, get_avatar_image, get_builder_configuration,
-                          get_user_cfg_file, parse_configuration,
-                          save_avatar_image, save_builder_configuration)
+from config_utils import (Config, get_avatar_image, get_user_cfg_file,
+                          parse_configuration, save_avatar_image,
+                          save_builder_configuration)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
@@ -35,11 +35,11 @@ def init_builder(uuid_str, state):
     return state
 
 
-def update_builder(state):
+def update_builder(uuid_str, state):
     builder_agent = state['builder_agent']
 
     try:
-        builder_cfg_file = get_user_cfg_file(uuid_str='')
+        builder_cfg_file = get_user_cfg_file(uuid_str=uuid_str)
         with open(builder_cfg_file, 'r') as f:
             config = json.load(f)
         builder_agent.update_config_to_history(config)
@@ -131,7 +131,7 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     }
 
     save_builder_configuration(builder_cfg, uuid_str)
-    update_builder(state)
+    update_builder(uuid_str, state)
     init_user(uuid_str, state)
     return [
         gr.HTML.update(
