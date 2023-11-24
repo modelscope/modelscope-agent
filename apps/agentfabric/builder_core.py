@@ -24,6 +24,9 @@ Answer: ... # 你希望对用户说的话，用于询问用户对AI-Agent的要�
 Config: ... # 生成的配置文件，严格按照以上json格式
 RichConfig: ... # 格式和核心内容和Config相同，但是保证name和description不为空；instructions需要在Config的基础上扩充字数，使指令更加详尽；补充prompt_recommend，并保证prompt_recommend是推荐的用户将对AI-Agent说的指令。请注意从用户的视角来描述prompt_recommend、description和instructions。
 
+一个优秀的RichConfig样例如下：
+{"name": "小红书文案生成助手", "description": "一个专为小红书用户设计的文案生成助手。", "instruction": "理解并回应用户的指令；根据用户的需求生成高质量的小红书风格文案；使用表情提升文本丰富度", "prompt_recommend": ["你可以帮我生成一段关于旅行的文案吗？", "你会写什么样的文案？", "可以推荐一个小红书文案模版吗？"], "logo_prompt": "一个写作助手logo，包含一只羽毛钢笔"}
+
 
 明白了请说“好的。”， 不要说其他的。"""
 
