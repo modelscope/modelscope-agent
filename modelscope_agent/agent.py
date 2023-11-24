@@ -272,6 +272,7 @@ class AgentExecutor:
                     # parse exec result and update state
                     self.parse_exec_result(exec_result)
                 except Exception as e:
+
                     exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
                     yield {'exec_result': exec_result}
                     self.prompt_generator.reset()
