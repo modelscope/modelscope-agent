@@ -5,6 +5,20 @@ from modelscope_agent.tools.openapi_tool import (OpenAPISchemaTool,openapi_schem
 from modelscope.utils.config import Config
 sys.path.append('../../')
 #before run test,add your tokeen
+def is_json(data):
+    try:
+        json.loads(data)
+        return True
+    except ValueError:
+        return False
+
+def is_yaml(data):
+    try:
+        yaml.safe_load(data)
+        return True
+    except yaml.YAMLError:
+        return False
+        
 def test_openapi_schema_convert(token):
     schema_json = '''
   {
@@ -124,8 +138,17 @@ def test_openapi_schema_convert(token):
   }
 
   '''
-
-    schema = json.loads(schema_json)
+    if is_json(schema):
+      print("输入字符串schema是JSON")
+    elif is_yaml(schema):
+      print("输入字符串schema是YAML")
+      yaml_dict = yaml.safe_load(schema)
+      # 将YAML数据转换为JSON数据
+      schema = json.dumps(yaml_dict, indent=2)
+    else:
+        raise("输入字符串schema既不是JSON也不是YAML")
+    schema_data = json.loads(schema)
+    schema = json.loads(schema_data)
     config_data = openapi_schema_convert(schema, YOUR_API_TOKEN=token)
 
     with open(
