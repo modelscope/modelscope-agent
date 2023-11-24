@@ -3,7 +3,11 @@ from typing import Union
 
 from .raw_prompt_builder import build_raw_prompt
 
-KNOWLEDGE_RESULT_PROMPT = '知识库结果如下: '
+KNOWLEDGE_PROMPT = '# 知识库'
+KNOWLEDGE_INTRODUCTION_PROMPT = '以下是我上传的文件“<file_name>”的内容:'
+KNOWLEDGE_CONTENT_PROMPT = """```
+<knowledge_content>
+```"""
 
 
 class PromptGenerator:
@@ -55,7 +59,8 @@ class PromptGenerator:
             [self.system_template, self.instruction_template])
         prompt += '<knowledge><history>'
 
-        knowledge_str = self.get_knowledge_str(knowledge_list)
+        knowledge_str = self.get_knowledge_str(
+            knowledge_list, file_name=kwargs.get('file_name', ''))
 
         # knowledge
         prompt = prompt.replace('<knowledge>', knowledge_str)
@@ -163,17 +168,22 @@ class PromptGenerator:
         functions = [tool.get_function() for tool in tool_list]
         return functions
 
-    def get_knowledge_str(self, knowledge_list):
+    def get_knowledge_str(self, knowledge_list, file_name=''):
         """generate knowledge string
 
         Args:
+            file_name (str): file name
             knowledge_list (List[str]): list of knowledges
 
         """
 
         knowledge = self.sep.join(
             [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        knowledge_str = f'{self.sep}{KNOWLEDGE_RESULT_PROMPT}{self.sep}{knowledge}' if len(
+        knowledge_introduction = KNOWLEDGE_INTRODUCTION_PROMPT.replace(
+            '<file_name>', file_name)
+        knowledge_content = KNOWLEDGE_CONTENT_PROMPT.replace(
+            '<knowledge_content>', knowledge)
+        knowledge_str = f'{KNOWLEDGE_PROMPT}{self.sep}{knowledge_introduction}{self.sep}{knowledge_content}' if len(
             knowledge_list) > 0 else ''
         return knowledge_str
 
