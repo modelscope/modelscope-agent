@@ -3,10 +3,8 @@ import os
 import re
 
 import json
-from config_utils import DEFAULT_BUILDER_CONFIG_FILE
-from modelscope_agent.prompt.prompt import (KNOWLEDGE_CONTENT_PROMPT,
-                                            KNOWLEDGE_INTRODUCTION_PROMPT,
-                                            KNOWLEDGE_PROMPT, PromptGenerator,
+from config_utils import DEFAULT_BUILDER_CONFIG_FILE, get_user_cfg_file
+from modelscope_agent.prompt.prompt import (KNOWLEDGE_PROMPT, PromptGenerator,
                                             build_raw_prompt)
 
 from modelscope.utils.config import Config
@@ -57,8 +55,8 @@ class CustomPromptGenerator(PromptGenerator):
         self.add_addition_round = kwargs.get('add_addition_round', False)
         self.addition_assistant_reply = kwargs.get('addition_assistant_reply',
                                                    '')
-        builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
-                                     DEFAULT_BUILDER_CONFIG_FILE)
+        builder_cfg_file = get_user_cfg_file(
+            uuid_str=kwargs.get('uuid_str', ''))
         builder_cfg = Config.from_file(builder_cfg_file)
         self.builder_cfg = builder_cfg
         self.knowledge_file_name = kwargs.get('knowledge_file_name', '')
