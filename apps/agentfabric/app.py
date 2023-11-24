@@ -10,7 +10,7 @@ from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           save_builder_configuration)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
-
+from publish_util import prepare_agent_zip
 
 def init_user(uuid_str, state):
     try:
@@ -247,6 +247,9 @@ with demo:
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
                 outputs=[preview_chat_input])
+            publish_button = gr.Button('Publish')
+            output_url = gr.Textbox(
+                label='Agent url for you', disabled=True)
 
     configure_updated_outputs = [
         state,
@@ -397,11 +400,22 @@ with demo:
             response += frame_text
             chatbot[-1] = (input, response)
             yield {user_chatbot: chatbot}
-
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
+
+    # configuration for publish
+    def publish_agent(output_url, name, uuid_str, state):
+        uuid_str = check_uuid(uuid_str)
+        output_url = prepare_agent_zip(name, uuid_str, state)
+        return output_url
+
+    publish_button.click(
+        publish_agent,
+        inputs=[output_url, name_input, uuid_str, state],
+        outputs=[output_url],
+    )
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
