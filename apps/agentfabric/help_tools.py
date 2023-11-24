@@ -141,7 +141,11 @@ def config_conversion(generated_config: dict, save=False):
         builder_cfg.name = generated_config['name']
         builder_cfg.description = generated_config['description']
         builder_cfg.prompt_recommend = generated_config['prompt_recommend']
-        builder_cfg.instruction = '；'.join(generated_config['instructions'])
+        if isinstance(generated_config['instructions'], list):
+            builder_cfg.instruction = '；'.join(
+                generated_config['instructions'])
+        else:
+            builder_cfg.instruction = generated_config['instructions']
         if save:
             json.dump(
                 builder_cfg.to_dict(),
