@@ -140,7 +140,7 @@ class AgentExecutor:
         knowledge_list = self.get_knowledge(task)
 
         self.prompt_generator.init_prompt(task, tool_list, knowledge_list,
-                                          self.llm.model)
+                                          self.llm.model_id)
         function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''
@@ -218,7 +218,7 @@ class AgentExecutor:
         knowledge_list = self.get_knowledge(task)
 
         self.prompt_generator.init_prompt(task, tool_list, knowledge_list,
-                                          self.llm.model)
+                                          self.llm.model_id)
         function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''
@@ -272,7 +272,6 @@ class AgentExecutor:
                     # parse exec result and update state
                     self.parse_exec_result(exec_result)
                 except Exception as e:
-
                     exec_result = f'Action call error: {action}: {action_args}. \n Error message: {e}'
                     yield {'exec_result': exec_result}
                     self.prompt_generator.reset()
