@@ -39,10 +39,9 @@ def get_avatar_image(bot_avatar, uuid_str=''):
     bot_avatar_path = os.path.join(os.path.dirname(__file__), 'assets/bot.jpg')
     if len(bot_avatar) > 0:
         bot_avatar_path = os.path.join(
-            os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, 'user',
+            os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, uuid_str,
             bot_avatar)
         if uuid_str != '':
-            bot_avatar_path = bot_avatar_path.replace('user', uuid_str)
             # use default if not exists
             if not os.path.exists(bot_avatar_path):
                 # create parents directory
@@ -51,6 +50,10 @@ def get_avatar_image(bot_avatar, uuid_str=''):
                 temp_bot_avatar_path = os.path.join(
                     os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR,
                     bot_avatar)
+                if not os.path.exists(temp_bot_avatar_path):
+                    # fall back to default avatar image
+                    temp_bot_avatar_path = os.path.join(
+                    os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, 'custom_bot_avatar.png')
 
                 shutil.copy(temp_bot_avatar_path, bot_avatar_path)
 
@@ -60,9 +63,8 @@ def get_avatar_image(bot_avatar, uuid_str=''):
 def save_avatar_image(image_path, uuid_str=''):
     bot_avatar = os.path.basename(image_path)
     bot_avatar_path = os.path.join(
-        os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, 'user',
+        os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, uuid_str,
         bot_avatar)
-    bot_avatar_path = bot_avatar_path.replace('user', uuid_str)
     shutil.copy(image_path, bot_avatar_path)
     return bot_avatar, bot_avatar_path
 
