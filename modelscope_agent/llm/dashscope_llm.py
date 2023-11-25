@@ -21,6 +21,7 @@ class DashScopeLLM(LLM):
     def __init__(self, cfg):
         super().__init__(cfg)
         self.model = self.cfg.get('model', 'modelscope-agent-llm-v1')
+        self.model_id = self.model
         self.generate_cfg = self.cfg.get('generate_cfg', {})
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 
