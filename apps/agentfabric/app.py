@@ -1,13 +1,13 @@
 import os
 import random
 import traceback
-
+import shutil
 import gradio as gr
 import json
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           parse_configuration, save_avatar_image,
-                          save_builder_configuration)
+                          save_builder_configuration, get_user_dir)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 from publish_util import prepare_agent_zip
@@ -106,20 +106,25 @@ def check_uuid(uuid_str):
 
 
 def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, suggestions, files,
+                          instructions, model, suggestions, knowledge_files,
                           capabilities_checkboxes, state):
     uuid_str = check_uuid(uuid_str)
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
+    user_dir = get_user_dir(uuid_str)
+    new_knowledge_files = [os.path.join(user_dir, os.path.basename((f.name))) for f in knowledge_files]
+    for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
+        if not os.path.exists(dst_file):
+            shutil.copy(src_file.name, dst_file)
     builder_cfg = {
         'name': name,
         'avatar': bot_avatar,
         'description': description,
         'instruction': instructions,
         'conversation_starters': [row[0] for row in suggestions_filtered],
-        'knowledge': list(map(lambda file: file.name, files or [])),
+        'knowledge': new_knowledge_files,
         'tools': {
             capability: dict(
                 name=tool_cfg[capability]['name'],
