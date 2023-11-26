@@ -10,6 +10,7 @@ opencv-python
 openpyxl
 Pillow
 pydantic>=2.0.0
+pypdf
 pytest
 python-dotenv
 soundfile

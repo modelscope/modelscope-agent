@@ -16,6 +16,7 @@ class ModelScopeLLM(LLM):
         super().__init__(cfg)
 
         model_id = self.cfg.get('model_id', '')
+        self.model_id = model_id
         model_revision = self.cfg.get('model_revision', None)
 
         if not os.path.exists(model_id):

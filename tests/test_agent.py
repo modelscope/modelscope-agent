@@ -56,7 +56,7 @@ def test_unknown_action_error():
         prompt_generator=prompt_generator,
         output_parser=output_parser)
     res = agent.run('mock task')
-    assert res == [{'error': "Unknown action: 'fake_search_tool'. "}]
+    assert res == [{'exec_result': "Unknown action: 'fake_search_tool'. "}]
 
 
 def test_tool_execute_error():
@@ -73,5 +73,5 @@ def test_tool_execute_error():
         prompt_generator=prompt_generator,
         output_parser=output_parser)
     res = agent.run('mock task')
-    assert res[0]['error'].startswith(
+    assert res[0]['exec_result'].startswith(
         "Action call error: search_tool: {'query': 'mock query'}.")
