@@ -139,7 +139,7 @@ class CodeInterpreterJupyter(Tool):
 
     def _serve_image(self, image_base64: str) -> str:
         image_file = f'{uuid.uuid4()}.png'
-        local_image_file = os.path.join(WORK_DIR, image_file)
+        local_image_file = os.path.join(os.path.dirname(__file__), image_file)
 
         png_bytes = base64.b64decode(image_base64)
         assert isinstance(png_bytes, bytes)
@@ -224,14 +224,14 @@ class CodeInterpreterJupyter(Tool):
             if text:
                 result += f'\n{text}'
             if image:
-                result += f'\n\n{image}'
+                result += f'\n\n/file={image}'
             if finished:
                 break
         result = result.lstrip('\n')
         return result
 
     def _local_call(self, *args, **kwargs):
-        code = kwargs.get('code', '')
+        code = self._handle_input_fallback(**kwargs)
         if not code.strip():
             return ''
 
@@ -251,3 +251,48 @@ class CodeInterpreterJupyter(Tool):
             self._execute_code(self.kc, '_M6CountdownTimer.cancel()')
 
         return {'result': result}
+
+    def _handle_input_fallback(self, **kwargs):
+        """
+        an alternative method is to parse code in content not from function call
+        such as:
+            text = response['content']
+            code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
+            if code_block:
+                result = code_block.group(1)
+                language = result.split('\n')[0]
+                code = '\n'.join(result.split('\n')[1:])
+
+        :param fallback_text:
+        :return: language, cocde
+        """
+
+        code = kwargs.get('code', None)
+        fallback = kwargs.get('fallback', None)
+
+        if code:
+            return code
+        elif fallback:
+            try:
+                text = fallback
+                code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
+                if code_block:
+                    result = code_block.group(1)
+                    language = result.split('\n')[0]
+                    if language == 'py' or language == 'python':
+                        # handle py case
+                        # ```py code ```
+                        language = 'python'
+                        code = '\n'.join(result.split('\n')[1:])
+                        return code
+
+                    if language == 'json':
+                        # handle json case
+                        # ```json {language,code}```
+                        parameters = json.loads('\n'.join(
+                            result.split('\n')[1:]).replace('\n', ''))
+                        return parameters['code']
+            except ValueError:
+                return code
+        else:
+            return code
