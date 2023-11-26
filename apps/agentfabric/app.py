@@ -118,14 +118,17 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
     user_dir = get_user_dir(uuid_str)
-    knowledge_files = [] if knowledge_files is None else knowledge_files
-    new_knowledge_files = [
-        os.path.join(user_dir, os.path.basename((f.name)))
-        for f in knowledge_files
-    ]
-    for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
-        if not os.path.exists(dst_file):
-            shutil.copy(src_file.name, dst_file)
+    if knowledge_files is not None:
+        new_knowledge_files = [
+            os.path.join(user_dir, os.path.basename((f.name)))
+            for f in knowledge_files
+        ]
+        for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
+            if not os.path.exists(dst_file):
+                shutil.copy(src_file.name, dst_file)
+    else:
+        new_knowledge_files = []
+
     builder_cfg = {
         'name': name,
         'avatar': bot_avatar,

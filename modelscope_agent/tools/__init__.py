@@ -1,3 +1,4 @@
+from .amap_weather import AMAPWeather
 from .code_interperter import CodeInterpreter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
@@ -24,4 +25,5 @@ DEFAULT_TOOL_LIST = {
     'modelscope_image-chat': 'ImageChatTool',
     'modelscope_speech-generation': 'TexttoSpeechTool',
     'code_interpreter': 'CodeInterpreter',
+    'amap_weather': 'AMAPWeather',
 }

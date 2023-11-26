@@ -18,20 +18,33 @@ DEFAULT_SYSTEM_TEMPLATE = """
 
 <tool_list>
 
-## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令：
+## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令，可以根据需求调用零次或多次：
 
 工具调用
-Action: 工具的名字
+Action: 工具的名称，必须是<tool_name_list>之一
 Action Input: 工具的输入，需格式化为一个JSON
-Observation: 工具返回的结果
+Observation: <result>工具返回的结果</result>
+Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请使用如下markdown格式展现:
+
+```
+[链接](url)
+```
 
 # 指令
 """
+
+DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
+
+# 指令
+"""
+
 DEFAULT_INSTRUCTION_TEMPLATE = ''
 
-DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list>) <user_input>"""
+DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>) <user_input>"""
 
-DEFAULT_EXEC_TEMPLATE = """Observation: <exec_result>"""
+DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <user_input>"""
+
+DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
 
 TOOL_DESC = (
     '{name_for_model}: {name_for_human} API。 {description_for_model} 输入参数: {parameters}'
@@ -73,28 +86,43 @@ class CustomPromptGenerator(PromptGenerator):
 
             self.prompt_preprocessor = build_raw_prompt(llm_model)
 
-            prompt = f'{self.system_template}\n{self.instruction_template}'
+            if len(tool_list) > 0:
+                prompt = f'{self.system_template}\n{self.instruction_template}'
+
+                # get tool description str
+                tool_str = self.get_tool_str(tool_list)
+                plugin_str = self.get_plugin_str(
+                    kwargs.get('plugin_config', ''))
+                prompt = prompt.replace('<tool_list>',
+                                        '\n\n'.join([tool_str, plugin_str]))
+
+                tool_name_str = self.get_tool_name_str(tool_list)
+                prompt = prompt.replace('<tool_name_list>', tool_name_str)
+
+                # user input
+                user_input = self.user_template.replace('<user_input>', task)
+                user_input = user_input.replace('<role_name>',
+                                                self.builder_cfg.name)
+                user_input = user_input.replace(
+                    '<tool_name_list>',
+                    ','.join([tool.name for tool in tool_list]))
+            else:
+                self.system_template = DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL
+                self.user_template = DEFAULT_USER_TEMPLATE_WITHOUT_TOOL
+                prompt = f'{self.system_template}\n{self.instruction_template}'
+                user_input = self.user_template.replace('<user_input>', task)
+                user_input = user_input.replace('<role_name>',
+                                                self.builder_cfg.name)
 
             if len(knowledge_list) > 0:
-
                 knowledge_str = self.get_knowledge_str(
                     knowledge_list, file_name=self.knowledge_file_name)
                 # knowledge
                 prompt = knowledge_str + prompt
-
-            # get tool description str
-            tool_str = self.get_tool_str(tool_list)
-            plugin_str = self.get_plugin_str(kwargs.get('plugin_config', ''))
-            prompt = prompt.replace('<tool_list>',
-                                    '\n\n'.join([tool_str, plugin_str]))
-
-            # user input
-            user_input = self.user_template.replace('<user_input>', task)
-            user_input = user_input.replace('<role_name>',
-                                            self.builder_cfg.name)
-            user_input = user_input.replace(
-                '<tool_name_list>',
-                ','.join([tool.name for tool in tool_list]))
+                user_input = user_input.replace('<knowledge_note>',
+                                                '，请查看前面的知识库')
+            else:
+                user_input = user_input.replace('<knowledge_note>', '')
 
             self.system_prompt = copy.deepcopy(prompt)
 
@@ -125,12 +153,14 @@ class CustomPromptGenerator(PromptGenerator):
 
             self.function_calls = self.get_function_list(tool_list)
         else:
-            self.history.append({
-                'role':
-                'user',
-                'content':
-                self.user_template.replace('<user_input>', task)
-            })
+            user_input = self.user_template.replace('<user_input>', task)
+            if len(knowledge_list) > 0:
+                user_input = user_input.replace('<knowledge_note>',
+                                                '，请查看前面的知识库')
+            else:
+                user_input = user_input.replace('<knowledge_note>', '')
+
+            self.history.append({'role': 'user', 'content': user_input})
             self.history.append({
                 'role': 'assistant',
                 'content': self.assistant_template
@@ -190,6 +220,14 @@ class CustomPromptGenerator(PromptGenerator):
 
         plugin_str = '\n\n'.join(plugin_texts)
         return plugin_str
+
+    def get_tool_name_str(self, tool_list):
+        tool_name = []
+        for tool in tool_list:
+            tool_name.append(tool.name)
+
+        tool_name_str = json.dumps(tool_name, ensure_ascii=False)
+        return tool_name_str
 
     def _generate(self, llm_result, exec_result: str):
         """
