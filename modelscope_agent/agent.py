@@ -10,7 +10,6 @@ from .output_wrapper import display
 from .prompt import PromptGenerator, get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
 from .tools import DEFAULT_TOOL_LIST
-from .tools.openapi_tool import openapi_schema_convert
 
 
 class AgentExecutor:
@@ -18,7 +17,6 @@ class AgentExecutor:
     def __init__(self,
                  llm: LLM,
                  tool_cfg: Optional[Dict] = {},
-                 plugin_cfg: Optional[Dict] = {},
                  agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
@@ -55,7 +53,6 @@ class AgentExecutor:
         self.output_parser = output_parser or get_output_parser(agent_type)
 
         self._init_tools(tool_cfg, additional_tool_list)
-        self._init_plugins(plugin_cfg)
 
         if isinstance(tool_retrieval, bool) and tool_retrieval:
             tool_retrieval = ToolRetrieval()
@@ -89,12 +86,6 @@ class AgentExecutor:
 
         self.tool_list = {**self.tool_list, **additional_tool_list}
         self.available_tool_list = deepcopy(self.tool_list)
-
-    def _init_plugins(self, plugin_cfg: Dict = {}):
-        if plugin_cfg is not None and len(plugin_cfg) > 0:
-            self.plugin_config_data = openapi_schema_convert(plugin_cfg)
-        else:
-            self.plugin_config_data = None
 
     def set_available_tools(self, available_tool_list):
         for t in available_tool_list:
@@ -228,12 +219,8 @@ class AgentExecutor:
         tool_list = self.retrieve_tools(task)
         knowledge_list = self.get_knowledge(task)
 
-        self.prompt_generator.init_prompt(
-            task,
-            tool_list,
-            knowledge_list,
-            self.llm.model_id,
-            plugin_config=self.plugin_config_data)
+        self.prompt_generator.init_prompt(task, tool_list, knowledge_list,
+                                          self.llm.model_id)
         function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''

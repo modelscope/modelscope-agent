@@ -91,10 +91,7 @@ class CustomPromptGenerator(PromptGenerator):
 
                 # get tool description str
                 tool_str = self.get_tool_str(tool_list)
-                plugin_str = self.get_plugin_str(
-                    kwargs.get('plugin_config', ''))
-                prompt = prompt.replace('<tool_list>',
-                                        '\n\n'.join([tool_str, plugin_str]))
+                prompt = prompt.replace('<tool_list>', tool_str)
 
                 tool_name_str = self.get_tool_name_str(tool_list)
                 prompt = prompt.replace('<tool_name_list>', tool_name_str)
@@ -203,23 +200,6 @@ class CustomPromptGenerator(PromptGenerator):
             # + ' ' + FORMAT_DESC['json'])
         tool_str = '\n\n'.join(tool_texts)
         return tool_str
-
-    def get_plugin_str(self, plugin_config: Dict):
-        if plugin_config in [None, '', {}, []]:
-            return ''
-
-        plugin_texts = []
-        for name, plugin in plugin_config.items():
-            plugin_texts.append(
-                TOOL_DESC.format(
-                    name_for_model=plugin['name'],
-                    name_for_human=plugin['name'],
-                    description_for_model=plugin['description'],
-                    parameters=json.dumps(
-                        plugin['parameters'], ensure_ascii=False)))
-
-        plugin_str = '\n\n'.join(plugin_texts)
-        return plugin_str
 
     def get_tool_name_str(self, tool_list):
         tool_name = []
