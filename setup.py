@@ -19,7 +19,7 @@ def readme():
 setup(
     name=
     'modelscope-agent',  # Replace 'your_package_name' with the name of your package
-    version='0.1.0',  # Replace with the desired version number
+    version='0.1.1',  # Replace with the desired version number
     description=
     'ModelScope Agent: Be a powerful models and tools agent based on ModelScope and open source LLM.',
     author='Modelscope Team',
