@@ -37,7 +37,7 @@ def init_user_chatbot_agent(uuid_str=''):
 
     # get knowledge
     # 开源版本的向量库配置
-    model_id = 'damo/nlp_corom_sentence-embedding_chinese-base'
+    model_id = 'damo/nlp_gte_sentence-embedding_chinese-base'
     embeddings = ModelScopeEmbeddings(model_id=model_id)
     available_knowledge_list = []
     for item in builder_cfg.knowledge:
