@@ -1,4 +1,6 @@
+from .amap_weather import AMAPWeather
 from .code_interperter import CodeInterpreter
+from .code_interpreter_jupyter import CodeInterpreterJupyter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
 from .pipeline_tool import ModelscopePipelineTool
