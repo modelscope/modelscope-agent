@@ -133,7 +133,7 @@ def parse_configuration(uuid_str=''):
     plugin_cfg = None
     available_plugin_list = []
     if os.path.exists(openapi_plugin_file):
-        plugin_cfg = Config.from_file(openapi_plugin_file)
+        plugin_cfg = Config.from_file(openapi_plugin_file).schema
         available_plugin_list.append(plugin_cfg.info.title)
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list

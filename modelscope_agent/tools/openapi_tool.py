@@ -1,20 +1,27 @@
 from typing import List, Optional
+
 import json
 import requests
 from jsonschema import RefResolver
 from pydantic import BaseModel, ValidationError
 from requests.exceptions import RequestException, Timeout
+
 from .tool import Tool
+
 MAX_RETRY_TIMES = 3
+
+
 class ParametersSchema(BaseModel):
     name: str
     description: str
     required: Optional[bool] = True
 
+
 class ToolSchema(BaseModel):
     name: str
     description: str
     parameters: List[ParametersSchema]
+
 
 class OpenAPISchemaTool(Tool):
     """
@@ -55,7 +62,8 @@ class OpenAPISchemaTool(Tool):
                 f"Could not use remote call for {self.name} since this tool doesn't have a remote endpoint"
             )
 
-        remote_parsed_input = json.dumps(self._remote_parse_input(*args, **kwargs))
+        remote_parsed_input = json.dumps(
+            self._remote_parse_input(*args, **kwargs))
         origin_result = None
         if self.method == 'POST':
             retry_times = MAX_RETRY_TIMES
@@ -65,12 +73,13 @@ class OpenAPISchemaTool(Tool):
                     response = requests.request(
                         'POST',
                         url=self.url,
-                        headers= self.header,
+                        headers=self.header,
                         data=remote_parsed_input)
-                    
+
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
-                    origin_result = json.loads(response.content.decode('utf-8'))
+                    origin_result = json.loads(
+                        response.content.decode('utf-8'))
 
                     final_result = self._parse_output(
                         origin_result, remote=True)
@@ -90,7 +99,7 @@ class OpenAPISchemaTool(Tool):
             while retry_times:
                 retry_times -= 1
                 try:
-                    print("GET:",self.url)
+                    print('GET:', self.url)
                     response = requests.request(
                         'GET',
                         url=self.url,
@@ -99,7 +108,8 @@ class OpenAPISchemaTool(Tool):
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
 
-                    origin_result = json.loads(response.content.decode('utf-8'))
+                    origin_result = json.loads(
+                        response.content.decode('utf-8'))
 
                     final_result = self._parse_output(
                         origin_result, remote=True)
@@ -139,11 +149,11 @@ class OpenAPISchemaTool(Tool):
                 # f the key does not contain ".", directly store the key-value pair into restored_dict
                 restored_dict[key] = value
             kwargs = restored_dict
-        print("传给tool的参数：",kwargs)
+        print('传给tool的参数：', kwargs)
         return kwargs
 
 
-#openapi_schema_convert,register to tool_config.json
+# openapi_schema_convert,register to tool_config.json
 def extract_references(schema_content):
     references = []
     if isinstance(schema_content, dict):
@@ -166,7 +176,8 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
         if param_type == 'object':
             properties = param_info.get('properties')
             if properties:
-                # If the argument type is an object and has a non-empty "properties" field, its internal properties are parsed recursively
+                # If the argument type is an object and has a non-empty "properties" field,
+                # its internal properties are parsed recursively
                 for inner_param_name, inner_param_info in properties.items():
                     param_type = inner_param_info['type']
                     param_description = inner_param_info.get(
@@ -205,7 +216,8 @@ def parse_responses_parameters(param_name, param_info, parameters_list):
         if param_type == 'object':
             properties = param_info.get('properties')
             if properties:
-                # If the argument type is an object and has a non-empty "properties" field, its internal properties are parsed recursively
+                # If the argument type is an object and has a non-empty "properties"
+                # field, its internal properties are parsed recursively
                 for inner_param_name, inner_param_info in properties.items():
                     param_type = inner_param_info['type']
                     param_description = inner_param_info.get(
@@ -227,9 +239,7 @@ def parse_responses_parameters(param_name, param_info, parameters_list):
         raise ValueError(f'{e}:schema结构出错')
 
 
-#YOUR_API_TOKEN = os.getenv('YOUR_API_TOKEN') ## get token from gradio
-#schema is json data
-def openapi_schema_convert(schema, YOUR_API_TOKEN):
+def openapi_schema_convert(schema, YOUR_API_TOKEN=''):
     resolver = RefResolver.from_schema(schema)
     servers = schema.get('servers', [])
     if servers:
@@ -244,7 +254,7 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
     # Iterate over each endpoint and its contents
     for endpoint_path, methods in endpoints.items():
         for method, details in methods.items():
-            summary = details.get('summary', 'No summary').replace(" ", "_")
+            summary = details.get('summary', 'No summary').replace(' ', '_')
             name = details.get('operationId', 'No operationId')
             url = f'{servers_url}{endpoint_path}'
             security = details.get('security', [{}])
@@ -271,36 +281,37 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
                                 parse_nested_parameters(
                                     param_name, param_info, parameters_list,
                                     content)
-                            X_DashScope_Async = requestBody.get('X-DashScope-Async','')
+                            X_DashScope_Async = requestBody.get(
+                                'X-DashScope-Async', '')
                             if X_DashScope_Async == '':
                                 config_entry = {
-                                'name': name,
-                                'description': description,
-                                'is_active': True,
-                                'is_remote_tool': True,
-                                'url': url,
-                                'method': method.upper(),
-                                'parameters': parameters_list,
-                                'header': {
-                                    'Content-Type': content_type,
-                                    'Authorization': authorization
+                                    'name': name,
+                                    'description': description,
+                                    'is_active': True,
+                                    'is_remote_tool': True,
+                                    'url': url,
+                                    'method': method.upper(),
+                                    'parameters': parameters_list,
+                                    'header': {
+                                        'Content-Type': content_type,
+                                        'Authorization': authorization
+                                    }
                                 }
-                            }
                             else:
                                 config_entry = {
-                                'name': name,
-                                'description': description,
-                                'is_active': True,
-                                'is_remote_tool': True,
-                                'url': url,
-                                'method': method.upper(),
-                                'parameters': parameters_list,
-                                'header': {
-                                    'Content-Type': content_type,
-                                    'Authorization': authorization,
-                                    "X-DashScope-Async": "enable"
+                                    'name': name,
+                                    'description': description,
+                                    'is_active': True,
+                                    'is_remote_tool': True,
+                                    'url': url,
+                                    'method': method.upper(),
+                                    'parameters': parameters_list,
+                                    'header': {
+                                        'Content-Type': content_type,
+                                        'Authorization': authorization,
+                                        'X-DashScope-Async': 'enable'
+                                    }
                                 }
-                            }
                 else:
                     config_entry = {
                         'name': name,

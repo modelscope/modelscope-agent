@@ -1,6 +1,7 @@
 import copy
 import os
 import re
+from typing import Dict
 
 import json
 from config_utils import DEFAULT_BUILDER_CONFIG_FILE, get_user_cfg_file
@@ -83,7 +84,9 @@ class CustomPromptGenerator(PromptGenerator):
 
             # get tool description str
             tool_str = self.get_tool_str(tool_list)
-            prompt = prompt.replace('<tool_list>', tool_str)
+            plugin_str = self.get_plugin_str(kwargs.get('plugin_config', ''))
+            prompt = prompt.replace('<tool_list>',
+                                    '\n\n'.join([tool_str, plugin_str]))
 
             # user input
             user_input = self.user_template.replace('<user_input>', task)
@@ -170,6 +173,23 @@ class CustomPromptGenerator(PromptGenerator):
             # + ' ' + FORMAT_DESC['json'])
         tool_str = '\n\n'.join(tool_texts)
         return tool_str
+
+    def get_plugin_str(self, plugin_config: Dict):
+        if plugin_config in [None, '', {}, []]:
+            return ''
+
+        plugin_texts = []
+        for name, plugin in plugin_config.items():
+            plugin_texts.append(
+                TOOL_DESC.format(
+                    name_for_model=plugin['name'],
+                    name_for_human=plugin['name'],
+                    description_for_model=plugin['description'],
+                    parameters=json.dumps(
+                        plugin['parameters'], ensure_ascii=False)))
+
+        plugin_str = '\n\n'.join(plugin_texts)
+        return plugin_str
 
     def _generate(self, llm_result, exec_result: str):
         """

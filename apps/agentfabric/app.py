@@ -7,7 +7,7 @@ import gradio as gr
 import json
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
-                          parse_configuration, save_avatar_image,
+                          get_user_dir, parse_configuration, save_avatar_image,
                           save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html
@@ -109,7 +109,7 @@ def check_uuid(uuid_str):
 
 
 def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, suggestions, files,
+                          instructions, model, suggestions, knowledge_files,
                           capabilities_checkboxes, openapi_schema,
                           openapi_auth, openapi_privacy_policy, state):
     uuid_str = check_uuid(uuid_str)
@@ -118,6 +118,7 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
     user_dir = get_user_dir(uuid_str)
+    knowledge_files = [] if knowledge_files is None else knowledge_files
     new_knowledge_files = [
         os.path.join(user_dir, os.path.basename((f.name)))
         for f in knowledge_files
