@@ -11,8 +11,10 @@ DEFAULT_BUILDER_CONFIG_FILE = './config/builder_config.json'
 DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 
+
 def get_user_dir(uuid_str=''):
     return os.path.join('config', uuid_str)
+
 
 def get_user_cfg_file(uuid_str=''):
     builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
@@ -55,7 +57,8 @@ def get_avatar_image(bot_avatar, uuid_str=''):
                 if not os.path.exists(temp_bot_avatar_path):
                     # fall back to default avatar image
                     temp_bot_avatar_path = os.path.join(
-                    os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, 'custom_bot_avatar.png')
+                        os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR,
+                        'custom_bot_avatar.png')
 
                 shutil.copy(temp_bot_avatar_path, bot_avatar_path)
 

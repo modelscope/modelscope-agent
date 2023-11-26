@@ -1,8 +1,10 @@
+import glob
 import os
 import shutil
-import oss2
 from configparser import ConfigParser
-import glob
+
+import oss2
+
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 上传文件到阿里云OSS
@@ -14,6 +16,7 @@ def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 获取文件的URL
     file_url = bucket.sign_url('GET', oss_file_path, 60 * 60)  # 签名URL有效期为1小时
     return file_url
+
 
 def get_oss_config():
     # 尝试从环境变量中读取配置
@@ -48,7 +51,7 @@ def prepare_agent_zip(agent_name, uuid_str, state):
     if os.path.exists(new_directory):
         os.removedirs(new_directory)
         os.makedirs(new_directory)
-    
+
     # 复制config下的uuid_str目录到new_directory下并改名为local_user
     uuid_str_path = f'{src_dir}/config/{uuid_str}'  # 指向uuid_str目录的路径
     local_user_path = f'{new_directory}/config/local_user'  # 新的目录路径
@@ -63,13 +66,16 @@ def prepare_agent_zip(agent_name, uuid_str, state):
         directory = os.path.join(directory, '')
 
         # 找到所有的JSON文件
-        json_files = glob.glob(directory + '*.json')
+        json_files = [
+            os.path.join(directory, 'model_config.json'),
+            os.path.join(directory, 'tool_config.json'),
+        ]
 
         # 找到所有的图片文件
         image_files = glob.glob(directory + '*.png') + \
-                    glob.glob(directory + '*.jpg') + \
-                    glob.glob(directory + '*.jpeg') + \
-                    glob.glob(directory + '*.gif')  # 根据需要可以添加更多图片格式
+            glob.glob(directory + '*.jpg') + \
+            glob.glob(directory + '*.jpeg') + \
+            glob.glob(directory + '*.gif')  # 根据需要可以添加更多图片格式
 
         return json_files + image_files
 
@@ -99,11 +105,13 @@ def prepare_agent_zip(agent_name, uuid_str, state):
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)
 
     # 使用抽象出的函数上传到OSS并设置权限
-    file_url = upload_to_oss(bucket, archive_path, f'agents/user/{uuid_str}/{agent_name}.zip')
+    file_url = upload_to_oss(bucket, archive_path,
+                             f'agents/user/{uuid_str}/{agent_name}.zip')
 
     shutil.rmtree(new_directory)
 
     return file_url
+
 
 if __name__ == '__main__':
     url = prepare_agent_zip('test', 'local_user', {})

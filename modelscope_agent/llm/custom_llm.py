@@ -63,7 +63,8 @@ class CustomLLM(LLM):
             except Exception as e:
                 retry_count += 1
                 if retry_count > max_retries:
-                    import traceback;traceback.print_exc()
+                    import traceback
+                    traceback.print_exc()
                     print(f'input: {messages}, original error: {str(e)}')
                     raise e
 
