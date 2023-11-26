@@ -27,9 +27,17 @@ Answer: 根据Observation总结本次工具调用返回的结果
 
 # 指令
 """
+
+DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
+
+# 指令
+"""
+
 DEFAULT_INSTRUCTION_TEMPLATE = ''
 
-DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list>) <user_input>"""
+DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>) <user_input>"""
+
+DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <user_input>"""
 
 DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
 
@@ -73,29 +81,40 @@ class CustomPromptGenerator(PromptGenerator):
 
             self.prompt_preprocessor = build_raw_prompt(llm_model)
 
-            prompt = f'{self.system_template}\n{self.instruction_template}'
+            if len(tool_list) > 0:
+                prompt = f'{self.system_template}\n{self.instruction_template}'
+
+                # get tool description str
+                tool_str = self.get_tool_str(tool_list)
+                prompt = prompt.replace('<tool_list>', tool_str)
+
+                tool_name_str = self.get_tool_name_str(tool_list)
+                prompt = prompt.replace('<tool_name_list>', tool_name_str)
+
+                # user input
+                user_input = self.user_template.replace('<user_input>', task)
+                user_input = user_input.replace('<role_name>',
+                                                self.builder_cfg.name)
+                user_input = user_input.replace(
+                    '<tool_name_list>',
+                    ','.join([tool.name for tool in tool_list]))
+            else:
+                self.system_template = DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL
+                self.user_template = DEFAULT_USER_TEMPLATE_WITHOUT_TOOL
+                prompt = f'{self.system_template}\n{self.instruction_template}'
+                user_input = self.user_template.replace('<user_input>', task)
+                user_input = user_input.replace('<role_name>',
+                                                self.builder_cfg.name)
 
             if len(knowledge_list) > 0:
-
                 knowledge_str = self.get_knowledge_str(
                     knowledge_list, file_name=self.knowledge_file_name)
                 # knowledge
                 prompt = knowledge_str + prompt
-
-            # get tool description str
-            tool_str = self.get_tool_str(tool_list)
-            prompt = prompt.replace('<tool_list>', tool_str)
-
-            tool_name_str = self.get_tool_name_str(tool_list)
-            prompt = prompt.replace('<tool_name_list>', tool_name_str)
-
-            # user input
-            user_input = self.user_template.replace('<user_input>', task)
-            user_input = user_input.replace('<role_name>',
-                                            self.builder_cfg.name)
-            user_input = user_input.replace(
-                '<tool_name_list>',
-                ','.join([tool.name for tool in tool_list]))
+                user_input = user_input.replace('<knowledge_note>',
+                                                '，请查看前面的知识库')
+            else:
+                user_input = user_input.replace('<knowledge_note>', '')
 
             self.system_prompt = copy.deepcopy(prompt)
 
@@ -126,12 +145,14 @@ class CustomPromptGenerator(PromptGenerator):
 
             self.function_calls = self.get_function_list(tool_list)
         else:
-            self.history.append({
-                'role':
-                'user',
-                'content':
-                self.user_template.replace('<user_input>', task)
-            })
+            user_input = self.user_template.replace('<user_input>', task)
+            if len(knowledge_list) > 0:
+                user_input = user_input.replace('<knowledge_note>',
+                                                '，请查看前面的知识库')
+            else:
+                user_input = user_input.replace('<knowledge_note>', '')
+
+            self.history.append({'role': 'user', 'content': user_input})
             self.history.append({
                 'role': 'assistant',
                 'content': self.assistant_template
