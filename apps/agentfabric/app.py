@@ -1,14 +1,16 @@
 import os
 import random
+import shutil
 import traceback
 
 import gradio as gr
 import json
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
-                          parse_configuration, save_avatar_image,
+                          get_user_dir, parse_configuration, save_avatar_image,
                           save_builder_configuration)
 from gradio_utils import ChatBot, format_cover_html
+from publish_util import prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
 
@@ -60,7 +62,7 @@ def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
     state['tool_cfg'] = tool_cfg
     state['capabilities'] = capabilities
     bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)[1]
-    suggests = builder_cfg.get('conversation_starters', [])
+    suggests = builder_cfg.get('prompt_recommend', [])
     return [
         state,
         # config form
@@ -106,20 +108,32 @@ def check_uuid(uuid_str):
 
 
 def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, suggestions, files,
+                          instructions, model, suggestions, knowledge_files,
                           capabilities_checkboxes, state):
     uuid_str = check_uuid(uuid_str)
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
+    user_dir = get_user_dir(uuid_str)
+    if knowledge_files is not None:
+        new_knowledge_files = [
+            os.path.join(user_dir, os.path.basename((f.name)))
+            for f in knowledge_files
+        ]
+        for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
+            if not os.path.exists(dst_file):
+                shutil.copy(src_file.name, dst_file)
+    else:
+        new_knowledge_files = []
+
     builder_cfg = {
         'name': name,
         'avatar': bot_avatar,
         'description': description,
         'instruction': instructions,
-        'conversation_starters': [row[0] for row in suggestions_filtered],
-        'knowledge': list(map(lambda file: file.name, files or [])),
+        'prompt_recommend': [row[0] for row in suggestions_filtered],
+        'knowledge': new_knowledge_files,
         'tools': {
             capability: dict(
                 name=tool_cfg[capability]['name'],
@@ -247,6 +261,8 @@ with demo:
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
                 outputs=[preview_chat_input])
+            publish_button = gr.Button('Publish')
+            output_url = gr.Textbox(label='Agent url for you', disabled=True)
 
     configure_updated_outputs = [
         state,
@@ -287,8 +303,8 @@ with demo:
                                         uuid_str):
         uuid_str = check_uuid(uuid_str)
         bot_avatar = builder_cfg.get('avatar', '')
-        conversation_starters = builder_cfg.get('conversation_starters', [])
-        suggestion = [[row] for row in conversation_starters]
+        prompt_recommend = builder_cfg.get('prompt_recommend', [])
+        suggestion = [[row] for row in prompt_recommend]
         bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
         save_builder_configuration(builder_cfg, uuid_str)
         _state['configure_updated'] = True
@@ -402,6 +418,18 @@ with demo:
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
+
+    # configuration for publish
+    def publish_agent(output_url, name, uuid_str, state):
+        uuid_str = check_uuid(uuid_str)
+        output_url = prepare_agent_zip(name, uuid_str, state)
+        return output_url
+
+    publish_button.click(
+        publish_agent,
+        inputs=[output_url, name_input, uuid_str, state],
+        outputs=[output_url],
+    )
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)

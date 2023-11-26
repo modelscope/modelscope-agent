@@ -79,19 +79,21 @@ class AgentExecutor:
         tool_list = DEFAULT_TOOL_LIST
 
         tools_module = importlib.import_module('modelscope_agent.tools')
-
         for task_name, tool_class_name in tool_list.items():
             tool_class = getattr(tools_module, tool_class_name)
-            self.tool_list[task_name] = tool_class(tool_cfg)
+            tool_name = tool_class.name
+            self.tool_list[tool_name] = tool_class(tool_cfg)
 
         self.tool_list = {**self.tool_list, **additional_tool_list}
         # self.available_tool_list = deepcopy(self.tool_list)
         self.set_available_tools(self.tool_list.keys())
 
     def set_available_tools(self, available_tool_list):
-
-        if not set(available_tool_list).issubset(set(self.tool_list.keys())):
-            raise ValueError('Unsupported tools found, please check')
+        for t in available_tool_list:
+            if t not in self.tool_list:
+                raise ValueError(
+                    f'Unsupported tools found:{t}, please check, valid ones: {self.tool_list.keys()}'
+                )
 
         self.available_tool_list = {
             k: self.tool_list[k]

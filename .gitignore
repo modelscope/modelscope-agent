@@ -130,6 +130,7 @@ replace.sh
 result.png
 result.jpg
 result.mp4
+apps/agentfabric/config/local_user/*
 
 # Pytorch
 *.pth
