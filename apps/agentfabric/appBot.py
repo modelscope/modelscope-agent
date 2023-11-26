@@ -22,7 +22,7 @@ customTheme = gr.themes.Default(
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent()
+        user_agent = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
