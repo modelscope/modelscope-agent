@@ -5,25 +5,20 @@ from jsonschema import RefResolver
 from pydantic import BaseModel, ValidationError
 from requests.exceptions import RequestException, Timeout
 from .tool import Tool
-
 MAX_RETRY_TIMES = 3
-
-
 class ParametersSchema(BaseModel):
     name: str
     description: str
     required: Optional[bool] = True
-
 
 class ToolSchema(BaseModel):
     name: str
     description: str
     parameters: List[ParametersSchema]
 
-
 class OpenAPISchemaTool(Tool):
     """
-     openai schema tool
+     openapi schema tool
     """
     name: str = 'api tool'
     description: str = 'This is a api tool that ...'
@@ -33,7 +28,6 @@ class OpenAPISchemaTool(Tool):
         self.name = name
         self.cfg = cfg.get(self.name, {})
         self.is_remote_tool = self.cfg.get('is_remote_tool', False)
-
         # remote call
         self.url = self.cfg.get('url', '')
         self.token = self.cfg.get('token', '')
@@ -61,9 +55,7 @@ class OpenAPISchemaTool(Tool):
                 f"Could not use remote call for {self.name} since this tool doesn't have a remote endpoint"
             )
 
-        remote_parsed_input = json.dumps(
-            self._remote_parse_input(*args, **kwargs))
-
+        remote_parsed_input = json.dumps(self._remote_parse_input(*args, **kwargs))
         origin_result = None
         if self.method == 'POST':
             retry_times = MAX_RETRY_TIMES
@@ -73,13 +65,12 @@ class OpenAPISchemaTool(Tool):
                     response = requests.request(
                         'POST',
                         url=self.url,
-                        headers=self.header,
+                        headers= self.header,
                         data=remote_parsed_input)
+                    
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
-
-                    origin_result = str(
-                        json.loads(response.content.decode('utf-8')))
+                    origin_result = json.loads(response.content.decode('utf-8'))
 
                     final_result = self._parse_output(
                         origin_result, remote=True)
@@ -99,16 +90,16 @@ class OpenAPISchemaTool(Tool):
             while retry_times:
                 retry_times -= 1
                 try:
+                    print("GET:",self.url)
                     response = requests.request(
                         'GET',
                         url=self.url,
                         headers=self.header,
-                        data=remote_parsed_input)
+                        params=remote_parsed_input)
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
 
-                    origin_result = str(
-                        json.loads(response.content.decode('utf-8')))
+                    origin_result = json.loads(response.content.decode('utf-8'))
 
                     final_result = self._parse_output(
                         origin_result, remote=True)
@@ -148,7 +139,7 @@ class OpenAPISchemaTool(Tool):
                 # f the key does not contain ".", directly store the key-value pair into restored_dict
                 restored_dict[key] = value
             kwargs = restored_dict
-        print(kwargs)
+        print("传给tool的参数：",kwargs)
         return kwargs
 
 
@@ -253,7 +244,7 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
     # Iterate over each endpoint and its contents
     for endpoint_path, methods in endpoints.items():
         for method, details in methods.items():
-            summary = details.get('summary', 'No summary')
+            summary = details.get('summary', 'No summary').replace(" ", "_")
             name = details.get('operationId', 'No operationId')
             url = f'{servers_url}{endpoint_path}'
             security = details.get('security', [{}])
@@ -262,7 +253,6 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
             if security:
                 for sec in security:
                     if 'BearerAuth' in sec:
-                        print('Requires Bearer Token Authentication')
                         authorization = f'Bearer {YOUR_API_TOKEN}'
 
             if method.upper() == 'POST':
@@ -281,7 +271,9 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
                                 parse_nested_parameters(
                                     param_name, param_info, parameters_list,
                                     content)
-                            config_entry = {
+                            X_DashScope_Async = requestBody.get('X-DashScope-Async','')
+                            if X_DashScope_Async == '':
+                                config_entry = {
                                 'name': name,
                                 'description': description,
                                 'is_active': True,
@@ -292,6 +284,21 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
                                 'header': {
                                     'Content-Type': content_type,
                                     'Authorization': authorization
+                                }
+                            }
+                            else:
+                                config_entry = {
+                                'name': name,
+                                'description': description,
+                                'is_active': True,
+                                'is_remote_tool': True,
+                                'url': url,
+                                'method': method.upper(),
+                                'parameters': parameters_list,
+                                'header': {
+                                    'Content-Type': content_type,
+                                    'Authorization': authorization,
+                                    "X-DashScope-Async": "enable"
                                 }
                             }
                 else:
@@ -327,5 +334,4 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN):
                 raise ('method is not POST or GET')
 
             config_data[summary] = config_entry
-            print(config_data[summary])
-            return config_data
+    return config_data
