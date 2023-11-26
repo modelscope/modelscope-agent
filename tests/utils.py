@@ -10,7 +10,7 @@ class MockLLM(LLM):
         super().__init__({})
         self.responses = responses
         self.idx = -1
-        self.model = 'mock_llm'
+        self.model_id = 'mock_llm'
 
     def generate(self, prompt: str, function_list=[], **kwargs) -> str:
         self.idx += 1

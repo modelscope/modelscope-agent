@@ -8,6 +8,10 @@ test/
 # C extensions
 *.so
 
+# local user
+local_user/
+user/
+
 # Distribution / packaging
 .Python
 build/

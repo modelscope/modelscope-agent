@@ -85,7 +85,8 @@ class AgentExecutor:
             self.tool_list[task_name] = tool_class(tool_cfg)
 
         self.tool_list = {**self.tool_list, **additional_tool_list}
-        self.available_tool_list = deepcopy(self.tool_list)
+        # self.available_tool_list = deepcopy(self.tool_list)
+        self.set_available_tools(self.tool_list.keys())
 
     def set_available_tools(self, available_tool_list):
 
