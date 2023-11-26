@@ -3,13 +3,15 @@ import os
 import re
 
 import json
-from config_utils import DEFAULT_BUILDER_CONFIG_FILE
-from modelscope_agent.prompt.prompt import (KNOWLEDGE_RESULT_PROMPT,
-                                            PromptGenerator, build_raw_prompt)
+from config_utils import DEFAULT_BUILDER_CONFIG_FILE, get_user_cfg_file
+from modelscope_agent.prompt.prompt import (KNOWLEDGE_PROMPT, PromptGenerator,
+                                            build_raw_prompt)
 
 from modelscope.utils.config import Config
 
-DEFAULT_SYSTEM_TEMPLATE = """# 工具
+DEFAULT_SYSTEM_TEMPLATE = """
+
+# 工具
 
 ## 你拥有如下工具：
 
@@ -43,7 +45,7 @@ class CustomPromptGenerator(PromptGenerator):
                  user_template=DEFAULT_USER_TEMPLATE,
                  exec_template=DEFAULT_EXEC_TEMPLATE,
                  assistant_template='',
-                 sep='\n',
+                 sep='\n\n',
                  prompt_max_length=1000,
                  **kwargs):
         super().__init__(system_template, instruction_template, user_template,
@@ -53,12 +55,14 @@ class CustomPromptGenerator(PromptGenerator):
         self.add_addition_round = kwargs.get('add_addition_round', False)
         self.addition_assistant_reply = kwargs.get('addition_assistant_reply',
                                                    '')
-        builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
-                                     DEFAULT_BUILDER_CONFIG_FILE)
+        builder_cfg_file = get_user_cfg_file(
+            uuid_str=kwargs.get('uuid_str', ''))
         builder_cfg = Config.from_file(builder_cfg_file)
         self.builder_cfg = builder_cfg
+        self.knowledge_file_name = kwargs.get('knowledge_file_name', '')
 
-    def init_prompt(self, task, tool_list, knowledge_list, llm_model):
+    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
+                    **kwargs):
         if len(self.history) == 0:
 
             self.history.append({
@@ -72,7 +76,8 @@ class CustomPromptGenerator(PromptGenerator):
 
             if len(knowledge_list) > 0:
 
-                knowledge_str = self.get_knowledge_str(knowledge_list)
+                knowledge_str = self.get_knowledge_str(
+                    knowledge_list, file_name=self.knowledge_file_name)
                 # knowledge
                 prompt = knowledge_str + prompt
 
@@ -128,7 +133,8 @@ class CustomPromptGenerator(PromptGenerator):
                 'content': self.assistant_template
             })
             if len(knowledge_list) > 0:
-                knowledge_str = self.get_knowledge_str(knowledge_list)
+                knowledge_str = self.get_knowledge_str(
+                    knowledge_list, file_name=self.knowledge_file_name)
                 self.update_knowledge_str(knowledge_str)
         return self.system_prompt
 
@@ -143,9 +149,8 @@ class CustomPromptGenerator(PromptGenerator):
         for i in range(0, len(self.history)):
             if self.history[i]['role'] == 'user':
                 content: str = self.history[i]['content']
-                start_pos = content.find(
-                    f'{self.sep}{KNOWLEDGE_RESULT_PROMPT}{self.sep}')
-                end_pos = content.rfind('# 工具\n\n')
+                start_pos = content.find(f'{KNOWLEDGE_PROMPT}{self.sep}')
+                end_pos = content.rfind('\n\n# 工具\n\n')
                 if start_pos >= 0 and end_pos >= 0:
                     self.history[i]['content'] = content[
                         0:start_pos] + knowledge_str + content[end_pos:]

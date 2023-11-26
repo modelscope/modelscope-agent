@@ -16,6 +16,7 @@ class OpenAi(LLM):
         super().__init__(cfg)
 
         self.model = self.cfg.get('model', 'gpt-3.5-turbo')
+        self.model_id = self.model
         self.api_base = self.cfg.get('api_base', 'https://api.openai.com/v1')
         self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
 

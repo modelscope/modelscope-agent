@@ -14,9 +14,9 @@ from modelscope_agent.retrieve import KnowledgeRetrieval
 
 
 # init user chatbot_agent
-def init_user_chatbot_agent():
+def init_user_chatbot_agent(uuid_str=''):
     builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
-    )
+        uuid_str)
 
     # build model
     print(f'using model {builder_cfg.model}')
@@ -31,7 +31,8 @@ def init_user_chatbot_agent():
         instruction_template=instruction_template,
         add_addition_round=True,
         addition_assistant_reply='好的。',
-    )
+        knowledge_file_name=os.path.basename(builder_cfg.knowledge[0]),
+        uuid_str=uuid_str)
 
     # get knowledge
     # 开源版本的向量库配置
