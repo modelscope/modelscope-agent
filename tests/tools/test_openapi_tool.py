@@ -1,10 +1,14 @@
-import os
 import sys
+sys.path.append("../../")
+import os
+import time
 import json
-from modelscope_agent.tools.openapi_tool import (OpenAPISchemaTool,openapi_schema_convert)
+import yaml
+from modelscope_agent.tools.openapi_tool import openapi_schema_convert
+from modelscope_agent.tools.openapi_tool import OpenAPISchemaTool
 from modelscope.utils.config import Config
-sys.path.append('../../')
-#before run test,add your tokeen
+#make sure YOUR_API_TOKEN 
+file_path = '../../apps/agentfabric/config/additional_tool_config.json'
 def is_json(data):
     try:
         json.loads(data)
@@ -18,14 +22,14 @@ def is_yaml(data):
         return True
     except yaml.YAMLError:
         return False
-        
 def test_openapi_schema_convert(token):
-    schema_json = '''
-  {
+  
+    schema = """
+{
     "openapi": "3.1.0",
     "info": {
-      "title": "Combined API Services",
-      "description": "API services for file uploading and face detection and face training in images.",
+      "title": "WordArt Semantic Generation API",
+      "description": "API for generating semantic word art with customizable parameters.",
       "version": "v1.0.0"
     },
     "servers": [
@@ -34,19 +38,20 @@ def test_openapi_schema_convert(token):
       }
     ],
     "paths": {
-      "/api/v1/services/vision/facedetection/detect": {
+      "/api/v1/services/aigc/wordart/semantic": {
         "post": {
-          "summary": "Detect Faces in Images",
-          "operationId": "detectFaces",
+          "summary": "Generate WordArt Semantically",
+          "operationId": "generateWordArt",
           "tags": [
-            "Face Detection"
+            "WordArt Generation"
           ],
           "requestBody": {
             "required": true,
+            "X-DashScope-Async": "enable",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FaceDetectionRequest"
+                  "$ref": "#/components/schemas/WordArtGenerationRequest"
                 }
               }
             }
@@ -57,7 +62,7 @@ def test_openapi_schema_convert(token):
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/schemas/FaceDetectionResponse"
+                    "$ref": "#/components/schemas/WordArtGenerationResponse"
                   }
                 }
               }
@@ -69,75 +74,206 @@ def test_openapi_schema_convert(token):
             }
           ]
         }
+      },
+      "/api/v1/tasks/{task_id}": {
+        "get": {
+          "summary": "Get WordArt Result",
+          "operationId": "getwordartresult",
+          "tags": [
+            "Get Result"
+          ],
+          "parameters": [],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ]
+        
+        }
       }
     },
     "components": {
       "schemas": {
-        "FaceDetectionRequest": {
+        "WordArtGenerationRequest": {
           "type": "object",
           "properties": {
             "model": {
               "type": "string",
-              "enum": [
-                "facechain-facedetect"
-              ]
+              "enum": ["wordart-semantic"]
             },
             "input": {
               "type": "object",
-              "properties": {
-                "images": {
-                  "type": "array",
-                  "items": {
+              "properties":{
+                "text": {
                     "type": "string",
-                    "format": "url"
+                    "example": "文字创意"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "example": "水果，蔬菜，温暖的色彩空间"
                   }
-                }
               }
             },
             "parameters": {
-              "type": "object"
+              "type": "object",
+              "properties": {
+                "steps": {
+                  "type": "integer",
+                  "example": 80
+                },
+                "n": {
+                  "type": "number",
+                  "example": 2
+                }
+              }
             }
           },
           "required": [
             "model",
-            "input"
+            "input",
+            "parameters"
           ]
         },
-        "FaceDetectionResponse": {
+        "WordArtGenerationResponse": {
           "type": "object",
           "properties": {
             "output": {
-              "type": "object",
-              "properties": {
-                "is_face": {
-                  "type": "array",
-                  "items": {
-                    "type": "boolean",
-                    "description": "List of results corresponding to the submitted images.",
-                    "example": [true, true, false, false]
-                  }
-                }
-              }
-            },
-            "request_id": {
               "type": "string",
-              "description": "Unique code for the request.",
-              "example": "7574ee8f-38a3-4b1e-9280-11c33ab46e51"
+              "description": "Generated word art image URL or data."
             }
           }
         }
       },
       "securitySchemes": {
-        "BearerAuth": {
-          "type": "http",
-          "scheme": "bearer",
-          "bearerFormat": "JWT"
+        "ApiKeyAuth": {
+          "type": "apiKey",
+          "in": "header",
+          "name": "Authorization"
         }
       }
     }
   }
+"""
+    
+  #   schema = '''
+  # {
+  #   "openapi": "3.1.0",
+  #   "info": {
+  #     "title": "Combined API Services",
+  #     "description": "API services for file uploading and face detection and face training in images.",
+  #     "version": "v1.0.0"
+  #   },
+  #   "servers": [
+  #     {
+  #       "url": "https://dashscope.aliyuncs.com"
+  #     }
+  #   ],
+  #   "paths": {
+  #     "/api/v1/services/vision/facedetection/detect": {
+  #       "post": {
+  #         "summary": "Detect Faces in Images",
+  #         "operationId": "detectFaces",
+  #         "tags": [
+  #           "Face Detection"
+  #         ],
+  #         "requestBody": {
+  #           "required": true,
+  #           "content": {
+  #             "application/json": {
+  #               "schema": {
+  #                 "$ref": "#/components/schemas/FaceDetectionRequest"
+  #               }
+  #             }
+  #           }
+  #         },
+  #         "responses": {
+  #           "200": {
+  #             "description": "Successful Response",
+  #             "content": {
+  #               "application/json": {
+  #                 "schema": {
+  #                   "$ref": "#/components/schemas/FaceDetectionResponse"
+  #                 }
+  #               }
+  #             }
+  #           }
+  #         },
+  #         "security": [
+  #           {
+  #             "BearerAuth": []
+  #           }
+  #         ]
+  #       }
+  #     }
+  #   },
+  #   "components": {
+  #     "schemas": {
+  #       "FaceDetectionRequest": {
+  #         "type": "object",
+  #         "properties": {
+  #           "model": {
+  #             "type": "string",
+  #             "enum": [
+  #               "facechain-facedetect"
+  #             ]
+  #           },
+  #           "input": {
+  #             "type": "object",
+  #             "properties": {
+  #               "images": {
+  #                 "type": "array",
+  #                 "items": {
+  #                   "type": "string",
+  #                   "format": "url"
+  #                 }
+  #               }
+  #             }
+  #           },
+  #           "parameters": {
+  #             "type": "object"
+  #           }
+  #         },
+  #         "required": [
+  #           "model",
+  #           "input"
+  #         ]
+  #       },
+  #       "FaceDetectionResponse": {
+  #         "type": "object",
+  #         "properties": {
+  #           "output": {
+  #             "type": "object",
+  #             "properties": {
+  #               "is_face": {
+  #                 "type": "array",
+  #                 "items": {
+  #                   "type": "boolean",
+  #                   "description": "List of results corresponding to the submitted images.",
+  #                   "example": [true, true, false, false]
+  #                 }
+  #               }
+  #             }
+  #           },
+  #           "request_id": {
+  #             "type": "string",
+  #             "description": "Unique code for the request.",
+  #             "example": "7574ee8f-38a3-4b1e-9280-11c33ab46e51"
+  #           }
+  #         }
+  #       }
+  #     },
+  #     "securitySchemes": {
+  #       "BearerAuth": {
+  #         "type": "http",
+  #         "scheme": "bearer",
+  #         "bearerFormat": "JWT"
+  #       }
+  #     }
+  #   }
+  # }
 
-  '''
+  # '''
+
     if is_json(schema):
       print("输入字符串schema是JSON")
     elif is_yaml(schema):
@@ -148,49 +284,367 @@ def test_openapi_schema_convert(token):
     else:
         raise("输入字符串schema既不是JSON也不是YAML")
     schema_data = json.loads(schema)
-    schema = json.loads(schema_data)
-    config_data = openapi_schema_convert(schema, YOUR_API_TOKEN=token)
-
-    with open(
-            '../../apps/agentfabric/config/additional_tool_config.json',
-            'a',
-            encoding='utf-8') as config_file:
-        json.dump(config_data, config_file, ensure_ascii=False, indent=4)
-
+    config_data = openapi_schema_convert(schema_data,token)
+    # 检查文件是否存在
+    if os.path.exists(file_path):
+    # 检查文件是否为空
+      if os.path.getsize(file_path) > 0:
+          # 如果文件不为空，读取原有的 JSON 数据
+          existing_data = {}
+          with open(file_path, 'r', encoding='utf-8') as config_file:
+              existing_data = json.load(config_file)
+      else:
+          # 如果文件为空，创建一个空的字典作为原有数据
+          existing_data = {}
+    else:
+        # 如果文件不存在，创建一个空的字典作为原有数据
+        existing_data = {}
+        # 将合并后的数据写回 JSON 文件
+    existing_data.update(config_data)
+    with open(file_path, 'w', encoding='utf-8') as config_file:
+        json.dump(existing_data, config_file, ensure_ascii=False, indent=4)
+    
 
 def test_openapi_tool_remote_call():
-    DEFAULT_TOOL_CONFIG_FILE = '../../apps/agentfabric/config/tool_config.json'
+    DEFAULT_TOOL_CONFIG_FILE = '../../apps/agentfabric/config/additional_tool_config.json'
     tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', DEFAULT_TOOL_CONFIG_FILE)
     tool_cfg = Config.from_file(tool_cfg_file)
-    tool = OpenAPISchemaTool(cfg=tool_cfg, name='Detect Faces in Images')
-    restored_dict = {}
+    tool = OpenAPISchemaTool(cfg=tool_cfg,name='Generate_WordArt_Semantically')
     mock_kwargs = {
-        'model':
-        'facechain-facedetect',
-        'input.images': [
-            'http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/1E1D5AFA-3C3A-4B6F-ABD6-8742CA983C42.png',
-            'http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/3.JPG',
-            'http://finetune-swap-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/zhicheng/tmp/F2EA3984-6EE2-44CD-928F-109B7276BCB6.png'
-        ]
+        'input.text': '文字创意',
+        'input.prompt': '水果，蔬菜，温暖的色彩空间',
+        'parameters.steps': 80,
+        'parameters.n': 2
     }
-    for key, value in mock_kwargs.items():
-        if '.' in key:
-            keys = key.split('.')
-            temp_dict = restored_dict
-            for k in keys[:-1]:
-                temp_dict = temp_dict.setdefault(k, {})
-            temp_dict[keys[-1]] = value
-        else:
-            restored_dict[key] = value
-    mock_kwargs = restored_dict
+    
+    
+    # 调用远程请求，并传递模拟的 kwargs
     try:
         result = tool(remote=True, **mock_kwargs)
-        print(
-            result
-        )  #{'result': "{'output': {'is_face': [True, True, True]}, 'usage': {}, 'request_id': '355cca45-b1f2-942e-8f55-a63c3b34fdf3'}"}
+        print(result)
+        result_data = json.loads(json.dumps(result['result']))
+        if "task_id" in result_data['output']:
+            task_id = result_data['output']['task_id']
+            print("www",task_id)
+            #从前端重新读取schema字符串
+            schema = """
+{
+    "openapi": "3.1.0",
+    "info": {
+      "title": "WordArt Semantic Generation API",
+      "description": "API for generating semantic word art with customizable parameters.",
+      "version": "v1.0.0"
+    },
+    "servers": [
+      {
+        "url": "https://dashscope.aliyuncs.com"
+      }
+    ],
+    "paths": {
+      "/api/v1/services/aigc/wordart/semantic": {
+        "post": {
+          "summary": "Generate WordArt Semantically",
+          "operationId": "generateWordArt",
+          "tags": [
+            "WordArt Generation"
+          ],
+          "requestBody": {
+            "required": true,
+            "X-DashScope-Async": "enable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordArtGenerationRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/WordArtGenerationResponse"
+                  }
+                }
+              }
+            }
+          },
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ]
+        }
+      },
+      "/api/v1/tasks/{task_id}": {
+        "get": {
+          "summary": "Get WordArt Result",
+          "operationId": "getwordartresult",
+          "tags": [
+            "Get Result"
+          ],
+          "parameters": [],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ]
+        
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "WordArtGenerationRequest": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["wordart-semantic"]
+            },
+            "input": {
+              "type": "object",
+              "properties":{
+                "text": {
+                    "type": "string",
+                    "example": "文字创意"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "example": "水果，蔬菜，温暖的色彩空间"
+                  }
+              }
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "steps": {
+                  "type": "integer",
+                  "example": 80
+                },
+                "n": {
+                  "type": "number",
+                  "example": 2
+                }
+              }
+            }
+          },
+          "required": [
+            "model",
+            "input",
+            "parameters"
+          ]
+        },
+        "WordArtGenerationResponse": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Generated word art image URL or data."
+            }
+          }
+        }
+      },
+      "securitySchemes": {
+        "ApiKeyAuth": {
+          "type": "apiKey",
+          "in": "header",
+          "name": "Authorization"
+        }
+      }
+    }
+  }
+"""
+            schema = schema.replace("{task_id}",task_id)
+            schema_data = json.loads(schema)
+            existing_data = {}
+            #从前端get token
+            config_data = openapi_schema_convert(schema_data,'sk-daee58a99bb44a94bddca4ebb5f6544f')
+            with open(file_path, 'r', encoding='utf-8') as config_file:
+              existing_data = json.load(config_file)
+            existing_data.update(config_data)
+            print(existing_data)
+            with open(file_path, 'w', encoding='utf-8') as config_file:
+              json.dump(existing_data, config_file, ensure_ascii=False, indent=4)
     except Exception as e:
-        print('Error:', str(e))
+        print("Error:", str(e))
+    DEFAULT_TOOL_CONFIG_FILE = '../../apps/agentfabric/config/additional_tool_config.json'
+    tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', DEFAULT_TOOL_CONFIG_FILE)
+    tool_cfg = Config.from_file(tool_cfg_file)
+    tool = OpenAPISchemaTool(cfg=tool_cfg,name='Get_WordArt_Result')
+    mock_kwargs = {}
+    # 调用远程请求，并传递模拟的 kwargs
+    try:
+        result = tool(remote=True, **mock_kwargs)
+        print(result)
+        while True:
+          result_data = result.get('result', {})
+          output = result_data.get('output', {})
+          task_status = output.get('task_status', '')
 
-if __name__ == '__main__':
-    test_openapi_schema_convert(token='xxxxxxxx')
+          if task_status == 'SUCCEEDED':
+              print("任务已完成")
+              break
+          elif task_status == 'FAILED':
+              print("任务失败")
+              break
+
+          # 继续轮询，等待一段时间后再次调用
+          time.sleep(5)  # 等待 5 秒钟
+          result = tool(remote=True, **mock_kwargs)
+          print(result)
+        if "task_id" in result_data['output'] and "task_id" in schema:
+            task_id = result_data['output']['task_id']
+            print("www",task_id)
+            #从前端重新读取schema字符串
+            schema = """
+{
+    "openapi": "3.1.0",
+    "info": {
+      "title": "WordArt Semantic Generation API",
+      "description": "API for generating semantic word art with customizable parameters.",
+      "version": "v1.0.0"
+    },
+    "servers": [
+      {
+        "url": "https://dashscope.aliyuncs.com"
+      }
+    ],
+    "paths": {
+      "/api/v1/services/aigc/wordart/semantic": {
+        "post": {
+          "summary": "Generate WordArt Semantically",
+          "operationId": "generateWordArt",
+          "tags": [
+            "WordArt Generation"
+          ],
+          "requestBody": {
+            "required": true,
+            "X-DashScope-Async": "enable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordArtGenerationRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/WordArtGenerationResponse"
+                  }
+                }
+              }
+            }
+          },
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ]
+        }
+      },
+      "/api/v1/tasks/{task_id}": {
+        "get": {
+          "summary": "Get WordArt Result",
+          "operationId": "getwordartresult",
+          "tags": [
+            "Get Result"
+          ],
+          "parameters": [],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ]
+        
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "WordArtGenerationRequest": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["wordart-semantic"]
+            },
+            "input": {
+              "type": "object",
+              "properties":{
+                "text": {
+                    "type": "string",
+                    "example": "文字创意"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "example": "水果，蔬菜，温暖的色彩空间"
+                  }
+              }
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "steps": {
+                  "type": "integer",
+                  "example": 80
+                },
+                "n": {
+                  "type": "number",
+                  "example": 2
+                }
+              }
+            }
+          },
+          "required": [
+            "model",
+            "input",
+            "parameters"
+          ]
+        },
+        "WordArtGenerationResponse": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Generated word art image URL or data."
+            }
+          }
+        }
+      },
+      "securitySchemes": {
+        "ApiKeyAuth": {
+          "type": "apiKey",
+          "in": "header",
+          "name": "Authorization"
+        }
+      }
+    }
+  }
+"""
+            schema = schema.replace("{task_id}",task_id)
+            schema_data = json.loads(schema)
+            existing_data = {}
+            #从前端get token
+            config_data = openapi_schema_convert(schema_data,'sk-daee58a99bb44a94bddca4ebb5f6544f')
+            with open(file_path, 'r', encoding='utf-8') as config_file:
+              existing_data = json.load(config_file)
+            existing_data.update(config_data)
+            with open(file_path, 'w', encoding='utf-8') as config_file:
+              json.dump(existing_data, config_file, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print("Error:", str(e))
+    
+
+
+if __name__ == "__main__":
+    #从环境获取token，如果这个api不需要token，从前端判断，设置为''
+    test_openapi_schema_convert(token='xxxxxxxxxxx')
     test_openapi_tool_remote_call()
