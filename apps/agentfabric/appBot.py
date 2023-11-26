@@ -10,7 +10,7 @@ from user_core import init_user_chatbot_agent
 uuid_str = 'local_user'
 builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
     uuid_str)
-suggests = builder_cfg.get('conversation_starters', [])
+suggests = builder_cfg.get('prompt_recommend', [])
 avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)
 
 customTheme = gr.themes.Default(
@@ -22,7 +22,7 @@ customTheme = gr.themes.Default(
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent()
+        user_agent = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
