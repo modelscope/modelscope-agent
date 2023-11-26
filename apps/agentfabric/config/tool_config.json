@@ -13,5 +13,9 @@
   "web_browser": {
     "name": "Web Browsing",
     "is_active": false
+  },
+  "amap_weather": {
+    "name": "高德天气",
+    "is_active": true
   }
 }

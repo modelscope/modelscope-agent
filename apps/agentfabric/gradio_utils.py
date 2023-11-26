@@ -238,9 +238,9 @@ class ChatBot(ChatBotBase):
 
     def convert_bot_message_for_qwen(self, bot_message):
 
-        print('processed bot message---------------------------------')
-        print(bot_message)
-        print('processed bot message done---------------------------------')
+        # print('processed bot message---------------------------------')
+        # print(bot_message)
+        # print('processed bot message done---------------------------------')
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
