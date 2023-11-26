@@ -8,6 +8,7 @@ from modelscope.utils.config import Config
 
 DEFAULT_BUILDER_CONFIG_DIR = './config'
 DEFAULT_BUILDER_CONFIG_FILE = './config/builder_config.json'
+DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = './config/openapi_plugin_config.json'
 DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 
@@ -24,6 +25,17 @@ def get_user_cfg_file(uuid_str=''):
     return builder_cfg_file
 
 
+def get_user_openapi_plugin_cfg_file(uuid_str=''):
+    openapi_plugin_cfg_file = os.getenv('OPENAPI_PLUGIN_CONFIG_FILE',
+                                        DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE)
+    openapi_plugin_cfg_file = openapi_plugin_cfg_file.replace(
+        'config/', 'config/user/')
+    if uuid_str != '':
+        openapi_plugin_cfg_file = openapi_plugin_cfg_file.replace(
+            'user', uuid_str)
+    return openapi_plugin_cfg_file
+
+
 def save_builder_configuration(builder_cfg, uuid_str=''):
     builder_cfg_file = get_user_cfg_file(uuid_str)
     if uuid_str != '' and not os.path.exists(
@@ -31,6 +43,15 @@ def save_builder_configuration(builder_cfg, uuid_str=''):
         os.makedirs(os.path.dirname(builder_cfg_file))
     with open(builder_cfg_file, 'w', encoding='utf-8') as f:
         f.write(json.dumps(builder_cfg, indent=2, ensure_ascii=False))
+
+
+def save_plugin_configuration(openapi_plugin_cfg, uuid_str):
+    openapi_plugin_cfg_file = get_user_openapi_plugin_cfg_file(uuid_str)
+    if uuid_str != '' and not os.path.exists(
+            os.path.dirname(openapi_plugin_cfg_file)):
+        os.makedirs(os.path.dirname(openapi_plugin_cfg_file))
+    with open(openapi_plugin_cfg_file, 'w', encoding='utf-8') as f:
+        f.write(json.dumps(openapi_plugin_cfg, indent=2, ensure_ascii=False))
 
 
 def get_avatar_image(bot_avatar, uuid_str=''):
@@ -101,4 +122,11 @@ def parse_configuration(uuid_str=''):
         if value['use']:
             available_tool_list.append(key)
 
-    return builder_cfg, model_cfg, tool_cfg, available_tool_list
+    openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
+    plugin_cfg = None
+    available_plugin_list = []
+    if os.path.exists(openapi_plugin_file):
+        plugin_cfg = Config.from_file(openapi_plugin_file)
+        available_plugin_list.append(plugin_cfg.info.title)
+
+    return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list

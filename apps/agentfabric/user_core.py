@@ -15,7 +15,7 @@ from modelscope_agent.retrieve import KnowledgeRetrieval
 
 # init user chatbot_agent
 def init_user_chatbot_agent(uuid_str=''):
-    builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+    builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list = parse_configuration(
         uuid_str)
 
     # build model
@@ -51,13 +51,13 @@ def init_user_chatbot_agent(uuid_str=''):
     # build agent
     agent = AgentExecutor(
         llm,
-        tool_cfg,
+        tool_cfg=tool_cfg,
+        plugin_cfg=plugin_cfg,
         agent_type=AgentType.MRKL,
         prompt_generator=prompt_generator,
         knowledge_retrieval=knowledge_retrieval,
         tool_retrieval=False)
     agent.set_available_tools(available_tool_list)
-
     return agent
 
 

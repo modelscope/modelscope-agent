@@ -7,7 +7,8 @@ import json
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           parse_configuration, save_avatar_image,
-                          save_builder_configuration)
+                          save_builder_configuration,
+                          save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
@@ -87,7 +88,7 @@ def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
 
 def init_all(uuid_str, state):
     uuid_str = check_uuid(uuid_str)
-    builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+    builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
         uuid_str)
     ret = init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg)
     yield ret
@@ -107,7 +108,8 @@ def check_uuid(uuid_str):
 
 def process_configuration(uuid_str, bot_avatar, name, description,
                           instructions, model, suggestions, files,
-                          capabilities_checkboxes, state):
+                          capabilities_checkboxes, openapi_schema,
+                          openapi_auth, openapi_privacy_policy, state):
     uuid_str = check_uuid(uuid_str)
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
@@ -130,7 +132,19 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         'model': model,
     }
 
+    try:
+        schema_dict = json.loads(openapi_schema)
+        openapi_plugin_cfg = {
+            'schema': schema_dict,
+            'auth': openapi_auth,
+            'privacy_policy': openapi_privacy_policy
+        }
+    except Exception as e:
+        error = traceback.format_exc()
+        print(f'Error:{e}, with detail: {error}')
+
     save_builder_configuration(builder_cfg, uuid_str)
+    save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     update_builder(uuid_str, state)
     init_user(uuid_str, state)
     return [
@@ -201,13 +215,13 @@ with demo:
                             label='Capabilities')
 
                         with gr.Accordion('配置选项', open=False):
-                            schema1 = gr.Textbox(
+                            openapi_schema = gr.Textbox(
                                 label='Schema',
                                 placeholder='Enter your OpenAPI schema here')
-                            auth1 = gr.Radio(
+                            openapi_auth = gr.Radio(
                                 label='Authentication',
                                 choices=['None', 'API Key', 'OAuth'])
-                            privacy_policy1 = gr.Textbox(
+                            openapi_privacy_policy = gr.Textbox(
                                 label='Privacy Policy',
                                 placeholder='Enter privacy policy URL')
 
@@ -261,7 +275,11 @@ with demo:
         capabilities_checkboxes,
         # bot
         user_chat_bot_cover,
-        user_chat_bot_suggest
+        user_chat_bot_suggest,
+        # # openapi
+        # openapi_schema,
+        # openapi_auth,
+        # openapi_privacy_policy
     ]
 
     # tab 切换的事件处理
@@ -269,7 +287,7 @@ with demo:
         uuid_str = check_uuid(uuid_str)
         configure_updated = _state.get('configure_updated', False)
         if configure_updated:
-            builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+            builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
                 uuid_str)
             _state['configure_updated'] = False
             return init_ui_config(uuid_str, _state, builder_cfg, model_cfg,
@@ -357,7 +375,8 @@ with demo:
         inputs=[
             uuid_str, bot_avatar_comp, name_input, description_input,
             instructions_input, model_selector, suggestion_input,
-            knowledge_input, capabilities_checkboxes, state
+            knowledge_input, capabilities_checkboxes, openapi_schema,
+            openapi_auth, openapi_privacy_policy, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,

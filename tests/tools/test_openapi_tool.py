@@ -1,14 +1,19 @@
-import sys
-sys.path.append("../../")
 import os
+import sys
 import time
+
 import json
 import yaml
-from modelscope_agent.tools.openapi_tool import openapi_schema_convert
-from modelscope_agent.tools.openapi_tool import OpenAPISchemaTool
+from modelscope_agent.tools.openapi_tool import (OpenAPISchemaTool,
+                                                 openapi_schema_convert)
+
 from modelscope.utils.config import Config
-#make sure YOUR_API_TOKEN 
+
+sys.path.append('../../')
+# make sure YOUR_API_TOKEN
 file_path = '../../apps/agentfabric/config/additional_tool_config.json'
+
+
 def is_json(data):
     try:
         json.loads(data)
@@ -16,14 +21,17 @@ def is_json(data):
     except ValueError:
         return False
 
+
 def is_yaml(data):
     try:
         yaml.safe_load(data)
         return True
     except yaml.YAMLError:
         return False
+
+
 def test_openapi_schema_convert(token):
-  
+
     schema = """
 {
     "openapi": "3.1.0",
@@ -88,7 +96,7 @@ def test_openapi_schema_convert(token):
               "BearerAuth": []
             }
           ]
-        
+
         }
       }
     },
@@ -154,148 +162,148 @@ def test_openapi_schema_convert(token):
     }
   }
 """
-    
-  #   schema = '''
-  # {
-  #   "openapi": "3.1.0",
-  #   "info": {
-  #     "title": "Combined API Services",
-  #     "description": "API services for file uploading and face detection and face training in images.",
-  #     "version": "v1.0.0"
-  #   },
-  #   "servers": [
-  #     {
-  #       "url": "https://dashscope.aliyuncs.com"
-  #     }
-  #   ],
-  #   "paths": {
-  #     "/api/v1/services/vision/facedetection/detect": {
-  #       "post": {
-  #         "summary": "Detect Faces in Images",
-  #         "operationId": "detectFaces",
-  #         "tags": [
-  #           "Face Detection"
-  #         ],
-  #         "requestBody": {
-  #           "required": true,
-  #           "content": {
-  #             "application/json": {
-  #               "schema": {
-  #                 "$ref": "#/components/schemas/FaceDetectionRequest"
-  #               }
-  #             }
-  #           }
-  #         },
-  #         "responses": {
-  #           "200": {
-  #             "description": "Successful Response",
-  #             "content": {
-  #               "application/json": {
-  #                 "schema": {
-  #                   "$ref": "#/components/schemas/FaceDetectionResponse"
-  #                 }
-  #               }
-  #             }
-  #           }
-  #         },
-  #         "security": [
-  #           {
-  #             "BearerAuth": []
-  #           }
-  #         ]
-  #       }
-  #     }
-  #   },
-  #   "components": {
-  #     "schemas": {
-  #       "FaceDetectionRequest": {
-  #         "type": "object",
-  #         "properties": {
-  #           "model": {
-  #             "type": "string",
-  #             "enum": [
-  #               "facechain-facedetect"
-  #             ]
-  #           },
-  #           "input": {
-  #             "type": "object",
-  #             "properties": {
-  #               "images": {
-  #                 "type": "array",
-  #                 "items": {
-  #                   "type": "string",
-  #                   "format": "url"
-  #                 }
-  #               }
-  #             }
-  #           },
-  #           "parameters": {
-  #             "type": "object"
-  #           }
-  #         },
-  #         "required": [
-  #           "model",
-  #           "input"
-  #         ]
-  #       },
-  #       "FaceDetectionResponse": {
-  #         "type": "object",
-  #         "properties": {
-  #           "output": {
-  #             "type": "object",
-  #             "properties": {
-  #               "is_face": {
-  #                 "type": "array",
-  #                 "items": {
-  #                   "type": "boolean",
-  #                   "description": "List of results corresponding to the submitted images.",
-  #                   "example": [true, true, false, false]
-  #                 }
-  #               }
-  #             }
-  #           },
-  #           "request_id": {
-  #             "type": "string",
-  #             "description": "Unique code for the request.",
-  #             "example": "7574ee8f-38a3-4b1e-9280-11c33ab46e51"
-  #           }
-  #         }
-  #       }
-  #     },
-  #     "securitySchemes": {
-  #       "BearerAuth": {
-  #         "type": "http",
-  #         "scheme": "bearer",
-  #         "bearerFormat": "JWT"
-  #       }
-  #     }
-  #   }
-  # }
 
-  # '''
+    #   schema = '''
+    # {
+    #   "openapi": "3.1.0",
+    #   "info": {
+    #     "title": "Combined API Services",
+    #     "description": "API services for file uploading and face detection and face training in images.",
+    #     "version": "v1.0.0"
+    #   },
+    #   "servers": [
+    #     {
+    #       "url": "https://dashscope.aliyuncs.com"
+    #     }
+    #   ],
+    #   "paths": {
+    #     "/api/v1/services/vision/facedetection/detect": {
+    #       "post": {
+    #         "summary": "Detect Faces in Images",
+    #         "operationId": "detectFaces",
+    #         "tags": [
+    #           "Face Detection"
+    #         ],
+    #         "requestBody": {
+    #           "required": true,
+    #           "content": {
+    #             "application/json": {
+    #               "schema": {
+    #                 "$ref": "#/components/schemas/FaceDetectionRequest"
+    #               }
+    #             }
+    #           }
+    #         },
+    #         "responses": {
+    #           "200": {
+    #             "description": "Successful Response",
+    #             "content": {
+    #               "application/json": {
+    #                 "schema": {
+    #                   "$ref": "#/components/schemas/FaceDetectionResponse"
+    #                 }
+    #               }
+    #             }
+    #           }
+    #         },
+    #         "security": [
+    #           {
+    #             "BearerAuth": []
+    #           }
+    #         ]
+    #       }
+    #     }
+    #   },
+    #   "components": {
+    #     "schemas": {
+    #       "FaceDetectionRequest": {
+    #         "type": "object",
+    #         "properties": {
+    #           "model": {
+    #             "type": "string",
+    #             "enum": [
+    #               "facechain-facedetect"
+    #             ]
+    #           },
+    #           "input": {
+    #             "type": "object",
+    #             "properties": {
+    #               "images": {
+    #                 "type": "array",
+    #                 "items": {
+    #                   "type": "string",
+    #                   "format": "url"
+    #                 }
+    #               }
+    #             }
+    #           },
+    #           "parameters": {
+    #             "type": "object"
+    #           }
+    #         },
+    #         "required": [
+    #           "model",
+    #           "input"
+    #         ]
+    #       },
+    #       "FaceDetectionResponse": {
+    #         "type": "object",
+    #         "properties": {
+    #           "output": {
+    #             "type": "object",
+    #             "properties": {
+    #               "is_face": {
+    #                 "type": "array",
+    #                 "items": {
+    #                   "type": "boolean",
+    #                   "description": "List of results corresponding to the submitted images.",
+    #                   "example": [true, true, false, false]
+    #                 }
+    #               }
+    #             }
+    #           },
+    #           "request_id": {
+    #             "type": "string",
+    #             "description": "Unique code for the request.",
+    #             "example": "7574ee8f-38a3-4b1e-9280-11c33ab46e51"
+    #           }
+    #         }
+    #       }
+    #     },
+    #     "securitySchemes": {
+    #       "BearerAuth": {
+    #         "type": "http",
+    #         "scheme": "bearer",
+    #         "bearerFormat": "JWT"
+    #       }
+    #     }
+    #   }
+    # }
+
+    # '''
 
     if is_json(schema):
-      print("输入字符串schema是JSON")
+        print('输入字符串schema是JSON')
     elif is_yaml(schema):
-      print("输入字符串schema是YAML")
-      yaml_dict = yaml.safe_load(schema)
-      # 将YAML数据转换为JSON数据
-      schema = json.dumps(yaml_dict, indent=2)
+        print('输入字符串schema是YAML')
+        yaml_dict = yaml.safe_load(schema)
+        # 将YAML数据转换为JSON数据
+        schema = json.dumps(yaml_dict, indent=2)
     else:
-        raise("输入字符串schema既不是JSON也不是YAML")
+        raise ('输入字符串schema既不是JSON也不是YAML')
     schema_data = json.loads(schema)
-    config_data = openapi_schema_convert(schema_data,token)
+    config_data = openapi_schema_convert(schema_data, token)
     # 检查文件是否存在
     if os.path.exists(file_path):
-    # 检查文件是否为空
-      if os.path.getsize(file_path) > 0:
-          # 如果文件不为空，读取原有的 JSON 数据
-          existing_data = {}
-          with open(file_path, 'r', encoding='utf-8') as config_file:
-              existing_data = json.load(config_file)
-      else:
-          # 如果文件为空，创建一个空的字典作为原有数据
-          existing_data = {}
+        # 检查文件是否为空
+        if os.path.getsize(file_path) > 0:
+            # 如果文件不为空，读取原有的 JSON 数据
+            existing_data = {}
+            with open(file_path, 'r', encoding='utf-8') as config_file:
+                existing_data = json.load(config_file)
+        else:
+            # 如果文件为空，创建一个空的字典作为原有数据
+            existing_data = {}
     else:
         # 如果文件不存在，创建一个空的字典作为原有数据
         existing_data = {}
@@ -303,30 +311,30 @@ def test_openapi_schema_convert(token):
     existing_data.update(config_data)
     with open(file_path, 'w', encoding='utf-8') as config_file:
         json.dump(existing_data, config_file, ensure_ascii=False, indent=4)
-    
+
 
 def test_openapi_tool_remote_call():
     DEFAULT_TOOL_CONFIG_FILE = '../../apps/agentfabric/config/additional_tool_config.json'
     tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', DEFAULT_TOOL_CONFIG_FILE)
     tool_cfg = Config.from_file(tool_cfg_file)
-    tool = OpenAPISchemaTool(cfg=tool_cfg,name='Generate_WordArt_Semantically')
+    tool = OpenAPISchemaTool(
+        cfg=tool_cfg, name='Generate_WordArt_Semantically')
     mock_kwargs = {
         'input.text': '文字创意',
         'input.prompt': '水果，蔬菜，温暖的色彩空间',
         'parameters.steps': 80,
         'parameters.n': 2
     }
-    
-    
+
     # 调用远程请求，并传递模拟的 kwargs
     try:
         result = tool(remote=True, **mock_kwargs)
         print(result)
         result_data = json.loads(json.dumps(result['result']))
-        if "task_id" in result_data['output']:
+        if 'task_id' in result_data['output']:
             task_id = result_data['output']['task_id']
-            print("www",task_id)
-            #从前端重新读取schema字符串
+            print('www', task_id)
+            # 从前端重新读取schema字符串
             schema = """
 {
     "openapi": "3.1.0",
@@ -391,7 +399,7 @@ def test_openapi_tool_remote_call():
               "BearerAuth": []
             }
           ]
-        
+
         }
       }
     },
@@ -457,48 +465,50 @@ def test_openapi_tool_remote_call():
     }
   }
 """
-            schema = schema.replace("{task_id}",task_id)
+            schema = schema.replace('{task_id}', task_id)
             schema_data = json.loads(schema)
             existing_data = {}
-            #从前端get token
-            config_data = openapi_schema_convert(schema_data,'sk-daee58a99bb44a94bddca4ebb5f6544f')
+            # 从前端get token
+            config_data = openapi_schema_convert(
+                schema_data, 'sk-daee58a99bb44a94bddca4ebb5f6544f')
             with open(file_path, 'r', encoding='utf-8') as config_file:
-              existing_data = json.load(config_file)
+                existing_data = json.load(config_file)
             existing_data.update(config_data)
             print(existing_data)
             with open(file_path, 'w', encoding='utf-8') as config_file:
-              json.dump(existing_data, config_file, ensure_ascii=False, indent=4)
+                json.dump(
+                    existing_data, config_file, ensure_ascii=False, indent=4)
     except Exception as e:
-        print("Error:", str(e))
+        print('Error:', str(e))
     DEFAULT_TOOL_CONFIG_FILE = '../../apps/agentfabric/config/additional_tool_config.json'
     tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', DEFAULT_TOOL_CONFIG_FILE)
     tool_cfg = Config.from_file(tool_cfg_file)
-    tool = OpenAPISchemaTool(cfg=tool_cfg,name='Get_WordArt_Result')
+    tool = OpenAPISchemaTool(cfg=tool_cfg, name='Get_WordArt_Result')
     mock_kwargs = {}
     # 调用远程请求，并传递模拟的 kwargs
     try:
         result = tool(remote=True, **mock_kwargs)
         print(result)
         while True:
-          result_data = result.get('result', {})
-          output = result_data.get('output', {})
-          task_status = output.get('task_status', '')
+            result_data = result.get('result', {})
+            output = result_data.get('output', {})
+            task_status = output.get('task_status', '')
 
-          if task_status == 'SUCCEEDED':
-              print("任务已完成")
-              break
-          elif task_status == 'FAILED':
-              print("任务失败")
-              break
+            if task_status == 'SUCCEEDED':
+                print('任务已完成')
+                break
+            elif task_status == 'FAILED':
+                print('任务失败')
+                break
 
-          # 继续轮询，等待一段时间后再次调用
-          time.sleep(5)  # 等待 5 秒钟
-          result = tool(remote=True, **mock_kwargs)
-          print(result)
-        if "task_id" in result_data['output'] and "task_id" in schema:
+            # 继续轮询，等待一段时间后再次调用
+            time.sleep(5)  # 等待 5 秒钟
+            result = tool(remote=True, **mock_kwargs)
+            print(result)
+        if 'task_id' in result_data['output'] and 'task_id' in schema:
             task_id = result_data['output']['task_id']
-            print("www",task_id)
-            #从前端重新读取schema字符串
+            print('www', task_id)
+            # 从前端重新读取schema字符串
             schema = """
 {
     "openapi": "3.1.0",
@@ -563,7 +573,7 @@ def test_openapi_tool_remote_call():
               "BearerAuth": []
             }
           ]
-        
+
         }
       }
     },
@@ -629,22 +639,22 @@ def test_openapi_tool_remote_call():
     }
   }
 """
-            schema = schema.replace("{task_id}",task_id)
+            schema = schema.replace('{task_id}', task_id)
             schema_data = json.loads(schema)
             existing_data = {}
-            #从前端get token
-            config_data = openapi_schema_convert(schema_data,'sk-daee58a99bb44a94bddca4ebb5f6544f')
+            # 从前端get token
+            config_data = openapi_schema_convert(schema_data, 'XXX')
             with open(file_path, 'r', encoding='utf-8') as config_file:
-              existing_data = json.load(config_file)
+                existing_data = json.load(config_file)
             existing_data.update(config_data)
             with open(file_path, 'w', encoding='utf-8') as config_file:
-              json.dump(existing_data, config_file, ensure_ascii=False, indent=4)
+                json.dump(
+                    existing_data, config_file, ensure_ascii=False, indent=4)
     except Exception as e:
-        print("Error:", str(e))
-    
+        print('Error:', str(e))
 
 
-if __name__ == "__main__":
-    #从环境获取token，如果这个api不需要token，从前端判断，设置为''
-    test_openapi_schema_convert(token='xxxxxxxxxxx')
+if __name__ == '__main__':
+    # 从环境获取token，如果这个api不需要token，从前端判断，设置为''
+    test_openapi_schema_convert(token='XXX')
     test_openapi_tool_remote_call()

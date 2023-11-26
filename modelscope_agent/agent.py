@@ -17,6 +17,7 @@ class AgentExecutor:
     def __init__(self,
                  llm: LLM,
                  tool_cfg: Optional[Dict] = {},
+                 plugin_cfg: Optional[Dict] = {},
                  agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
@@ -53,6 +54,7 @@ class AgentExecutor:
         self.output_parser = output_parser or get_output_parser(agent_type)
 
         self._init_tools(tool_cfg, additional_tool_list)
+        # self._init_plugins(plugin_cfg)
 
         if isinstance(tool_retrieval, bool) and tool_retrieval:
             tool_retrieval = ToolRetrieval()
