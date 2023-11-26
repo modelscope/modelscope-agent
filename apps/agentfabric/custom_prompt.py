@@ -23,7 +23,11 @@ DEFAULT_SYSTEM_TEMPLATE = """
 Action: 工具的名称，必须是<tool_name_list>之一
 Action Input: 工具的输入，需格式化为一个JSON
 Observation: <result>工具返回的结果</result>
-Answer: 根据Observation总结本次工具调用返回的结果
+Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请使用如下markdown格式展现:
+
+```
+[链接](url)
+```
 
 # 指令
 """
