@@ -32,7 +32,10 @@ RichConfig: ... # 格式和核心内容和Config相同，但是保证name和desc
 
 LOGO_TOOL_NAME = 'logo_designer'
 
-ASSISTANT_PROMPT = """Answer: <answer>\nConfig: <config>\nRichConfig: <rich_config>"""
+ANSWER = 'Answer'
+CONFIG = 'Config'
+ASSISTANT_PROMPT = """{}: <answer>\n{}: <config>\nRichConfig: <rich_config>""".format(
+    ANSWER, CONFIG)
 
 
 def init_builder_chatbot_agent(uuid_str):
@@ -113,35 +116,28 @@ class BuilderChatbotAgent(AgentExecutor):
 
             llm_result = ''
             try:
-                # no stream yet
-                llm_result = self.llm.generate(llm_artifacts)
+                parser_obj = AnswerParser()
+                for s in self.llm.stream_generate(llm_artifacts=llm_artifacts):
+                    llm_result += s
+                    parsed_s = parser_obj.parse_answer(llm_result)
+                    if parsed_s == '':
+                        continue
+                    yield {'llm_text': parsed_s}
+
                 if print_info:
                     print(f'|LLM output in round {idx}:\n{llm_result}')
-
-                re_pattern_answer = re.compile(
-                    pattern=r'Answer:([\s\S]+)\nConfig:')
-                res = re_pattern_answer.search(llm_result['content'])
-                llm_text = res.group(1).strip()
-                self._last_assistant_structured_response[
-                    'answer_str'] = llm_text
-                yield {'llm_text': llm_text}
-            except Exception:
+            except Exception as e:
                 yield {'error': 'llm result is not valid'}
 
             try:
-                if self.agent_type == AgentType.Messages:
-                    content = llm_result['content']
-                else:
-                    content = llm_result
-
                 re_pattern_config = re.compile(
                     pattern=r'Config: ([\s\S]+)\nRichConfig')
-                res = re_pattern_config.search(llm_result['content'])
+                res = re_pattern_config.search(llm_result)
                 config = res.group(1).strip()
                 self._last_assistant_structured_response['config_str'] = config
 
-                rich_config = content[content.rfind('RichConfig:')
-                                      + len('RichConfig:'):].strip()
+                rich_config = llm_result[llm_result.rfind('RichConfig:')
+                                         + len('RichConfig:'):].strip()
                 answer = json.loads(rich_config)
                 self._last_assistant_structured_response[
                     'rich_config_dict'] = answer
@@ -149,11 +145,15 @@ class BuilderChatbotAgent(AgentExecutor):
                 yield {'exec_result': {'result': builder_cfg}}
             except ValueError as e:
                 print(e)
-                yield {'error content=[{}]'.format(content)}
+                yield {'error content=[{}]'.format(llm_result)}
                 return
 
             # record the llm_result result
-            _ = self.prompt_generator.generate(llm_result, '')
+            _ = self.prompt_generator.generate(
+                {
+                    'role': 'assistant',
+                    'content': llm_result
+                }, '')
 
             messages = self.prompt_generator.history
             if 'logo_prompt' in answer and len(messages) > 4 and (
@@ -202,3 +202,29 @@ class BuilderChatbotAgent(AgentExecutor):
                 '<config>', simple_config).replace('<rich_config>',
                                                    rich_config)
             self.prompt_generator.history[-1]['content'] = new_content
+
+
+class AnswerParser(object):
+
+    def __init__(self):
+        self._history = ''
+
+    def parse_answer(self, llm_result: str):
+        answer_prompt = ANSWER + ': '
+
+        if len(llm_result) >= len(answer_prompt):
+            start_pos = llm_result.find(answer_prompt)
+            end_pos = llm_result.find(f'\n{CONFIG}')
+            if start_pos >= 0:
+                if end_pos > start_pos:
+                    result = llm_result[start_pos + len(answer_prompt):end_pos]
+                else:
+                    result = llm_result[start_pos + len(answer_prompt):]
+            else:
+                result = llm_result
+        else:
+            result = ''
+
+        new_result = result[len(self._history):]
+        self._history = result
+        return new_result

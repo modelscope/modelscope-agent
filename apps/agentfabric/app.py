@@ -353,7 +353,7 @@ with demo:
                 else:
                     content = llm_result
                 frame_text = content
-                response = f'{response}\n{frame_text}'
+                response = f'{response}{frame_text}'
                 chatbot[-1] = (input, response)
                 yield {
                     create_chatbot: chatbot,

@@ -75,18 +75,22 @@ class DashScopeLLM(LLM):
             # in the form of text
             return llm_result
 
-    def stream_generate(self, prompt, functions, **kwargs):
+    def stream_generate(self,
+                        llm_artifacts: Union[str, dict],
+                        functions=[],
+                        **kwargs):
         # print('repr(prompt): ', repr(prompt))
+        self.generate_cfg['use_raw_prompt'] = False
         total_response = ''
         try:
             responses = Generation.call(
                 model=self.model,
-                prompt=prompt,
+                messages=llm_artifacts,
                 stream=True,
                 **self.generate_cfg)
         except Exception as e:
             error = traceback.format_exc()
-            error_msg = f'LLM error with input {prompt} \n dashscope error: {str(e)} with traceback {error}'
+            error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
             print(error_msg)
             raise RuntimeError(error)
 
