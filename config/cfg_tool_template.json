@@ -1,32 +1,45 @@
 {
     "modelscope_text-address": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base",
+        "is_active": true
     },
     "modelscope_text-ner": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee",
+        "is_active": true
     },
     "modelscope_text-ie": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_structbert_siamese-uie_chinese-base"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_structbert_siamese-uie_chinese-base",
+        "is_active": true
     },
     "modelscope_speech-generation": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k",
+        "is_active": true
     },
     "modelscope_video-generation": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis",
+        "is_active": true
     },
     "modelscope_image-chat": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/multi-modal_mplug_owl_multimodal-dialogue_7b"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/multi-modal_mplug_owl_multimodal-dialogue_7b",
+        "is_active": true
     },
     "modelscope_text-translation-en2zh": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_en2zh"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_en2zh",
+        "is_active": true
     },
     "modelscope_text-translation-zh2en": {
-        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en"
+        "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en",
+        "is_active": true
     },
     "image_gen": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/AI-ModelScope/stable-diffusion-xl-base-1.0",
+        "is_active": true,
         "pipeline_params": {
             "use_safetensors": true
         }
+    },
+    "amap_weather": {
+        "is_active": false,
+        "token": "need to be filled when you use weather"
     }
 }

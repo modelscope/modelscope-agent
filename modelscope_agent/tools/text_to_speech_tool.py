@@ -24,6 +24,9 @@ class TexttoSpeechTool(ModelscopePipelineTool):
             kwargs['gender'] = 'man'
         voice = 'zhizhe_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
         kwargs['voice'] = voice
+        if 'text' in kwargs and 'input' not in kwargs:
+            kwargs['input'] = kwargs['text']
+            kwargs.pop('text')
         kwargs.pop('gender')
         return args, kwargs
 

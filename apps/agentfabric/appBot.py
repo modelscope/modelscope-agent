@@ -7,9 +7,11 @@ from config_utils import get_avatar_image, parse_configuration
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
-builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
-suggests = builder_cfg.get('conversation_starters', [])
-avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''))
+uuid_str = 'local_user'
+builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
+    uuid_str)
+suggests = builder_cfg.get('prompt_recommend', [])
+avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)
 
 customTheme = gr.themes.Default(
     primary_hue=gr.themes.utils.colors.blue,
@@ -20,43 +22,13 @@ customTheme = gr.themes.Default(
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent()
+        user_agent = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
     return state
-
-
-def send_message(preview_chatbot, preview_chat_input, state):
-    # 将发送的消息添加到聊天历史
-    user_agent = state['user_agent']
-    preview_chatbot.append((preview_chat_input, ''))
-    yield preview_chatbot
-
-    response = ''
-
-    for frame in user_agent.stream_run(
-            preview_chat_input, print_info=True, remote=False):
-        # is_final = frame.get("frame_is_final")
-        llm_result = frame.get('llm_text', '')
-        exec_result = frame.get('exec_result', '')
-        print(frame)
-        # llm_result = llm_result.split("<|user|>")[0].strip()
-        if len(exec_result) != 0:
-            # action_exec_result
-            if isinstance(exec_result, dict):
-                exec_result = str(exec_result['result'])
-            frame_text = f'Observation: <result>{exec_result}</result>'
-        else:
-            # llm result
-            frame_text = llm_result
-
-        # important! do not change this
-        response += frame_text
-        preview_chatbot[-1] = (preview_chat_input, response)
-        yield preview_chatbot
 
 
 # 创建 Gradio 界面
@@ -93,10 +65,44 @@ with demo:
                 examples=suggests,
                 inputs=[preview_chat_input])
 
+    def send_message(chatbot, input, _state):
+        # 将发送的消息添加到聊天历史
+        user_agent = _state['user_agent']
+        chatbot.append((input, ''))
+        yield {
+            user_chatbot: chatbot,
+            preview_chat_input: gr.Textbox.update(value=''),
+        }
+
+        response = ''
+
+        for frame in user_agent.stream_run(
+                input, print_info=True, remote=False):
+            # is_final = frame.get("frame_is_final")
+            llm_result = frame.get('llm_text', '')
+            exec_result = frame.get('exec_result', '')
+            print(frame)
+            # llm_result = llm_result.split("<|user|>")[0].strip()
+            if len(exec_result) != 0:
+                # action_exec_result
+                if isinstance(exec_result, dict):
+                    exec_result = str(exec_result['result'])
+                frame_text = f'Observation: <result>{exec_result}</result>'
+            else:
+                # llm result
+                frame_text = llm_result
+
+            # important! do not change this
+            response += frame_text
+            chatbot[-1] = (input, response)
+            yield {
+                user_chatbot: chatbot,
+            }
+
     preview_send_button.click(
         send_message,
         inputs=[user_chatbot, preview_chat_input, state],
-        outputs=[user_chatbot])
+        outputs=[user_chatbot, preview_chat_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 

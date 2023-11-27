@@ -20,6 +20,7 @@ class CustomLLM(LLM):
         super().__init__(cfg)
         self.token = os.getenv('HTTP_LLM_TOKEN', None)
         self.model = os.getenv('HTTP_LLM_MODEL', None)
+        self.model_id = self.model
         self.url = os.getenv('HTTP_LLM_URL', None)
 
         if self.token is None:
@@ -63,6 +64,8 @@ class CustomLLM(LLM):
             except Exception as e:
                 retry_count += 1
                 if retry_count > max_retries:
+                    import traceback
+                    traceback.print_exc()
                     print(f'input: {messages}, original error: {str(e)}')
                     raise e
 

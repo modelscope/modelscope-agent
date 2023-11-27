@@ -2,7 +2,8 @@ import os
 from typing import Dict, Iterable, List, Union
 
 import json
-from langchain.document_loaders import TextLoader, UnstructuredFileLoader
+from langchain.document_loaders import (PyPDFLoader, TextLoader,
+                                        UnstructuredFileLoader)
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.embeddings.base import Embeddings
 from langchain.schema import Document
@@ -18,7 +19,7 @@ class Retrieval:
                  top_k: int = 5,
                  vs_params: Dict = {}):
         self.embedding = embedding or ModelScopeEmbeddings(
-            model_id='damo/nlp_corom_sentence-embedding_chinese-base')
+            model_id='damo/nlp_gte_sentence-embedding_chinese-base')
         self.top_k = top_k
         self.vs_cls = vs_cls or FAISS
         self.vs_params = vs_params
@@ -35,6 +36,8 @@ class Retrieval:
 
     def retrieve(self, query: str) -> List[str]:
         res = self.vs.similarity_search(query, k=self.top_k)
+        if 'page' in res[0].metadata:
+            res.sort(key=lambda doc: doc.metadata['page'])
         return [r.page_content for r in res]
 
 
@@ -100,6 +103,9 @@ class KnowledgeRetrieval(Retrieval):
             elif f.lower().endswith('.md'):
                 loader = UnstructuredFileLoader(f, mode='elements')
                 docs += loader.load()
+            elif f.lower().endswith('.pdf'):
+                loader = PyPDFLoader(f)
+                docs += (loader.load_and_split(textsplitter))
             else:
                 raise ValueError(
                     f'not support file type: {f}, will be support soon')

@@ -40,9 +40,9 @@ python app.py
 ## 🚀 Roadmap
 - [x] Allow customizable agent-building via configurations.
 - [x] Agent-building through interactive conversations with LLMs.
-- [ ] Support multi-user preview on ModelScope space.
-- [ ] Optimize knowledge retrival.
-- [ ] Allow publication and sharing of agent.
+- [x] Support multi-user preview on ModelScope space. [link](https://modelscope.cn/studios/wenmengzhou/AgentFabric/summary) [PR #98](https://github.com/modelscope/modelscope-agent/pull/98)
+- [x] Optimize knowledge retrival. [PR #105](https://github.com/modelscope/modelscope-agent/pull/105) [PR #107](https://github.com/modelscope/modelscope-agent/pull/107) [PR #109](https://github.com/modelscope/modelscope-agent/pull/109)
+- [x] Allow publication and sharing of agent. [PR #111](https://github.com/modelscope/modelscope-agent/pull/111)
 - [ ] Support more pluggable LLMs via API or ModelScope interface.
 - [ ] Improve long context via memory.
 - [ ] Improve logging and profiling.

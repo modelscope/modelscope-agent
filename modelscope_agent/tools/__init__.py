@@ -1,3 +1,4 @@
+from .amap_weather import AMAPWeather
 from .code_interperter import CodeInterpreter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
@@ -13,7 +14,7 @@ from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
 
-DEFAULT_TOOL_LIST = {
+TOOL_INFO_LIST = {
     'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
     'modelscope_text-translation-en2zh': 'TranslationEn2ZhTool',
     'modelscope_text-ie': 'TextInfoExtractTool',
@@ -24,4 +25,5 @@ DEFAULT_TOOL_LIST = {
     'modelscope_image-chat': 'ImageChatTool',
     'modelscope_speech-generation': 'TexttoSpeechTool',
     'code_interpreter': 'CodeInterpreter',
+    'amap_weather': 'AMAPWeather',
 }
