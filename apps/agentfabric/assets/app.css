@@ -37,6 +37,26 @@
   color: #ddd;
 }
 
+.publish_link_container > a {
+  display: block;
+  border-radius: var(--button-large-radius);
+  padding: var(--button-large-padding);
+  font-weight: var(--button-large-text-weight);
+  font-size: var(--button-large-text-size);
+  border: var(--button-border-width) solid var(--button-secondary-border-color);
+  background: var(--button-secondary-background-fill);
+  color: var(--button-secondary-text-color) !important;
+  cursor: pointer;
+  text-decoration: none !important;
+  text-align: center;
+}
+
+.publish_link_container > .disabled {
+  cursor: not-allowed;
+  opacity: .5;
+  filter: grayscale(30%);
+}
+
 .markdown-body .message {
   white-space: pre-wrap;
 }
