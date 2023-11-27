@@ -33,5 +33,11 @@
         "model_revision": "v1.0.0",
         "use_raw_generation_config": true,
         "custom_chat": true
+    },
+    "qwen_7b": {
+        "type": "modelscope",
+        "model_id": "qwen/Qwen-7B-Chat",
+        "model_revision": "v1.1.8",
+        "use_raw_generation_config": true
     }
 }
