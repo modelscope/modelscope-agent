@@ -119,10 +119,10 @@ class BuilderChatbotAgent(AgentExecutor):
                 parser_obj = AnswerParser()
                 for s in self.llm.stream_generate(llm_artifacts=llm_artifacts):
                     llm_result += s
-                    parsed_s = parser_obj.parse_answer(llm_result)
-                    if parsed_s == '':
+                    answer = parser_obj.parse_answer(llm_result)
+                    if answer == '':
                         continue
-                    yield {'llm_text': parsed_s}
+                    yield {'llm_text': answer}
 
                 if print_info:
                     print(f'|LLM output in round {idx}:\n{llm_result}')
