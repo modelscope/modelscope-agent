@@ -3,7 +3,7 @@ import shutil
 from typing import Dict
 
 import json
-from modelscope_agent.tools.openapi_plugin import (OpenAPISchemaTool,
+from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
                                                    openapi_schema_convert)
 
 from modelscope.utils.config import Config

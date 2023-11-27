@@ -25,7 +25,7 @@ class ToolSchema(BaseModel):
     parameters: List[ParametersSchema]
 
 
-class OpenAPISchemaTool(Tool):
+class OpenAPIPluginTool(Tool):
     """
      openapi schema tool
     """
@@ -115,6 +115,8 @@ class OpenAPISchemaTool(Tool):
                 retry_times -= 1
                 try:
                     print('GET:', new_url)
+                    print('GET:', self.url)
+
                     response = requests.request(
                         'GET',
                         url=new_url,
@@ -194,22 +196,30 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
                 # If the argument type is an object and has a non-empty "properties" field,
                 # its internal properties are parsed recursively
                 for inner_param_name, inner_param_info in properties.items():
-                    param_type = inner_param_info['type']
-                    param_description = inner_param_info.get(
+                    inner_param_type = inner_param_info['type']
+                    inner_param_description = inner_param_info.get(
                         'description', f'用户输入的{param_name}.{inner_param_name}')
-                    param_required = param_name in content['required']
-                    parameters_list.append({
-                        'name':
-                        f'{param_name}.{inner_param_name}',
-                        'description':
-                        param_description,
-                        'required':
-                        param_required,
-                        'type':
-                        param_type,
-                        'value':
-                        inner_param_info.get('enum', '')
-                    })
+                    inner_param_required = param_name.split(
+                        '.')[0] in content['required']
+
+                    # Recursively call the function to handle nested objects
+                    if inner_param_type == 'object':
+                        parse_nested_parameters(
+                            f'{param_name}.{inner_param_name}',
+                            inner_param_info, parameters_list, content)
+                    else:
+                        parameters_list.append({
+                            'name':
+                            f'{param_name}.{inner_param_name}',
+                            'description':
+                            inner_param_description,
+                            'required':
+                            inner_param_required,
+                            'type':
+                            inner_param_type,
+                            'value':
+                            inner_param_info.get('enum', '')
+                        })
         else:
             # Non-nested parameters are added directly to the parameter list
             parameters_list.append({
@@ -233,6 +243,7 @@ def parse_responses_parameters(param_name, param_info, parameters_list):
             if properties:
                 # If the argument type is an object and has a non-empty "properties"
                 # field, its internal properties are parsed recursively
+
                 for inner_param_name, inner_param_info in properties.items():
                     param_type = inner_param_info['type']
                     param_description = inner_param_info.get(
@@ -255,6 +266,7 @@ def parse_responses_parameters(param_name, param_info, parameters_list):
 
 
 def openapi_schema_convert(schema, YOUR_API_TOKEN=''):
+
     resolver = RefResolver.from_schema(schema)
     servers = schema.get('servers', [])
     if servers:
