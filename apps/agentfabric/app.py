@@ -153,12 +153,12 @@ def process_configuration(uuid_str, bot_avatar, name, description,
             'auth': openapi_auth,
             'privacy_policy': openapi_privacy_policy
         }
+        save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
 
     save_builder_configuration(builder_cfg, uuid_str)
-    save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     update_builder(uuid_str, state)
     init_user(uuid_str, state)
     return [

@@ -4,8 +4,8 @@ import time
 
 import json
 import yaml
-from modelscope_agent.tools.openapi_tool import (OpenAPISchemaTool,
-                                                 openapi_schema_convert)
+from modelscope_agent.tools.openapi_plugin import (OpenAPISchemaTool,
+                                                   openapi_schema_convert)
 
 from modelscope.utils.config import Config
 
