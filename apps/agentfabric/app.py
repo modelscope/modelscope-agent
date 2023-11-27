@@ -1,7 +1,6 @@
 import os
 import random
 import shutil
-import sys
 import traceback
 
 import gradio as gr
