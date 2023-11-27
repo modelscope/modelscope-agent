@@ -14,7 +14,7 @@ from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
 
-DEFAULT_TOOL_LIST = {
+TOOL_INFO_LIST = {
     'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
     'modelscope_text-translation-en2zh': 'TranslationEn2ZhTool',
     'modelscope_text-ie': 'TextInfoExtractTool',

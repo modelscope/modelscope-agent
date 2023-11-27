@@ -9,7 +9,7 @@ from .output_parser import OutputParser, get_output_parser
 from .output_wrapper import display
 from .prompt import PromptGenerator, get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
-from .tools import DEFAULT_TOOL_LIST
+from .tools import TOOL_INFO_LIST
 
 
 class AgentExecutor:
@@ -76,13 +76,17 @@ class AgentExecutor:
             additional_tool_list (Dict, optional): user-defined tools. Defaults to {}.
         """
         self.tool_list = {}
-        tool_list = DEFAULT_TOOL_LIST
+        tool_info_list = TOOL_INFO_LIST
 
         tools_module = importlib.import_module('modelscope_agent.tools')
-        for task_name, tool_class_name in tool_list.items():
-            tool_class = getattr(tools_module, tool_class_name)
-            tool_name = tool_class.name
-            self.tool_list[tool_name] = tool_class(tool_cfg)
+        for tool_name in tool_cfg.keys():
+            if tool_cfg[tool_name].get('is_active', False):
+                assert tool_name in tool_info_list, f'Invalid tool name: {tool_name}, ' \
+                    'available ones are: {tool_info_list.keys()}'
+                tool_class_name = tool_info_list[tool_name]
+                tool_class = getattr(tools_module, tool_class_name)
+                tool_name = tool_class.name
+                self.tool_list[tool_name] = tool_class(tool_cfg)
 
         self.tool_list = {**self.tool_list, **additional_tool_list}
         self.available_tool_list = deepcopy(self.tool_list)
@@ -156,7 +160,11 @@ class AgentExecutor:
             # generate prompt and call llm
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
-            llm_result = self.llm.generate(llm_artifacts, function_list)
+            try:
+                llm_result = self.llm.generate(llm_artifacts, function_list)
+            except RuntimeError as e:
+                return [{'exec_result': str(e)}]
+
             if print_info:
                 print(f'|LLM inputs in round {idx}: {llm_artifacts}')
 
@@ -166,6 +174,7 @@ class AgentExecutor:
                     llm_result)
             except ValueError as e:
                 return [{'exec_result': f'{e}'}]
+
             if action is None:
                 # in chat mode, the final result of last instructions should be updated to prompt history
                 _ = self.prompt_generator.generate(llm_result, '')
@@ -240,7 +249,8 @@ class AgentExecutor:
                                                   function_list):
                     llm_result += s
                     yield {'llm_text': s}
-
+            except RuntimeError as e:
+                yield {'llm_text': str(e)}
             except Exception:
                 s = self.llm.generate(llm_artifacts)
                 llm_result += s

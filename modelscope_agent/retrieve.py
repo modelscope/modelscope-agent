@@ -19,7 +19,7 @@ class Retrieval:
                  top_k: int = 5,
                  vs_params: Dict = {}):
         self.embedding = embedding or ModelScopeEmbeddings(
-            model_id='damo/nlp_corom_sentence-embedding_chinese-base')
+            model_id='damo/nlp_gte_sentence-embedding_chinese-base')
         self.top_k = top_k
         self.vs_cls = vs_cls or FAISS
         self.vs_params = vs_params
