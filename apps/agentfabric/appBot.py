@@ -7,9 +7,11 @@ from config_utils import get_avatar_image, parse_configuration
 from gradio_utils import ChatBot, format_cover_html
 from user_core import init_user_chatbot_agent
 
-builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration()
-suggests = builder_cfg.get('conversation_starters', [])
-avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''))
+uuid_str = 'local_user'
+builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+    uuid_str)
+suggests = builder_cfg.get('prompt_recommend', [])
+avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)
 
 customTheme = gr.themes.Default(
     primary_hue=gr.themes.utils.colors.blue,
@@ -20,7 +22,7 @@ customTheme = gr.themes.Default(
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent()
+        user_agent = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:

@@ -1,19 +1,27 @@
+import os
 import random
+import shutil
 import sys
 import traceback
 
 import gradio as gr
+import json
 from builder_core import init_builder_chatbot_agent
-from config_utils import (Config, get_avatar_image, parse_configuration,
-                          save_avatar_image, save_builder_configuration)
+from config_utils import (Config, get_avatar_image, get_user_cfg_file,
+                          get_user_dir, parse_configuration, save_avatar_image,
+                          save_builder_configuration,
+                          save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html
+from publish_util import prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
+sys.path.append('../../')
 
-def init_user(state):
+
+def init_user(uuid_str, state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent()
+        user_agent = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
@@ -22,9 +30,10 @@ def init_user(state):
     return state
 
 
-def init_builder(state):
+def init_builder(uuid_str, state):
+
     try:
-        builder_agent = init_builder_chatbot_agent()
+        builder_agent = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
     except Exception as e:
         error = traceback.format_exc()
@@ -32,7 +41,21 @@ def init_builder(state):
     return state
 
 
-def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
+def update_builder(uuid_str, state):
+    builder_agent = state['builder_agent']
+
+    try:
+        builder_cfg_file = get_user_cfg_file(uuid_str=uuid_str)
+        with open(builder_cfg_file, 'r') as f:
+            config = json.load(f)
+        builder_agent.update_config_to_history(config)
+    except Exception as e:
+        error = traceback.format_exc()
+        print(f'Error:{e}, with detail: {error}')
+    return state
+
+
+def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
     print('builder_cfg:', builder_cfg)
     # available models
     models = list(model_cfg.keys())
@@ -42,8 +65,8 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     state['model_cfg'] = model_cfg
     state['tool_cfg'] = tool_cfg
     state['capabilities'] = capabilities
-    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''))[1]
-    suggests = builder_cfg.get('conversation_starters', [])
+    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)[1]
+    suggests = builder_cfg.get('prompt_recommend', [])
     return [
         state,
         # config form
@@ -68,30 +91,54 @@ def init_ui_config(state, builder_cfg, model_cfg, tool_cfg):
     ]
 
 
-def init_all(state):
-    builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
-    )
-    ret = init_ui_config(state, builder_cfg, model_cfg, tool_cfg)
+def init_all(uuid_str, state):
+    uuid_str = check_uuid(uuid_str)
+    builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+        uuid_str)
+    ret = init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg)
     yield ret
-    init_user(state)
-    init_builder(state)
+    init_user(uuid_str, state)
+    init_builder(uuid_str, state)
     yield ret
 
 
-def process_configuration(bot_avatar, name, description, instructions, model,
-                          suggestions, files, capabilities_checkboxes, state):
+def check_uuid(uuid_str):
+    if not uuid_str or uuid_str == '':
+        if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
+            raise gr.Error('请登陆后使用! (Please login first)')
+        else:
+            uuid_str = 'local_user'
+    return uuid_str
+
+
+def process_configuration(uuid_str, bot_avatar, name, description,
+                          instructions, model, suggestions, knowledge_files,
+                          capabilities_checkboxes, openapi_schema,
+                          openapi_auth, openapi_privacy_policy, state):
+    uuid_str = check_uuid(uuid_str)
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
-
-    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar)
+    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
+    user_dir = get_user_dir(uuid_str)
+    if knowledge_files is not None:
+        new_knowledge_files = [
+            os.path.join(user_dir, os.path.basename((f.name)))
+            for f in knowledge_files
+        ]
+        for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
+            if not os.path.exists(dst_file):
+                shutil.copy(src_file.name, dst_file)
+    else:
+        new_knowledge_files = []
+
     builder_cfg = {
         'name': name,
         'avatar': bot_avatar,
         'description': description,
         'instruction': instructions,
-        'conversation_starters': [row[0] for row in suggestions_filtered],
-        'knowledge': list(map(lambda file: file.name, files or [])),
+        'prompt_recommend': [row[0] for row in suggestions_filtered],
+        'knowledge': new_knowledge_files,
         'tools': {
             capability: dict(
                 name=tool_cfg[capability]['name'],
@@ -102,14 +149,28 @@ def process_configuration(bot_avatar, name, description, instructions, model,
         'model': model,
     }
 
-    save_builder_configuration(builder_cfg)
-    init_user(state)
+    try:
+        schema_dict = json.loads(openapi_schema)
+        openapi_plugin_cfg = {
+            'schema': schema_dict,
+            'auth': openapi_auth,
+            'privacy_policy': openapi_privacy_policy
+        }
+        save_plugin_configuration(openapi_plugin_cfg, uuid_str)
+    except Exception as e:
+        error = traceback.format_exc()
+        print(f'Error:{e}, with detail: {error}')
+
+    save_builder_configuration(builder_cfg, uuid_str)
+    update_builder(uuid_str, state)
+    init_user(uuid_str, state)
     return [
         gr.HTML.update(
             visible=True,
             value=format_cover_html(builder_cfg, bot_avatar_path)),
         gr.Chatbot.update(
-            visible=False, avatar_images=get_avatar_image(bot_avatar)),
+            visible=False,
+            avatar_images=get_avatar_image(bot_avatar, uuid_str)),
         gr.Dataset.update(samples=suggestions_filtered),
         gr.DataFrame.update(value=suggestions_filtered)
     ]
@@ -118,6 +179,7 @@ def process_configuration(bot_avatar, name, description, instructions, model,
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
+    uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed})
     with gr.Row():
@@ -170,13 +232,13 @@ with demo:
                             label='Capabilities')
 
                         with gr.Accordion('配置选项', open=False):
-                            schema1 = gr.Textbox(
+                            openapi_schema = gr.Textbox(
                                 label='Schema',
                                 placeholder='Enter your OpenAPI schema here')
-                            auth1 = gr.Radio(
+                            openapi_auth = gr.Radio(
                                 label='Authentication',
                                 choices=['None', 'API Key', 'OAuth'])
-                            privacy_policy1 = gr.Textbox(
+                            openapi_privacy_policy = gr.Textbox(
                                 label='Privacy Policy',
                                 placeholder='Enter privacy policy URL')
 
@@ -200,7 +262,7 @@ with demo:
                 value=[[None, None]],
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
-                avatar_images=get_avatar_image(''),
+                avatar_images=get_avatar_image('', uuid_str),
                 height=650,
                 latex_delimiters=[],
                 show_label=False,
@@ -216,6 +278,8 @@ with demo:
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
                 outputs=[preview_chat_input])
+            publish_button = gr.Button('Publish')
+            output_url = gr.Textbox(label='Agent url for you', disabled=True)
 
     configure_updated_outputs = [
         state,
@@ -230,32 +294,36 @@ with demo:
         capabilities_checkboxes,
         # bot
         user_chat_bot_cover,
-        user_chat_bot_suggest
+        user_chat_bot_suggest,
     ]
 
     # tab 切换的事件处理
-    def on_congifure_tab_select(_state):
+    def on_congifure_tab_select(_state, uuid_str):
+        uuid_str = check_uuid(uuid_str)
         configure_updated = _state.get('configure_updated', False)
         if configure_updated:
-            builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
-            )
+            builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+                uuid_str)
             _state['configure_updated'] = False
-            return init_ui_config(_state, builder_cfg, model_cfg, tool_cfg)
+            return init_ui_config(uuid_str, _state, builder_cfg, model_cfg,
+                                  tool_cfg)
         else:
             return {state: _state}
 
     configure_tab.select(
         on_congifure_tab_select,
-        inputs=[state],
+        inputs=[state, uuid_str],
         outputs=configure_updated_outputs)
 
     # 配置 "Create" 标签页的消息发送功能
-    def format_message_with_builder_cfg(_state, chatbot, builder_cfg):
+    def format_message_with_builder_cfg(_state, chatbot, builder_cfg,
+                                        uuid_str):
+        uuid_str = check_uuid(uuid_str)
         bot_avatar = builder_cfg.get('avatar', '')
-        conversation_starters = builder_cfg.get('conversation_starters', [])
-        suggestion = [[row] for row in conversation_starters]
-        bot_avatar_path = get_avatar_image(bot_avatar)[1]
-        save_builder_configuration(builder_cfg)
+        prompt_recommend = builder_cfg.get('prompt_recommend', [])
+        suggestion = [[row] for row in prompt_recommend]
+        bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
+        save_builder_configuration(builder_cfg, uuid_str)
         _state['configure_updated'] = True
         return {
             create_chatbot:
@@ -266,12 +334,14 @@ with demo:
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             user_chatbot:
             gr.Chatbot.update(
-                visible=False, avatar_images=get_avatar_image(bot_avatar)),
+                visible=False,
+                avatar_images=get_avatar_image(bot_avatar, uuid_str)),
             user_chat_bot_suggest:
             gr.Dataset.update(samples=suggestion)
         }
 
-    def create_send_message(chatbot, input, _state):
+    def create_send_message(chatbot, input, _state, uuid_str):
+        uuid_str = check_uuid(uuid_str)
         # 将发送的消息添加到聊天历史
         builder_agent = _state['builder_agent']
         chatbot.append((input, ''))
@@ -289,7 +359,10 @@ with demo:
                     exec_result = exec_result['result']
                     assert isinstance(exec_result, Config)
                     yield format_message_with_builder_cfg(
-                        _state, chatbot, exec_result.to_dict())
+                        _state,
+                        chatbot,
+                        exec_result.to_dict(),
+                        uuid_str=uuid_str)
             else:
                 # llm result
                 if isinstance(llm_result, dict):
@@ -305,7 +378,7 @@ with demo:
 
     create_send_button.click(
         create_send_message,
-        inputs=[create_chatbot, create_chat_input, state],
+        inputs=[create_chatbot, create_chat_input, state, uuid_str],
         outputs=[
             create_chatbot, user_chat_bot_cover, user_chatbot,
             user_chat_bot_suggest, create_chat_input
@@ -315,9 +388,10 @@ with demo:
     configure_button.click(
         process_configuration,
         inputs=[
-            bot_avatar_comp, name_input, description_input, instructions_input,
-            model_selector, suggestion_input, knowledge_input,
-            capabilities_checkboxes, state
+            uuid_str, bot_avatar_comp, name_input, description_input,
+            instructions_input, model_selector, suggestion_input,
+            knowledge_input, capabilities_checkboxes, openapi_schema,
+            openapi_auth, openapi_privacy_policy, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,
@@ -363,7 +437,20 @@ with demo:
         inputs=[user_chatbot, preview_chat_input, state],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
-    demo.load(init_all, inputs=[state], outputs=configure_updated_outputs)
+    # configuration for publish
+    def publish_agent(output_url, name, uuid_str, state):
+        uuid_str = check_uuid(uuid_str)
+        output_url = prepare_agent_zip(name, uuid_str, state)
+        return output_url
 
-demo.queue()
+    publish_button.click(
+        publish_agent,
+        inputs=[output_url, name_input, uuid_str, state],
+        outputs=[output_url],
+    )
+
+    demo.load(
+        init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
+
+demo.queue(concurrency_count=10)
 demo.launch()
