@@ -132,7 +132,7 @@ def parse_configuration(uuid_str=''):
             available_tool_list.append(key)
 
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
-    plugin_cfg = None
+    plugin_cfg = {}
     available_plugin_list = []
     if os.path.exists(openapi_plugin_file):
         config_dict = openapi_schema_convert(
