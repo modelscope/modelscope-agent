@@ -3,6 +3,7 @@ import base64
 import html
 import io
 import re
+from urllib import parse
 
 import json
 import markdown
@@ -43,6 +44,24 @@ def format_cover_html(configuration, bot_avatar_path):
     <div class="bot_desp">{configuration.get("description", "")}</div>
 </div>
 """
+
+
+def format_goto_publish_html(zip_url, disable=False):
+    if disable:
+        return """<div class="publish_link_container">
+        <a class="disabled">Publish</a>
+    </div>
+    """
+    else:
+        params = {'AGENT_URL': zip_url}
+        template = 'modelscope/agent_template'
+        params_str = json.dumps(params)
+        link_url = f'https://www.modelscope.cn/studios/fork?target={template}&overwriteEnv={parse.quote(params_str)}'
+        return f"""
+    <div class="publish_link_container">
+        <a href="{link_url}" target="_blank">Publish</a>
+    </div>
+    """
 
 
 class ChatBot(ChatBotBase):
