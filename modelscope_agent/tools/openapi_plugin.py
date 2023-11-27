@@ -146,13 +146,6 @@ class OpenAPIPluginTool(Tool):
                 'Remote call method is invalid!We have POST and GET method.')
 
     def _remote_parse_input(self, *args, **kwargs):
-        # model_name = kwargs.pop('model', '')
-        # if model_name == '':
-        #     if self.parameters != []:
-        #         model_name = self.parameters[0]['value'][0]
-        #         kwargs['model'] = model_name
-        # else:
-        #     kwargs['model'] = model_name
         restored_dict = {}
         for key, value in kwargs.items():
             if '.' in key:
@@ -370,7 +363,7 @@ def openapi_schema_convert(schema, YOUR_API_TOKEN=''):
                     }
                 }
             else:
-                raise ('method is not POST or GET')
+                raise 'method is not POST or GET'
 
             config_data[summary] = config_entry
     return config_data
