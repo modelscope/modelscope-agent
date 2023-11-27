@@ -29,6 +29,19 @@ def covert_image_to_base64(image_path):
     return base64_url
 
 
+def convert_url(text, new_filename):
+    # Define the pattern to search for
+    # This pattern captures the text inside the square brackets, the path, and the filename
+    pattern = r'!\[([^\]]+)\]\(([^)]+)\)'
+
+    # Define the replacement pattern
+    # \1 is a backreference to the text captured by the first group ([^\]]+)
+    replacement = rf'![\1]({new_filename})'
+
+    # Replace the pattern in the text with the replacement
+    return re.sub(pattern, replacement, text)
+
+
 def format_cover_html(configuration, bot_avatar_path):
     if bot_avatar_path:
         image_src = covert_image_to_base64(bot_avatar_path)

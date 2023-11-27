@@ -139,7 +139,7 @@ class CodeInterpreterJupyter(Tool):
 
     def _serve_image(self, image_base64: str) -> str:
         image_file = f'{uuid.uuid4()}.png'
-        local_image_file = os.path.join(os.path.dirname(__file__), image_file)
+        local_image_file = os.path.join(WORK_DIR, image_file)
 
         png_bytes = base64.b64decode(image_base64)
         assert isinstance(png_bytes, bytes)
@@ -224,7 +224,7 @@ class CodeInterpreterJupyter(Tool):
             if text:
                 result += f'\n{text}'
             if image:
-                result += f'\n\n/file={image}'
+                result += f'\n\n{image}'
             if finished:
                 break
         result = result.lstrip('\n')

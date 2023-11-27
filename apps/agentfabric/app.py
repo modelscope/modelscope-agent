@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import shutil
 import traceback
 
@@ -9,7 +10,8 @@ from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           get_user_dir, parse_configuration, save_avatar_image,
                           save_builder_configuration)
-from gradio_utils import ChatBot, format_cover_html
+from gradio_utils import (ChatBot, convert_url, covert_image_to_base64,
+                          format_cover_html)
 from publish_util import prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
@@ -404,6 +406,14 @@ with demo:
                 # action_exec_result
                 if isinstance(exec_result, dict):
                     exec_result = str(exec_result['result'])
+
+                re_pattern = re.compile(pattern=r'!\[[^\]]+\]\(([^)]+)\)')
+                res = re_pattern.search(exec_result)
+                image_path = res.group(1).strip()
+                if image_path:
+                    exec_result = convert_url(
+                        exec_result, covert_image_to_base64(image_path))
+                    print('converted_content', exec_result)
                 frame_text = f'Observation: <result>{exec_result}</result>'
             else:
                 # llm result
