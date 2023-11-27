@@ -49,11 +49,11 @@ class CodeInterpreterJupyter(Tool):
         using jupyter kernel client to interpret python code,
         should not be used the other code interpreter tool at the same time
     """
-    description = 'Executes code on the user\'s machine, **in the users local environment**, and returns the output'
+    description = '代码解释器，可用于执行Python代码。'
     name = 'code_interpreter'
     parameters: list = [{
         'name': 'code',
-        'description': 'The code to execute (required)',
+        'description': '待执行的代码',
         'required': True
     }]
 
