@@ -409,8 +409,8 @@ with demo:
 
                 re_pattern = re.compile(pattern=r'!\[[^\]]+\]\(([^)]+)\)')
                 res = re_pattern.search(exec_result)
-                image_path = res.group(1).strip()
-                if image_path:
+                if res:
+                    image_path = res.group(1).strip()
                     exec_result = convert_url(
                         exec_result, covert_image_to_base64(image_path))
                     print('converted_content', exec_result)
