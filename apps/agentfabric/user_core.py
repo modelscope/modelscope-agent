@@ -12,7 +12,7 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
-from modelscope_agent.tools.openapi_plugin import (OpenAPISchemaTool,
+from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
                                                    openapi_schema_convert)
 
 
@@ -74,7 +74,7 @@ def init_user_chatbot_agent(uuid_str=''):
 def add_openapi_plugin_to_additional_tool(plugin_cfgs, available_plugin_list):
     additional_tool_list = {}
     for name, cfg in plugin_cfgs.items():
-        openapi_plugin_object = OpenAPISchemaTool(name=name, cfg=plugin_cfgs)
+        openapi_plugin_object = OpenAPIPluginTool(name=name, cfg=plugin_cfgs)
         additional_tool_list[name] = openapi_plugin_object
     return additional_tool_list
 
