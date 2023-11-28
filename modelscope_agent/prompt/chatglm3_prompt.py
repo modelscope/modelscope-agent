@@ -1,15 +1,19 @@
 import json
+
 from .prompt import PromptGenerator
 
-CHATGLM_DEFAULT_SYSTEM_TEMPLATE = """<|system|>\nAnswer the following questions as best you can. You have access to the following tools:\n<tool_list>"""
+CHATGLM_DEFAULT_SYSTEM_TEMPLATE = """<|system|>
+Answer the following questions as best you can. You have access to the following tools:
+<tool_list>"""
 
-CHATGLM_DEFAULT_INSTRUCTION_TEMPLATE = ""
+CHATGLM_DEFAULT_INSTRUCTION_TEMPLATE = ''
 
 CHATGLM_DEFAULT_USER_TEMPLATE = """<|user|>\n<user_input>"""
 
 CHATGLM_DEFAULT_EXEC_TEMPLATE = """<|observation|>\n<exec_result>"""
 
 CHATGLM_DEFAULT_ASSISTANT_TEMPLATE = """<|assistant|>"""
+
 
 class ChatGLMPromptGenerator(PromptGenerator):
 
@@ -26,6 +30,7 @@ class ChatGLMPromptGenerator(PromptGenerator):
                          prompt_max_length)
 
     def get_tool_str(self, tool_list):
-        tool_json = json.loads('[' + ','.join([str(item) for item in tool_list]) + ']')
+        tool_json = json.loads('['
+                               + ','.join([str(item)
+                                           for item in tool_list]) + ']')
         return json.dumps(tool_json, ensure_ascii=False, indent=4)
-

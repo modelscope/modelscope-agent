@@ -72,6 +72,7 @@ class MsOutputParser(OutputParser):
 
 
 class ChatGLMOutputParser(OutputParser):
+
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
 
@@ -89,16 +90,14 @@ class ChatGLMOutputParser(OutputParser):
             re_pattern1 = re.compile(
                 pattern=r'([\s\S]+)```([\s\S]+)tool_call\(([\s\S]+)```')
             res = re_pattern1.search(response)
-            #action = res.group(1).split('>')[-1]
-            action_list = re.split("<|>|\|", res.group(1).strip())
-            for idx in range(len(action_list)-1, -1, -1):
+            action_list = re.split('<|>|\|', res.group(1).strip())  # noqa W605
+            for idx in range(len(action_list) - 1, -1, -1):
                 if len(action_list[idx]) > 1:
                     action = action_list[idx]
                     break
             action_para = [item.strip() for item in res.group(3).split(',')]
             parameters = {}
-            re_pattern2 = re.compile(
-                pattern=r'([\s\S]+)=\'([\s\S]+)\'')
+            re_pattern2 = re.compile(pattern=r'([\s\S]+)=\'([\s\S]+)\'')
             for para in action_para:
                 res = re_pattern2.search(para)
                 parameters[res.group(1)] = res.group(2)
