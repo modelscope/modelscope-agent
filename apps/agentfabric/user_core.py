@@ -60,7 +60,6 @@ def init_user_chatbot_agent(uuid_str=''):
 
     additional_tool_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, available_plugin_list)
-
     # build agent
     agent = AgentExecutor(
         llm,
