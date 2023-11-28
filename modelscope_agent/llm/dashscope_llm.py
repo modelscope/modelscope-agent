@@ -79,15 +79,22 @@ class DashScopeLLM(LLM):
                         llm_artifacts: Union[str, dict],
                         functions=[],
                         **kwargs):
-        # print('repr(prompt): ', repr(prompt))
-        self.generate_cfg['use_raw_prompt'] = False
         total_response = ''
         try:
-            responses = Generation.call(
-                model=self.model,
-                messages=llm_artifacts,
-                stream=True,
-                **self.generate_cfg)
+            if self.agent_type == AgentType.Messages:
+                self.generate_cfg['use_raw_prompt'] = False
+                responses = Generation.call(
+                    model=self.model,
+                    messages=llm_artifacts,
+                    stream=True,
+                    result_format='message',
+                    **self.generate_cfg)
+            else:
+                responses = Generation.call(
+                    model=self.model,
+                    prompt=llm_artifacts,
+                    stream=True,
+                    **self.generate_cfg)
         except Exception as e:
             error = traceback.format_exc()
             error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
@@ -96,14 +103,20 @@ class DashScopeLLM(LLM):
 
         for response in responses:
             if response.status_code == HTTPStatus.OK:
-                new_response = response.output['text']
-                frame_text = new_response[len(total_response):]
+                if self.agent_type == AgentType.Messages:
+                    llm_result = CustomOutputWrapper.handle_message_chat_completion(
+                        response)
+                    frame_text = llm_result['content'][len(total_response):]
+                else:
+                    llm_result = CustomOutputWrapper.handle_message_text_completion(
+                        response)
+                    frame_text = llm_result[len(total_response):]
                 yield frame_text
 
-                # idx = total_response.find('<|endofthink|>')
-                # if idx != -1:
-                #     break
-                total_response = new_response
+                if self.agent_type == AgentType.Messages:
+                    total_response = llm_result['content']
+                else:
+                    total_response = llm_result
             else:
                 err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
                     response.request_id, response.status_code, response.code,
