@@ -234,7 +234,7 @@ with demo:
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label='Capabilities')
 
-                        with gr.Accordion('配置选项', open=False):
+                        with gr.Accordion('OpenAPI Configuration', open=False):
                             openapi_schema = gr.Textbox(
                                 label='Schema',
                                 placeholder='Enter your OpenAPI schema here')
