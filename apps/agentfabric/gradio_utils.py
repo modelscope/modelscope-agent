@@ -3,6 +3,7 @@ import base64
 import html
 import io
 import re
+from urllib import parse
 
 import json
 import markdown
@@ -43,6 +44,24 @@ def format_cover_html(configuration, bot_avatar_path):
     <div class="bot_desp">{configuration.get("description", "")}</div>
 </div>
 """
+
+
+def format_goto_publish_html(zip_url, disable=False):
+    if disable:
+        return """<div class="publish_link_container">
+        <a class="disabled">Publish</a>
+    </div>
+    """
+    else:
+        params = {'AGENT_URL': zip_url}
+        template = 'modelscope/agent_template'
+        params_str = json.dumps(params)
+        link_url = f'https://www.modelscope.cn/studios/fork?target={template}&overwriteEnv={parse.quote(params_str)}'
+        return f"""
+    <div class="publish_link_container">
+        <a href="{link_url}" target="_blank">Publish</a>
+    </div>
+    """
 
 
 class ChatBot(ChatBotBase):
@@ -262,14 +281,23 @@ class ChatBot(ChatBotBase):
                 action_name = bot_message[action_pos
                                           + len(ACTION
                                                 ):action_input_pos].strip()
-                # TODO @wenmeng.zwm tricky method,  need to add action_start action_end
-                action_input_end = bot_message[action_input_pos:].index('\n')
+                # action_start action_end 使用 Action Input 到 Observation 之间
+                action_input_end = bot_message[action_input_pos:].index(
+                    OBSERVATION) - 1
                 action_input = bot_message[action_input_pos:action_input_pos
                                            + action_input_end].strip()
-                action_input = find_json_pattern.search(action_input).group()
+                is_json = find_json_pattern.search(action_input)
+                if is_json:
+                    action_input = is_json.group()
+                else:
+                    action_input = re.sub(r'^Action Input[:]?[\s]*', '',
+                                          action_input)
 
                 summary = f'调用工具 {action_name}'
-                detail = f'```json\n\n{json.dumps(json.loads(action_input), indent=4, ensure_ascii=False)}\n\n```'
+                if is_json:
+                    detail = f'```json\n\n{json.dumps(json.loads(action_input), indent=4, ensure_ascii=False)}\n\n```'
+                else:
+                    detail = action_input
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                     detail) + '</details>'
                 start_pos = action_input_pos + action_input_end + 1
