@@ -80,7 +80,7 @@ class AgentExecutor:
 
         tools_module = importlib.import_module('modelscope_agent.tools')
         for tool_name in tool_cfg.keys():
-            if tool_cfg[tool_name].get('is_active', False):
+            if tool_cfg[tool_name].get('use', False):
                 assert tool_name in tool_info_list, f'Invalid tool name: {tool_name}, ' \
                     'available ones are: {tool_info_list.keys()}'
                 tool_class_name = tool_info_list[tool_name]
