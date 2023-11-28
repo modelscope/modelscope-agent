@@ -249,12 +249,12 @@ class AgentExecutor:
                                                   function_list):
                     llm_result += s
                     yield {'llm_text': s}
-            except RuntimeError as e:
-                yield {'llm_text': str(e)}
-            except Exception:
+            except RuntimeError:
                 s = self.llm.generate(llm_artifacts)
                 llm_result += s
                 yield {'llm_text': s}
+            except Exception as e:
+                yield {'llm_text': str(e)}
 
             # parse and get tool name and arguments
             try:
