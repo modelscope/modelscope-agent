@@ -2,6 +2,7 @@ from __future__ import annotations
 import base64
 import html
 import io
+import os
 import re
 from urllib import parse
 
@@ -331,6 +332,15 @@ class ChatBot(ChatBotBase):
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                     detail) + '</details>'
                 if exec_content is not None and '[IMAGEGEN]' in exec_content:
+                    # convert local file to base64
+                    re_pattern = re.compile(pattern=r'!\[[^\]]+\]\(([^)]+)\)')
+                    res = re_pattern.search(exec_content)
+                    if res:
+                        image_path = res.group(1).strip()
+                        if os.path.isfile(image_path):
+                            exec_content = convert_url(
+                                exec_content,
+                                covert_image_to_base64(image_path))
                     result += self.convert_markdown(f'{exec_content}')
 
             except Exception:

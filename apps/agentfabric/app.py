@@ -455,14 +455,6 @@ with demo:
                 # action_exec_result
                 if isinstance(exec_result, dict):
                     exec_result = str(exec_result['result'])
-
-                re_pattern = re.compile(pattern=r'!\[[^\]]+\]\(([^)]+)\)')
-                res = re_pattern.search(exec_result)
-                if res:
-                    image_path = res.group(1).strip()
-                    exec_result = convert_url(
-                        exec_result, covert_image_to_base64(image_path))
-                    print('converted_content', exec_result)
                 frame_text = f'Observation: <result>{exec_result}</result>'
             else:
                 # llm result
