@@ -7,9 +7,9 @@ import traceback
 import gradio as gr
 import json
 from builder_core import init_builder_chatbot_agent
-from config_utils import (Config, get_avatar_image, get_user_cfg_file,
-                          get_user_dir, parse_configuration, save_avatar_image,
-                          save_builder_configuration)
+from config_utils import (Config, get_avatar_image, get_ci_dir,
+                          get_user_cfg_file, get_user_dir, parse_configuration,
+                          save_avatar_image, save_builder_configuration)
 from gradio_utils import (ChatBot, convert_url, covert_image_to_base64,
                           format_cover_html, format_goto_publish_html)
 from publish_util import prepare_agent_zip
@@ -259,6 +259,10 @@ with demo:
                 components=[preview_chat_input],
                 samples=[])
             preview_send_button = gr.Button('Send')
+            upload_button = gr.UploadButton(
+                'Click to Upload a File',
+                file_types=['.csv', '.doc', '.xls', '.xlsx', '.txt'],
+                file_count='multiple')
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
@@ -393,6 +397,9 @@ with demo:
     def preview_send_message(chatbot, input, _state):
         # 将发送的消息添加到聊天历史
         user_agent = _state['user_agent']
+        new_file_paths = _state['new_file_paths']
+        # file_paths = _state['file_paths']
+
         chatbot.append((input, ''))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
@@ -403,7 +410,8 @@ with demo:
         response = ''
 
         for frame in user_agent.stream_run(
-                input, print_info=True, remote=False):
+                input, print_info=True, remote=False,
+                append_files=new_file_paths):
             # is_final = frame.get("frame_is_final")
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
@@ -430,10 +438,44 @@ with demo:
             response += frame_text
             chatbot[-1] = (input, response)
             yield {user_chatbot: chatbot}
+            _state['new_file_paths'] = []
 
     preview_send_button.click(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state],
+        outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
+
+    def upload_file(chatbot, upload_button, _state, uuid_str):
+        uuid_str = check_uuid(uuid_str)
+        new_file_paths = []
+        if 'file_paths' in _state:
+            file_paths = _state['file_paths']
+        else:
+            file_paths = []
+        for file in upload_button:
+            file_name = os.path.basename(file.name)
+            # covert xxx.json to xxx_uuid_str.json
+            file_name = file_name.replace('.', f'_{uuid_str}.')
+            file_path = os.path.join(get_ci_dir(), file_name)
+            if not os.path.exists(file_path):
+                # make sure file path's directory exists
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                shutil.copy(file.name, file_path)
+                file_paths.append(file_path)
+                new_file_paths.append(file_path)
+            chatbot.append((None, f'上传文件{file_name}，成功'))
+        yield {
+            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML.update(visible=False),
+            preview_chat_input: gr.Textbox.update(value='')
+        }
+
+        _state['file_paths'] = file_paths
+        _state['new_file_paths'] = new_file_paths
+
+    upload_button.upload(
+        upload_file,
+        inputs=[user_chatbot, upload_button, state, uuid_str],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     # configuration for publish

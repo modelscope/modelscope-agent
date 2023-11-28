@@ -39,7 +39,7 @@ DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
 
 DEFAULT_INSTRUCTION_TEMPLATE = ''
 
-DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>) <user_input>"""
+DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>)<file_names><user_input>"""
 
 DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <user_input>"""
 
@@ -119,6 +119,18 @@ class CustomPromptGenerator(PromptGenerator):
                                                 '，请查看前面的知识库')
             else:
                 user_input = user_input.replace('<knowledge_note>', '')
+
+            if 'append_files' in kwargs:
+                append_files = kwargs.get('append_files', [])
+                if len(append_files) >= 0:
+                    file_names = ','.join(
+                        [os.path.basename(path) for path in append_files])
+                    user_input = user_input.replace('<file_names>',
+                                                    f'[上传文件{file_names}]')
+                else:
+                    user_input = user_input.replace('<file_names>', '')
+            else:
+                user_input = user_input.replace('<file_names>', '')
 
             self.system_prompt = copy.deepcopy(prompt)
 
