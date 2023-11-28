@@ -12,8 +12,7 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
-from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
-                                                   openapi_schema_convert)
+from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
 
 
 # init user chatbot_agent

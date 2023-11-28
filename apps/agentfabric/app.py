@@ -111,7 +111,9 @@ def check_uuid(uuid_str):
 def process_configuration(uuid_str, bot_avatar, name, description,
                           instructions, model, suggestions, knowledge_files,
                           capabilities_checkboxes, openapi_schema,
-                          openapi_auth, openapi_privacy_policy, state):
+                          openapi_auth, openapi_auth_apikey,
+                          openapi_auth_apikey_type, openapi_privacy_policy,
+                          state):
     uuid_str = check_uuid(uuid_str)
     tool_cfg = state['tool_cfg']
     capabilities = state['capabilities']
@@ -150,7 +152,11 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         schema_dict = json.loads(openapi_schema)
         openapi_plugin_cfg = {
             'schema': schema_dict,
-            'auth': openapi_auth,
+            'auth': {
+                'type': openapi_auth,
+                'apikey': openapi_auth_apikey,
+                'apikey_type': openapi_auth_apikey_type
+            },
             'privacy_policy': openapi_privacy_policy
         }
         save_plugin_configuration(openapi_plugin_cfg, uuid_str)
@@ -232,9 +238,17 @@ with demo:
                             openapi_schema = gr.Textbox(
                                 label='Schema',
                                 placeholder='Enter your OpenAPI schema here')
-                            openapi_auth = gr.Radio(
-                                label='Authentication',
-                                choices=['None', 'API Key', 'OAuth'])
+
+                            with gr.Group():
+                                openapi_auth_type = gr.Radio(
+                                    label='Authentication Type',
+                                    choices=['None', 'API Key'],
+                                    value='None')
+                                openapi_auth_apikey = gr.Textbox(
+                                    label='API Key',
+                                    placeholder='Enter your API Key here')
+                                openapi_auth_apikey_type = gr.Radio(
+                                    label='API Key type', choices=['Bearer'])
                             openapi_privacy_policy = gr.Textbox(
                                 label='Privacy Policy',
                                 placeholder='Enter privacy policy URL')
@@ -395,7 +409,8 @@ with demo:
             uuid_str, bot_avatar_comp, name_input, description_input,
             instructions_input, model_selector, suggestion_input,
             knowledge_input, capabilities_checkboxes, openapi_schema,
-            openapi_auth, openapi_privacy_policy, state
+            openapi_auth_type, openapi_auth_apikey, openapi_auth_apikey_type,
+            openapi_privacy_policy, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,

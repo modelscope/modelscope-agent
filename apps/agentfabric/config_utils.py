@@ -135,8 +135,12 @@ def parse_configuration(uuid_str=''):
     plugin_cfg = {}
     available_plugin_list = []
     if os.path.exists(openapi_plugin_file):
+        openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
         config_dict = openapi_schema_convert(
-            Config.from_file(openapi_plugin_file).schema)
+            schema=openapi_plugin_cfg.schema,
+            apikey=openapi_plugin_cfg.auth.apikey,
+            apikey_type=openapi_plugin_cfg.auth.apikey_type,
+        )
         plugin_cfg = Config(config_dict)
         for name, config in config_dict.items():
             available_plugin_list.append(name)
