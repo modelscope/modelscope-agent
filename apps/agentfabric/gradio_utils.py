@@ -270,9 +270,6 @@ class ChatBot(ChatBotBase):
 
     def convert_bot_message_for_qwen(self, bot_message):
 
-        # print('processed bot message---------------------------------')
-        # print(bot_message)
-        # print('processed bot message done---------------------------------')
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
@@ -294,14 +291,23 @@ class ChatBot(ChatBotBase):
                 action_name = bot_message[action_pos
                                           + len(ACTION
                                                 ):action_input_pos].strip()
-                # TODO @wenmeng.zwm tricky method,  need to add action_start action_end
-                action_input_end = bot_message[action_input_pos:].index('\n')
+                # action_start action_end 使用 Action Input 到 Observation 之间
+                action_input_end = bot_message[action_input_pos:].index(
+                    OBSERVATION) - 1
                 action_input = bot_message[action_input_pos:action_input_pos
                                            + action_input_end].strip()
-                action_input = find_json_pattern.search(action_input).group()
+                is_json = find_json_pattern.search(action_input)
+                if is_json:
+                    action_input = is_json.group()
+                else:
+                    action_input = re.sub(r'^Action Input[:]?[\s]*', '',
+                                          action_input)
 
                 summary = f'调用工具 {action_name}'
-                detail = f'```json\n\n{json.dumps(json.loads(action_input), indent=4, ensure_ascii=False)}\n\n```'
+                if is_json:
+                    detail = f'```json\n\n{json.dumps(json.loads(action_input), indent=4, ensure_ascii=False)}\n\n```'
+                else:
+                    detail = action_input
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                     detail) + '</details>'
                 start_pos = action_input_pos + action_input_end + 1

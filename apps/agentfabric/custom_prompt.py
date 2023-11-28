@@ -1,6 +1,7 @@
 import copy
 import os
 import re
+from typing import Dict
 
 import json
 from config_utils import DEFAULT_BUILDER_CONFIG_FILE, get_user_cfg_file
@@ -41,7 +42,7 @@ DEFAULT_INSTRUCTION_TEMPLATE = ''
 
 DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>)<file_names><user_input>"""
 
-DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <user_input>"""
+DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <file_names><user_input>"""
 
 DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
 
@@ -74,6 +75,36 @@ class CustomPromptGenerator(PromptGenerator):
         self.builder_cfg = builder_cfg
         self.knowledge_file_name = kwargs.get('knowledge_file_name', '')
 
+    def _update_user_prompt_without_knowledge(self, task, tool_list, **kwargs):
+        if len(tool_list) > 0:
+            # user input
+            user_input = self.user_template.replace('<role_name>',
+                                                    self.builder_cfg.name)
+            user_input = user_input.replace(
+                '<tool_name_list>',
+                ','.join([tool.name for tool in tool_list]))
+        else:
+            self.user_template = DEFAULT_USER_TEMPLATE_WITHOUT_TOOL
+            user_input = self.user_template.replace('<user_input>', task)
+            user_input = user_input.replace('<role_name>',
+                                            self.builder_cfg.name)
+
+        user_input = user_input.replace('<user_input>', task)
+
+        if 'append_files' in kwargs:
+            append_files = kwargs.get('append_files', [])
+            if len(append_files) > 0:
+                file_names = ','.join(
+                    [os.path.basename(path) for path in append_files])
+                user_input = user_input.replace('<file_names>',
+                                                f'[上传文件{file_names}]')
+            else:
+                user_input = user_input.replace('<file_names>', '')
+        else:
+            user_input = user_input.replace('<file_names>', '')
+
+        return user_input
+
     def init_prompt(self, task, tool_list, knowledge_list, llm_model,
                     **kwargs):
         if len(self.history) == 0:
@@ -94,21 +125,12 @@ class CustomPromptGenerator(PromptGenerator):
 
                 tool_name_str = self.get_tool_name_str(tool_list)
                 prompt = prompt.replace('<tool_name_list>', tool_name_str)
-
-                # user input
-                user_input = self.user_template.replace('<user_input>', task)
-                user_input = user_input.replace('<role_name>',
-                                                self.builder_cfg.name)
-                user_input = user_input.replace(
-                    '<tool_name_list>',
-                    ','.join([tool.name for tool in tool_list]))
             else:
                 self.system_template = DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL
-                self.user_template = DEFAULT_USER_TEMPLATE_WITHOUT_TOOL
                 prompt = f'{self.system_template}\n{self.instruction_template}'
-                user_input = self.user_template.replace('<user_input>', task)
-                user_input = user_input.replace('<role_name>',
-                                                self.builder_cfg.name)
+
+            user_input = self._update_user_prompt_without_knowledge(
+                task, tool_list, **kwargs)
 
             if len(knowledge_list) > 0:
                 knowledge_str = self.get_knowledge_str(
@@ -119,18 +141,6 @@ class CustomPromptGenerator(PromptGenerator):
                                                 '，请查看前面的知识库')
             else:
                 user_input = user_input.replace('<knowledge_note>', '')
-
-            if 'append_files' in kwargs:
-                append_files = kwargs.get('append_files', [])
-                if len(append_files) >= 0:
-                    file_names = ','.join(
-                        [os.path.basename(path) for path in append_files])
-                    user_input = user_input.replace('<file_names>',
-                                                    f'[上传文件{file_names}]')
-                else:
-                    user_input = user_input.replace('<file_names>', '')
-            else:
-                user_input = user_input.replace('<file_names>', '')
 
             self.system_prompt = copy.deepcopy(prompt)
 
@@ -161,7 +171,8 @@ class CustomPromptGenerator(PromptGenerator):
 
             self.function_calls = self.get_function_list(tool_list)
         else:
-            user_input = self.user_template.replace('<user_input>', task)
+            user_input = self._update_user_prompt_without_knowledge(
+                task, tool_list, **kwargs)
             if len(knowledge_list) > 0:
                 user_input = user_input.replace('<knowledge_note>',
                                                 '，请查看前面的知识库')
@@ -177,6 +188,7 @@ class CustomPromptGenerator(PromptGenerator):
                 knowledge_str = self.get_knowledge_str(
                     knowledge_list, file_name=self.knowledge_file_name)
                 self.update_knowledge_str(knowledge_str)
+
         return self.system_prompt
 
     def update_knowledge_str(self, knowledge_str):
