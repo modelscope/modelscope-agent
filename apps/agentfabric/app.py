@@ -397,8 +397,10 @@ with demo:
     def preview_send_message(chatbot, input, _state):
         # 将发送的消息添加到聊天历史
         user_agent = _state['user_agent']
-        new_file_paths = _state['new_file_paths']
-        # file_paths = _state['file_paths']
+        if 'new_file_paths' in _state:
+            new_file_paths = _state['new_file_paths']
+        else:
+            new_file_paths = []
 
         chatbot.append((input, ''))
         yield {
