@@ -197,13 +197,13 @@ class CodeInterpreterJupyter(Tool):
                         image_b64 = msg['content']['data']['image/png']
                         image_url = self._serve_image(image_b64)
                         image_idx += 1
-                        image = '![fig-%03d](%s)' % (image_idx, image_url)
+                        image = '![IMAGEGEN](%s)' % (image_url)
                 elif msg_type == 'display_data':
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
                         image_url = self._serve_image(image_b64)
                         image_idx += 1
-                        image = '![fig-%03d](%s)' % (image_idx, image_url)
+                        image = '![IMAGEGEN](%s)' % (image_url)
                     else:
                         text = msg['content']['data'].get('text/plain', '')
                 elif msg_type == 'stream':
