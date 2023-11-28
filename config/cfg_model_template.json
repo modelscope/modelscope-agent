@@ -71,5 +71,14 @@
             "top_p": 0.8,
             "debug": false
         }
+    },
+    "qwen-72b": {
+        "type": "dashscope",
+        "model": "qwen-72b-chat",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "debug": false
+        }
     }
 }
