@@ -41,9 +41,16 @@
         "generate_cfg": {
             "use_raw_prompt": true,
             "top_p": 0.8,
-            "top_k": 10,
-            "seed": 123,
             "max_length": 2000
+        }
+    },
+    "qwen-7b-dashscope": {
+        "type": "dashscope",
+        "model": "qwen-7b-chat",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "debug": false
         }
     },
     "qwen-14b": {
@@ -53,9 +60,25 @@
         "generate_cfg": {
             "use_raw_prompt": true,
             "top_p": 0.8,
-            "top_k": 10,
-            "seed": 123,
             "max_length": 2000
         }
+    },
+    "qwen-14b-dashscope": {
+        "type": "dashscope",
+        "model": "qwen-14b-chat",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "debug": false
+        }
+    },
+    "qwen-72b": {
+        "type": "dashscope",
+        "model": "qwen-72b-chat",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "debug": false
+        }
     }
-  }
+}
