@@ -340,7 +340,8 @@ with demo:
             create_chat_input: gr.Textbox.update(value=''),
         }
         response = ''
-        for frame in builder_agent.stream_run(input, print_info=True):
+        for frame in builder_agent.stream_run(
+                input, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             print(frame)

@@ -37,6 +37,11 @@ CONFIG = 'Config'
 ASSISTANT_PROMPT = """{}: <answer>\n{}: <config>\nRichConfig: <rich_config>""".format(
     ANSWER, CONFIG)
 
+UPDATING_CONFIG_STEP = 'Updating Config...'
+CONFIG_UPDATED_STEP = 'Config Updated!'
+UPDATING_LOGO_STEP = 'Updating Logo...'
+LOGO_UPDATED_STEP = 'Logo Updated!'
+
 
 def init_builder_chatbot_agent(uuid_str):
     # build model
@@ -96,7 +101,8 @@ class BuilderChatbotAgent(AgentExecutor):
     def stream_run(self,
                    task: str,
                    remote: bool = True,
-                   print_info: bool = False) -> Dict:
+                   print_info: bool = False,
+                   uuid_str: str = '') -> Dict:
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
@@ -130,6 +136,7 @@ class BuilderChatbotAgent(AgentExecutor):
                 yield {'error': 'llm result is not valid'}
 
             try:
+                # yield {'step': UPDATING_CONFIG_STEP}
                 re_pattern_config = re.compile(
                     pattern=r'Config: ([\s\S]+)\nRichConfig')
                 res = re_pattern_config.search(llm_result)
@@ -141,8 +148,13 @@ class BuilderChatbotAgent(AgentExecutor):
                 answer = json.loads(rich_config)
                 self._last_assistant_structured_response[
                     'rich_config_dict'] = answer
-                builder_cfg = config_conversion(answer)
-                yield {'exec_result': {'result': builder_cfg}}
+                builder_cfg = config_conversion(answer, uuid_str=uuid_str)
+                yield {
+                    'exec_result': {
+                        'result': builder_cfg
+                    },
+                    # 'step': CONFIG_UPDATED_STEP
+                }
             except ValueError as e:
                 print(e)
                 yield {'error content=[{}]'.format(llm_result)}
@@ -159,12 +171,19 @@ class BuilderChatbotAgent(AgentExecutor):
             if 'logo_prompt' in answer and len(messages) > 4 and (
                     answer['logo_prompt'] not in messages[-3]['content']):
                 #  draw logo
-                params = {'user_requirement': answer['logo_prompt']}
+                # yield {'step': UPDATING_LOGO_STEP}
+                params = {
+                    'user_requirement': answer['logo_prompt'],
+                    'uuid_str': uuid_str
+                }
 
                 tool = self.tool_list[LOGO_TOOL_NAME]
                 try:
                     exec_result = tool(**params, remote=remote)
-                    yield {'exec_result': exec_result}
+                    yield {
+                        'exec_result': exec_result,
+                        # 'step': LOGO_UPDATED_STEP
+                    }
 
                     return
                 except Exception as e:
