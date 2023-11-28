@@ -11,7 +11,7 @@ from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           get_user_dir, parse_configuration, save_avatar_image,
                           save_builder_configuration)
 from gradio_utils import (ChatBot, convert_url, covert_image_to_base64,
-                          format_cover_html)
+                          format_cover_html, format_goto_publish_html)
 from publish_util import prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
@@ -263,8 +263,15 @@ with demo:
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
                 outputs=[preview_chat_input])
-            publish_button = gr.Button('Publish')
-            output_url = gr.Textbox(label='Agent url for you', disabled=True)
+            with gr.Accordion(label='发布', open=False):
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown('### 1.点击 Build 完成构建')
+                        publish_button = gr.Button('Build')
+                    with gr.Column():
+                        gr.Markdown('### 2.点击 Publish 跳转创空间完成 Agent 发布')
+                        publish_link = gr.HTML(
+                            value=format_goto_publish_html('', True))
 
     configure_updated_outputs = [
         state,
@@ -430,15 +437,16 @@ with demo:
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     # configuration for publish
-    def publish_agent(output_url, name, uuid_str, state):
+    def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
         output_url = prepare_agent_zip(name, uuid_str, state)
-        return output_url
+        # output_url = "https://test.url"
+        return format_goto_publish_html(output_url)
 
     publish_button.click(
         publish_agent,
-        inputs=[output_url, name_input, uuid_str, state],
-        outputs=[output_url],
+        inputs=[name_input, uuid_str, state],
+        outputs=[publish_link],
     )
 
     demo.load(

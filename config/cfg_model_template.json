@@ -33,5 +33,14 @@
         "model_revision": "v1.0.0",
         "use_raw_generation_config": true,
         "custom_chat": true
+    },
+    "qwen-72b": {
+        "type": "dashscope",
+        "model": "qwen-72b-chat",
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8,
+            "debug": false
+        }
     }
 }

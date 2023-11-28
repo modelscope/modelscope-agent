@@ -58,9 +58,8 @@ class DashScopeLLM(LLM):
             return llm_result
         except Exception as e:
             error = traceback.format_exc()
-            print(
-                f'LLM error with input {llm_artifacts}, original error: {str(e)} with detail {error}'
-            )
+            error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
+            print(error_msg)
             raise RuntimeError(error)
 
         if self.agent_type == AgentType.MS_AGENT:
@@ -79,8 +78,17 @@ class DashScopeLLM(LLM):
     def stream_generate(self, prompt, functions, **kwargs):
         # print('repr(prompt): ', repr(prompt))
         total_response = ''
-        responses = Generation.call(
-            model=self.model, prompt=prompt, stream=True, **self.generate_cfg)
+        try:
+            responses = Generation.call(
+                model=self.model,
+                prompt=prompt,
+                stream=True,
+                **self.generate_cfg)
+        except Exception as e:
+            error = traceback.format_exc()
+            error_msg = f'LLM error with input {prompt} \n dashscope error: {str(e)} with traceback {error}'
+            print(error_msg)
+            raise RuntimeError(error)
 
         for response in responses:
             if response.status_code == HTTPStatus.OK:
@@ -93,6 +101,8 @@ class DashScopeLLM(LLM):
                 #     break
                 total_response = new_response
             else:
-                print('Request id: %s, Code: %d, status: %s, message: %s' %
-                      (response.request_id, response.status_code,
-                       response.code, response.message))
+                err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
+                    response.request_id, response.status_code, response.code,
+                    response.message)
+                print(err_msg)
+                raise RuntimeError(err_msg)

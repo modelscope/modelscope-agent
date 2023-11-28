@@ -1,6 +1,7 @@
 import copy
 import os
 
+import gradio as gr
 from config_utils import parse_configuration
 from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
                            DEFAULT_USER_TEMPLATE, CustomPromptGenerator,
@@ -20,7 +21,10 @@ def init_user_chatbot_agent(uuid_str=''):
 
     # build model
     print(f'using model {builder_cfg.model}')
-    llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
+    try:
+        llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
+    except Exception as e:
+        raise gr.Error(str(e))
 
     # build prompt with zero shot react template
     instruction_template = parse_role_config(builder_cfg)
@@ -37,7 +41,7 @@ def init_user_chatbot_agent(uuid_str=''):
 
     # get knowledge
     # 开源版本的向量库配置
-    model_id = 'damo/nlp_corom_sentence-embedding_chinese-base'
+    model_id = 'damo/nlp_gte_sentence-embedding_chinese-base'
     embeddings = ModelScopeEmbeddings(model_id=model_id)
     available_knowledge_list = []
     for item in builder_cfg.knowledge:
