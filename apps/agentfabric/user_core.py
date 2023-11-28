@@ -18,9 +18,13 @@ from modelscope_agent.retrieve import KnowledgeRetrieval
 def init_user_chatbot_agent(uuid_str=''):
     builder_cfg, model_cfg, tool_cfg, available_tool_list = parse_configuration(
         uuid_str)
+    # set top_p and stop_words for role play
+    model_cfg[builder_cfg.model]['generate_cfg']['top_p'] = 0.5
+    model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
     # build model
     print(f'using model {builder_cfg.model}')
+    print(f'model config {model_cfg[builder_cfg.model]}')
     try:
         llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
     except Exception as e:

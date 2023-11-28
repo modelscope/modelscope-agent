@@ -4,8 +4,7 @@
         "model": "qwen-turbo",
         "generate_cfg": {
             "use_raw_prompt": true,
-            "top_p": 0.8,
-            "top_k": 1
+            "top_p": 0.8
         }
     },
     "qwen-plus": {
@@ -13,8 +12,7 @@
         "model": "qwen-plus",
         "generate_cfg": {
             "use_raw_prompt": true,
-            "top_p": 0.8,
-            "top_k": 1
+            "top_p": 0.8
         }
     },
     "qwen-max": {
@@ -22,8 +20,7 @@
         "model": "qwen-max",
         "generate_cfg": {
             "use_raw_prompt": true,
-            "top_p": 0.5,
-            "stop": "Observation"
+            "top_p": 0.8
         }
     },
     "gpt-3.5-turbo": {
@@ -39,8 +36,7 @@
         "model": "qwen-72b-chat",
         "generate_cfg": {
             "use_raw_prompt": true,
-            "top_p": 0.8,
-            "debug": false
+            "top_p": 0.8
         }
     }
   }
