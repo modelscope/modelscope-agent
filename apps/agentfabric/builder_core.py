@@ -37,10 +37,10 @@ CONFIG = 'Config'
 ASSISTANT_PROMPT = """{}: <answer>\n{}: <config>\nRichConfig: <rich_config>""".format(
     ANSWER, CONFIG)
 
-UPDATING_CONFIG_STEP = 'Updating Config...'
-CONFIG_UPDATED_STEP = 'Config Updated!'
-UPDATING_LOGO_STEP = 'Updating Logo...'
-LOGO_UPDATED_STEP = 'Logo Updated!'
+UPDATING_CONFIG_STEP = '🚀Updating Config...'
+CONFIG_UPDATED_STEP = '✅Config Updated!'
+UPDATING_LOGO_STEP = '🚀Updating Logo...'
+LOGO_UPDATED_STEP = '✅Logo Updated!'
 
 
 def init_builder_chatbot_agent(uuid_str):
@@ -123,12 +123,17 @@ class BuilderChatbotAgent(AgentExecutor):
             llm_result = ''
             try:
                 parser_obj = AnswerParser()
+                config_not_updated = True
                 for s in self.llm.stream_generate(llm_artifacts=llm_artifacts):
                     llm_result += s
-                    answer = parser_obj.parse_answer(llm_result)
+                    answer, finish = parser_obj.parse_answer(llm_result)
                     if answer == '':
                         continue
-                    yield {'llm_text': answer}
+                    if finish and config_not_updated:
+                        yield {'step': UPDATING_CONFIG_STEP}
+                        config_not_updated = False
+                    elif not finish:
+                        yield {'llm_text': answer}
 
                 if print_info:
                     print(f'|LLM output in round {idx}:\n{llm_result}')
@@ -136,7 +141,6 @@ class BuilderChatbotAgent(AgentExecutor):
                 yield {'error': 'llm result is not valid'}
 
             try:
-                # yield {'step': UPDATING_CONFIG_STEP}
                 re_pattern_config = re.compile(
                     pattern=r'Config: ([\s\S]+)\nRichConfig')
                 res = re_pattern_config.search(llm_result)
@@ -149,12 +153,8 @@ class BuilderChatbotAgent(AgentExecutor):
                 self._last_assistant_structured_response[
                     'rich_config_dict'] = answer
                 builder_cfg = config_conversion(answer, uuid_str=uuid_str)
-                yield {
-                    'exec_result': {
-                        'result': builder_cfg
-                    },
-                    # 'step': CONFIG_UPDATED_STEP
-                }
+                yield {'exec_result': {'result': builder_cfg}}
+                yield {'step': CONFIG_UPDATED_STEP}
             except ValueError as e:
                 print(e)
                 yield {'error content=[{}]'.format(llm_result)}
@@ -171,7 +171,7 @@ class BuilderChatbotAgent(AgentExecutor):
             if 'logo_prompt' in answer and len(messages) > 4 and (
                     answer['logo_prompt'] not in messages[-3]['content']):
                 #  draw logo
-                # yield {'step': UPDATING_LOGO_STEP}
+                yield {'step': UPDATING_LOGO_STEP}
                 params = {
                     'user_requirement': answer['logo_prompt'],
                     'uuid_str': uuid_str
@@ -180,10 +180,8 @@ class BuilderChatbotAgent(AgentExecutor):
                 tool = self.tool_list[LOGO_TOOL_NAME]
                 try:
                     exec_result = tool(**params, remote=remote)
-                    yield {
-                        'exec_result': exec_result,
-                        # 'step': LOGO_UPDATED_STEP
-                    }
+                    yield {'exec_result': exec_result}
+                    yield {'step': LOGO_UPDATED_STEP}
 
                     return
                 except Exception as e:
@@ -223,12 +221,35 @@ class BuilderChatbotAgent(AgentExecutor):
             self.prompt_generator.history[-1]['content'] = new_content
 
 
+def beauty_output(response: str, step_result: str):
+    flag_list = [
+        CONFIG_UPDATED_STEP, UPDATING_CONFIG_STEP, LOGO_UPDATED_STEP,
+        UPDATING_LOGO_STEP
+    ]
+
+    if step_result in flag_list:
+        end_str = ''
+        for item in flag_list:
+            if response.endswith(item):
+                end_str = item
+        if end_str == '':
+            response = f'{response}\n{step_result}'
+        elif end_str in [CONFIG_UPDATED_STEP, LOGO_UPDATED_STEP]:
+            response = f'{response}\n{step_result}'
+        else:
+            response = response[:-len('\n' + end_str)]
+            response = f'{response}\n{step_result}'
+
+    return response
+
+
 class AnswerParser(object):
 
     def __init__(self):
         self._history = ''
 
     def parse_answer(self, llm_result: str):
+        finish = False
         answer_prompt = ANSWER + ': '
 
         if len(llm_result) >= len(answer_prompt):
@@ -237,6 +258,7 @@ class AnswerParser(object):
             if start_pos >= 0:
                 if end_pos > start_pos:
                     result = llm_result[start_pos + len(answer_prompt):end_pos]
+                    finish = True
                 else:
                     result = llm_result[start_pos + len(answer_prompt):]
             else:
@@ -246,4 +268,4 @@ class AnswerParser(object):
 
         new_result = result[len(self._history):]
         self._history = result
-        return new_result
+        return new_result, finish

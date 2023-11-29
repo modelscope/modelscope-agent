@@ -5,7 +5,7 @@ import traceback
 
 import gradio as gr
 import json
-from builder_core import init_builder_chatbot_agent
+from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           get_user_dir, parse_configuration, save_avatar_image,
                           save_builder_configuration,
@@ -372,6 +372,7 @@ with demo:
                 input, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
+            step_result = frame.get('step', '')
             print(frame)
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
@@ -389,7 +390,8 @@ with demo:
                 else:
                     content = llm_result
                 frame_text = content
-                response = f'{response}{frame_text}'
+                response = beauty_output(f'{response}{frame_text}',
+                                         step_result)
                 chatbot[-1] = (input, response)
                 yield {
                     create_chatbot: chatbot,
