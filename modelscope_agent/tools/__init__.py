@@ -1,3 +1,4 @@
+from .wordart_tool import WordArtTexture
 from .amap_weather import AMAPWeather
 from .code_interperter import CodeInterpreter
 from .hf_tool import HFTool
@@ -26,4 +27,5 @@ TOOL_INFO_LIST = {
     'modelscope_speech-generation': 'TexttoSpeechTool',
     'code_interpreter': 'CodeInterpreter',
     'amap_weather': 'AMAPWeather',
+    'wordart_texture_generation': 'WordArtTexture'
 }
