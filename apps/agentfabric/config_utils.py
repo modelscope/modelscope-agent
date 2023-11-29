@@ -130,20 +130,23 @@ def parse_configuration(uuid_str=''):
     for key, value in tools_info.items():
         if value['use']:
             available_tool_list.append(key)
-        tool_cfg[key]['use'] = value['use']
 
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}
     available_plugin_list = []
     if os.path.exists(openapi_plugin_file):
         openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
-        config_dict = openapi_schema_convert(
-            schema=openapi_plugin_cfg.schema,
-            apikey=openapi_plugin_cfg.auth.apikey,
-            apikey_type=openapi_plugin_cfg.auth.apikey_type,
-        )
-        plugin_cfg = Config(config_dict)
-        for name, config in config_dict.items():
-            available_plugin_list.append(name)
+        if openapi_plugin_cfg['schema'] is None:
+            print('schema is empty')
+            pass
+        else:
+            config_dict = openapi_schema_convert(
+                schema=openapi_plugin_cfg.schema,
+                apikey=openapi_plugin_cfg.auth.apikey,
+                apikey_type=openapi_plugin_cfg.auth.apikey_type,
+            )
+            plugin_cfg = Config(config_dict)
+            for name, config in config_dict.items():
+                available_plugin_list.append(name)
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
