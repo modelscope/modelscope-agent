@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Dict
+import traceback
 
 import json
 from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
@@ -49,6 +49,15 @@ def save_builder_configuration(builder_cfg, uuid_str=''):
         os.makedirs(os.path.dirname(builder_cfg_file))
     with open(builder_cfg_file, 'w', encoding='utf-8') as f:
         f.write(json.dumps(builder_cfg, indent=2, ensure_ascii=False))
+
+
+def is_valid_plugin_configuration(openapi_plugin_cfg):
+    if 'schema' in openapi_plugin_cfg:
+        schema = openapi_plugin_cfg['schema']
+        if isinstance(schema, dict):
+            return True
+    else:
+        return False
 
 
 def save_plugin_configuration(openapi_plugin_cfg, uuid_str):
@@ -131,22 +140,29 @@ def parse_configuration(uuid_str=''):
         if value['use']:
             available_tool_list.append(key)
         tool_cfg[key]['use'] = value['use']
+
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}
     available_plugin_list = []
     if os.path.exists(openapi_plugin_file):
         openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
-        if openapi_plugin_cfg['schema'] is None:
-            print('schema is empty')
-            pass
-        else:
-            config_dict = openapi_schema_convert(
-                schema=openapi_plugin_cfg.schema,
-                apikey=openapi_plugin_cfg.auth.apikey,
-                apikey_type=openapi_plugin_cfg.auth.apikey_type,
+        try:
+            if openapi_plugin_cfg['schema'] is None:
+                print('schema is empty')
+                pass
+            else:
+                config_dict = openapi_schema_convert(
+                    schema=openapi_plugin_cfg.schema,
+                    apikey=openapi_plugin_cfg.auth.apikey,
+                    apikey_type=openapi_plugin_cfg.auth.apikey_type,
+                )
+                plugin_cfg = Config(config_dict)
+                for name, config in config_dict.items():
+                    available_plugin_list.append(name)
+        except Exception as e:
+            error = traceback.format_exc()
+            print(f'Error:{e}, with detail: {error}')
+            print(
+                'Error:FormatError, with detail: The format of the plugin config file is incorrect.'
             )
-            plugin_cfg = Config(config_dict)
-            for name, config in config_dict.items():
-                available_plugin_list.append(name)
-
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
