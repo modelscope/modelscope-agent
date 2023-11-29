@@ -224,7 +224,10 @@ with demo:
                 with gr.TabItem('Create', id=0):
                     with gr.Column():
                         # "Create" 标签页的 Chatbot 组件
-                        create_chatbot = gr.Chatbot(label='Create Chatbot')
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
                         create_chat_input = gr.Textbox(
                             label='Message',
                             placeholder='Type a message here...')
