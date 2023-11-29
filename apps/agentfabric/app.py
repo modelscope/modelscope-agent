@@ -8,7 +8,8 @@ import json
 import yaml
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
-                          get_user_dir, parse_configuration, save_avatar_image,
+                          get_user_dir, is_valid_plugin_configuration,
+                          parse_configuration, save_avatar_image,
                           save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
@@ -121,7 +122,8 @@ def process_configuration(uuid_str, bot_avatar, name, description,
             },
             'privacy_policy': openapi_privacy_policy
         }
-        save_plugin_configuration(openapi_plugin_cfg, uuid_str)
+        if is_valid_plugin_configuration(openapi_plugin_cfg):
+            save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
