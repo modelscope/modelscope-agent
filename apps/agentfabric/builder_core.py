@@ -123,17 +123,15 @@ class BuilderChatbotAgent(AgentExecutor):
             llm_result = ''
             try:
                 parser_obj = AnswerParser()
-                config_not_updated = True
                 for s in self.llm.stream_generate(llm_artifacts=llm_artifacts):
                     llm_result += s
                     answer, finish = parser_obj.parse_answer(llm_result)
                     if answer == '':
                         continue
-                    if finish and config_not_updated:
-                        yield {'step': UPDATING_CONFIG_STEP}
-                        config_not_updated = False
-                    elif not finish:
-                        yield {'llm_text': answer}
+                    result = {'llm_text': answer}
+                    if finish:
+                        result.update({'step': UPDATING_CONFIG_STEP})
+                    yield result
 
                 if print_info:
                     print(f'|LLM output in round {idx}:\n{llm_result}')

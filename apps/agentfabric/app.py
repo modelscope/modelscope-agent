@@ -6,7 +6,7 @@ import traceback
 import gradio as gr
 import json
 import yaml
-from builder_core import init_builder_chatbot_agent
+from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           get_user_dir, is_valid_plugin_configuration,
                           parse_configuration, save_avatar_image,
