@@ -311,7 +311,7 @@ class ChatBot(ChatBotBase):
                     summary = '完成调用'
                     exec_content = obs_message[
                         observation_start_id:observation_end_idx]
-                    detail = f'```json\n\n{exec_content}\n\n```'
+                    detail = f'```\n\n{exec_content}\n\n```'
                     start_pos = idx + observation_end_idx + len(RESULT_END)
                 except Exception:
                     summary = '执行中...'
