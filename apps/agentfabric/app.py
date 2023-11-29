@@ -52,53 +52,6 @@ def update_builder(uuid_str, state):
     return state
 
 
-def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
-    print('builder_cfg:', builder_cfg)
-    # available models
-    models = list(model_cfg.keys())
-    capabilities = [(tool_cfg[tool_key]['name'], tool_key)
-                    for tool_key in tool_cfg.keys()
-                    if tool_cfg[tool_key].get('is_active', False)]
-    state['model_cfg'] = model_cfg
-    state['tool_cfg'] = tool_cfg
-    state['capabilities'] = capabilities
-    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)[1]
-    suggests = builder_cfg.get('prompt_recommend', [])
-    return [
-        state,
-        # config form
-        gr.Image.update(value=bot_avatar),
-        builder_cfg.get('name', ''),
-        builder_cfg.get('description'),
-        builder_cfg.get('instruction'),
-        gr.Dropdown.update(
-            value=builder_cfg.get('model', models[0]), choices=models),
-        [[str] for str in suggests],
-        builder_cfg.get('knowledge', [])
-        if len(builder_cfg['knowledge']) > 0 else None,
-        gr.CheckboxGroup.update(
-            value=[
-                tool for tool in builder_cfg.get('tools', {}).keys()
-                if builder_cfg.get('tools').get(tool).get('use', False)
-            ],
-            choices=capabilities),
-        # bot
-        format_cover_html(builder_cfg, bot_avatar),
-        gr.Dataset.update(samples=[[item] for item in suggests]),
-    ]
-
-
-def init_all(uuid_str, state):
-    uuid_str = check_uuid(uuid_str)
-    builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
-        uuid_str)
-    ret = init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg)
-    yield ret
-    init_user(uuid_str, state)
-    init_builder(uuid_str, state)
-    yield ret
-
-
 def check_uuid(uuid_str):
     if not uuid_str or uuid_str == '':
         if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
@@ -223,7 +176,7 @@ with demo:
                             show_label=False,
                             value=[['']],
                             datatype=['str'],
-                            headers=['prompt suggestion'],
+                            headers=['prompt suggestion(双击行可修改)'],
                             type='array',
                             col_count=(1, 'fixed'),
                             interactive=True)
@@ -262,7 +215,8 @@ with demo:
                         create_chat_input = gr.Textbox(
                             label='Message',
                             placeholder='Type a message here...')
-                        create_send_button = gr.Button('Send')
+                        create_send_button = gr.Button(
+                            'Send (Agent Loading...)', interactive=False)
 
         with gr.Column():
             # Preview
@@ -284,7 +238,8 @@ with demo:
                 label='Prompt Suggestions',
                 components=[preview_chat_input],
                 samples=[])
-            preview_send_button = gr.Button('Send')
+            preview_send_button = gr.Button(
+                'Send (Agent Loading...)', interactive=False)
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
@@ -313,7 +268,55 @@ with demo:
         # bot
         user_chat_bot_cover,
         user_chat_bot_suggest,
+        preview_send_button,
+        create_send_button,
     ]
+
+    # 初始化表单
+    def init_ui_config(uuid_str, _state, builder_cfg, model_cfg, tool_cfg):
+        print('builder_cfg:', builder_cfg)
+        # available models
+        models = list(model_cfg.keys())
+        capabilities = [(tool_cfg[tool_key]['name'], tool_key)
+                        for tool_key in tool_cfg.keys()
+                        if tool_cfg[tool_key].get('is_active', False)]
+        _state['model_cfg'] = model_cfg
+        _state['tool_cfg'] = tool_cfg
+        _state['capabilities'] = capabilities
+        bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''),
+                                      uuid_str)[1]
+        suggests = builder_cfg.get('prompt_recommend', [])
+        return {
+            state:
+            _state,
+            bot_avatar_comp:
+            gr.Image.update(value=bot_avatar),
+            name_input:
+            builder_cfg.get('name', ''),
+            description_input:
+            builder_cfg.get('description'),
+            instructions_input:
+            builder_cfg.get('instruction'),
+            model_selector:
+            gr.Dropdown.update(
+                value=builder_cfg.get('model', models[0]), choices=models),
+            suggestion_input: [[str] for str in suggests],
+            knowledge_input:
+            builder_cfg.get('knowledge', [])
+            if len(builder_cfg['knowledge']) > 0 else None,
+            capabilities_checkboxes:
+            gr.CheckboxGroup.update(
+                value=[
+                    tool for tool in builder_cfg.get('tools', {}).keys()
+                    if builder_cfg.get('tools').get(tool).get('use', False)
+                ],
+                choices=capabilities),
+            # bot
+            user_chat_bot_cover:
+            format_cover_html(builder_cfg, bot_avatar),
+            user_chat_bot_suggest:
+            gr.Dataset.update(samples=[[item] for item in suggests]),
+        }
 
     # tab 切换的事件处理
     def on_congifure_tab_select(_state, uuid_str):
@@ -469,6 +472,23 @@ with demo:
         inputs=[name_input, uuid_str, state],
         outputs=[publish_link],
     )
+
+    def init_all(uuid_str, _state):
+        uuid_str = check_uuid(uuid_str)
+        builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+            uuid_str)
+        ret = init_ui_config(uuid_str, _state, builder_cfg, model_cfg,
+                             tool_cfg)
+        yield ret
+        init_user(uuid_str, _state)
+        init_builder(uuid_str, _state)
+        yield {
+            state: _state,
+            preview_send_button:
+            gr.Button.update(value='Send', interactive=True),
+            create_send_button:
+            gr.Button.update(value='Send', interactive=True),
+        }
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
