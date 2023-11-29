@@ -194,7 +194,7 @@ with demo:
                         knowledge_input = gr.File(
                             label='Knowledge',
                             file_count='multiple',
-                            file_types=['text', '.json', '.csv'])
+                            file_types=['text', '.json', '.csv', '.pdf'])
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label='Capabilities')
 
@@ -224,7 +224,10 @@ with demo:
                 with gr.TabItem('Create', id=0):
                     with gr.Column():
                         # "Create" 标签页的 Chatbot 组件
-                        create_chatbot = gr.Chatbot(label='Create Chatbot')
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
                         create_chat_input = gr.Textbox(
                             label='Message',
                             placeholder='Type a message here...')
@@ -388,7 +391,6 @@ with demo:
                 input, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
-            print(frame)
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
@@ -449,16 +451,13 @@ with demo:
 
         for frame in user_agent.stream_run(
                 input, print_info=True, remote=False):
-            # is_final = frame.get("frame_is_final")
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
-            print(frame)
-            # llm_result = llm_result.split("<|user|>")[0].strip()
             if len(exec_result) != 0:
                 # action_exec_result
                 if isinstance(exec_result, dict):
                     exec_result = str(exec_result['result'])
-                frame_text = f'Observation: <result>{exec_result}</result>'
+                frame_text = f'<result>{exec_result}</result>'
             else:
                 # llm result
                 frame_text = llm_result
