@@ -1,4 +1,3 @@
-from .wordart_tool import WordArtTexture
 from .amap_weather import AMAPWeather
 from .code_interperter import CodeInterpreter
 from .hf_tool import HFTool
@@ -14,6 +13,7 @@ from .text_to_video_tool import TextToVideoTool
 from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
+from .wordart_tool import WordArtTexture
 
 TOOL_INFO_LIST = {
     'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
