@@ -31,7 +31,7 @@
         "type": "openai",
         "model": "gpt-4"
     },
-    "qwen-7b": {
+    "qwen-7b-local": {
         "type": "modelscope",
         "model_id": "qwen/Qwen-7B-Chat",
         "model_revision": "v1.1.8",
@@ -41,7 +41,7 @@
             "max_length": 2000
         }
     },
-    "qwen-7b-dashscope": {
+    "qwen-7b-api": {
         "type": "dashscope",
         "model": "qwen-7b-chat",
         "generate_cfg": {
@@ -50,7 +50,7 @@
             "debug": false
         }
     },
-    "qwen-14b": {
+    "qwen-14b-local": {
         "type": "modelscope",
         "model_id": "qwen/Qwen-14B-Chat",
         "model_revision": "v1.0.8",
@@ -60,7 +60,7 @@
             "max_length": 2000
         }
     },
-    "qwen-14b-dashscope": {
+    "qwen-14b-api": {
         "type": "dashscope",
         "model": "qwen-14b-chat",
         "generate_cfg": {
@@ -69,7 +69,7 @@
             "debug": false
         }
     },
-    "qwen-72b": {
+    "qwen-72b-api": {
         "type": "dashscope",
         "model": "qwen-72b-chat",
         "generate_cfg": {
