@@ -5,6 +5,7 @@ import traceback
 
 import gradio as gr
 import json
+import yaml
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           get_user_dir, parse_configuration, save_avatar_image,
@@ -149,7 +150,15 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     }
 
     try:
-        schema_dict = json.loads(openapi_schema)
+        try:
+            schema_dict = json.loads(openapi_schema)
+        except json.decoder.JSONDecodeError:
+            schema_dict = yaml.safe_load(openapi_schema)
+        except Exception as e:
+            raise gr.Error(
+                f'OpenAPI schema format error, should be one of json and yaml: {e}'
+            )
+
         openapi_plugin_cfg = {
             'schema': schema_dict,
             'auth': {
@@ -237,7 +246,9 @@ with demo:
                         with gr.Accordion('OpenAPI Configuration', open=False):
                             openapi_schema = gr.Textbox(
                                 label='Schema',
-                                placeholder='Enter your OpenAPI schema here')
+                                placeholder=
+                                'Enter your OpenAPI schema here, JSON or YAML format only'
+                            )
 
                             with gr.Group():
                                 openapi_auth_type = gr.Radio(
