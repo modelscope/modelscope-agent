@@ -194,7 +194,7 @@ with demo:
                         knowledge_input = gr.File(
                             label='Knowledge',
                             file_count='multiple',
-                            file_types=['text', '.json', '.csv'])
+                            file_types=['text', '.json', '.csv', '.pdf'])
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label='Capabilities')
 
