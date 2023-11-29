@@ -14,7 +14,7 @@ def upload_to_oss(bucket, local_file_path, oss_file_path):
     bucket.put_object_acl(oss_file_path, oss2.OBJECT_ACL_PUBLIC_READ)
 
     # 获取文件的公共链接
-    file_url = f'https://{bucket.bucket_name}.{bucket.endpoint}/{oss_file_path}'
+    file_url = f"https://{bucket.bucket_name}.{bucket.endpoint.replace('http://', '')}/{oss_file_path}"
     return file_url
 
 
