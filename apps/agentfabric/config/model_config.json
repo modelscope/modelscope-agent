@@ -31,7 +31,7 @@
         "type": "openai",
         "model": "gpt-4"
     },
-    "qwen-7b-local": {
+    "qwen-7b": {
         "type": "modelscope",
         "model_id": "qwen/Qwen-7B-Chat",
         "model_revision": "v1.1.8",
@@ -50,7 +50,7 @@
             "debug": false
         }
     },
-    "qwen-14b-local": {
+    "qwen-14b": {
         "type": "modelscope",
         "model_id": "qwen/Qwen-14B-Chat",
         "model_revision": "v1.0.8",
