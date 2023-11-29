@@ -5,9 +5,11 @@ import traceback
 
 import gradio as gr
 import json
-from builder_core import beauty_output, init_builder_chatbot_agent
+import yaml
+from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
-                          get_user_dir, parse_configuration, save_avatar_image,
+                          get_user_dir, is_valid_plugin_configuration,
+                          parse_configuration, save_avatar_image,
                           save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
@@ -50,53 +52,6 @@ def update_builder(uuid_str, state):
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
     return state
-
-
-def init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg):
-    print('builder_cfg:', builder_cfg)
-    # available models
-    models = list(model_cfg.keys())
-    capabilities = [(tool_cfg[tool_key]['name'], tool_key)
-                    for tool_key in tool_cfg.keys()
-                    if tool_cfg[tool_key].get('is_active', False)]
-    state['model_cfg'] = model_cfg
-    state['tool_cfg'] = tool_cfg
-    state['capabilities'] = capabilities
-    bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)[1]
-    suggests = builder_cfg.get('prompt_recommend', [])
-    return [
-        state,
-        # config form
-        gr.Image.update(value=bot_avatar),
-        builder_cfg.get('name', ''),
-        builder_cfg.get('description'),
-        builder_cfg.get('instruction'),
-        gr.Dropdown.update(
-            value=builder_cfg.get('model', models[0]), choices=models),
-        [[str] for str in suggests],
-        builder_cfg.get('knowledge', [])
-        if len(builder_cfg['knowledge']) > 0 else None,
-        gr.CheckboxGroup.update(
-            value=[
-                tool for tool in builder_cfg.get('tools', {}).keys()
-                if builder_cfg.get('tools').get(tool).get('use', False)
-            ],
-            choices=capabilities),
-        # bot
-        format_cover_html(builder_cfg, bot_avatar),
-        gr.Dataset.update(samples=[[item] for item in suggests]),
-    ]
-
-
-def init_all(uuid_str, state):
-    uuid_str = check_uuid(uuid_str)
-    builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
-        uuid_str)
-    ret = init_ui_config(uuid_str, state, builder_cfg, model_cfg, tool_cfg)
-    yield ret
-    init_user(uuid_str, state)
-    init_builder(uuid_str, state)
-    yield ret
 
 
 def check_uuid(uuid_str):
@@ -149,7 +104,15 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     }
 
     try:
-        schema_dict = json.loads(openapi_schema)
+        try:
+            schema_dict = json.loads(openapi_schema)
+        except json.decoder.JSONDecodeError:
+            schema_dict = yaml.safe_load(openapi_schema)
+        except Exception as e:
+            raise gr.Error(
+                f'OpenAPI schema format error, should be one of json and yaml: {e}'
+            )
+
         openapi_plugin_cfg = {
             'schema': schema_dict,
             'auth': {
@@ -159,7 +122,8 @@ def process_configuration(uuid_str, bot_avatar, name, description,
             },
             'privacy_policy': openapi_privacy_policy
         }
-        save_plugin_configuration(openapi_plugin_cfg, uuid_str)
+        if is_valid_plugin_configuration(openapi_plugin_cfg):
+            save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
@@ -223,21 +187,23 @@ with demo:
                             show_label=False,
                             value=[['']],
                             datatype=['str'],
-                            headers=['prompt suggestion'],
+                            headers=['prompt suggestion(双击行可修改)'],
                             type='array',
                             col_count=(1, 'fixed'),
                             interactive=True)
                         knowledge_input = gr.File(
                             label='Knowledge',
                             file_count='multiple',
-                            file_types=['text', '.json', '.csv'])
+                            file_types=['text', '.json', '.csv', '.pdf'])
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label='Capabilities')
 
                         with gr.Accordion('OpenAPI Configuration', open=False):
                             openapi_schema = gr.Textbox(
                                 label='Schema',
-                                placeholder='Enter your OpenAPI schema here')
+                                placeholder=
+                                'Enter your OpenAPI schema here, JSON or YAML format only'
+                            )
 
                             with gr.Group():
                                 openapi_auth_type = gr.Radio(
@@ -258,11 +224,15 @@ with demo:
                 with gr.TabItem('Create', id=0):
                     with gr.Column():
                         # "Create" 标签页的 Chatbot 组件
-                        create_chatbot = gr.Chatbot(label='Create Chatbot')
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
                         create_chat_input = gr.Textbox(
                             label='Message',
                             placeholder='Type a message here...')
-                        create_send_button = gr.Button('Send')
+                        create_send_button = gr.Button(
+                            'Send (Agent Loading...)', interactive=False)
 
         with gr.Column():
             # Preview
@@ -284,7 +254,8 @@ with demo:
                 label='Prompt Suggestions',
                 components=[preview_chat_input],
                 samples=[])
-            preview_send_button = gr.Button('Send')
+            preview_send_button = gr.Button(
+                'Send (Agent Loading...)', interactive=False)
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
@@ -313,7 +284,55 @@ with demo:
         # bot
         user_chat_bot_cover,
         user_chat_bot_suggest,
+        preview_send_button,
+        create_send_button,
     ]
+
+    # 初始化表单
+    def init_ui_config(uuid_str, _state, builder_cfg, model_cfg, tool_cfg):
+        print('builder_cfg:', builder_cfg)
+        # available models
+        models = list(model_cfg.keys())
+        capabilities = [(tool_cfg[tool_key]['name'], tool_key)
+                        for tool_key in tool_cfg.keys()
+                        if tool_cfg[tool_key].get('is_active', False)]
+        _state['model_cfg'] = model_cfg
+        _state['tool_cfg'] = tool_cfg
+        _state['capabilities'] = capabilities
+        bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''),
+                                      uuid_str)[1]
+        suggests = builder_cfg.get('prompt_recommend', [])
+        return {
+            state:
+            _state,
+            bot_avatar_comp:
+            gr.Image.update(value=bot_avatar),
+            name_input:
+            builder_cfg.get('name', ''),
+            description_input:
+            builder_cfg.get('description'),
+            instructions_input:
+            builder_cfg.get('instruction'),
+            model_selector:
+            gr.Dropdown.update(
+                value=builder_cfg.get('model', models[0]), choices=models),
+            suggestion_input: [[str] for str in suggests],
+            knowledge_input:
+            builder_cfg.get('knowledge', [])
+            if len(builder_cfg['knowledge']) > 0 else None,
+            capabilities_checkboxes:
+            gr.CheckboxGroup.update(
+                value=[
+                    tool for tool in builder_cfg.get('tools', {}).keys()
+                    if builder_cfg.get('tools').get(tool).get('use', False)
+                ],
+                choices=capabilities),
+            # bot
+            user_chat_bot_cover:
+            format_cover_html(builder_cfg, bot_avatar),
+            user_chat_bot_suggest:
+            gr.Dataset.update(samples=[[item] for item in suggests]),
+        }
 
     # tab 切换的事件处理
     def on_congifure_tab_select(_state, uuid_str):
@@ -435,16 +454,13 @@ with demo:
 
         for frame in user_agent.stream_run(
                 input, print_info=True, remote=False):
-            # is_final = frame.get("frame_is_final")
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
-            print(frame)
-            # llm_result = llm_result.split("<|user|>")[0].strip()
             if len(exec_result) != 0:
                 # action_exec_result
                 if isinstance(exec_result, dict):
                     exec_result = str(exec_result['result'])
-                frame_text = f'Observation: <result>{exec_result}</result>'
+                frame_text = f'<result>{exec_result}</result>'
             else:
                 # llm result
                 frame_text = llm_result
@@ -471,6 +487,23 @@ with demo:
         inputs=[name_input, uuid_str, state],
         outputs=[publish_link],
     )
+
+    def init_all(uuid_str, _state):
+        uuid_str = check_uuid(uuid_str)
+        builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+            uuid_str)
+        ret = init_ui_config(uuid_str, _state, builder_cfg, model_cfg,
+                             tool_cfg)
+        yield ret
+        init_user(uuid_str, _state)
+        init_builder(uuid_str, _state)
+        yield {
+            state: _state,
+            preview_send_button:
+            gr.Button.update(value='Send', interactive=True),
+            create_send_button:
+            gr.Button.update(value='Send', interactive=True),
+        }
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
