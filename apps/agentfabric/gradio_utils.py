@@ -46,7 +46,7 @@ def format_cover_html(configuration, bot_avatar_path):
 """
 
 
-def format_goto_publish_html(zip_url, disable=False):
+def format_goto_publish_html(zip_url, agent_user_params, disable=False):
     if disable:
         return """<div class="publish_link_container">
         <a class="disabled">Publish</a>
@@ -54,6 +54,7 @@ def format_goto_publish_html(zip_url, disable=False):
     """
     else:
         params = {'AGENT_URL': zip_url}
+        params.update(agent_user_params)
         template = 'modelscope/agent_template'
         params_str = json.dumps(params)
         link_url = f'https://www.modelscope.cn/studios/fork?target={template}&overwriteEnv={parse.quote(params_str)}'

@@ -258,7 +258,7 @@ def parse_responses_parameters(param_name, param_info, parameters_list):
         raise ValueError(f'{e}:schema结构出错')
 
 
-def openapi_schema_convert(schema, apikey='', apikey_type=''):
+def openapi_schema_convert(schema, auth):
 
     resolver = RefResolver.from_schema(schema)
     servers = schema.get('servers', [])
@@ -283,8 +283,10 @@ def openapi_schema_convert(schema, apikey='', apikey_type=''):
             if security:
                 for sec in security:
                     if 'BearerAuth' in sec:
-                        api_token = os.environ.get('API_TOKEN', apikey)
-                        api_token_type = apikey_type if apikey_type != '' else 'Bearer'
+                        api_token = os.environ.get('apikey',
+                                                   auth.get('apikey', ''))
+                        api_token_type = os.environ.get(
+                            'apikey_type', auth.get('apikey_type', 'Bearer'))
                         authorization = f'{api_token_type} {api_token}'
 
             if method.upper() == 'POST':

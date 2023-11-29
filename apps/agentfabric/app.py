@@ -13,7 +13,7 @@ from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
-from publish_util import prepare_agent_zip
+from publish_util import pop_user_info_from_config, prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
 
@@ -265,7 +265,7 @@ with demo:
                     with gr.Column():
                         gr.Markdown('### 2.点击 Publish 跳转创空间完成 Agent 发布')
                         publish_link = gr.HTML(
-                            value=format_goto_publish_html('', True))
+                            value=format_goto_publish_html('', {}, True))
 
     configure_updated_outputs = [
         state,
@@ -476,9 +476,11 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        output_url = prepare_agent_zip(name, uuid_str, state)
+        src_dir = os.path.abspath(os.path.dirname(__file__))
+        user_info = pop_user_info_from_config(src_dir, uuid_str)
+        output_url = prepare_agent_zip(name, src_dir, uuid_str, state)
         # output_url = "https://test.url"
-        return format_goto_publish_html(output_url)
+        return format_goto_publish_html(output_url, user_info)
 
     publish_button.click(
         publish_agent,
