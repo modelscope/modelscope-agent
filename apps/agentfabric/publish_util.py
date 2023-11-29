@@ -13,8 +13,8 @@ def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 设置文件的公共读权限
     bucket.put_object_acl(oss_file_path, oss2.OBJECT_ACL_PUBLIC_READ)
 
-    # 获取文件的URL
-    file_url = bucket.sign_url('GET', oss_file_path, 60 * 60)  # 签名URL有效期为1小时
+    # 获取文件的公共链接
+    file_url = f'https://{bucket.bucket_name}.{bucket.endpoint}/{oss_file_path}'
     return file_url
 
 
