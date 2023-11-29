@@ -130,7 +130,7 @@ def parse_configuration(uuid_str=''):
     for key, value in tools_info.items():
         if value['use']:
             available_tool_list.append(key)
-
+        tool_cfg[key]['use'] = value['use']
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}
     available_plugin_list = []
