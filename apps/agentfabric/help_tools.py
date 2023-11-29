@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 import json
 import requests
-from config_utils import DEFAULT_BUILDER_CONFIG_FILE
+from config_utils import DEFAULT_BUILDER_CONFIG_FILE, get_user_cfg_file
 from dashscope import ImageSynthesis
 from modelscope_agent.tools import Tool
 
@@ -43,6 +43,17 @@ CONF_GENERATOR_INST = """你现在要扮演一个 CustomGPT 的配置生成器
 LOGO_INST = """定制化软件 CustomGPT 的作用是{description}，{user_requirement}请你为它生成一个专业的logo"""
 
 
+def get_logo_path(uuid_str=''):
+    logo_path = os.getenv('LOGO_PATH', LOGO_PATH)
+    # convert from ./config/builder_config.json to ./config/user/builder_config.json
+    logo_path = logo_path.replace('config/', 'config/user/')
+
+    # convert from ./config/user/builder_config.json to ./config/uuid/builder_config.json
+    if uuid_str != '':
+        logo_path = logo_path.replace('user', uuid_str)
+    return logo_path
+
+
 def call_wanx(prompt, save_path):
     rsp = ImageSynthesis.call(
         model=ImageSynthesis.Models.wanx_v1,
@@ -76,19 +87,20 @@ class LogoGeneratorTool(Tool):
 
     def _remote_call(self, *args, **kwargs):
         user_requirement = kwargs['user_requirement']
-        builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
-                                     DEFAULT_BUILDER_CONFIG_FILE)
+        uuid_str = kwargs.get('uuid_str', '')
+        builder_cfg_file = get_user_cfg_file(uuid_str)
         builder_cfg = Config.from_file(builder_cfg_file)
 
         avatar_prompt = LOGO_INST.format(
             description=builder_cfg.description,
             user_requirement=user_requirement)
-        call_wanx(prompt=avatar_prompt, save_path=LOGO_PATH)
+        call_wanx(
+            prompt=avatar_prompt, save_path=get_logo_path(uuid_str=uuid_str))
         builder_cfg.avatar = LOGO_NAME
         return {'result': builder_cfg}
 
 
-def config_conversion(generated_config: dict, save=False):
+def config_conversion(generated_config: dict, save=False, uuid_str=''):
     """
     convert
     {
@@ -134,8 +146,7 @@ def config_conversion(generated_config: dict, save=False):
     :param generated_config:
     :return:
     """
-    builder_cfg_file = os.getenv('BUILDER_CONFIG_FILE',
-                                 DEFAULT_BUILDER_CONFIG_FILE)
+    builder_cfg_file = get_user_cfg_file(uuid_str)
     builder_cfg = Config.from_file(builder_cfg_file)
     try:
         builder_cfg.name = generated_config['name']
