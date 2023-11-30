@@ -153,6 +153,20 @@ with demo:
     with gr.Row():
         with gr.Column():
             with gr.Tabs(selected=0) as tabs:
+
+                with gr.TabItem('Create', id=0):
+                    with gr.Column():
+                        # "Create" 标签页的 Chatbot 组件
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
+                        create_chat_input = gr.Textbox(
+                            label='Message',
+                            placeholder='Type a message here...')
+                        create_send_button = gr.Button(
+                            'Send (Agent Loading...)', interactive=False)
+
                 configure_tab = gr.Tab('Configure', id=1)
                 with configure_tab:
                     with gr.Column():
@@ -222,19 +236,6 @@ with demo:
 
                         configure_button = gr.Button('Update Configuration')
 
-                with gr.TabItem('Create', id=0):
-                    with gr.Column():
-                        # "Create" 标签页的 Chatbot 组件
-                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
-                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
-                        create_chatbot = gr.Chatbot(
-                            label='Create Chatbot', value=[[None, start_text]])
-                        create_chat_input = gr.Textbox(
-                            label='Message',
-                            placeholder='Type a message here...')
-                        create_send_button = gr.Button(
-                            'Send (Agent Loading...)', interactive=False)
-
         with gr.Column():
             # Preview
             gr.HTML("""<div class="preview_header">Preview<div>""")
@@ -255,13 +256,15 @@ with demo:
                 label='Prompt Suggestions',
                 components=[preview_chat_input],
                 samples=[])
-            preview_send_button = gr.Button('Send')
-            upload_button = gr.UploadButton(
-                'Click to Upload a File',
-                file_types=['.csv', '.doc', '.xls', '.xlsx', '.txt'],
-                file_count='multiple')
             preview_send_button = gr.Button(
                 'Send (Agent Loading...)', interactive=False)
+            upload_button = gr.UploadButton(
+                'Click to Upload a File',
+                file_types=[
+                    '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.md',
+                    '.pdf', '.jpeg', '.png', '.jpg'
+                ],
+                file_count='multiple')
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
@@ -503,7 +506,7 @@ with demo:
                 shutil.copy(file.name, file_path)
                 file_paths.append(file_path)
             new_file_paths.append(file_path)
-            chatbot.append((None, f'上传文件{file_name}，成功'))
+            chatbot.append((None, f'上传文件： {file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
             user_chat_bot_cover: gr.HTML.update(visible=False),
