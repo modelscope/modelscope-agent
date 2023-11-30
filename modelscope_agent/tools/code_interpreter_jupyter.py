@@ -188,6 +188,7 @@ class CodeInterpreterJupyter(Tool):
             try:
                 msg = kc.get_iopub_msg()
                 msg_type = msg['msg_type']
+
                 if msg_type == 'status':
                     if msg['content'].get('execution_state') == 'idle':
                         finished = True
@@ -228,6 +229,8 @@ class CodeInterpreterJupyter(Tool):
             if finished:
                 break
         result = result.lstrip('\n')
+        if not result:
+            result += 'The code executed successfully.'
         return result
 
     def _local_call(self, *args, **kwargs):
