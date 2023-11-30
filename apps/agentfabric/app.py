@@ -258,7 +258,8 @@ with demo:
             preview_send_button = gr.Button('Send')
             upload_button = gr.UploadButton(
                 'Click to Upload a File',
-                file_types=['.csv', '.doc', '.xls', '.xlsx', '.txt'],
+                file_types=['.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.md',
+                    '.pdf', '.jpeg', '.png', '.jpg'],
                 file_count='multiple')
             preview_send_button = gr.Button(
                 'Send (Agent Loading...)', interactive=False)
