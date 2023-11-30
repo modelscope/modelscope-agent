@@ -228,6 +228,8 @@ class CodeInterpreterJupyter(Tool):
             if finished:
                 break
         result = result.lstrip('\n')
+        if not result:
+            result += 'The code executed successfully.'
         return result
 
     def _local_call(self, *args, **kwargs):
