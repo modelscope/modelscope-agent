@@ -2,6 +2,7 @@ from __future__ import annotations
 import base64
 import html
 import io
+import os
 import re
 from urllib import parse
 
@@ -28,6 +29,19 @@ def covert_image_to_base64(image_path):
     # 生成base64编码的地址
     base64_url = f'data:image/jpeg;base64,{base64_data}'
     return base64_url
+
+
+def convert_url(text, new_filename):
+    # Define the pattern to search for
+    # This pattern captures the text inside the square brackets, the path, and the filename
+    pattern = r'!\[([^\]]+)\]\(([^)]+)\)'
+
+    # Define the replacement pattern
+    # \1 is a backreference to the text captured by the first group ([^\]]+)
+    replacement = rf'![\1]({new_filename})'
+
+    # Replace the pattern in the text with the replacement
+    return re.sub(pattern, replacement, text)
 
 
 def format_cover_html(configuration, bot_avatar_path):
@@ -258,9 +272,6 @@ class ChatBot(ChatBotBase):
 
     def convert_bot_message_for_qwen(self, bot_message):
 
-        # print('processed bot message---------------------------------')
-        # print(bot_message)
-        # print('processed bot message done---------------------------------')
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
@@ -322,6 +333,15 @@ class ChatBot(ChatBotBase):
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                     detail) + '</details>'
                 if exec_content is not None and '[IMAGEGEN]' in exec_content:
+                    # convert local file to base64
+                    re_pattern = re.compile(pattern=r'!\[[^\]]+\]\(([^)]+)\)')
+                    res = re_pattern.search(exec_content)
+                    if res:
+                        image_path = res.group(1).strip()
+                        if os.path.isfile(image_path):
+                            exec_content = convert_url(
+                                exec_content,
+                                covert_image_to_base64(image_path))
                     result += self.convert_markdown(f'{exec_content}')
 
             except Exception:
