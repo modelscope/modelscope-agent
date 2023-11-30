@@ -152,6 +152,19 @@ with demo:
     with gr.Row():
         with gr.Column():
             with gr.Tabs() as tabs:
+                with gr.TabItem('Create', id=0):
+                    with gr.Column():
+                        # "Create" 标签页的 Chatbot 组件
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
+                        create_chat_input = gr.Textbox(
+                            label='Message',
+                            placeholder='Type a message here...')
+                        create_send_button = gr.Button(
+                            'Send (Agent Loading...)', interactive=False)
+
                 configure_tab = gr.Tab('Configure', id=1)
                 with configure_tab:
                     with gr.Column():
@@ -220,19 +233,6 @@ with demo:
                                 placeholder='Enter privacy policy URL')
 
                         configure_button = gr.Button('Update Configuration')
-
-                with gr.TabItem('Create', id=0):
-                    with gr.Column():
-                        # "Create" 标签页的 Chatbot 组件
-                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
-                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
-                        create_chatbot = gr.Chatbot(
-                            label='Create Chatbot', value=[[None, start_text]])
-                        create_chat_input = gr.Textbox(
-                            label='Message',
-                            placeholder='Type a message here...')
-                        create_send_button = gr.Button(
-                            'Send (Agent Loading...)', interactive=False)
 
         with gr.Column():
             # Preview

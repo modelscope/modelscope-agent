@@ -6,6 +6,8 @@ from configparser import ConfigParser
 import json
 import oss2
 
+from modelscope.utils.config import Config
+
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 上传文件到阿里云OSS
@@ -74,13 +76,19 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 创建新目录
     if os.path.exists(new_directory):
-        os.removedirs(new_directory)
+        shutil.rmtree(new_directory)
         os.makedirs(new_directory)
 
     # 复制config下的uuid_str目录到new_directory下并改名为local_user
     uuid_str_path = f'{src_dir}/config/{uuid_str}'  # 指向uuid_str目录的路径
     local_user_path = f'{new_directory}/config/local_user'  # 新的目录路径
     shutil.copytree(uuid_str_path, local_user_path, dirs_exist_ok=True)
+
+    target_conf = os.path.join(local_user_path, 'builder_config.json')
+    builder_cfg = Config.from_file(target_conf)
+    builder_cfg.knowledge = [
+        f.replace(uuid_str, 'local_user') for f in builder_cfg.knowledge
+    ]
 
     # 复制config目录下所有.json文件到new_directory/config
     config_path = f'{src_dir}/config'
