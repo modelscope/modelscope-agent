@@ -287,7 +287,7 @@ class ChatBot(ChatBotBase):
                     bot_message[start_pos:action_pos])
                 # Action: image_gen
                 # Action Input
-                # {"text": "金庸武侠 世界", "resolution": "128 0x720"}
+                # {"text": "金庸武侠 世界", "resolution": "1280x720"}
                 # Observation: <result>![IMAGEGEN](https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e9/20231116/723609ee/d046d2d9-0c95-420b-9467-f0e831f5e2b7-1.png?Expires=1700227460&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=R0PlEazQF9uBD%2Fh9tkzOkJMGyg8%3D)<result> # noqa E501
                 action_name = bot_message[action_pos
                                           + len(ACTION
@@ -322,7 +322,7 @@ class ChatBot(ChatBotBase):
                     summary = '完成调用'
                     exec_content = obs_message[
                         observation_start_id:observation_end_idx]
-                    detail = f'```json\n\n{exec_content}\n\n```'
+                    detail = f'```\n\n{exec_content}\n\n```'
                     start_pos = idx + observation_end_idx + len(RESULT_END)
                 except Exception:
                     summary = '执行中...'

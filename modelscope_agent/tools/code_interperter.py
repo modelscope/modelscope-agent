@@ -103,6 +103,8 @@ class CodeInterpreter(Tool):
                 code_block = re.search(r'```([\s\S]+)```', text)  # noqa W^05
                 if code_block:
                     result = code_block.group(1)
+                    # for multi code_block
+                    result = result.split('```')[0]
                     language = result.split('\n')[0]
                     if language == 'py' or language == 'python':
                         # handle py case

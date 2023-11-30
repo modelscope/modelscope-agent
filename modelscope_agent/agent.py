@@ -76,13 +76,12 @@ class AgentExecutor:
             additional_tool_list (Dict, optional): user-defined tools. Defaults to {}.
         """
         self.tool_list = {}
-        tool_info_list = TOOL_INFO_LIST
-
+        tool_info_list = {**TOOL_INFO_LIST, **additional_tool_list}
         tools_module = importlib.import_module('modelscope_agent.tools')
         for tool_name in tool_cfg.keys():
-            if tool_cfg[tool_name].get('is_active', False):
+            if tool_cfg[tool_name].get('use', False):
                 assert tool_name in tool_info_list, f'Invalid tool name: {tool_name}, ' \
-                    'available ones are: {tool_info_list.keys()}'
+                    f'available ones are: {tool_info_list.keys()}'
                 tool_class_name = tool_info_list[tool_name]
                 tool_class = getattr(tools_module, tool_class_name)
                 tool_name = tool_class.name
@@ -93,6 +92,7 @@ class AgentExecutor:
         self.set_available_tools(self.tool_list.keys())
 
     def set_available_tools(self, available_tool_list):
+        # TODO @wenmeng.zwm refine tool init
         for t in available_tool_list:
             if t not in self.tool_list:
                 raise ValueError(
@@ -261,12 +261,12 @@ class AgentExecutor:
                                                   function_list):
                     llm_result += s
                     yield {'llm_text': s}
-            except RuntimeError as e:
-                yield {'llm_text': str(e)}
-            except Exception:
+            except RuntimeError:
                 s = self.llm.generate(llm_artifacts)
                 llm_result += s
                 yield {'llm_text': s}
+            except Exception as e:
+                yield {'llm_text': str(e)}
 
             # parse and get tool name and arguments
             try:
@@ -283,6 +283,8 @@ class AgentExecutor:
                 return
 
             if action in self.available_tool_list:
+                # yield observation to as end of action input symbol asap
+                yield {'llm_text': 'Observation: '}
                 action_args = self.parse_action_args(action_args)
                 tool = self.tool_list[action]
 

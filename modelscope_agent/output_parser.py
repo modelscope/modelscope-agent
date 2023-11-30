@@ -71,6 +71,45 @@ class MsOutputParser(OutputParser):
             return OutputParser.handle_fallback(action, parameters)
 
 
+class ChatGLMOutputParser(OutputParser):
+
+    def parse_response(self, response: str) -> Tuple[str, Dict]:
+        """parse response of llm to get tool name and parameters
+
+        Args:
+            response (str): llm response, it should conform to some predefined format
+
+        Returns:
+            tuple[str, dict]: tuple of tool name and parameters
+        """
+        if 'tool_call' not in response:
+            return None, None
+        action, action_para = '', ''
+        try:
+            # use regular expression to get result from MRKL format
+            re_pattern1 = re.compile(
+                pattern=r'([\s\S]+)```([\s\S]+)tool_call\(([\s\S]+)```')
+            res = re_pattern1.search(response)
+            action_list = re.split('<|>|\|', res.group(1).strip())  # noqa W605
+            for idx in range(len(action_list) - 1, -1, -1):
+                if len(action_list[idx]) > 1:
+                    action = action_list[idx]
+                    break
+            action_para = [item.strip() for item in res.group(3).split(',')]
+            parameters = {}
+            re_pattern2 = re.compile(pattern=r'([\s\S]+)=\'([\s\S]+)\'')
+            for para in action_para:
+                res = re_pattern2.search(para)
+                parameters[res.group(1)] = res.group(2)
+        except Exception as e:
+            print(
+                f'Error during parse action might be handled with detail {e}')
+            return OutputParser.handle_fallback(action, action_para)
+
+        print(f'\n\naction: {action}\n parameters: {parameters}\n\n')
+        return action, parameters
+
+
 class MRKLOutputParser(OutputParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
