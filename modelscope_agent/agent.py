@@ -271,6 +271,8 @@ class AgentExecutor:
                 return
 
             if action in self.available_tool_list:
+                # yield observation to as end of action input symbol asap
+                yield {'llm_text': 'Observation: '}
                 action_args = self.parse_action_args(action_args)
                 tool = self.tool_list[action]
 

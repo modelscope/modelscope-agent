@@ -5,9 +5,11 @@ import traceback
 
 import gradio as gr
 import json
+import yaml
 from builder_core import init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
-                          get_user_dir, parse_configuration, save_avatar_image,
+                          get_user_dir, is_valid_plugin_configuration,
+                          parse_configuration, save_avatar_image,
                           save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
@@ -102,7 +104,15 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     }
 
     try:
-        schema_dict = json.loads(openapi_schema)
+        try:
+            schema_dict = json.loads(openapi_schema)
+        except json.decoder.JSONDecodeError:
+            schema_dict = yaml.safe_load(openapi_schema)
+        except Exception as e:
+            raise gr.Error(
+                f'OpenAPI schema format error, should be one of json and yaml: {e}'
+            )
+
         openapi_plugin_cfg = {
             'schema': schema_dict,
             'auth': {
@@ -112,7 +122,8 @@ def process_configuration(uuid_str, bot_avatar, name, description,
             },
             'privacy_policy': openapi_privacy_policy
         }
-        save_plugin_configuration(openapi_plugin_cfg, uuid_str)
+        if is_valid_plugin_configuration(openapi_plugin_cfg):
+            save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     except Exception as e:
         error = traceback.format_exc()
         print(f'Error:{e}, with detail: {error}')
@@ -183,14 +194,16 @@ with demo:
                         knowledge_input = gr.File(
                             label='Knowledge',
                             file_count='multiple',
-                            file_types=['text', '.json', '.csv'])
+                            file_types=['text', '.json', '.csv', '.pdf'])
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label='Capabilities')
 
                         with gr.Accordion('OpenAPI Configuration', open=False):
                             openapi_schema = gr.Textbox(
                                 label='Schema',
-                                placeholder='Enter your OpenAPI schema here')
+                                placeholder=
+                                'Enter your OpenAPI schema here, JSON or YAML format only'
+                            )
 
                             with gr.Group():
                                 openapi_auth_type = gr.Radio(
@@ -211,7 +224,10 @@ with demo:
                 with gr.TabItem('Create', id=0):
                     with gr.Column():
                         # "Create" 标签页的 Chatbot 组件
-                        create_chatbot = gr.Chatbot(label='Create Chatbot')
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
                         create_chat_input = gr.Textbox(
                             label='Message',
                             placeholder='Type a message here...')
@@ -375,7 +391,6 @@ with demo:
                 input, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
-            print(frame)
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
@@ -436,16 +451,13 @@ with demo:
 
         for frame in user_agent.stream_run(
                 input, print_info=True, remote=False):
-            # is_final = frame.get("frame_is_final")
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
-            print(frame)
-            # llm_result = llm_result.split("<|user|>")[0].strip()
             if len(exec_result) != 0:
                 # action_exec_result
                 if isinstance(exec_result, dict):
                     exec_result = str(exec_result['result'])
-                frame_text = f'Observation: <result>{exec_result}</result>'
+                frame_text = f'<result>{exec_result}</result>'
             else:
                 # llm result
                 frame_text = llm_result
