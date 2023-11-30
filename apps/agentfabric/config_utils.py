@@ -149,9 +149,7 @@ def parse_configuration(uuid_str=''):
         try:
             config_dict = openapi_schema_convert(
                 schema=openapi_plugin_cfg.schema,
-                apikey=openapi_plugin_cfg.auth.apikey,
-                apikey_type=openapi_plugin_cfg.auth.apikey_type,
-            )
+                auth=openapi_plugin_cfg.auth.to_dict())
             plugin_cfg = Config(config_dict)
             for name, config in config_dict.items():
                 available_plugin_list.append(name)

@@ -3,6 +3,7 @@ import os
 import shutil
 from configparser import ConfigParser
 
+import json
 import oss2
 
 
@@ -38,13 +39,37 @@ def get_oss_config():
     return access_key_id, access_key_secret, endpoint, bucket_name
 
 
-def prepare_agent_zip(agent_name, uuid_str, state):
+def pop_user_info_from_config(src_dir, uuid_str):
+    """ Remove all personal information from the configuration files and return this data.
+    The purpose of this is to ensure that personal information is not stored in plain text
+    when releasing.
+
+    Args:
+        src_dir (str): config root path
+        uuid_str (str): user id
+    """
+    user_info = {}
+
+    # deal with plugin cfg
+    plugin_config_path = f'{src_dir}/config/{uuid_str}/openapi_plugin_config.json'
+    with open(plugin_config_path, 'r') as f:
+        plugin_config = json.load(f)
+    if 'auth' in plugin_config:
+        if plugin_config['auth']['type'] == 'API Key':
+            user_info['apikey'] = plugin_config['auth'].pop('apikey')
+            user_info['apikey_type'] = plugin_config['auth'].pop('apikey_type')
+    with open(plugin_config_path, 'w') as f:
+        json.dump(plugin_config, f, indent=2, ensure_ascii=False)
+
+    return user_info
+
+
+def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     # 设置阿里云OSS的认证信息
     ak_id, ak_secret, endpoint, bucket_name = get_oss_config()
     auth = oss2.Auth(ak_id, ak_secret)
     bucket = oss2.Bucket(auth, endpoint, bucket_name)
 
-    src_dir = os.path.abspath(os.path.dirname(__file__))
     new_directory = f'{src_dir}/upload/{uuid_str}'  # 新目录的路径
 
     # 创建新目录
@@ -114,5 +139,6 @@ def prepare_agent_zip(agent_name, uuid_str, state):
 
 
 if __name__ == '__main__':
-    url = prepare_agent_zip('test', 'local_user', {})
+    src_dir = os.path.abspath(os.path.dirname(__file__))
+    url = prepare_agent_zip('test', src_dir, 'local_user', {})
     print(url)
