@@ -30,7 +30,7 @@ class WordArtTexture(Tool):
         # remote call
         self.url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/wordart/texture'
         self.token = self.cfg.get('token', os.environ.get('DASHSCOPE_API_TOKEN', ''))
-        assert self.token != '', 'dashscope  api token must be acquired with wordart'
+        assert self.token != '', 'dashscope api token must be acquired with wordart'
 
         try:
             all_param = {
