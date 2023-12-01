@@ -3,7 +3,10 @@ import os
 import shutil
 from configparser import ConfigParser
 
+import json
 import oss2
+
+from modelscope.utils.config import Config
 
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
@@ -38,24 +41,54 @@ def get_oss_config():
     return access_key_id, access_key_secret, endpoint, bucket_name
 
 
-def prepare_agent_zip(agent_name, uuid_str, state):
+def pop_user_info_from_config(src_dir, uuid_str):
+    """ Remove all personal information from the configuration files and return this data.
+    The purpose of this is to ensure that personal information is not stored in plain text
+    when releasing.
+
+    Args:
+        src_dir (str): config root path
+        uuid_str (str): user id
+    """
+    user_info = {}
+
+    # deal with plugin cfg
+    plugin_config_path = f'{src_dir}/config/{uuid_str}/openapi_plugin_config.json'
+    with open(plugin_config_path, 'r') as f:
+        plugin_config = json.load(f)
+    if 'auth' in plugin_config:
+        if plugin_config['auth']['type'] == 'API Key':
+            user_info['apikey'] = plugin_config['auth'].pop('apikey')
+            user_info['apikey_type'] = plugin_config['auth'].pop('apikey_type')
+    with open(plugin_config_path, 'w') as f:
+        json.dump(plugin_config, f, indent=2, ensure_ascii=False)
+
+    return user_info
+
+
+def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     # 设置阿里云OSS的认证信息
     ak_id, ak_secret, endpoint, bucket_name = get_oss_config()
     auth = oss2.Auth(ak_id, ak_secret)
     bucket = oss2.Bucket(auth, endpoint, bucket_name)
 
-    src_dir = os.path.abspath(os.path.dirname(__file__))
     new_directory = f'{src_dir}/upload/{uuid_str}'  # 新目录的路径
 
     # 创建新目录
     if os.path.exists(new_directory):
-        os.removedirs(new_directory)
+        shutil.rmtree(new_directory)
         os.makedirs(new_directory)
 
     # 复制config下的uuid_str目录到new_directory下并改名为local_user
     uuid_str_path = f'{src_dir}/config/{uuid_str}'  # 指向uuid_str目录的路径
     local_user_path = f'{new_directory}/config/local_user'  # 新的目录路径
     shutil.copytree(uuid_str_path, local_user_path, dirs_exist_ok=True)
+
+    target_conf = os.path.join(local_user_path, 'builder_config.json')
+    builder_cfg = Config.from_file(target_conf)
+    builder_cfg.knowledge = [
+        f.replace(uuid_str, 'local_user') for f in builder_cfg.knowledge
+    ]
 
     # 复制config目录下所有.json文件到new_directory/config
     config_path = f'{src_dir}/config'
@@ -114,5 +147,6 @@ def prepare_agent_zip(agent_name, uuid_str, state):
 
 
 if __name__ == '__main__':
-    url = prepare_agent_zip('test', 'local_user', {})
+    src_dir = os.path.abspath(os.path.dirname(__file__))
+    url = prepare_agent_zip('test', src_dir, 'local_user', {})
     print(url)

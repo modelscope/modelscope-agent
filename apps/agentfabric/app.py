@@ -6,14 +6,14 @@ import traceback
 import gradio as gr
 import json
 import yaml
-from builder_core import init_builder_chatbot_agent
+from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (Config, get_avatar_image, get_user_cfg_file,
                           get_user_dir, is_valid_plugin_configuration,
                           parse_configuration, save_avatar_image,
                           save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
-from publish_util import prepare_agent_zip
+from publish_util import pop_user_info_from_config, prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
 
@@ -152,6 +152,19 @@ with demo:
     with gr.Row():
         with gr.Column():
             with gr.Tabs() as tabs:
+                with gr.TabItem('Create', id=0):
+                    with gr.Column():
+                        # "Create" 标签页的 Chatbot 组件
+                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
+                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
+                        create_chatbot = gr.Chatbot(
+                            label='Create Chatbot', value=[[None, start_text]])
+                        create_chat_input = gr.Textbox(
+                            label='Message',
+                            placeholder='Type a message here...')
+                        create_send_button = gr.Button(
+                            'Send (Agent Loading...)', interactive=False)
+
                 configure_tab = gr.Tab('Configure', id=1)
                 with configure_tab:
                     with gr.Column():
@@ -221,19 +234,6 @@ with demo:
 
                         configure_button = gr.Button('Update Configuration')
 
-                with gr.TabItem('Create', id=0):
-                    with gr.Column():
-                        # "Create" 标签页的 Chatbot 组件
-                        start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
-                            '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
-                        create_chatbot = gr.Chatbot(
-                            label='Create Chatbot', value=[[None, start_text]])
-                        create_chat_input = gr.Textbox(
-                            label='Message',
-                            placeholder='Type a message here...')
-                        create_send_button = gr.Button(
-                            'Send (Agent Loading...)', interactive=False)
-
         with gr.Column():
             # Preview
             gr.HTML("""<div class="preview_header">Preview<div>""")
@@ -268,7 +268,7 @@ with demo:
                     with gr.Column():
                         gr.Markdown('### 2.点击 Publish 跳转创空间完成 Agent 发布')
                         publish_link = gr.HTML(
-                            value=format_goto_publish_html('', True))
+                            value=format_goto_publish_html('', {}, True))
 
     configure_updated_outputs = [
         state,
@@ -391,6 +391,8 @@ with demo:
                 input, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
+            step_result = frame.get('step', '')
+            print(frame)
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
@@ -407,7 +409,8 @@ with demo:
                 else:
                     content = llm_result
                 frame_text = content
-                response = f'{response}{frame_text}'
+                response = beauty_output(f'{response}{frame_text}',
+                                         step_result)
                 chatbot[-1] = (input, response)
                 yield {
                     create_chatbot: chatbot,
@@ -475,9 +478,11 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        output_url = prepare_agent_zip(name, uuid_str, state)
+        src_dir = os.path.abspath(os.path.dirname(__file__))
+        user_info = pop_user_info_from_config(src_dir, uuid_str)
+        output_url = prepare_agent_zip(name, src_dir, uuid_str, state)
         # output_url = "https://test.url"
-        return format_goto_publish_html(output_url)
+        return format_goto_publish_html(output_url, user_info)
 
     publish_button.click(
         publish_agent,
