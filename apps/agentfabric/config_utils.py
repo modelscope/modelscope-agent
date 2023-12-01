@@ -13,10 +13,16 @@ DEFAULT_BUILDER_CONFIG_FILE = './config/builder_config.json'
 DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = './config/openapi_plugin_config.json'
 DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
+DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
+                                         '/tmp/ci_workspace')
 
 
 def get_user_dir(uuid_str=''):
     return os.path.join('config', uuid_str)
+
+
+def get_ci_dir():
+    return DEFAULT_CODE_INTERPRETER_DIR
 
 
 def get_user_cfg_file(uuid_str=''):

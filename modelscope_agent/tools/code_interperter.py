@@ -5,9 +5,10 @@ import traceback
 import appdirs
 import json
 
-from .code_interpreters.create_code_interpreter import create_code_interpreter
-from .code_interpreters.language_map import language_map
-from .code_interpreters.truncate_output import truncate_output
+from .code_interpreter_utils.create_code_interpreter import \
+    create_code_interpreter
+from .code_interpreter_utils.language_map import language_map
+from .code_interpreter_utils.truncate_output import truncate_output
 from .tool import Tool
 
 
