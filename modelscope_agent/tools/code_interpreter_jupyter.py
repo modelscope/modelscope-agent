@@ -143,8 +143,13 @@ class CodeInterpreterJupyter(Tool):
 
         png_bytes = base64.b64decode(image_base64)
         assert isinstance(png_bytes, bytes)
-        bytes_io = io.BytesIO(png_bytes)
-        PIL.Image.open(bytes_io).save(local_image_file, image_type)
+
+        if image_type == 'gif':
+            with open(local_image_file, 'wb') as file:
+                file.write(png_bytes)
+        else:
+            bytes_io = io.BytesIO(png_bytes)
+            PIL.Image.open(bytes_io).save(local_image_file, image_type)
 
         if self.image_server:
             image_url = f'{STATIC_URL}/{image_file}'
