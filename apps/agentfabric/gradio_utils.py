@@ -17,18 +17,21 @@ ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
 
 # 图片本地路径转换为 base64 格式
 def covert_image_to_base64(image_path):
-    image = Image.open(image_path).convert('RGB')
-    # 创建一个内存字节流
-    image_stream = io.BytesIO()
-    # 将图片保存到字节流中，格式自动识别
-    image.save(image_stream, format='JPEG')
-    # 获取字节流内容
-    image_data = image_stream.getvalue()
-    # 转换为base64编码
-    base64_data = base64.b64encode(image_data).decode('utf-8')
-    # 生成base64编码的地址
-    base64_url = f'data:image/jpeg;base64,{base64_data}'
-    return base64_url
+    # 获得文件后缀名
+    ext = image_path.split('.')[-1]
+    if ext not in ['gif', 'jpeg', 'png']:
+        ext = 'jpeg'
+
+    with open(image_path, 'rb') as image_file:
+        # Read the file
+        encoded_string = base64.b64encode(image_file.read())
+
+        # Convert bytes to string
+        base64_data = encoded_string.decode('utf-8')
+
+        # 生成base64编码的地址
+        base64_url = f'data:image/{ext};base64,{base64_data}'
+        return base64_url
 
 
 def convert_url(text, new_filename):
