@@ -54,14 +54,16 @@ def pop_user_info_from_config(src_dir, uuid_str):
 
     # deal with plugin cfg
     plugin_config_path = f'{src_dir}/config/{uuid_str}/openapi_plugin_config.json'
-    with open(plugin_config_path, 'r') as f:
-        plugin_config = json.load(f)
-    if 'auth' in plugin_config:
-        if plugin_config['auth']['type'] == 'API Key':
-            user_info['apikey'] = plugin_config['auth'].pop('apikey')
-            user_info['apikey_type'] = plugin_config['auth'].pop('apikey_type')
-    with open(plugin_config_path, 'w') as f:
-        json.dump(plugin_config, f, indent=2, ensure_ascii=False)
+    if os.path.exists(plugin_config_path):
+        with open(plugin_config_path, 'r') as f:
+            plugin_config = json.load(f)
+        if 'auth' in plugin_config:
+            if plugin_config['auth']['type'] == 'API Key':
+                user_info['apikey'] = plugin_config['auth'].pop('apikey')
+                user_info['apikey_type'] = plugin_config['auth'].pop(
+                    'apikey_type')
+        with open(plugin_config_path, 'w') as f:
+            json.dump(plugin_config, f, indent=2, ensure_ascii=False)
 
     return user_info
 
