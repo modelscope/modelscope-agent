@@ -137,14 +137,14 @@ class CodeInterpreterJupyter(Tool):
         for k in list(self.kernel_clients.keys()):
             del self.kernel_clients[k]
 
-    def _serve_image(self, image_base64: str) -> str:
-        image_file = f'{uuid.uuid4()}.png'
+    def _serve_image(self, image_base64: str, image_type: str) -> str:
+        image_file = f'{uuid.uuid4()}.{image_type}'
         local_image_file = os.path.join(WORK_DIR, image_file)
 
         png_bytes = base64.b64decode(image_base64)
         assert isinstance(png_bytes, bytes)
         bytes_io = io.BytesIO(png_bytes)
-        PIL.Image.open(bytes_io).save(local_image_file, 'png')
+        PIL.Image.open(bytes_io).save(local_image_file, image_type)
 
         if self.image_server:
             image_url = f'{STATIC_URL}/{image_file}'
@@ -195,13 +195,20 @@ class CodeInterpreterJupyter(Tool):
                     text = msg['content']['data'].get('text/plain', '')
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
-                        image_url = self._serve_image(image_b64)
+                        image_url = self._serve_image(image_b64, 'png')
+                        image_idx += 1
+                        image = '![IMAGEGEN](%s)' % (image_url)
+                    elif 'text/html' in msg['content']['data']:
+                        text += '\n' + msg['content']['data']['text/html']
+                    elif 'image/gif' in msg['content']['data']:
+                        image_b64 = msg['content']['data']['image/gif']
+                        image_url = self._serve_image(image_b64, 'gif')
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                 elif msg_type == 'display_data':
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
-                        image_url = self._serve_image(image_b64)
+                        image_url = self._serve_image(image_b64, 'png')
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                     else:
