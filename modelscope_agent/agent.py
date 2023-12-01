@@ -124,12 +124,12 @@ class AgentExecutor:
             append_files(str): user insert append_files during runtime
 
         """
+        # get the sub list of files only end with .txt, .pdf, .md
+        append_files = [
+            item for item in append_files
+            if item.endswith(('.txt', '.pdf', '.md'))
+        ]
         if len(append_files) > 0:
-            # get the sub list of files only end with .txt, .pdf, .md
-            append_files = [
-                item for item in append_files
-                if item.endswith(('.txt', '.pdf', '.md'))
-            ]
             if not self.knowledge_retrieval:
                 self.knowledge_retrieval = KnowledgeRetrieval.from_file(
                     append_files)
