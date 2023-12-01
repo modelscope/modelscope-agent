@@ -21,5 +21,10 @@
     "name": "高德天气",
     "is_active": true,
     "use": false
+  },
+  "wordart_texture_generation": {
+    "name": "艺术字纹理生成",
+    "is_active": true,
+    "use": false
   }
 }
