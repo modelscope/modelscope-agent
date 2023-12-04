@@ -79,10 +79,10 @@ class CodeInterpreterJupyter(Tool):
 
         self.kc = kc
 
-    # def __del__(self):
-    #     # make sure all the kernels are killed before
-    #     signal.signal(signal.SIGTERM, self._kill_kernels)
-    #     signal.signal(signal.SIGINT, self._kill_kernels)
+    def __del__(self):
+        # make sure all the kernels are killed during __del__
+        signal.signal(signal.SIGTERM, self._kill_kernels)
+        signal.signal(signal.SIGINT, self._kill_kernels)
 
     def _start_kernel(self, pid) -> BlockingKernelClient:
         connection_file = os.path.join(WORK_DIR,
