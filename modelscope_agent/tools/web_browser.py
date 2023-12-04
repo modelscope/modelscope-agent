@@ -5,7 +5,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from modelscope_agent.tools.tool import Tool
 
 
-class WebBrowsing(Tool):
+class WebBrowser(Tool):
     description = '生成艺术字纹理图片'
     name = 'web_browsing'
     parameters: list = [{
@@ -16,7 +16,8 @@ class WebBrowsing(Tool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
-        self.split_url_into_chunk = self.cfg.get('split_urls', False)
+        self.split_url_into_chunk = self.cfg.get('split_url_into_chunk', False)
+        print(self.split_url_into_chunk)
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
         }
@@ -42,7 +43,6 @@ class WebBrowsing(Tool):
         # split url content into chunk in order to get fine-grained results
         if self.split_url_into_chunk:
             # Grab the first 1000 tokens of the site
-
             splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
                 chunk_size=1000, chunk_overlap=0)
             splits = splitter.split_documents(docs_transformed)
@@ -67,7 +67,7 @@ class WebBrowsing(Tool):
 
 
 if __name__ == '__main__':
-    tool = WebBrowsing()
+    tool = WebBrowser()
     urls = ['https://blog.sina.com.cn/zhangwuchang']
     result = tool._local_call(urls=urls)
     print(result)
