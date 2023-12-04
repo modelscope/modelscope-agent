@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Dict
+import traceback
 
 import json
 from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
@@ -13,10 +13,16 @@ DEFAULT_BUILDER_CONFIG_FILE = './config/builder_config.json'
 DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = './config/openapi_plugin_config.json'
 DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
+DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
+                                         '/tmp/ci_workspace')
 
 
 def get_user_dir(uuid_str=''):
     return os.path.join('config', uuid_str)
+
+
+def get_ci_dir():
+    return DEFAULT_CODE_INTERPRETER_DIR
 
 
 def get_user_cfg_file(uuid_str=''):
@@ -49,6 +55,15 @@ def save_builder_configuration(builder_cfg, uuid_str=''):
         os.makedirs(os.path.dirname(builder_cfg_file))
     with open(builder_cfg_file, 'w', encoding='utf-8') as f:
         f.write(json.dumps(builder_cfg, indent=2, ensure_ascii=False))
+
+
+def is_valid_plugin_configuration(openapi_plugin_cfg):
+    if 'schema' in openapi_plugin_cfg:
+        schema = openapi_plugin_cfg['schema']
+        if isinstance(schema, dict):
+            return True
+    else:
+        return False
 
 
 def save_plugin_configuration(openapi_plugin_cfg, uuid_str):
@@ -137,13 +152,18 @@ def parse_configuration(uuid_str=''):
     available_plugin_list = []
     if os.path.exists(openapi_plugin_file):
         openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
-        config_dict = openapi_schema_convert(
-            schema=openapi_plugin_cfg.schema,
-            apikey=openapi_plugin_cfg.auth.apikey,
-            apikey_type=openapi_plugin_cfg.auth.apikey_type,
-        )
-        plugin_cfg = Config(config_dict)
-        for name, config in config_dict.items():
-            available_plugin_list.append(name)
+        try:
+            config_dict = openapi_schema_convert(
+                schema=openapi_plugin_cfg.schema,
+                auth=openapi_plugin_cfg.auth.to_dict())
+            plugin_cfg = Config(config_dict)
+            for name, config in config_dict.items():
+                available_plugin_list.append(name)
+        except Exception as e:
+            error = traceback.format_exc()
+            print(f'Error:{e}, with detail: {error}')
+            print(
+                'Error:FormatError, with detail: The format of the plugin config file is incorrect.'
+            )
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list

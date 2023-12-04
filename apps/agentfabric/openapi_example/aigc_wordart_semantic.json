@@ -1,0 +1,147 @@
+{
+    "openapi":"3.1.0",
+    "info":{
+        "title":"WordArt Semantic Generation API",
+        "description":"API for generating semantic word art with customizable parameters.",
+        "version":"v1.0.0"
+    },
+    "servers":[
+        {
+            "url":"https://dashscope.aliyuncs.com"
+        }
+    ],
+    "paths":{
+        "/api/v1/services/aigc/wordart/semantic":{
+            "post":{
+                "summary":"Generate WordArt Semantically",
+                "operationId":"generateWordArt",
+                "tags":[
+                    "WordArt Generation"
+                ],
+                "requestBody":{
+                    "required":true,
+                    "X-DashScope-Async":"enable",
+                    "content":{
+                        "application/json":{
+                            "schema":{
+                                "$ref":"#/components/schemas/WordArtGenerationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses":{
+                    "200":{
+                        "description":"Successful Response",
+                        "content":{
+                            "application/json":{
+                                "schema":{
+                                    "$ref":"#/components/schemas/WordArtGenerationResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security":[
+                    {
+                        "BearerAuth":[
+
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/tasks/{task_id}":{
+            "get":{
+                "summary":"Get WordArt Result",
+                "operationId":"getwordartresult",
+                "tags":[
+                    "Get Result"
+                ],
+                "parameters":[
+                    {
+                        "name":"task_id",
+                        "in":"path",
+                        "required":true,
+                        "description":"The unique identifier of the word art generation task",
+                        "schema":{
+                            "type":"string"
+                        }
+                    }
+                ],
+                "security":[
+                    {
+                        "BearerAuth":[
+
+                        ]
+                    }
+                ]
+            }
+        }
+    },
+    "components":{
+        "schemas":{
+            "WordArtGenerationRequest":{
+                "type":"object",
+                "properties":{
+                    "model":{
+                        "type":"string",
+                        "enum":[
+                            "wordart-semantic"
+                        ]
+                    },
+                    "input":{
+                        "type":"object",
+                        "properties":{
+                            "text":{
+                                "type":"string",
+                                "example":"文字创意",
+                                "description":"用户想要转为艺术字的文本",
+                                "required":true
+                            },
+                            "prompt":{
+                                "type":"string",
+                                "example":"水果，蔬菜，温暖的色彩空间",
+                                "description":"用户对艺术字的风格要求，可能是形状、颜色、实体等方面的要求",
+                                "required":true
+                            }
+                        }
+                    },
+                    "parameters":{
+                        "type":"object",
+                        "properties":{
+                            "steps":{
+                                "type":"integer",
+                                "example":80
+                            },
+                            "n":{
+                                "type":"number",
+                                "example":2
+                            }
+                        }
+                    }
+                },
+                "required":[
+                    "model",
+                    "input",
+                    "parameters"
+                ]
+            },
+            "WordArtGenerationResponse":{
+                "type":"object",
+                "properties":{
+                    "output":{
+                        "type":"string",
+                        "description":"Generated word art image URL or data."
+                    }
+                }
+            }
+        },
+        "securitySchemes":{
+            "ApiKeyAuth":{
+                "type":"apiKey",
+                "in":"header",
+                "name":"Authorization"
+            }
+        }
+    }
+}

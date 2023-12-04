@@ -2,6 +2,7 @@ from __future__ import annotations
 import base64
 import html
 import io
+import os
 import re
 from urllib import parse
 
@@ -16,18 +17,34 @@ ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
 
 # 图片本地路径转换为 base64 格式
 def covert_image_to_base64(image_path):
-    image = Image.open(image_path).convert('RGB')
-    # 创建一个内存字节流
-    image_stream = io.BytesIO()
-    # 将图片保存到字节流中，格式自动识别
-    image.save(image_stream, format='JPEG')
-    # 获取字节流内容
-    image_data = image_stream.getvalue()
-    # 转换为base64编码
-    base64_data = base64.b64encode(image_data).decode('utf-8')
-    # 生成base64编码的地址
-    base64_url = f'data:image/jpeg;base64,{base64_data}'
-    return base64_url
+    # 获得文件后缀名
+    ext = image_path.split('.')[-1]
+    if ext not in ['gif', 'jpeg', 'png']:
+        ext = 'jpeg'
+
+    with open(image_path, 'rb') as image_file:
+        # Read the file
+        encoded_string = base64.b64encode(image_file.read())
+
+        # Convert bytes to string
+        base64_data = encoded_string.decode('utf-8')
+
+        # 生成base64编码的地址
+        base64_url = f'data:image/{ext};base64,{base64_data}'
+        return base64_url
+
+
+def convert_url(text, new_filename):
+    # Define the pattern to search for
+    # This pattern captures the text inside the square brackets, the path, and the filename
+    pattern = r'!\[([^\]]+)\]\(([^)]+)\)'
+
+    # Define the replacement pattern
+    # \1 is a backreference to the text captured by the first group ([^\]]+)
+    replacement = rf'![\1]({new_filename})'
+
+    # Replace the pattern in the text with the replacement
+    return re.sub(pattern, replacement, text)
 
 
 def format_cover_html(configuration, bot_avatar_path):
@@ -46,7 +63,7 @@ def format_cover_html(configuration, bot_avatar_path):
 """
 
 
-def format_goto_publish_html(zip_url, disable=False):
+def format_goto_publish_html(zip_url, agent_user_params, disable=False):
     if disable:
         return """<div class="publish_link_container">
         <a class="disabled">Publish</a>
@@ -54,6 +71,7 @@ def format_goto_publish_html(zip_url, disable=False):
     """
     else:
         params = {'AGENT_URL': zip_url}
+        params.update(agent_user_params)
         template = 'modelscope/agent_template'
         params_str = json.dumps(params)
         link_url = f'https://www.modelscope.cn/studios/fork?target={template}&overwriteEnv={parse.quote(params_str)}'
@@ -257,9 +275,6 @@ class ChatBot(ChatBotBase):
 
     def convert_bot_message_for_qwen(self, bot_message):
 
-        # print('processed bot message---------------------------------')
-        # print(bot_message)
-        # print('processed bot message done---------------------------------')
         start_pos = 0
         result = ''
         find_json_pattern = re.compile(r'{[\s\S]+}')
@@ -276,7 +291,7 @@ class ChatBot(ChatBotBase):
                     bot_message[start_pos:action_pos])
                 # Action: image_gen
                 # Action Input
-                # {"text": "金庸武侠 世界", "resolution": "128 0x720"}
+                # {"text": "金庸武侠 世界", "resolution": "1280x720"}
                 # Observation: <result>![IMAGEGEN](https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e9/20231116/723609ee/d046d2d9-0c95-420b-9467-f0e831f5e2b7-1.png?Expires=1700227460&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=R0PlEazQF9uBD%2Fh9tkzOkJMGyg8%3D)<result> # noqa E501
                 action_name = bot_message[action_pos
                                           + len(ACTION
@@ -321,6 +336,15 @@ class ChatBot(ChatBotBase):
                 result += '<details> <summary>' + summary + '</summary>' + self.convert_markdown(
                     detail) + '</details>'
                 if exec_content is not None and '[IMAGEGEN]' in exec_content:
+                    # convert local file to base64
+                    re_pattern = re.compile(pattern=r'!\[[^\]]+\]\(([^)]+)\)')
+                    res = re_pattern.search(exec_content)
+                    if res:
+                        image_path = res.group(1).strip()
+                        if os.path.isfile(image_path):
+                            exec_content = convert_url(
+                                exec_content,
+                                covert_image_to_base64(image_path))
                     result += self.convert_markdown(f'{exec_content}')
 
             except Exception:

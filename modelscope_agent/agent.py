@@ -88,7 +88,8 @@ class AgentExecutor:
                 self.tool_list[tool_name] = tool_class(tool_cfg)
 
         self.tool_list = {**self.tool_list, **additional_tool_list}
-        self.available_tool_list = deepcopy(self.tool_list)
+        # self.available_tool_list = deepcopy(self.tool_list)
+        self.set_available_tools(self.tool_list.keys())
 
     def set_available_tools(self, available_tool_list):
         # TODO @wenmeng.zwm refine tool init
@@ -128,7 +129,8 @@ class AgentExecutor:
     def run(self,
             task: str,
             remote: bool = False,
-            print_info: bool = False) -> List[Dict]:
+            print_info: bool = False,
+            append_files: list = []) -> List[Dict]:
         """ use llm and tools to execute task given by user
 
         Args:
@@ -145,8 +147,12 @@ class AgentExecutor:
         tool_list = self.retrieve_tools(task)
         knowledge_list = self.get_knowledge(task)
 
-        self.prompt_generator.init_prompt(task, tool_list, knowledge_list,
-                                          self.llm.model_id)
+        self.prompt_generator.init_prompt(
+            task,
+            tool_list,
+            knowledge_list,
+            self.llm.model_id,
+            append_files=append_files)
         function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''
@@ -211,7 +217,8 @@ class AgentExecutor:
     def stream_run(self,
                    task: str,
                    remote: bool = True,
-                   print_info: bool = False) -> Dict:
+                   print_info: bool = False,
+                   append_files: list = []) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.
         It will yield the result of each interaction, so that the caller can display the result
 
@@ -219,6 +226,7 @@ class AgentExecutor:
             task (str): concrete task
             remote (bool, optional): whether to execute tool in remote mode. Defaults to True.
             print_info (bool, optional): whether to print prompt info. Defaults to False.
+            files that individually used in each run, no need to record to global state
 
         Yields:
             Iterator[Dict]: iterator of llm response and tool execution result
@@ -228,8 +236,12 @@ class AgentExecutor:
         tool_list = self.retrieve_tools(task)
         knowledge_list = self.get_knowledge(task)
 
-        self.prompt_generator.init_prompt(task, tool_list, knowledge_list,
-                                          self.llm.model_id)
+        self.prompt_generator.init_prompt(
+            task,
+            tool_list,
+            knowledge_list,
+            self.llm.model_id,
+            append_files=append_files)
         function_list = self.prompt_generator.get_function_list(tool_list)
 
         llm_result, exec_result = '', ''
@@ -271,6 +283,8 @@ class AgentExecutor:
                 return
 
             if action in self.available_tool_list:
+                # yield observation to as end of action input symbol asap
+                yield {'llm_text': 'Observation: '}
                 action_args = self.parse_action_args(action_args)
                 tool = self.tool_list[action]
 
