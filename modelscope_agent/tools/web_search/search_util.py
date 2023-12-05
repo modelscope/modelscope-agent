@@ -1,10 +1,9 @@
 import os
 
+
 class SearchResult:
-    def __init__(self,
-                 title=None,
-                 link=None,
-                 sniper=None):
+
+    def __init__(self, title=None, link=None, sniper=None):
         assert link or sniper
         self.title = title
         self.link = link
@@ -17,6 +16,7 @@ class AuthenticationKey:
 
 
 def get_websearcher_cls():
+
     def get_env(authentication_key: str):
         env = os.environ
         return env.get(authentication_key, None)

@@ -1,8 +1,8 @@
 import os
 
-from modelscope_agent.tools.web_search.search_util import AuthenticationKey
-from modelscope_agent.tools.web_search import get_websearcher_cls
 from modelscope_agent.tools.tool import Tool, ToolSchema
+from modelscope_agent.tools.web_search import get_websearcher_cls
+from modelscope_agent.tools.web_search.search_util import AuthenticationKey
 from pydantic import ValidationError
 
 
@@ -11,14 +11,17 @@ class WebSearch(Tool):
     name = 'web_search'
     parameters: list = [{
         'name': 'query',
-        'description': """The user's search query term. The term may not be empty.""",
+        'description':
+        """The user's search query term. The term may not be empty.""",
         'required': True
     }]
 
     def __init__(self, cfg={}):
         available_searchers = get_websearcher_cls()
         if not len(available_searchers):
-            raise ValueError(f'At least one of web search api token should be set: {AuthenticationKey.__dict__}')
+            raise ValueError(
+                f'At least one of web search api token should be set: {AuthenticationKey.__dict__}'
+            )
         self.searcher = available_searchers[0]()
 
         try:
@@ -37,7 +40,8 @@ class WebSearch(Tool):
     def __call__(self, *args, **kwargs):
         query = kwargs.get('query', None)
         if not query or not len(query):
-            raise ValueError(f'parameter `query` of tool web-search is None or Empty.')
+            raise ValueError(
+                'parameter `query` of tool web-search is None or Empty.')
 
         res = self.searcher(query)
         return {'result': [item.__dict__ for item in res]}
