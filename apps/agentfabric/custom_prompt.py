@@ -10,7 +10,10 @@ from modelscope_agent.prompt.prompt import (KNOWLEDGE_PROMPT, PromptGenerator,
 
 from modelscope.utils.config import Config
 
-DEFAULT_SYSTEM_TEMPLATE = """
+LANG = 'zh'
+
+if LANG == 'zh':
+    DEFAULT_SYSTEM_TEMPLATE = """
 
 # 工具
 
@@ -33,22 +36,66 @@ Answer: 根据Observation总结本次工具调用返回的结果，如果结果�
 # 指令
 """
 
-DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
+    DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
 
 # 指令
 """
 
-DEFAULT_INSTRUCTION_TEMPLATE = ''
+    DEFAULT_INSTRUCTION_TEMPLATE = ''
 
-DEFAULT_USER_TEMPLATE = """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>)<file_names><user_input>"""
+    DEFAULT_USER_TEMPLATE = (
+        """(你正在扮演<role_name>，你可以使用工具：<tool_name_list><knowledge_note>)<file_names><user_input>"""
+    )
 
-DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <file_names><user_input>"""
+    DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(你正在扮演<role_name><knowledge_note>) <file_names><user_input>"""
 
-DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
+    DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
 
-TOOL_DESC = (
-    '{name_for_model}: {name_for_human} API。 {description_for_model} 输入参数: {parameters}'
-)
+    TOOL_DESC = (
+        '{name_for_model}: {name_for_human} API。 {description_for_model} 输入参数: {parameters}'
+    )
+else:
+    DEFAULT_SYSTEM_TEMPLATE = """
+
+# Tools
+
+## You have the following tools:
+
+<tool_list>
+
+## When you need to call a tool, please intersperse the following tool command in your reply. %s
+
+Tool Invocation
+Action: The name of the tool, must be one of <tool_name_list>
+Action Input: Tool input
+Observation: <result>Tool returns result</result>
+Answer: Summarize the results of this tool call based on Observation. If the result contains url, please do not show it.
+
+```
+[Link](url)
+```
+
+# Instructions
+""" % 'You can call zero or more times according to your needs:'
+
+    DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
+
+# Instructions
+"""
+
+    DEFAULT_INSTRUCTION_TEMPLATE = ''
+
+    DEFAULT_USER_TEMPLATE = (
+        '(You are playing as <role_name>, you can use tools: <tool_name_list><knowledge_note>)<file_names><user_input>'
+    )
+
+    DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(You are playing as <role_name><knowledge_note>) <file_names><user_input>"""
+
+    DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
+
+    TOOL_DESC = (
+        '{name_for_model}: {name_for_human} API. {description_for_model} Input parameters: {parameters}'
+    )
 
 
 class CustomPromptGenerator(PromptGenerator):
@@ -137,8 +184,9 @@ class CustomPromptGenerator(PromptGenerator):
                     knowledge_list, file_name=self.knowledge_file_name)
                 # knowledge
                 prompt = knowledge_str + prompt
-                user_input = user_input.replace('<knowledge_note>',
-                                                '，请查看前面的知识库')
+                user_input = user_input.replace(
+                    '<knowledge_note>', '。请查看前面的知识库' if LANG == 'zh' else
+                    '. Please read the knowledge base at the beginning.')
             else:
                 user_input = user_input.replace('<knowledge_note>', '')
 
@@ -174,8 +222,9 @@ class CustomPromptGenerator(PromptGenerator):
             user_input = self._update_user_prompt_without_knowledge(
                 task, tool_list, **kwargs)
             if len(knowledge_list) > 0:
-                user_input = user_input.replace('<knowledge_note>',
-                                                '，请查看前面的知识库')
+                user_input = user_input.replace(
+                    '<knowledge_note>', '。请查看前面的知识库' if LANG == 'zh' else
+                    '. Please read the knowledge base at the beginning.')
             else:
                 user_input = user_input.replace('<knowledge_note>', '')
 
@@ -203,7 +252,10 @@ class CustomPromptGenerator(PromptGenerator):
             if self.history[i]['role'] == 'user':
                 content: str = self.history[i]['content']
                 start_pos = content.find(f'{KNOWLEDGE_PROMPT}{self.sep}')
-                end_pos = content.rfind('\n\n# 工具\n\n')
+                if LANG == 'zh':
+                    end_pos = content.rfind('\n\n# 工具\n\n')
+                else:
+                    end_pos = content.rfind('\n\n# Tools\n\n')
                 if start_pos >= 0 and end_pos >= 0:
                     self.history[i]['content'] = content[
                         0:start_pos] + knowledge_str + content[end_pos:]
@@ -255,14 +307,25 @@ class CustomPromptGenerator(PromptGenerator):
 
 
 def parse_role_config(config: dict):
-    prompt = '你扮演AI-Agent，'
+    if LANG == 'zh':
+        prompt = '你扮演AI-Agent，'
 
-    # concat prompt
-    if 'name' in config and config['name']:
-        prompt += ('你的名字是' + config['name'] + '。')
-    if 'description' in config and config['description']:
-        prompt += config['description']
-    prompt += '\n你具有下列具体功能：'
+        # concat prompt
+        if 'name' in config and config['name']:
+            prompt += ('你的名字是' + config['name'] + '。')
+        if 'description' in config and config['description']:
+            prompt += config['description']
+        prompt += '\n你具有下列具体功能：'
+    else:
+        prompt = 'You are playing as an AI-Agent, '
+
+        # concat prompt
+        if 'name' in config and config['name']:
+            prompt += ('Your name is ' + config['name'] + '.')
+        if 'description' in config and config['description']:
+            prompt += config['description']
+        prompt += '\nYou have the following specific functions:'
+
     if 'instruction' in config and config['instruction']:
         if isinstance(config['instruction'], list):
             for ins in config['instruction']:
@@ -272,8 +335,16 @@ def parse_role_config(config: dict):
             prompt += config['instruction']
         if prompt[-1] == '；':
             prompt = prompt[:-1]
-    prompt += '\n下面你将开始扮演'
-    if 'name' in config and config['name']:
-        prompt += config['name']
-    prompt += '，明白了请说“好的。”，不要说其他的。'
+
+    if LANG == 'zh':
+        prompt += '\n下面你将开始扮演'
+        if 'name' in config and config['name']:
+            prompt += config['name']
+        prompt += '，明白了请说“好的。”，不要说其他的。'
+    else:
+        prompt += '\nNow you will start playing as'
+        if 'name' in config and config['name']:
+            prompt += config['name']
+        prompt += ', say "OK." if you understand, do not say anything else.'
+
     return prompt

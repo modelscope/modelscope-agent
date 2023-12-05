@@ -3,8 +3,15 @@ from typing import Union
 
 from .raw_prompt_builder import build_raw_prompt
 
-KNOWLEDGE_PROMPT = '# 知识库'
-KNOWLEDGE_INTRODUCTION_PROMPT = '以下是我上传的文件“<file_name>”的内容:'
+LANG = 'zh'
+
+if LANG == 'zh':
+    KNOWLEDGE_PROMPT = '# 知识库'
+    KNOWLEDGE_INTRODUCTION_PROMPT = '以下是我上传的文件“<file_name>”的内容:'
+else:
+    KNOWLEDGE_PROMPT = '# Knowledge Base'
+    KNOWLEDGE_INTRODUCTION_PROMPT = 'The following is the content of the file "<file_name>" I uploaded:'
+
 KNOWLEDGE_CONTENT_PROMPT = """```
 <knowledge_content>
 ```"""

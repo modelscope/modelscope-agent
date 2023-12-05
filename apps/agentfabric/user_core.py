@@ -14,6 +14,8 @@ from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
 
+LANG = 'zh'
+
 
 # init user chatbot_agent
 def init_user_chatbot_agent(uuid_str=''):
@@ -39,7 +41,7 @@ def init_user_chatbot_agent(uuid_str=''):
         exec_template=DEFAULT_EXEC_TEMPLATE,
         instruction_template=instruction_template,
         add_addition_round=True,
-        addition_assistant_reply='好的。',
+        addition_assistant_reply='好的。' if LANG == 'zh' else 'OK.',
         knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
             builder_cfg.knowledge) > 0 else ''),
         uuid_str=uuid_str)
