@@ -15,6 +15,7 @@ from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
 from .wordart_tool import WordArtTexture
+from .websearch import WebSearch
 
 TOOL_INFO_LIST = {
     'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
@@ -29,4 +30,5 @@ TOOL_INFO_LIST = {
     'amap_weather': 'AMAPWeather',
     'code_interpreter': 'CodeInterpreterJupyter',
     'wordart_texture_generation': 'WordArtTexture',
+    'web_search': 'WebSearch'
 }
