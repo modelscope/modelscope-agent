@@ -1,8 +1,10 @@
 import os
 
 import json
-import modelscope_agent.tools.web_search.base_searcher
 import requests
+from modelscope_agent.tools.web_search.base_searcher import WebSearcher
+from modelscope_agent.tools.web_search.search_util import (AuthenticationKey,
+                                                           SearchResult)
 
 
 class BingWebSearcher(WebSearcher):

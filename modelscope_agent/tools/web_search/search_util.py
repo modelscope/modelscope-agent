@@ -14,6 +14,14 @@ class AuthenticationKey:
     bing = 'BING_SEARCH_V7_SUBSCRIPTION_KEY'
     kuake = 'PLACE_HOLDER'
 
+    @classmethod
+    def to_dict(cls):
+        raw_dict = cls.__dict__
+        res = dict(
+            filter(lambda x: '__' not in x[0] and isinstance(x[1], str),
+                   raw_dict.items()))
+        return res
+
 
 def get_websearcher_cls():
 
@@ -26,7 +34,7 @@ def get_websearcher_cls():
         from modelscope_agent.tools.web_search.searcher.bing import BingWebSearcher
         cls_list.append(BingWebSearcher)
     if get_env(AuthenticationKey.kuake):
-        from .kuake import KuakeWebSearcher
+        from modelscope_agent.tools.web_search.searcher.kuake import KuakeWebSearcher
         cls_list.append(KuakeWebSearcher)
 
     return cls_list

@@ -7,5 +7,5 @@ from modelscope_agent.tools.web_search.search_util import (AuthenticationKey,
 class WebSearcher:
     timeout = 1000
 
-    def __call__(self, args):
+    def __call__(self, **kwargs):
         raise NotImplementedError()
