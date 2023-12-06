@@ -582,7 +582,9 @@ with demo:
             bot_avatar_comp:
             gr.Image(label=i18n.get('form_avatar')),
             name_input:
-            gr.Textbox(label=i18n.get('form_name')),
+            gr.Textbox(
+                label=i18n.get('form_name'),
+                placeholder=i18n.get('form_name_placeholder')),
             description_input:
             gr.Textbox(
                 label=i18n.get('form_description'),
