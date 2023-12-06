@@ -1,15 +1,14 @@
-
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.tools import WebSearch
 from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
 
 
 def test_web_search():
-    input = "2024元旦 哈尔滨 天气"
+    input = '2024元旦 哈尔滨 天气'
     kwargs = {'query': input}
     web_searcher = WebSearch()
     res = web_searcher._remote_call(**kwargs)
-    
+
     for item in res['result']:
         assert item['link'] and item['sniper']
 
@@ -17,8 +16,7 @@ def test_web_search():
 def test_web_search_agent():
     responses = [
         "<|startofthink|>{\"api_name\": \"web_search\", \"parameters\": "
-        "{\"query\": \"2024元旦 哈尔滨 天气\"}}<|endofthink|>",
-        'summarize'
+        "{\"query\": \"2024元旦 哈尔滨 天气\"}}<|endofthink|>", 'summarize'
     ]
     llm = MockLLM(responses)
 
@@ -38,4 +36,3 @@ def test_web_search_agent():
 
     for item in res[0]['result']:
         assert item['link'] and item['sniper']
-
