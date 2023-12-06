@@ -283,10 +283,9 @@ def openapi_schema_convert(schema, auth):
             if security:
                 for sec in security:
                     if 'BearerAuth' in sec:
-                        api_token = auth.get('apikey', '')                          
-                        api_token_type = auth.get('apikey_type', 'Bearer'))
+                        api_token = auth.get('apikey', '')
+                        api_token_type = auth.get('apikey_type', 'Bearer')
                         authorization = f'{api_token_type} {api_token}'
-
             if method.upper() == 'POST':
                 requestBody = details.get('requestBody', {})
                 if requestBody:
