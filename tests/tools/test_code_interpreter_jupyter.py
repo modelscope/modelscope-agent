@@ -12,8 +12,8 @@ def test_code_interpreter_jupyter_image():
     code_interpreter = CodeInterpreterJupyter()
     res = code_interpreter._local_call(**kwargs)
 
-    assert '![fig-001]' in res['result']
-    re_pattern1 = re.compile(pattern=r'!\[fig-001\]\(([\s\S]+)\)')
+    assert '![IMAGEGEN]' in res['result']
+    re_pattern1 = re.compile(pattern=r'!\[IMAGEGEN\]\(([\s\S]+)\)')
 
     res = re_pattern1.search(res['result'])
     # decide if file is .png file
