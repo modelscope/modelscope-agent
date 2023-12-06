@@ -5,6 +5,7 @@ i18n = {
     'configure': ['配置', 'Configure'],
     'send': ['发送', 'Send'],
     'sendOnLoading': ['发送（Agent 加载中...）', 'Send (Agent Loading...)'],
+    'upload_btn': ['上传文件', 'Upload File'],
     'message': ['输入', 'Send a message'],
     'message_placeholder': ['输入你的消息', 'Type your message here'],
     'prompt_suggestion': ['推荐提示词', 'Prompt Suggestions'],

@@ -148,15 +148,16 @@ def process_configuration(uuid_str, bot_avatar, name, description,
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
-    gr.Markdown(
-        '# <center> \N{fire} AgentFabric powered by Modelscope-agent ([github star](https://github.com/modelscope/modelscope-agent/tree/main))</center>'  # noqa E501
-    )
+
     uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed})
     i18n = I18n('zh-cn')
     with gr.Row():
-        gr.Column(scale=5)
+        with gr.Column(scale=5):
+            gr.Markdown(
+                '# <center> \N{fire} AgentFabric powered by Modelscope-agent ([github star](https://github.com/modelscope/modelscope-agent/tree/main))</center>'  # noqa E501
+            )
         with gr.Column(scale=1):
             language = gr.Dropdown(
                 choices=[('中文', 'zh-cn'), ('English', 'en')],
@@ -278,7 +279,7 @@ with demo:
             # preview_send_button = gr.Button('Send')
             with gr.Row():
                 upload_button = gr.UploadButton(
-                    'Click to Upload a File',
+                    i18n.get('upload_btn'),
                     file_types=[
                         '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt',
                         '.md', '.pdf', '.jpeg', '.png', '.jpg', '.gif'
@@ -619,6 +620,8 @@ with demo:
                 placeholder=i18n.get('message_placeholder')),
             publish_accordion:
             gr.Accordion(label=i18n.get('publish')),
+            upload_button:
+            gr.UploadButton(i18n.get('upload_btn'))
         }
 
     language.select(
@@ -626,7 +629,8 @@ with demo:
         inputs=[language],
         outputs=configure_updated_outputs + [
             configure_button, create_chat_input, open_api_accordion,
-            preview_header, preview_chat_input, publish_accordion
+            preview_header, preview_chat_input, publish_accordion,
+            upload_button
         ])
 
     def init_all(uuid_str, _state):
