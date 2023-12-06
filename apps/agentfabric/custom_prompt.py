@@ -214,6 +214,7 @@ class CustomPromptGenerator(PromptGenerator):
         knowledge_introduction = KNOWLEDGE_INTRODUCTION_PROMPT.replace(
             '<file_name>', self.knowledge_file_name)
         if len(knowledge_str) > self.length_constraint.knowledge:
+            # todo: use tokenizer to constrain length
             knowledge_str = knowledge_str[-self.length_constraint.knowledge:]
         knowledge_str = f'{KNOWLEDGE_PROMPT}{self.sep}{knowledge_introduction}{self.sep}{knowledge_str}'
 

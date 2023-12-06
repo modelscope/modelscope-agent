@@ -47,8 +47,8 @@ class PromptGenerator:
             exec_template (str, optional): A wrapper str for exec result.
             assistant_template (str, optional): Prefix before assistant response.
             Some LLM need to manully concat this prefix before generation.
-            prompt_max_length (int, optional): max length of prompt. Defaults to 2799.
-
+            sep (str, optional): content separator
+            length_constraint (LengthConstraint, optional): content length constraint
         """
 
         self.system_template = system_template
