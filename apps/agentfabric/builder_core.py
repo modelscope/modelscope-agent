@@ -142,12 +142,18 @@ class BuilderChatbotAgent(AgentExecutor):
                 re_pattern_config = re.compile(
                     pattern=r'Config: ([\s\S]+)\nRichConfig')
                 res = re_pattern_config.search(llm_result)
+                if res is None:
+                    return
                 config = res.group(1).strip()
                 self._last_assistant_structured_response['config_str'] = config
 
                 rich_config = llm_result[llm_result.rfind('RichConfig:')
                                          + len('RichConfig:'):].strip()
-                answer = json.loads(rich_config)
+                try:
+                    answer = json.loads(rich_config)
+                except Exception:
+                    print('parse RichConfig error')
+                    return
                 self._last_assistant_structured_response[
                     'rich_config_dict'] = answer
                 builder_cfg = config_conversion(answer, uuid_str=uuid_str)

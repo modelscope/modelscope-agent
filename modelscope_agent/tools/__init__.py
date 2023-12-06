@@ -1,5 +1,6 @@
 from .amap_weather import AMAPWeather
 from .code_interperter import CodeInterpreter
+from .code_interpreter_jupyter import CodeInterpreterJupyter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
 from .pipeline_tool import ModelscopePipelineTool
@@ -25,7 +26,7 @@ TOOL_INFO_LIST = {
     'modelscope_video-generation': 'TextToVideoTool',
     'modelscope_image-chat': 'ImageChatTool',
     'modelscope_speech-generation': 'TexttoSpeechTool',
-    'code_interpreter': 'CodeInterpreter',
     'amap_weather': 'AMAPWeather',
-    'wordart_texture_generation': 'WordArtTexture'
+    'code_interpreter': 'CodeInterpreterJupyter',
+    'wordart_texture_generation': 'WordArtTexture',
 }
