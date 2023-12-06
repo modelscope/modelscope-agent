@@ -21,7 +21,8 @@ class ModelScopeLLM(LLM):
         cache_dir = self.cfg.get('cache_dir', None)
 
         if not os.path.exists(model_id):
-            model_dir = snapshot_download(model_id, model_revision, cache_dir = cache_dir)
+            model_dir = snapshot_download(
+                model_id, model_revision, cache_dir=cache_dir)
         else:
             model_dir = model_id
         self.model_dir = model_dir
