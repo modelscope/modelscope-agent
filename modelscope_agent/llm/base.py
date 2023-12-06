@@ -40,3 +40,23 @@ class LLM:
             Iterator[str]: iterator of step response
         """
         raise NotImplementedError
+
+    def tokenize(self, input_text: str) -> list[int]:
+        """tokenize is used to calculate the length of the text to meet the model's input length requirements
+
+        Args:
+            input_text (str): input text
+        Returns:
+            list[int]: token_ids
+        """
+        raise NotImplementedError
+
+    def detokenize(self, input_ids: list[int]) -> str:
+        """detokenize
+
+        Args:
+            input_ids (list[int]): input token_ids
+        Returns:
+            str: text
+        """
+        raise NotImplementedError
