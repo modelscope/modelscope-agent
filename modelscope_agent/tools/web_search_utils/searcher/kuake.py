@@ -1,4 +1,4 @@
-from modelscope_agent.tools.web_search.base_searcher import WebSearcher
+from .base_searcher import WebSearcher
 
 
 class KuakeWebSearcher(WebSearcher):

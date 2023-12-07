@@ -31,10 +31,10 @@ def get_websearcher_cls():
 
     cls_list = []
     if get_env(AuthenticationKey.bing):
-        from modelscope_agent.tools.web_search.searcher.bing import BingWebSearcher
+        from modelscope_agent.tools.web_search_utils.searcher.bing import BingWebSearcher
         cls_list.append(BingWebSearcher)
     if get_env(AuthenticationKey.kuake):
-        from modelscope_agent.tools.web_search.searcher.kuake import KuakeWebSearcher
+        from modelscope_agent.tools.web_search_utils.searcher.kuake import KuakeWebSearcher
         cls_list.append(KuakeWebSearcher)
 
     return cls_list

@@ -1,8 +1,9 @@
 import os
 
 from modelscope_agent.tools.tool import Tool, ToolSchema
-from modelscope_agent.tools.web_search import get_websearcher_cls
-from modelscope_agent.tools.web_search.search_util import AuthenticationKey
+from modelscope_agent.tools.web_search_utils import get_websearcher_cls
+from modelscope_agent.tools.web_search_utils.search_util import \
+    AuthenticationKey
 from pydantic import ValidationError
 
 
@@ -10,7 +11,7 @@ class WebSearch(Tool):
     description = 'surfacing relevant information from billions of web documents. Help ' \
                   'you find what you are looking for from the world-wide-web to comb ' \
                   'billions of webpages, images, videos, and news.'
-    name = 'web_search'
+    name = 'web_search_utils'
     parameters: list = [{
         'name': 'query',
         'description':
@@ -19,6 +20,7 @@ class WebSearch(Tool):
     }]
 
     def __init__(self, cfg={}):
+        super().__init__()
         available_searchers = get_websearcher_cls()
         all_searchers = AuthenticationKey.to_dict()
         if not len(available_searchers):

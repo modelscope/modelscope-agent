@@ -2,9 +2,10 @@ import os
 
 import json
 import requests
-from modelscope_agent.tools.web_search.base_searcher import WebSearcher
-from modelscope_agent.tools.web_search.search_util import (AuthenticationKey,
-                                                           SearchResult)
+from modelscope_agent.tools.web_search_utils.search_util import (
+    AuthenticationKey, SearchResult)
+
+from .base_searcher import WebSearcher
 
 
 class BingWebSearcher(WebSearcher):

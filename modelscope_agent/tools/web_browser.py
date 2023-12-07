@@ -7,7 +7,7 @@ from modelscope_agent.tools.tool import Tool
 
 class WebBrowser(Tool):
     description = '生成艺术字纹理图片'
-    name = 'web_browsing'
+    name = 'web_browser'
     parameters: list = [{
         'name': 'urls',
         'description': 'the urls that the user wants to browse',
@@ -17,7 +17,6 @@ class WebBrowser(Tool):
     def __init__(self, cfg={}):
         super().__init__(cfg)
         self.split_url_into_chunk = self.cfg.get('split_url_into_chunk', False)
-        print(self.split_url_into_chunk)
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
         }

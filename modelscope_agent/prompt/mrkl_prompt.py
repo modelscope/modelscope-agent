@@ -46,6 +46,7 @@ class MrklPromptGenerator(PromptGenerator):
                  exec_template=MRKL_DEFAULT_EXEC_TEMPLATE,
                  assistant_template='',
                  sep='\n\n',
+                 llm=None,
                  length_constraint=LengthConstraint()):
         super().__init__(
             system_template=system_template,
@@ -54,6 +55,7 @@ class MrklPromptGenerator(PromptGenerator):
             exec_template=exec_template,
             assistant_template=assistant_template,
             sep=sep,
+            llm=llm,
             length_constraint=length_constraint)
 
     def init_prompt(self, task, tool_list, knowledge_list, llm_model,
