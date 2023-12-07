@@ -99,14 +99,21 @@ class CodeInterpreterJupyter(Tool):
         with open(launch_kernel_script, 'w') as fout:
             fout.write(LAUNCH_KERNEL_PY)
 
-        kernel_process = subprocess.Popen([
+        available_envs = ['PATH', 'PYTHONPATH', 'LD_LIBRARY_PATH']
+        envs = {}
+        for k in available_envs:
+            if os.getenv(k) is not None:
+                envs[k] = os.getenv(k)
+
+        args = (
             sys.executable,
             launch_kernel_script,
             '--IPKernelApp.connection_file',
             connection_file,
             '--matplotlib=inline',
             '--quiet',
-        ],
+        )
+        kernel_process = subprocess.Popen([*args], env=envs,
                                           cwd=WORK_DIR)  # noqa E126
         print(f"INFO: kernel process's PID = {kernel_process.pid}")
 

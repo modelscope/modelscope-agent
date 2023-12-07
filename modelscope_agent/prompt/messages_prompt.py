@@ -1,6 +1,6 @@
 from typing import Union
 
-from .prompt import PromptGenerator
+from .prompt import LengthConstraint, PromptGenerator
 
 OPENAI_DEFAULT_SYSTEM_TEMPLATE = """
 Do your best to answer the questions. You are capable of **any** task.
@@ -33,11 +33,16 @@ class MessagesGenerator(PromptGenerator):
                  exec_template=None,
                  assistant_template='',
                  sep='\n\n',
-                 prompt_max_length=10000,
+                 length_constraint=LengthConstraint(),
                  **kwargs):
-        super().__init__(system_template, instruction_template, user_template,
-                         exec_template, assistant_template, sep,
-                         prompt_max_length)
+        super().__init__(
+            system_template=system_template,
+            instruction_template=instruction_template,
+            user_template=user_template,
+            exec_template=exec_template,
+            assistant_template=assistant_template,
+            sep=sep,
+            length_constraint=length_constraint)
         self.custom_starter_messages = kwargs.get('custom_starter_messages',
                                                   None)
 
