@@ -16,10 +16,19 @@ def readme():
     return content
 
 
+version_file = 'modelscope_agent/version.py'
+
+
+def get_version():
+    with open(version_file, 'r', encoding='utf-8') as f:
+        exec(compile(f.read(), version_file, 'exec'))
+    return locals()['__version__']
+
+
 setup(
     name=
     'modelscope-agent',  # Replace 'your_package_name' with the name of your package
-    version='0.1.1',  # Replace with the desired version number
+    version=get_version(),  # Replace with the desired version number
     description=
     'ModelScope Agent: Be a powerful models and tools agent based on ModelScope and open source LLM.',
     author='Modelscope Team',
