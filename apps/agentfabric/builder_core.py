@@ -113,7 +113,8 @@ class BuilderChatbotAgent(AgentExecutor):
             tool_cfg,
             agent_type=agent_type,
             additional_tool_list=additional_tool_list,
-            prompt_generator=prompt_generator)
+            prompt_generator=prompt_generator,
+            tool_retrieval=False)
 
         # used to reconstruct assistant message when builder config is updated
         self._last_assistant_structured_response = {}
