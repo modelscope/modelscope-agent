@@ -9,7 +9,7 @@ from modelscope_agent.tools import Tool
 
 from modelscope.utils.config import Config
 
-LOGO_PATH = './config/custom_bot_avatar.png'
+LOGO_PATH = '/tmp/config/custom_bot_avatar.png'
 LOGO_NAME = 'custom_bot_avatar.png'
 
 CONFIG_FORMAT = """
@@ -48,9 +48,11 @@ def get_logo_path(uuid_str=''):
     # convert from ./config/builder_config.json to ./config/user/builder_config.json
     logo_path = logo_path.replace('config/', 'config/user/')
 
-    # convert from ./config/user/builder_config.json to ./config/uuid/builder_config.json
+    # convert from ./config/user to ./config/uuid
     if uuid_str != '':
         logo_path = logo_path.replace('user', uuid_str)
+    if not os.path.exists(logo_path):
+        os.makedirs(os.path.dirname(logo_path), exist_ok=True)
     return logo_path
 
 
