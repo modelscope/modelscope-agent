@@ -11,6 +11,7 @@ class LLM:
         self.cfg = cfg
         self.agent_type = None
         self.model = None
+        self.model_id = self.model
 
     def set_agent_type(self, agent_type):
         self.agent_type = agent_type

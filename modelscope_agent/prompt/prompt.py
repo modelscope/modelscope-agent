@@ -1,6 +1,8 @@
 import copy
 from typing import Union
 
+from modelscope_agent.llm.base import LLM
+
 from .raw_prompt_builder import build_raw_prompt
 
 KNOWLEDGE_PROMPT = '# 知识库'
@@ -57,7 +59,7 @@ class PromptGenerator:
         self.assistant_template = assistant_template
         self.exec_template = exec_template
         self.sep = sep
-        if llm:
+        if isinstance(llm, LLM) and llm.model_id:
             self.prompt_preprocessor = build_raw_prompt(llm.model_id)
         self.prompt_max_length = length_constraint.prompt_max_length
         self.reset()
