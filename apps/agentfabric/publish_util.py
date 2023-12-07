@@ -70,6 +70,7 @@ def pop_user_info_from_config(src_dir, uuid_str):
 
 def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     # 设置阿里云OSS的认证信息
+    local_file = os.path.abspath(os.path.dirname(__file__))
     ak_id, ak_secret, endpoint, bucket_name = get_oss_config()
     auth = oss2.Auth(ak_id, ak_secret)
     bucket = oss2.Bucket(auth, endpoint, bucket_name)
@@ -83,7 +84,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 复制config下的uuid_str目录到new_directory下并改名为local_user
     uuid_str_path = f'{src_dir}/config/{uuid_str}'  # 指向uuid_str目录的路径
-    local_user_path = f'{new_directory}/config/local_user'  # 新的目录路径
+    local_user_path = f'{new_directory}/config'  # 新的目录路径
     shutil.copytree(uuid_str_path, local_user_path, dirs_exist_ok=True)
 
     target_conf = os.path.join(local_user_path, 'builder_config.json')
@@ -93,7 +94,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     ]
 
     # 复制config目录下所有.json文件到new_directory/config
-    config_path = f'{src_dir}/config'
+    config_path = f'{local_file}/config'
     new_config_path = f'{new_directory}/config'
 
     def find_json_and_images(directory):
@@ -118,23 +119,22 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
         shutil.copy(f, new_config_path)
 
     # 复制assets目录到new_directory
-    assets_path = f'{src_dir}/assets'
+    assets_path = f'{local_file}/assets'
     new_assets_path = f'{new_directory}/assets'
     shutil.copytree(assets_path, new_assets_path, dirs_exist_ok=True)
 
     # 在requirements.txt中添加新的行
-    requirements_file = f'{src_dir}/requirements.txt'
+    requirements_file = f'{local_file}/requirements.txt'
     new_requirements_file = f'{new_directory}/requirements.txt'
     with open(requirements_file, 'r') as file:
         content = file.readlines()
     with open(new_requirements_file, 'w') as file:
-        file.write('git+https://github.com/modelscope/modelscope-agent.git\n')
         file.writelines(content)
 
     # 复制.py文件到新目录
-    for file in os.listdir(src_dir):
+    for file in os.listdir(local_file):
         if file.endswith('.py'):
-            shutil.copy(f'{src_dir}/{file}', new_directory)
+            shutil.copy(f'{local_file}/{file}', new_directory)
 
     # 打包新目录
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)

@@ -541,9 +541,8 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        src_dir = os.path.abspath(os.path.dirname(__file__))
-        user_info = pop_user_info_from_config(src_dir, uuid_str)
-        output_url = prepare_agent_zip(name, src_dir, uuid_str, state)
+        user_info = pop_user_info_from_config('/tmp', uuid_str)
+        output_url = prepare_agent_zip(name, '/tmp', uuid_str, state)
         # output_url = "https://test.url"
         return format_goto_publish_html(output_url, user_info)
 
