@@ -1,6 +1,6 @@
 import json
 
-from .prompt import PromptGenerator
+from .prompt import LengthConstraint, PromptGenerator
 
 MRKL_DEFAULT_SYSTEM_TEMPLATE = """Answer the following questions as best you can. You have access to the following tools: `
 
@@ -46,10 +46,15 @@ class MrklPromptGenerator(PromptGenerator):
                  exec_template=MRKL_DEFAULT_EXEC_TEMPLATE,
                  assistant_template='',
                  sep='\n\n',
-                 prompt_max_length=10000):
-        super().__init__(system_template, instruction_template, user_template,
-                         exec_template, assistant_template, sep,
-                         prompt_max_length)
+                 length_constraint=LengthConstraint()):
+        super().__init__(
+            system_template=system_template,
+            instruction_template=instruction_template,
+            user_template=user_template,
+            exec_template=exec_template,
+            assistant_template=assistant_template,
+            sep=sep,
+            length_constraint=length_constraint)
 
     def init_prompt(self, task, tool_list, knowledge_list, llm_model,
                     **kwargs):
