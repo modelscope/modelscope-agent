@@ -15,14 +15,15 @@ def test_web_search():
 
 def test_web_search_agent():
     responses = [
-        "<|startofthink|>{\"api_name\": \"web_search\", \"parameters\": "
+        "<|startofthink|>{\"api_name\": \"web_search_utils\", \"parameters\": "
         "{\"query\": \"2024元旦 哈尔滨 天气\"}}<|endofthink|>", 'summarize'
     ]
     llm = MockLLM(responses)
 
-    tools = {'web_search': WebSearch()}
+    tools = {'web_search_utils': WebSearch()}
     prompt_generator = MockPromptGenerator()
-    output_parser = MockOutParser('web_search', {'query': '2024元旦 哈尔滨 天气'})
+    output_parser = MockOutParser('web_search_utils',
+                                  {'query': '2024元旦 哈尔滨 天气'})
 
     agent = AgentExecutor(
         llm,

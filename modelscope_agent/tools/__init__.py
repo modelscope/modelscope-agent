@@ -14,7 +14,8 @@ from .text_to_video_tool import TextToVideoTool
 from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
-from .websearch import WebSearch
+from .web_browser import WebBrowser
+from .web_search import WebSearch
 from .wordart_tool import WordArtTexture
 
 TOOL_INFO_LIST = {
@@ -30,5 +31,6 @@ TOOL_INFO_LIST = {
     'amap_weather': 'AMAPWeather',
     'code_interpreter': 'CodeInterpreterJupyter',
     'wordart_texture_generation': 'WordArtTexture',
-    'web_search': 'WebSearch'
+    'web_search_utils': 'WebSearch',
+    'web_browser': 'WebBrowser',
 }

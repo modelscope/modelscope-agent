@@ -57,7 +57,8 @@ class PromptGenerator:
         self.assistant_template = assistant_template
         self.exec_template = exec_template
         self.sep = sep
-
+        if llm:
+            self.prompt_preprocessor = build_raw_prompt(llm.model_id)
         self.prompt_max_length = length_constraint.prompt_max_length
         self.reset()
 
@@ -70,8 +71,6 @@ class PromptGenerator:
         """
         in this function, the prompt will be initialized.
         """
-        self.prompt_preprocessor = build_raw_prompt(llm.model_id)
-
         prompt = self.sep.join(
             [self.system_template, self.instruction_template])
         prompt += '<knowledge><history>'
