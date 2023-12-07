@@ -29,7 +29,7 @@
   },
   "web_search": {
     "name": "Web Searching",
-    "is_active": true,
-    "use": true
+    "is_active": false,
+    "use": false
   }
 }

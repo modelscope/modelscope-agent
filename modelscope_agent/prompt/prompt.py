@@ -69,7 +69,12 @@ class PromptGenerator:
         self.history = []
         self.messages = []
 
-    def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
+    def init_prompt(self,
+                    task,
+                    tool_list,
+                    knowledge_list,
+                    llm_model=None,
+                    **kwargs):
         """
         in this function, the prompt will be initialized.
         """

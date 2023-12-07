@@ -236,7 +236,6 @@ class AgentExecutor:
             task,
             tool_list,
             knowledge_list,
-            llm=self.llm,
             append_files=append_files,
         )
         function_list = self.prompt_generator.get_function_list(tool_list)

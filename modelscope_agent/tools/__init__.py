@@ -31,6 +31,6 @@ TOOL_INFO_LIST = {
     'amap_weather': 'AMAPWeather',
     'code_interpreter': 'CodeInterpreterJupyter',
     'wordart_texture_generation': 'WordArtTexture',
-    'web_search_utils': 'WebSearch',
+    'web_search': 'WebSearch',
     'web_browser': 'WebBrowser',
 }
