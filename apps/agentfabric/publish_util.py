@@ -8,8 +8,8 @@ import oss2
 
 from modelscope.utils.config import Config
 
-MS_VERSION = '0.2.1'
-DEFAULT_MS_PKG = 'http://dashscope-cn-beijing.oss-cn-beijing.aliyuncs.com/zhicheng/modelscope_agent-version-py3-none-any.whl'  # noqa E501
+MS_VERSION = '0.2.1rc0'
+DEFAULT_MS_PKG = 'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v/modelscope_agent-version-py3-none-any.whl'  # noqa E501
 
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
@@ -95,6 +95,8 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     builder_cfg.knowledge = [
         f.replace(uuid_str, 'local_user') for f in builder_cfg.knowledge
     ]
+    with open(target_conf, 'w') as f:
+        json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
 
     # 复制config目录下所有.json文件到new_directory/config
     config_path = f'{local_file}/config'
