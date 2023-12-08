@@ -155,9 +155,7 @@ with demo:
     i18n = I18n('zh-cn')
     with gr.Row():
         with gr.Column(scale=5):
-            gr.Markdown(
-                '# <center> \N{fire} AgentFabric powered by Modelscope-agent ([github star](https://github.com/modelscope/modelscope-agent/tree/main))</center>'  # noqa E501
-            )
+            header = gr.Markdown(i18n.get('header'))
         with gr.Column(scale=1):
             language = gr.Dropdown(
                 choices=[('中文', 'zh-cn'), ('English', 'en')],
@@ -623,7 +621,9 @@ with demo:
             publish_accordion:
             gr.Accordion(label=i18n.get('publish')),
             upload_button:
-            gr.UploadButton(i18n.get('upload_btn'))
+            gr.UploadButton(i18n.get('upload_btn')),
+            header:
+            gr.Markdown(i18n.get('header')),
         }
 
     language.select(
@@ -632,7 +632,7 @@ with demo:
         outputs=configure_updated_outputs + [
             configure_button, create_chat_input, open_api_accordion,
             preview_header, preview_chat_input, publish_accordion,
-            upload_button
+            upload_button, header
         ])
 
     def init_all(uuid_str, _state):
