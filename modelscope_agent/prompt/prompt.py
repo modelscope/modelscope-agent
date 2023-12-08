@@ -1,6 +1,8 @@
 import copy
 from typing import Union
 
+from modelscope_agent.llm.base import LLM
+
 from .raw_prompt_builder import build_raw_prompt
 
 KNOWLEDGE_PROMPT = '# 知识库'
@@ -8,6 +10,23 @@ KNOWLEDGE_INTRODUCTION_PROMPT = '以下是我上传的文件“<file_name>”的
 KNOWLEDGE_CONTENT_PROMPT = """```
 <knowledge_content>
 ```"""
+
+DEFAULT_PROMPT_INPUT_LENGTH_MAX = 999999999999
+
+
+class LengthConstraint:
+
+    def __init__(self):
+        self.knowledge = DEFAULT_PROMPT_INPUT_LENGTH_MAX
+        self.input = DEFAULT_PROMPT_INPUT_LENGTH_MAX
+        self.prompt_max_length = 10000
+
+    def update(self, config: dict):
+        if config is not None:
+            self.knowledge = config.get('knowledge', self.knowledge)
+            self.input = config.get('input', self.input)
+            self.prompt_max_length = config.get('prompt_max_length',
+                                                self.prompt_max_length)
 
 
 class PromptGenerator:
@@ -19,7 +38,8 @@ class PromptGenerator:
                  exec_template: str = '',
                  assistant_template: str = '',
                  sep='\n\n',
-                 prompt_max_length: int = 10000):
+                 llm=None,
+                 length_constraint=LengthConstraint()):
         """
         prompt genertor
         Args:
@@ -29,8 +49,8 @@ class PromptGenerator:
             exec_template (str, optional): A wrapper str for exec result.
             assistant_template (str, optional): Prefix before assistant response.
             Some LLM need to manully concat this prefix before generation.
-            prompt_max_length (int, optional): max length of prompt. Defaults to 2799.
-
+            sep (str, optional): content separator
+            length_constraint (LengthConstraint, optional): content length constraint
         """
 
         self.system_template = system_template
@@ -39,8 +59,9 @@ class PromptGenerator:
         self.assistant_template = assistant_template
         self.exec_template = exec_template
         self.sep = sep
-
-        self.prompt_max_length = prompt_max_length
+        if isinstance(llm, LLM) and llm.model_id:
+            self.prompt_preprocessor = build_raw_prompt(llm.model_id)
+        self.prompt_max_length = length_constraint.prompt_max_length
         self.reset()
 
     def reset(self):
@@ -48,13 +69,15 @@ class PromptGenerator:
         self.history = []
         self.messages = []
 
-    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
+    def init_prompt(self,
+                    task,
+                    tool_list,
+                    knowledge_list,
+                    llm_model=None,
                     **kwargs):
         """
         in this function, the prompt will be initialized.
         """
-        self.prompt_preprocessor = build_raw_prompt(llm_model)
-
         prompt = self.sep.join(
             [self.system_template, self.instruction_template])
         prompt += '<knowledge><history>'
@@ -92,8 +115,6 @@ class PromptGenerator:
         self.prompt = prompt
 
         self.function_calls = self.get_function_list(tool_list)
-
-        return self.prompt
 
     # TODO change the output from single prompt to artifacts including prompt, messages, funciton_call
     def generate(self, llm_result, exec_result: Union[str, dict]):
@@ -154,7 +175,7 @@ class PromptGenerator:
         """
 
         tool_str = self.sep.join(
-            [f'{i+1}. {t}' for i, t in enumerate(tool_list)])
+            [f'{i + 1}. {t}' for i, t in enumerate(tool_list)])
         return tool_str
 
     # TODO move parse_tools_to_function from agent to here later
@@ -168,7 +189,11 @@ class PromptGenerator:
         functions = [tool.get_function() for tool in tool_list]
         return functions
 
-    def get_knowledge_str(self, knowledge_list, file_name=''):
+    def get_knowledge_str(self,
+                          knowledge_list,
+                          file_name='',
+                          only_content=False,
+                          **kwargs):
         """generate knowledge string
 
         Args:
@@ -178,13 +203,17 @@ class PromptGenerator:
         """
 
         knowledge = self.sep.join(
-            [f'{i+1}. {k}' for i, k in enumerate(knowledge_list)])
-        knowledge_introduction = KNOWLEDGE_INTRODUCTION_PROMPT.replace(
-            '<file_name>', file_name)
+            [f'{i + 1}. {k}' for i, k in enumerate(knowledge_list)])
         knowledge_content = KNOWLEDGE_CONTENT_PROMPT.replace(
             '<knowledge_content>', knowledge)
-        knowledge_str = f'{KNOWLEDGE_PROMPT}{self.sep}{knowledge_introduction}{self.sep}{knowledge_content}' if len(
-            knowledge_list) > 0 else ''
+        if only_content:
+            return knowledge_content
+        else:
+            knowledge_introduction = KNOWLEDGE_INTRODUCTION_PROMPT.replace(
+                '<file_name>', file_name)
+
+            knowledge_str = f'{KNOWLEDGE_PROMPT}{self.sep}{knowledge_introduction}{self.sep}{knowledge_content}' if len(
+                knowledge_list) > 0 else ''
         return knowledge_str
 
     def get_history_str(self):

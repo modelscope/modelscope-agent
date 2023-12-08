@@ -26,6 +26,12 @@ def init_user_chatbot_agent(uuid_str=''):
     # build model
     print(f'using model {builder_cfg.model}')
     print(f'model config {model_cfg[builder_cfg.model]}')
+
+    # # check configuration
+    # if builder_cfg.model in ['qwen-max', 'qwen-72b-api', 'qwen-14b-api', 'qwen-plus']:
+    #     if 'DASHSCOPE_API_KEY' not in os.environ:
+    #         raise gr.Error('DASHSCOPE_API_KEY should be set via setting environment variable')
+
     try:
         llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
     except Exception as e:
@@ -42,6 +48,7 @@ def init_user_chatbot_agent(uuid_str=''):
         addition_assistant_reply='好的。',
         knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
             builder_cfg.knowledge) > 0 else ''),
+        llm=llm,
         uuid_str=uuid_str)
 
     # get knowledge

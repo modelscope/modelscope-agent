@@ -93,7 +93,8 @@ class BuilderChatbotAgent(AgentExecutor):
             tool_cfg,
             agent_type=agent_type,
             additional_tool_list=additional_tool_list,
-            prompt_generator=prompt_generator)
+            prompt_generator=prompt_generator,
+            tool_retrieval=False)
 
         # used to reconstruct assistant message when builder config is updated
         self._last_assistant_structured_response = {}
@@ -106,7 +107,7 @@ class BuilderChatbotAgent(AgentExecutor):
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
-        self.prompt_generator.init_prompt(task, tool_list, [], self.llm.model)
+        self.prompt_generator.init_prompt(task, tool_list, [])
         function_list = []
 
         llm_result, exec_result = '', ''

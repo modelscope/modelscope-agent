@@ -211,6 +211,8 @@ def display(llm_result: Union[str, dict], exec_result: Dict, idx: int,
         display(Audio(exec_result.path))
     elif isinstance(exec_result, dict):
         display(JSON(exec_result))
+    elif isinstance(exec_result, list):
+        display(JSON(exec_result))
     else:
         display(Pretty(exec_result))
 
