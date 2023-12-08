@@ -8,6 +8,9 @@ import oss2
 
 from modelscope.utils.config import Config
 
+MS_VERSION = '0.2.1'
+DEFAULT_MS_PKG = 'http://dashscope-cn-beijing.oss-cn-beijing.aliyuncs.com/zhicheng/modelscope_agent-version-py3-none-any.whl'  # noqa E501
+
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 上传文件到阿里云OSS
@@ -126,9 +129,11 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     # 在requirements.txt中添加新的行
     requirements_file = f'{local_file}/requirements.txt'
     new_requirements_file = f'{new_directory}/requirements.txt'
+    modelscope_agent_pkg = DEFAULT_MS_PKG.replace('version', MS_VERSION)
     with open(requirements_file, 'r') as file:
         content = file.readlines()
     with open(new_requirements_file, 'w') as file:
+        file.write(modelscope_agent_pkg + '\n')
         file.writelines(content)
 
     # 复制.py文件到新目录
