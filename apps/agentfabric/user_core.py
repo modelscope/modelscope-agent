@@ -48,6 +48,7 @@ def init_user_chatbot_agent(uuid_str=''):
         addition_assistant_reply='好的。',
         knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
             builder_cfg.knowledge) > 0 else ''),
+        llm=llm,
         uuid_str=uuid_str)
 
     # get knowledge

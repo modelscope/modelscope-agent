@@ -107,7 +107,7 @@ class BuilderChatbotAgent(AgentExecutor):
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
-        self.prompt_generator.init_prompt(task, tool_list, [], self.llm.model)
+        self.prompt_generator.init_prompt(task, tool_list, [])
         function_list = []
 
         llm_result, exec_result = '', ''
