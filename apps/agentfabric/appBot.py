@@ -71,10 +71,7 @@ with demo:
                 with gr.Column(min_width=70, scale=1):
                     upload_button = gr.UploadButton(
                         '上传',
-                        file_types=[
-                            '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt',
-                            '.md', '.pdf', '.jpeg', '.png', '.jpg', '.gif'
-                        ],
+                        file_types=['file', 'image', 'audio', 'video', 'text'],
                         file_count='multiple')
                 with gr.Column(min_width=70, scale=1):
                     preview_send_button = gr.Button('发送', variant='primary')

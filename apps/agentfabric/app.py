@@ -278,10 +278,7 @@ with demo:
             with gr.Row():
                 upload_button = gr.UploadButton(
                     i18n.get('upload_btn'),
-                    file_types=[
-                        '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt',
-                        '.md', '.pdf', '.jpeg', '.png', '.jpg', '.gif'
-                    ],
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
                     file_count='multiple')
                 preview_send_button = gr.Button(
                     i18n.get('sendOnLoading'), interactive=False)
