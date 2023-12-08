@@ -8,9 +8,12 @@ from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
 
 from modelscope.utils.config import Config
 
-DEFAULT_BUILDER_CONFIG_DIR = '/tmp/config'
-DEFAULT_BUILDER_CONFIG_FILE = '/tmp/config/builder_config.json'
-DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = '/tmp/config/openapi_plugin_config.json'
+DEFAULT_AGENT_DIR = '/tmp/agentfabric'
+DEFAULT_BUILDER_CONFIG_DIR = os.path.join(DEFAULT_AGENT_DIR, 'config')
+DEFAULT_BUILDER_CONFIG_FILE = os.path.join(DEFAULT_BUILDER_CONFIG_DIR,
+                                           'builder_config.json')
+DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = os.path.join(
+    DEFAULT_BUILDER_CONFIG_DIR, 'openapi_plugin_config.json')
 DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
@@ -18,7 +21,7 @@ DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
 
 
 def get_user_dir(uuid_str=''):
-    return os.path.join('config', uuid_str)
+    return os.path.join(DEFAULT_BUILDER_CONFIG_DIR, uuid_str)
 
 
 def get_ci_dir():

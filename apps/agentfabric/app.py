@@ -8,8 +8,8 @@ import gradio as gr
 import json
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
-from config_utils import (Config, get_avatar_image, get_ci_dir,
-                          get_user_cfg_file, get_user_dir,
+from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
+                          get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
@@ -541,8 +541,9 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        user_info = pop_user_info_from_config('/tmp', uuid_str)
-        output_url = prepare_agent_zip(name, '/tmp', uuid_str, state)
+        user_info = pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str)
+        output_url = prepare_agent_zip(name, DEFAULT_AGENT_DIR, uuid_str,
+                                       state)
         # output_url = "https://test.url"
         return format_goto_publish_html(output_url, user_info)
 

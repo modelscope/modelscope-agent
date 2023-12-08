@@ -3,14 +3,14 @@ from http import HTTPStatus
 
 import json
 import requests
-from config_utils import DEFAULT_BUILDER_CONFIG_FILE, get_user_cfg_file
+from config_utils import DEFAULT_BUILDER_CONFIG_DIR, get_user_cfg_file
 from dashscope import ImageSynthesis
 from modelscope_agent.tools import Tool
 
 from modelscope.utils.config import Config
 
-LOGO_PATH = '/tmp/config/custom_bot_avatar.png'
 LOGO_NAME = 'custom_bot_avatar.png'
+LOGO_PATH = os.path.join(DEFAULT_BUILDER_CONFIG_DIR, LOGO_NAME)
 
 CONFIG_FORMAT = """
 {
