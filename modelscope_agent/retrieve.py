@@ -107,7 +107,9 @@ class KnowledgeRetrieval(Retrieval):
                 loader = PyPDFLoader(f)
                 docs += (loader.load_and_split(textsplitter))
             else:
-                raise ValueError(
-                    f'not support file type: {f}, will be support soon')
+                print(f'not support file type: {f}, will be support soon')
 
-        return cls(docs, embedding, vs_cls, top_k, vs_params)
+        if len(docs) == 0:
+            return None
+        else:
+            return cls(docs, embedding, vs_cls, top_k, vs_params)

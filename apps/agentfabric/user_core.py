@@ -57,7 +57,8 @@ def init_user_chatbot_agent(uuid_str=''):
     embeddings = ModelScopeEmbeddings(model_id=model_id)
     available_knowledge_list = []
     for item in builder_cfg.knowledge:
-        if os.path.isfile(item):
+        # if isfile and end with .txt, .md, .pdf, support only those file
+        if os.path.isfile(item) and item.endswith(('.txt', '.md', '.pdf')):
             available_knowledge_list.append(item)
     if len(available_knowledge_list) > 0:
         knowledge_retrieval = KnowledgeRetrieval.from_file(

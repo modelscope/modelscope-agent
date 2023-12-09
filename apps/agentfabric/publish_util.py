@@ -93,7 +93,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     target_conf = os.path.join(local_user_path, 'builder_config.json')
     builder_cfg = Config.from_file(target_conf)
     builder_cfg.knowledge = [
-        f.replace(uuid_str, 'local_user') for f in builder_cfg.knowledge
+        'config/' + f.split('/')[-1] for f in builder_cfg.knowledge
     ]
     with open(target_conf, 'w') as f:
         json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
