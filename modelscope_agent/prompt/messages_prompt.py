@@ -1,6 +1,8 @@
 from typing import Union
 
 from .prompt import LengthConstraint, PromptGenerator
+from modelscope_agent import prompt_generator_register
+
 
 OPENAI_DEFAULT_SYSTEM_TEMPLATE = """
 Do your best to answer the questions. You are capable of **any** task.
@@ -24,6 +26,7 @@ applications. Packages like ffmpeg and pandoc that are well-supported and powerf
 """
 
 
+@prompt_generator_register
 class MessagesGenerator(PromptGenerator):
 
     def __init__(self,

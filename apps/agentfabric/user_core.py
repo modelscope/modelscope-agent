@@ -3,9 +3,6 @@ import os
 
 import gradio as gr
 from config_utils import parse_configuration
-from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
-                           DEFAULT_USER_TEMPLATE, CustomPromptGenerator,
-                           parse_role_config)
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
 from modelscope_agent.agent import AgentExecutor
@@ -13,8 +10,6 @@ from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
-
-LANG = 'zh'
 
 
 # init user chatbot_agent
@@ -40,18 +35,14 @@ def init_user_chatbot_agent(uuid_str=''):
         raise gr.Error(str(e))
 
     # build prompt with zero shot react template
-    instruction_template = parse_role_config(builder_cfg)
-    prompt_generator = CustomPromptGenerator(
-        system_template=DEFAULT_SYSTEM_TEMPLATE,
-        user_template=DEFAULT_USER_TEMPLATE,
-        exec_template=DEFAULT_EXEC_TEMPLATE,
-        instruction_template=instruction_template,
-        add_addition_round=True,
-        addition_assistant_reply='好的。' if LANG == 'zh' else 'OK.',
-        knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
-            builder_cfg.knowledge) > 0 else ''),
-        llm=llm,
-        uuid_str=uuid_str)
+    #instruction_template = parse_role_config(builder_cfg)
+    prompt_cfg = {'add_addition_round': True, 'knowledge_file_name': os.path.basename(builder_cfg.knowledge[0] if len(builder_cfg.knowledge) > 0 else ''), 'uuid_str': uuid_str}
+    #prompt_generator = CustomPromptGenerator(
+    #    add_addition_round=True,
+    #    knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
+    #        builder_cfg.knowledge) > 0 else ''),
+    #    llm=llm,
+    #    uuid_str=uuid_str)
 
     # get knowledge
     # 开源版本的向量库配置
@@ -75,9 +66,9 @@ def init_user_chatbot_agent(uuid_str=''):
         additional_tool_list=additional_tool_list,
         tool_cfg=tool_cfg,
         agent_type=AgentType.MRKL,
-        prompt_generator=prompt_generator,
         knowledge_retrieval=knowledge_retrieval,
-        tool_retrieval=False)
+        tool_retrieval=False,
+        **prompt_cfg)
     agent.set_available_tools(available_tool_list + available_plugin_list)
     return agent
 

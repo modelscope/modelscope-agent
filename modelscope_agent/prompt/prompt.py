@@ -44,7 +44,8 @@ class PromptGenerator:
                  assistant_template: str = '',
                  sep='\n\n',
                  llm=None,
-                 length_constraint=LengthConstraint()):
+                 length_constraint=LengthConstraint(),
+                 **kwargs):
         """
         prompt genertor
         Args:

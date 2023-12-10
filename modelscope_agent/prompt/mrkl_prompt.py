@@ -47,7 +47,8 @@ class MrklPromptGenerator(PromptGenerator):
                  assistant_template='',
                  sep='\n\n',
                  llm=None,
-                 length_constraint=LengthConstraint()):
+                 length_constraint=LengthConstraint(),
+                 **kwargs):
         super().__init__(
             system_template=system_template,
             instruction_template=instruction_template,

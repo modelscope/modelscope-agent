@@ -1,6 +1,7 @@
 import json
 
 from .prompt import LengthConstraint, PromptGenerator
+from modelscope_agent import prompt_generator_register
 
 CHATGLM_DEFAULT_SYSTEM_TEMPLATE = """<|system|>
 Answer the following questions as best you can. You have access to the following tools:
@@ -15,6 +16,7 @@ CHATGLM_DEFAULT_EXEC_TEMPLATE = """<|observation|>\n<exec_result>"""
 CHATGLM_DEFAULT_ASSISTANT_TEMPLATE = """<|assistant|>"""
 
 
+@prompt_generator_register
 class ChatGLMPromptGenerator(PromptGenerator):
 
     def __init__(self,
@@ -24,7 +26,8 @@ class ChatGLMPromptGenerator(PromptGenerator):
                  exec_template=CHATGLM_DEFAULT_EXEC_TEMPLATE,
                  assistant_template=CHATGLM_DEFAULT_ASSISTANT_TEMPLATE,
                  sep='\n',
-                 length_constraint=LengthConstraint()):
+                 length_constraint=LengthConstraint(),
+                 **kwargs):
         super().__init__(
             system_template=system_template,
             instruction_template=instruction_template,

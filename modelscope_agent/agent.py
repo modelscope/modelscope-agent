@@ -21,8 +21,10 @@ class AgentExecutor:
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
                  output_parser: Optional[OutputParser] = None,
+                 prompt_parser_cfg: Optional[Dict] = {},
                  tool_retrieval: Optional[Union[bool, ToolRetrieval]] = True,
-                 knowledge_retrieval: Optional[KnowledgeRetrieval] = None):
+                 knowledge_retrieval: Optional[KnowledgeRetrieval] = None,
+                 **kwargs):
         """
         the core class of ms agent. It is responsible for the interaction between user, llm and tools,
         and return the execution result to user.
@@ -49,7 +51,7 @@ class AgentExecutor:
         self.agent_type = agent_type
         self.llm.set_agent_type(agent_type)
         self.prompt_generator = prompt_generator or get_prompt_generator(
-            agent_type)
+            agent_type, llm, prompt_parser_cfg, **kwargs)
         self.output_parser = output_parser or get_output_parser(agent_type)
 
         self._init_tools(tool_cfg, additional_tool_list)
