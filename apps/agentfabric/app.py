@@ -290,10 +290,7 @@ with demo:
             with gr.Row():
                 upload_button = gr.UploadButton(
                     i18n.get('upload_btn'),
-                    file_types=[
-                        '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt',
-                        '.md', '.pdf', '.jpeg', '.png', '.jpg', '.gif'
-                    ],
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
                     file_count='multiple')
                 preview_send_button = gr.Button(
                     i18n.get('sendOnLoading'), interactive=False)
@@ -559,7 +556,11 @@ with demo:
                 shutil.copy(file.name, file_path)
                 file_paths.append(file_path)
             new_file_paths.append(file_path)
-            chatbot.append((None, f'上传文件{file_name}，成功'))
+            if file_name.endswith(('.jpeg', '.png', '.jpg')):
+                chatbot += [((file_path, ), None)]
+
+            else:
+                chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
             user_chat_bot_cover: gr.HTML.update(visible=False),
@@ -577,12 +578,15 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        user_info = pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str)
-        output_url = prepare_agent_zip(name, DEFAULT_AGENT_DIR, uuid_str,
-                                       state)
+        env_params = {}
+        env_params.update(
+            pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
+        output_url, envs_required = prepare_agent_zip(name, DEFAULT_AGENT_DIR,
+                                                      uuid_str, state)
+        env_params.update(envs_required)
         # output_url = "https://test.url"
         return format_goto_publish_html(
-            i18n.get_whole('publish'), output_url, user_info)
+            i18n.get_whole('publish'), output_url, env_params)
 
     publish_button.click(
         publish_agent,
@@ -673,4 +677,4 @@ with demo:
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
 
 demo.queue(concurrency_count=10)
-demo.launch()
+demo.launch(show_error=True)

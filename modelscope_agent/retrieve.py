@@ -74,14 +74,8 @@ class KnowledgeRetrieval(Retrieval):
         super().__init__(embedding, vs_cls, top_k, vs_params)
         self.construct(docs)
 
-    @classmethod
-    def from_file(cls,
-                  file_path: Union[str, list],
-                  embedding: Embeddings = None,
-                  vs_cls: VectorStore = None,
-                  top_k: int = 5,
-                  vs_params: Dict = {}):
-
+    @staticmethod
+    def file_preprocess(file_path):
         textsplitter = CharacterTextSplitter()
         all_files = []
         if isinstance(file_path, str) and os.path.isfile(file_path):
@@ -107,9 +101,37 @@ class KnowledgeRetrieval(Retrieval):
                 loader = PyPDFLoader(f)
                 docs += (loader.load_and_split(textsplitter))
             else:
-                print(f'not support file type: {f}, will be support soon')
+                raise ValueError(
+                    f'not support file type: {f}, will be support soon')
+        return docs
+
+    @classmethod
+    def from_file(cls,
+                  file_path: Union[str, list],
+                  embedding: Embeddings = None,
+                  vs_cls: VectorStore = None,
+                  top_k: int = 5,
+                  vs_params: Dict = {}):
+        # default embedding and vs class
+        if embedding is None:
+            model_id = 'damo/nlp_gte_sentence-embedding_chinese-base'
+            embedding = ModelScopeEmbeddings(model_id=model_id)
+        if vs_cls is None:
+            vs_cls = FAISS
+        docs = KnowledgeRetrieval.file_preprocess(file_path)
 
         if len(docs) == 0:
             return None
         else:
             return cls(docs, embedding, vs_cls, top_k, vs_params)
+
+    def add_file(self, file_path: Union[str, list]):
+        docs = KnowledgeRetrieval.file_preprocess(file_path)
+        self.add_docs(docs)
+
+    def add_docs(self, docs):
+        assert len(docs) > 0
+        if isinstance(docs[0], str):
+            self.vs.add_texts(docs, **self.vs_params)
+        elif isinstance(docs[0], Document):
+            self.vs.add_documents(docs, **self.vs_params)

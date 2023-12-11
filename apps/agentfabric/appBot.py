@@ -73,10 +73,7 @@ with demo:
                 with gr.Column(min_width=70, scale=1):
                     upload_button = gr.UploadButton(
                         '上传',
-                        file_types=[
-                            '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt',
-                            '.md', '.pdf', '.jpeg', '.png', '.jpg', '.gif'
-                        ],
+                        file_types=['file', 'image', 'audio', 'video', 'text'],
                         file_count='multiple')
                 with gr.Column(min_width=70, scale=1):
                     preview_send_button = gr.Button('发送', variant='primary')
@@ -107,7 +104,11 @@ with demo:
                 shutil.copy(file.name, file_path)
                 file_paths.append(file_path)
             new_file_paths.append(file_path)
-            chatbot.append((None, f'上传文件{file_name}，成功'))
+            if file_name.endswith(('.jpeg', '.png', '.jpg')):
+                chatbot += [((file_path, ), None)]
+
+            else:
+                chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
             preview_chat_input: gr.Textbox.update(value='')
@@ -136,29 +137,39 @@ with demo:
         }
 
         response = ''
+        try:
+            for frame in user_agent.stream_run(
+                    input,
+                    print_info=True,
+                    remote=False,
+                    append_files=new_file_paths):
+                # is_final = frame.get("frame_is_final")
+                llm_result = frame.get('llm_text', '')
+                exec_result = frame.get('exec_result', '')
+                # llm_result = llm_result.split("<|user|>")[0].strip()
+                if len(exec_result) != 0:
+                    # action_exec_result
+                    if isinstance(exec_result, dict):
+                        exec_result = str(exec_result['result'])
+                    frame_text = f'<result>{exec_result}</result>'
+                else:
+                    # llm result
+                    frame_text = llm_result
 
-        for frame in user_agent.stream_run(
-                input, print_info=True, remote=False,
-                append_files=new_file_paths):
-            # is_final = frame.get("frame_is_final")
-            llm_result = frame.get('llm_text', '')
-            exec_result = frame.get('exec_result', '')
-            # llm_result = llm_result.split("<|user|>")[0].strip()
-            if len(exec_result) != 0:
-                # action_exec_result
-                if isinstance(exec_result, dict):
-                    exec_result = str(exec_result['result'])
-                frame_text = f'<result>{exec_result}</result>'
+                # important! do not change this
+                response += frame_text
+                chatbot[-1] = (input, response)
+                yield {
+                    user_chatbot: chatbot,
+                }
+        except Exception as e:
+            if 'dashscope.common.error.AuthenticationError' in str(e):
+                msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
+                    'https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key'
             else:
-                # llm result
-                frame_text = llm_result
-
-            # important! do not change this
-            response += frame_text
-            chatbot[-1] = (input, response)
-            yield {
-                user_chatbot: chatbot,
-            }
+                msg = str(e)
+            chatbot[-1] = (input, msg)
+            yield {user_chatbot: chatbot}
 
     preview_send_button.click(
         send_message,
