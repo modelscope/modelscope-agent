@@ -120,7 +120,10 @@ class KnowledgeRetrieval(Retrieval):
             vs_cls = FAISS
         docs = KnowledgeRetrieval.file_preprocess(file_path)
 
-        return cls(docs, embedding, vs_cls, top_k, vs_params)
+        if len(docs) == 0:
+            return None
+        else:
+            return cls(docs, embedding, vs_cls, top_k, vs_params)
 
     def add_file(self, file_path: Union[str, list]):
         docs = KnowledgeRetrieval.file_preprocess(file_path)

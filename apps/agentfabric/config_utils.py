@@ -94,9 +94,11 @@ def get_avatar_image(bot_avatar, uuid_str=''):
                 temp_bot_avatar_path = os.path.join(DEFAULT_BUILDER_CONFIG_DIR,
                                                     bot_avatar)
                 if not os.path.exists(temp_bot_avatar_path):
-                    # fall back to default avatar image
-                    temp_bot_avatar_path = os.path.join(
-                        './config', 'custom_bot_avatar.png')
+                    # fall back to default local avatar image
+                    temp_bot_avatar_path = os.path.join('./config', bot_avatar)
+                    if not os.path.exists(temp_bot_avatar_path):
+                        temp_bot_avatar_path = os.path.join(
+                            './config', 'custom_bot_avatar.png')
 
                 shutil.copy(temp_bot_avatar_path, bot_avatar_path)
 
