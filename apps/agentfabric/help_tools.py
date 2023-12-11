@@ -6,6 +6,7 @@ import requests
 from config_utils import DEFAULT_BUILDER_CONFIG_DIR, get_user_cfg_file
 from dashscope import ImageSynthesis
 from modelscope_agent.tools import Tool
+from modelscope_agent.utils.logger import logger
 
 from modelscope.utils.config import Config
 
@@ -56,7 +57,7 @@ def get_logo_path(uuid_str=''):
     return logo_path
 
 
-def call_wanx(prompt, save_path):
+def call_wanx(prompt, save_path, uuid_str):
     rsp = ImageSynthesis.call(
         model=ImageSynthesis.Models.wanx_v1,
         prompt=prompt,
@@ -71,8 +72,14 @@ def call_wanx(prompt, save_path):
             with open(save_path, 'wb+') as f:
                 f.write(requests.get(result.url).content)
     else:
-        print('Failed, status_code: %s, code: %s, message: %s' %
-              (rsp.status_code, rsp.code, rsp.message))
+        logger.error(
+            uuid=uuid_str,
+            error='wanx error',
+            content={
+                'wanx_status_code': rsp.status_code,
+                'wanx_code': rsp.code,
+                'wanx_message': rsp.message
+            })
 
 
 class LogoGeneratorTool(Tool):
@@ -97,7 +104,9 @@ class LogoGeneratorTool(Tool):
             description=builder_cfg.description,
             user_requirement=user_requirement)
         call_wanx(
-            prompt=avatar_prompt, save_path=get_logo_path(uuid_str=uuid_str))
+            prompt=avatar_prompt,
+            save_path=get_logo_path(uuid_str=uuid_str),
+            uuid_str=uuid_str)
         builder_cfg.avatar = LOGO_NAME
         return {'result': builder_cfg}
 

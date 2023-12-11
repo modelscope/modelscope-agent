@@ -41,6 +41,7 @@ class JsonFormatter(logging.Formatter):
             'uuid': getattr(record, 'uuid', None),
             'request_id': getattr(record, 'request_id', None),
             'content': getattr(record, 'content', None),
+            'error': getattr(record, 'error', None),
             'step': getattr(record, 'step', None)
         }
         # Clean up any extra fields that are None (not provided)
@@ -48,6 +49,42 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             log_record['exc_info'] = self.formatException(record.exc_info)
         return json.dumps(log_record)
+
+
+class TextFormatter(logging.Formatter):
+    """
+    Custom formatter to output logs in text format.
+    """
+
+    def format(self, record):
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        level = record.levelname
+        message = record.getMessage()
+
+        # Collect additional fields if they are in the 'extra' dict
+        uuid = getattr(record, 'uuid', '-')
+        request_id = getattr(record, 'request_id', '-')
+        content = getattr(record, 'content', '-')
+        step = getattr(record, 'step', '-')
+        error = getattr(record, 'error', '-')
+
+        # Format the log record as text
+        log_message = f'[{timestamp}] {level}: {message}'
+        if uuid != '-':
+            log_message += f' | UUID: {uuid}'
+        if request_id != '-':
+            log_message += f' | Request ID: {request_id}'
+        if content != '-':
+            log_message += f' | Content: {content}'
+        if step != '-':
+            log_message += f' | Step: {step}'
+        if error != '-':
+            log_message += f' | Step: {error}'
+
+        if record.exc_info:
+            log_message += f' | Exception: {self.formatException(record.exc_info)}'
+
+        return log_message
 
 
 class Logger:
@@ -71,8 +108,7 @@ class Logger:
         if log_format_env == 'json':
             formatter = JsonFormatter()
         else:
-            formatter = logging.Formatter(
-                '[%(asctime)s] [%(levelname)s] %(message)s')
+            formatter = TextFormatter()
 
         # Create console handler
         console_handler = logging.StreamHandler()
@@ -132,7 +168,8 @@ class AgentLogger:
              request_id: str = 'default_request_id',
              content: Dict = None,
              step: str = '',
-             message: str = ''):
+             message: str = '',
+             error: str = ''):
         if content is None:
             content = {}
 
@@ -142,7 +179,8 @@ class AgentLogger:
                 'uuid': uuid,
                 'request_id': request_id,
                 'content': content,
-                'step': step
+                'step': step,
+                'error': error
             })
 
     def error(self,
@@ -150,7 +188,8 @@ class AgentLogger:
               request_id: str = 'default_request_id',
               content: Dict = None,
               step: str = '',
-              message: str = ''):
+              message: str = '',
+              error: str = ''):
         if content is None:
             content = {}
 
@@ -160,7 +199,8 @@ class AgentLogger:
                 'uuid': uuid,
                 'request_id': request_id,
                 'content': content,
-                'step': step
+                'step': step,
+                'error': error
             })
 
 

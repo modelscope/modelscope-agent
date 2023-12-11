@@ -1,12 +1,12 @@
 import os
 import random
 import shutil
-import sys
 import traceback
 
 import gradio as gr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import ChatBot, format_cover_html
+from modelscope_agent.utils.logger import logger
 from user_core import init_user_chatbot_agent
 
 uuid_str = 'local_user'
@@ -37,8 +37,10 @@ def init_user(state):
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
     return state
 
 
