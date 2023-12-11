@@ -332,7 +332,7 @@ with demo:
 
     # 初始化表单
     def init_ui_config(uuid_str, _state, builder_cfg, model_cfg, tool_cfg):
-        logger.error(
+        logger.info(
             uuid=uuid_str,
             message='builder_cfg',
             content={'builder_cfg': builder_cfg})
