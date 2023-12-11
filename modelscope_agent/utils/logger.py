@@ -57,7 +57,7 @@ class TextFormatter(logging.Formatter):
     """
 
     def format(self, record):
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         level = record.levelname
         message = record.getMessage()
 
@@ -69,17 +69,18 @@ class TextFormatter(logging.Formatter):
         error = getattr(record, 'error', '-')
 
         # Format the log record as text
-        log_message = f'[{timestamp}] {level}: {message}'
+        log_message = f'{timestamp} - {LOG_NAME} - {level} - '
+        log_message = log_message + f' | message: {message}'
         if uuid != '-':
-            log_message += f' | UUID: {uuid}'
+            log_message += f' | uuid: {uuid}'
         if request_id != '-':
-            log_message += f' | Request ID: {request_id}'
+            log_message += f' | request_id: {request_id}'
         if content != '-':
-            log_message += f' | Content: {content}'
+            log_message += f' | content: {content}'
         if step != '-':
-            log_message += f' | Step: {step}'
+            log_message += f' | step: {step}'
         if error != '-':
-            log_message += f' | Step: {error}'
+            log_message += f' | error: {error}'
 
         if record.exc_info:
             log_message += f' | Exception: {self.formatException(record.exc_info)}'
