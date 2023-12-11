@@ -152,7 +152,12 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     shutil.rmtree(new_directory)
 
-    return file_url
+    # 获取必须设置的envs
+    envs_required = {}
+    for t in builder_cfg.tools:
+        if t == 'amap_weather':
+            envs_required['AMAP_TOKEN'] = 'Your-AMAP-TOKEN'
+    return file_url, envs_required
 
 
 if __name__ == '__main__':
