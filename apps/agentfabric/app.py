@@ -660,4 +660,4 @@ with demo:
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
 
 demo.queue(concurrency_count=10)
-demo.launch()
+demo.launch(show_error=True)
