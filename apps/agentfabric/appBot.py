@@ -105,7 +105,11 @@ with demo:
                 shutil.copy(file.name, file_path)
                 file_paths.append(file_path)
             new_file_paths.append(file_path)
-            chatbot.append((None, f'上传文件{file_name}，成功'))
+            if file_name.endswith(('.jpeg', '.png', '.jpg')):
+                chatbot += [((file_path, ), None)]
+
+            else:
+                chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
             preview_chat_input: gr.Textbox.update(value='')
