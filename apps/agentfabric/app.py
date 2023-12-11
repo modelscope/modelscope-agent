@@ -219,6 +219,11 @@ with demo:
                             type='array',
                             col_count=(1, 'fixed'),
                             interactive=True)
+                        gr.Markdown(
+                            '*注意：知识库上传的文本文档默认按照\\n\\n切分，pdf默认按照页切分。如果片段'
+                            '对应的字符大于[配置文件](https://github.com/modelscope/modelscope-agent/'
+                            'blob/master/apps/agentfabric/config/model_config.json)中指定模型的'
+                            'knowledge限制，则在被召回时有可能会被截断。*')
                         knowledge_input = gr.File(
                             label=i18n.get('form_knowledge'),
                             file_count='multiple',
