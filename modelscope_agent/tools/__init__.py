@@ -5,6 +5,7 @@ from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
 from .pipeline_tool import ModelscopePipelineTool
 from .plugin_tool import LangchainTool
+from .qwen_vl import QWenVL
 from .text_address_tool import TextAddressTool
 from .text_ie_tool import TextInfoExtractTool
 from .text_ner_tool import TextNerTool
@@ -33,4 +34,5 @@ TOOL_INFO_LIST = {
     'wordart_texture_generation': 'WordArtTexture',
     'web_search': 'WebSearch',
     'web_browser': 'WebBrowser',
+    'qwen_vl': 'QWenVL',
 }
