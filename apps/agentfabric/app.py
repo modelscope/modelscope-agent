@@ -561,12 +561,15 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        user_info = pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str)
-        output_url = prepare_agent_zip(name, DEFAULT_AGENT_DIR, uuid_str,
-                                       state)
+        env_params = {}
+        env_params.update(
+            pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
+        output_url, envs_required = prepare_agent_zip(name, DEFAULT_AGENT_DIR,
+                                                      uuid_str, state)
+        env_params.update(envs_required)
         # output_url = "https://test.url"
         return format_goto_publish_html(
-            i18n.get_whole('publish'), output_url, user_info)
+            i18n.get_whole('publish'), output_url, env_params)
 
     publish_button.click(
         publish_agent,
