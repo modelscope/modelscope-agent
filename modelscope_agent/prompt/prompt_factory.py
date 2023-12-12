@@ -19,7 +19,7 @@ class PromptGeneratorFactory:
                              cfg: Dict = None,
                              **kwargs):
 
-        # cfg eg. {"prompt_generator": "MessagesGenerator", "action_parser": "MessagesActionParser"}
+        # cfg eg. {"prompt_generator": "MessagesGenerator", "action_parser": "MRKLActionParser"}
         if cfg:
             prompt_generator = cfg.get('prompt_generator', None)
             print('prompt_generator: {prompt_generator}')

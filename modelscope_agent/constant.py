@@ -2,11 +2,11 @@ DEFAULT_MODEL_CONFIG = {
     'qwen': {
         'en': {
             'prompt_generator': 'CustomPromptGenerator',
-            'action_parser': 'MessagesActionParser'
+            'action_parser': 'MRKLActionParser'
         },
         'zh': {
             'prompt_generator': 'ZhCustomPromptGenerator',
-            'action_parser': 'MessagesActionParser'
+            'action_parser': 'MRKLActionParser'
         }
     },
     'chatglm': {

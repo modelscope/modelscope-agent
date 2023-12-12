@@ -10,6 +10,9 @@ class ActionParser:
     """Output parser for llm response
     """
 
+    def __init__(self, **kwargs):
+        self.tools = kwargs.get('tools', None)
+
     def parse_response(self, response):
         raise NotImplementedError
 

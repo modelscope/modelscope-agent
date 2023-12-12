@@ -18,7 +18,7 @@ class ActionParserFactory:
                           cfg: Dict = None,
                           **kwargs):
 
-        # cfg eg. {"prompt_generator": "MessagesGenerator", "action_parser": "MessagesActionParser"}
+        # cfg eg. {"prompt_generator": "MessagesGenerator", "action_parser": "MRKLActionParser"}
         if cfg:
             action_parser = cfg.get('action_parser', None)
             print('action_parser: {action_parser}')
