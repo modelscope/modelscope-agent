@@ -227,7 +227,9 @@ with demo:
                         knowledge_input = gr.File(
                             label=i18n.get('form_knowledge'),
                             file_count='multiple',
-                            file_types=['text', '.json', '.csv', '.pdf', 'md'])
+                            file_types=[
+                                'text', '.json', '.csv', '.pdf', '.md'
+                            ])
                         capabilities_checkboxes = gr.CheckboxGroup(
                             label=i18n.get('form_capabilities'))
 
