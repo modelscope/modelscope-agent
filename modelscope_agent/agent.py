@@ -21,8 +21,8 @@ class AgentExecutor:
                  agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Union[PromptGenerator, str] = None,
-                 action_parser: Optional[ActionParser] = None,
-                 tool_retrieval: Optional[Union[bool, ToolRetrieval]] = True,
+                 action_parser: Union[ActionParser, str] = None,
+                 tool_retrieval: Optional[Union[bool, ToolRetrieval]] = False,
                  knowledge_retrieval: Optional[KnowledgeRetrieval] = None,
                  **kwargs):
         """
@@ -54,12 +54,12 @@ class AgentExecutor:
             self.prompt_generator = prompt_generator
         else:
             self.prompt_generator = get_prompt_generator(
-                agent_type, llm, **kwargs)
+                agent_type, llm, prompt_generator=prompt_generator, **kwargs)
 
         if issubclass(action_parser.__class__, ActionParser):
             self.action_parser = action_parser
         else:
-            self.action_parser = get_action_parser(agent_type, llm, **kwargs)
+            self.action_parser = get_action_parser(agent_type, llm, action_parser=action_parser, **kwargs)
 
         self._init_tools(tool_cfg, additional_tool_list)
 

@@ -9,7 +9,7 @@ DEFAULT_MODEL_CONFIG = {
             'action_parser': 'MRKLActionParser'
         }
     },
-    'qwen_plus': {
+    'qwen-plus': {
         'prompt_generator': 'MessagesGenerator',
         'action_parser': 'MRKLActionParser'
     },

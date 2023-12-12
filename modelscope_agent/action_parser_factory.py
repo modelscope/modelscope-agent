@@ -69,13 +69,13 @@ class ActionParserFactory:
         return None
 
     def _get_action_parser_by_agent_type(
-            agent_type: AgentType = AgentType.DEFAULT):
+            agent_type: AgentType = AgentType.DEFAULT, **kwargs):
         if AgentType.DEFAULT == agent_type or agent_type == AgentType.MS_AGENT:
-            return MsActionParser()
+            return MsActionParser(**kwargs)
         elif AgentType.MRKL == agent_type:
-            return MRKLActionParser()
+            return MRKLActionParser(**kwargs)
         elif AgentType.Messages == agent_type:
-            return OpenAiFunctionsActionParser()
+            return OpenAiFunctionsActionParser(**kwargs)
         else:
             raise NotImplementedError
 

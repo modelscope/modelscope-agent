@@ -12,8 +12,8 @@ model_cfg = Config.from_file(model_cfg_file)
 
 @prompt_generator_register
 class TestPromptGenerator(PromptGenerator):
-    def __init__(self, system_template='测试一下注册器'):
-        super().__init__(system_template=system_template)
+    def __init__(self, system_template='测试一下注册器', **kwargs):
+        super().__init__(system_template=system_template, **kwargs)
 
 
 def test_cfg():

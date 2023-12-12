@@ -21,13 +21,13 @@ class PromptGeneratorFactory:
 
         prompt_generator = kwargs.get('prompt_generator', None)
         if prompt_generator:
-            print('prompt_generator: {prompt_generator}')
+            print(f'prompt_generator: {prompt_generator}')
             return cls._string_to_obj(prompt_generator, llm=model, **kwargs)
 
         if model:
             language = kwargs.pop('language', 'en')
             prompt_generator = cls._get_model_default_type(model, language)
-            print('prompt_generator: {prompt_generator}')
+            print(f'prompt_generator: {prompt_generator}')
             if prompt_generator:
                 return cls._string_to_obj(
                     prompt_generator, llm=model, **kwargs)
@@ -61,9 +61,11 @@ class PromptGeneratorFactory:
 
         candidate = []
         for key in DEFAULT_MODEL_CONFIG.keys():
+            print(f'model_id: {model_id}, key: {key}')
             if model_id.startswith(key):
                 candidate.append(key)
 
+        print(f'candidate: {candidate}')
         full_model_id = max(candidate, key=len, default=None)
         if full_model_id:
             model_cfg = DEFAULT_MODEL_CONFIG.get(full_model_id, {})
