@@ -3,20 +3,10 @@ from typing import Dict, Tuple
 
 import json
 from modelscope_agent.agent_types import AgentType
+from modelscope_agent import action_parser_register
 
 
-def get_output_parser(agent_type: AgentType = AgentType.DEFAULT):
-    if AgentType.DEFAULT == agent_type or agent_type == AgentType.MS_AGENT:
-        return MsOutputParser()
-    elif AgentType.MRKL == agent_type:
-        return MRKLOutputParser()
-    elif AgentType.Messages == agent_type:
-        return OpenAiFunctionsOutputParser()
-    else:
-        raise NotImplementedError
-
-
-class OutputParser:
+class ActionParser:
     """Output parser for llm response
     """
 
@@ -31,10 +21,11 @@ class OutputParser:
             parameters = {'fallback': action_para}
             return action, parameters
         else:
-            raise ValueError('Wrong response format for output parser')
+            raise ValueError('Wrong response format for action parser')
 
 
-class MsOutputParser(OutputParser):
+@action_parser_register
+class MsActionParser(ActionParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -68,10 +59,11 @@ class MsOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return OutputParser.handle_fallback(action, parameters)
+            return ActionParser.handle_fallback(action, parameters)
 
 
-class ChatGLMOutputParser(OutputParser):
+@action_parser_register
+class ChatGLMActionParser(ActionParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -104,13 +96,14 @@ class ChatGLMOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return OutputParser.handle_fallback(action, action_para)
+            return ActionParser.handle_fallback(action, action_para)
 
         print(f'\n\naction: {action}\n parameters: {parameters}\n\n')
         return action, parameters
 
 
-class MRKLOutputParser(OutputParser):
+@action_parser_register
+class MRKLActionParser(ActionParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -139,10 +132,11 @@ class MRKLOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return OutputParser.handle_fallback(action, action_para)
+            return ActionParser.handle_fallback(action, action_para)
 
 
-class OpenAiFunctionsOutputParser(OutputParser):
+@action_parser_register
+class OpenAiFunctionsActionParser(ActionParser):
 
     def parse_response(self, response: dict) -> Tuple[str, Dict]:
         """parse response of llm to get tool name and parameters
@@ -177,5 +171,5 @@ class OpenAiFunctionsOutputParser(OutputParser):
         except Exception as e:
             print(
                 f'Error during parse action might be handled with detail {e}')
-            return OutputParser.handle_fallback(function_call['name'],
+            return ActionParser.handle_fallback(function_call['name'],
                                                 function_call['arguments'])

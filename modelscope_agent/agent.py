@@ -5,7 +5,8 @@ from typing import Dict, List, Optional, Union
 
 from .agent_types import AgentType
 from .llm import LLM
-from .output_parser import OutputParser, get_output_parser
+from .action_parser import ActionParser
+from .action_parser_factory import get_action_parser
 from .output_wrapper import display
 from .prompt import PromptGenerator, get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
@@ -20,7 +21,7 @@ class AgentExecutor:
                  agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
                  prompt_generator: Optional[PromptGenerator] = None,
-                 output_parser: Optional[OutputParser] = None,
+                 action_parser: Optional[ActionParser] = None,
                  prompt_parser_cfg: Optional[Dict] = {},
                  tool_retrieval: Optional[Union[bool, ToolRetrieval]] = True,
                  knowledge_retrieval: Optional[KnowledgeRetrieval] = None,
@@ -37,8 +38,8 @@ class AgentExecutor:
             additional_tool_list (Optional[Dict], optional): user-defined additional tool list. Defaults to {}.
             prompt_generator (Optional[PromptGenerator], optional): this module is responsible for generating prompt
             according to interaction result. Defaults to use MSPromptGenerator.
-            output_parser (Optional[OutputParser], optional): this module is responsible for parsing output of llm
-            to executable actions. Defaults to use MsOutputParser.
+            action_parser (Optional[ActionParser], optional): this module is responsible for parsing output of llm
+            to executable actions. Defaults to use MsActionParser.
             tool_retrieval (Optional[Union[bool, ToolRetrieval]], optional): Retrieve related tools by input task,
             since most of the tools may be useless for LLM in specific task.
             If it is bool type and is True, will use default tool_retrieval. Defaults to True.
@@ -52,7 +53,7 @@ class AgentExecutor:
         self.llm.set_agent_type(agent_type)
         self.prompt_generator = prompt_generator or get_prompt_generator(
             agent_type, llm, prompt_parser_cfg, **kwargs)
-        self.output_parser = output_parser or get_output_parser(agent_type)
+        self.action_parser = action_parser or get_action_parser(agent_type, llm, prompt_parser_cfg, **kwargs)
 
         self._init_tools(tool_cfg, additional_tool_list)
 
@@ -174,7 +175,7 @@ class AgentExecutor:
 
             # parse and get tool name and arguments
             try:
-                action, action_args = self.output_parser.parse_response(
+                action, action_args = self.action_parser.parse_response(
                     llm_result)
             except ValueError as e:
                 return [{'exec_result': f'{e}'}]
@@ -269,7 +270,7 @@ class AgentExecutor:
 
             # parse and get tool name and arguments
             try:
-                action, action_args = self.output_parser.parse_response(
+                action, action_args = self.action_parser.parse_response(
                     llm_result)
             except ValueError as e:
                 yield {'exec_result': f'{e}'}

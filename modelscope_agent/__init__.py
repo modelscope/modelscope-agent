@@ -6,6 +6,9 @@ action_parser_register = Register()
 import modelscope_agent.prompt
 import apps.agentfabric
 
+from modelscope_agent.action_parser_factory import get_action_parser
+
+
 # PROMPT_MODULES = ["prompt"]
 # 
 # ALL_MODULES = [("modelscope_agent", PROMPT_MODULES)]

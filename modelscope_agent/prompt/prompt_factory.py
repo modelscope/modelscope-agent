@@ -1,36 +1,19 @@
-from typing import Dict, Union
+from typing import Dict
 from modelscope_agent import prompt_generator_register
 from modelscope_agent.llm import LLM
 from modelscope_agent.agent_types import AgentType
+from modelscope_agent.constant import DEFAULT_MODEL_CONFIG
 
 from .messages_prompt import MessagesGenerator
 from .mrkl_prompt import MrklPromptGenerator
 from .ms_prompt import MSPromptGenerator
 
 
-DEFAULT_MODEL_CONFIG = {
-    "qwen": {
-        "en": {
-            "prompt_generator": "CustomPromptGenerator",
-            "action_parser": "MessagesOutputParser"
-        },
-        "zh": {
-            "prompt_generator": "ZhCustomPromptGenerator",
-            "action_parser": "MessagesOutputParser"
-        }
-    },
-    "chatglm": {
-        "prompt_generator": "ChatGLMPromptGenerator",
-        "action_parser": "ChatGLMOutputParser"
-    },
-    "gpt": {}
-}
-
 class PromptGeneratorFactory:
     @classmethod
     def get_prompt_generator(cls, agent_type: AgentType = AgentType.DEFAULT, model: LLM = None, cfg: Dict = None, **kwargs):
       
-        # cfg eg. {"prompt_generator": "MessagesGenerator", "output_parser": "MessagesOutputParser"}
+        # cfg eg. {"prompt_generator": "MessagesGenerator", "action_parser": "MessagesActionParser"}
         if cfg:
             prompt_generator = cfg.get("prompt_generator", None)
             print('prompt_generator: {prompt_generator}')
