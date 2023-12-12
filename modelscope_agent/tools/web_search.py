@@ -11,7 +11,7 @@ class WebSearch(Tool):
     description = 'surfacing relevant information from billions of web documents. Help ' \
                   'you find what you are looking for from the world-wide-web to comb ' \
                   'billions of webpages, images, videos, and news.'
-    name = 'web_search_utils'
+    name = 'web_search'
     parameters: list = [{
         'name': 'query',
         'description':
@@ -20,7 +20,7 @@ class WebSearch(Tool):
     }]
 
     def __init__(self, cfg={}):
-        super().__init__()
+        super().__init__(cfg)
         available_searchers = get_websearcher_cls()
         all_searchers = AuthenticationKey.to_dict()
         if not len(available_searchers):
@@ -28,10 +28,10 @@ class WebSearch(Tool):
                 f'At least one of web search api token should be set: {all_searchers}'
             )
 
-        searcher = cfg.pop('searcher', None)
+        searcher = self.cfg.get('searcher', None)
 
         if not searcher:
-            self.searcher = available_searchers[0](**cfg)
+            self.searcher = available_searchers[0](**self.cfg)
         else:
             if isinstance(searcher,
                           str) and len(searcher) and all_searchers.get(
