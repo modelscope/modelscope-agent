@@ -32,6 +32,14 @@ i18n = {
     'preview': ['预览', 'Preview'],
     'build': ['构建', 'Build'],
     'publish': ['发布', 'Publish'],
+    'update': ['更新', 'Update'],
+    'space_addr': ['你的AGENT_URL', 'Yours AGENT_URL'],
+    'input_space_addr': ['输入你的AGENT_URL', 'input your agent_url here'],
+    'import_space': ['导入你的Agent', 'Import your existing agent'],
+    'import_hint': [
+        '输入你创空间环境变量AGENT_URL，点击更新',
+        'input your AGNET_URL which lies in your env of your space, then type Update'
+    ],
     'build_hint': ['点击"构建"完成构建', 'Click "Build" to finish building'],
     'publish_hint': [
         '点击"发布"跳转创空间完成 Agent 发布',

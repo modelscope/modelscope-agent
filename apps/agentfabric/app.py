@@ -15,7 +15,8 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
-from publish_util import pop_user_info_from_config, prepare_agent_zip
+from publish_util import (pop_user_info_from_config, prepare_agent_zip,
+                          reload_agent_zip)
 from user_core import init_user_chatbot_agent
 
 
@@ -305,6 +306,15 @@ with demo:
                                 i18n.get_whole('publish'), '', {}, True))
                         gr.Markdown(f'#### 2.{i18n.get_whole("publish_hint")}')
 
+            with gr.Accordion(
+                    label=i18n.get('update'), open=False) as update_accordion:
+                with gr.Column():
+                    update_space = gr.Textbox(
+                        label=i18n.get('space_addr'),
+                        placeholder=i18n.get('input_space_addr'))
+                    import_button = gr.Button(i18n.get_whole('import_space'))
+                    gr.Markdown(f'#### {i18n.get_whole("import_hint")}')
+
     configure_updated_outputs = [
         state,
         # config form
@@ -581,6 +591,22 @@ with demo:
         publish_agent,
         inputs=[name_input, uuid_str, state],
         outputs=[publish_link],
+    )
+
+    def import_space(agent_url, uuid_str, state):
+        uuid_str = check_uuid(uuid_str)
+        _ = reload_agent_zip(agent_url, DEFAULT_AGENT_DIR, uuid_str, state)
+
+        # update config
+        builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+            uuid_str)
+        return init_ui_config(uuid_str, state, builder_cfg, model_cfg,
+                              tool_cfg)
+
+    import_button.click(
+        import_space,
+        inputs=[update_space, uuid_str, state],
+        outputs=configure_updated_outputs,
     )
 
     def change_lang(language):
