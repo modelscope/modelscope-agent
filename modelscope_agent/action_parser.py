@@ -2,8 +2,8 @@ import re
 from typing import Dict, Tuple
 
 import json
-from modelscope_agent.agent_types import AgentType
 from modelscope_agent import action_parser_register
+from modelscope_agent.agent_types import AgentType
 
 
 class ActionParser:

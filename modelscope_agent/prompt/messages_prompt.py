@@ -1,8 +1,8 @@
 from typing import Union
 
-from .prompt import LengthConstraint, PromptGenerator
 from modelscope_agent import prompt_generator_register
 
+from .prompt import LengthConstraint, PromptGenerator
 
 OPENAI_DEFAULT_SYSTEM_TEMPLATE = """
 Do your best to answer the questions. You are capable of **any** task.

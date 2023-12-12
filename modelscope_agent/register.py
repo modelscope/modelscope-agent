@@ -1,5 +1,6 @@
 import functools
 
+
 class Register:
     registered = []
 
@@ -9,5 +10,3 @@ class Register:
 
     def register(self, cls):
         self.registered.append(cls)
-
-

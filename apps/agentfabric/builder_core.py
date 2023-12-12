@@ -59,8 +59,8 @@ def init_builder_chatbot_agent(uuid_str):
 
 class BuilderChatbotAgent(AgentExecutor):
 
-    def __init__(self, llm, tool_cfg, agent_type,
-                 additional_tool_list, **kwargs):
+    def __init__(self, llm, tool_cfg, agent_type, additional_tool_list,
+                 **kwargs):
 
         super().__init__(
             llm,

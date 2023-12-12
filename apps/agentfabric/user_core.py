@@ -35,8 +35,15 @@ def init_user_chatbot_agent(uuid_str=''):
         raise gr.Error(str(e))
 
     # build prompt with zero shot react template
-    #instruction_template = parse_role_config(builder_cfg)
-    prompt_cfg = {'add_addition_round': True, 'knowledge_file_name': os.path.basename(builder_cfg.knowledge[0] if len(builder_cfg.knowledge) > 0 else ''), 'uuid_str': uuid_str}
+    prompt_cfg = {
+        'add_addition_round':
+        True,
+        'knowledge_file_name':
+        os.path.basename(builder_cfg.knowledge[0]
+                         if len(builder_cfg.knowledge) > 0 else ''),
+        'uuid_str':
+        uuid_str
+    }
     #prompt_generator = CustomPromptGenerator(
     #    add_addition_round=True,
     #    knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(

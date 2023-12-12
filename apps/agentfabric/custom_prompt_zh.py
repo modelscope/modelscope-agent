@@ -1,4 +1,3 @@
-
 from apps.agentfabric.custom_prompt import CustomPromptGenerator
 from modelscope_agent import prompt_generator_register
 
@@ -47,19 +46,21 @@ TOOL_DESC = (
 
 @prompt_generator_register
 class ZhCustomPromptGenerator(CustomPromptGenerator):
-    def __init__(self,
-                 system_template=DEFAULT_SYSTEM_TEMPLATE,
-                 instruction_template=DEFAULT_INSTRUCTION_TEMPLATE,
-                 user_template=DEFAULT_USER_TEMPLATE,
-                 exec_template=DEFAULT_EXEC_TEMPLATE,
-                 assistant_template='',
-                 sep='\n\n',
-                 llm=None,
-                 tool_desc=TOOL_DESC,
-                 default_user_template_without_tool=DEFAULT_USER_TEMPLATE_WITHOUT_TOOL,
-                 default_system_template_without_tool=DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL,
-                 addition_assistant_reply='好的。',
-                 **kwargs):
+
+    def __init__(
+            self,
+            system_template=DEFAULT_SYSTEM_TEMPLATE,
+            instruction_template=DEFAULT_INSTRUCTION_TEMPLATE,
+            user_template=DEFAULT_USER_TEMPLATE,
+            exec_template=DEFAULT_EXEC_TEMPLATE,
+            assistant_template='',
+            sep='\n\n',
+            llm=None,
+            tool_desc=TOOL_DESC,
+            default_user_template_without_tool=DEFAULT_USER_TEMPLATE_WITHOUT_TOOL,
+            default_system_template_without_tool=DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL,
+            addition_assistant_reply='好的。',
+            **kwargs):
         super().__init__(
             system_template=system_template,
             instruction_template=instruction_template,
@@ -67,22 +68,24 @@ class ZhCustomPromptGenerator(CustomPromptGenerator):
             exec_template=exec_template,
             assistant_template=assistant_template,
             tool_desc=tool_desc,
-            default_user_template_without_tool=default_user_template_without_tool,
-            default_system_template_without_tool=default_system_template_without_tool,
+            default_user_template_without_tool=
+            default_user_template_without_tool,
+            default_system_template_without_tool=
+            default_system_template_without_tool,
             sep=sep,
             llm=llm,
             length_constraint=length_constraint)
 
     def _parse_role_config(config: dict):
         prompt = '你扮演AI-Agent，'
-    
+
         # concat prompt
         if 'name' in config and config['name']:
             prompt += ('你的名字是' + config['name'] + '。')
         if 'description' in config and config['description']:
             prompt += config['description']
         prompt += '\n你具有下列具体功能：'
- 
+
         if 'instruction' in config and config['instruction']:
             if isinstance(config['instruction'], list):
                 for ins in config['instruction']:
@@ -92,7 +95,7 @@ class ZhCustomPromptGenerator(CustomPromptGenerator):
                 prompt += config['instruction']
             if prompt[-1] == '；':
                 prompt = prompt[:-1]
- 
+
         prompt += '\n下面你将开始扮演'
         if 'name' in config and config['name']:
             prompt += config['name']

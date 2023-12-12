@@ -4,13 +4,12 @@ import re
 
 import json
 from apps.agentfabric.config_utils import get_user_cfg_file
+from modelscope_agent import prompt_generator_register
 from modelscope_agent.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
                                             KNOWLEDGE_PROMPT, LengthConstraint,
                                             PromptGenerator, build_raw_prompt)
 
-from modelscope_agent import prompt_generator_register
 from modelscope.utils.config import Config
-
 
 DEFAULT_SYSTEM_TEMPLATE = """
 
@@ -58,20 +57,21 @@ TOOL_DESC = (
 @prompt_generator_register
 class CustomPromptGenerator(PromptGenerator):
 
-    def __init__(self,
-                 system_template=DEFAULT_SYSTEM_TEMPLATE,
-                 instruction_template=DEFAULT_INSTRUCTION_TEMPLATE,
-                 user_template=DEFAULT_USER_TEMPLATE,
-                 exec_template=DEFAULT_EXEC_TEMPLATE,
-                 assistant_template='',
-                 sep='\n\n',
-                 llm=None,
-                 length_constraint=LengthConstraint(),
-                 tool_desc=TOOL_DESC,
-                 default_user_template_without_tool=DEFAULT_USER_TEMPLATE_WITHOUT_TOOL,
-                 default_system_template_without_tool=DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL,
-                 addition_assistant_reply='OK.',
-                 **kwargs):
+    def __init__(
+            self,
+            system_template=DEFAULT_SYSTEM_TEMPLATE,
+            instruction_template=DEFAULT_INSTRUCTION_TEMPLATE,
+            user_template=DEFAULT_USER_TEMPLATE,
+            exec_template=DEFAULT_EXEC_TEMPLATE,
+            assistant_template='',
+            sep='\n\n',
+            llm=None,
+            length_constraint=LengthConstraint(),
+            tool_desc=TOOL_DESC,
+            default_user_template_without_tool=DEFAULT_USER_TEMPLATE_WITHOUT_TOOL,
+            default_system_template_without_tool=DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL,
+            addition_assistant_reply='OK.',
+            **kwargs):
 
         # hack here for special prompt, such as add an addition round before user input
         self.add_addition_round = kwargs.get('add_addition_round', False)
@@ -102,7 +102,7 @@ class CustomPromptGenerator(PromptGenerator):
             sep=sep,
             llm=llm,
             length_constraint=length_constraint)
-       
+
     def _parse_role_config(self, config: dict):
         prompt = 'You are playing as an AI-Agent, '
 
@@ -112,7 +112,7 @@ class CustomPromptGenerator(PromptGenerator):
         if 'description' in config and config['description']:
             prompt += config['description']
         prompt += '\nYou have the following specific functions:'
-    
+
         if 'instruction' in config and config['instruction']:
             if isinstance(config['instruction'], list):
                 for ins in config['instruction']:
@@ -195,8 +195,8 @@ class CustomPromptGenerator(PromptGenerator):
                 task, tool_list, **kwargs)
 
             if len(knowledge_list) > 0:
-                user_input = user_input.replace(
-                    '<knowledge_note>', self._get_knowledge_template())
+                user_input = user_input.replace('<knowledge_note>',
+                                                self._get_knowledge_template())
             else:
                 user_input = user_input.replace('<knowledge_note>', '')
 
@@ -232,8 +232,8 @@ class CustomPromptGenerator(PromptGenerator):
             user_input = self._update_user_prompt_without_knowledge(
                 task, tool_list, **kwargs)
             if len(knowledge_list) > 0:
-                user_input = user_input.replace(
-                    '<knowledge_note>', self._get_knowledge_template())
+                user_input = user_input.replace('<knowledge_note>',
+                                                self._get_knowledge_template())
             else:
                 user_input = user_input.replace('<knowledge_note>', '')
 
@@ -325,6 +325,3 @@ class CustomPromptGenerator(PromptGenerator):
         # generate plate prompt here
         self.prompt = self.prompt_preprocessor(self.history)
         return self.prompt
-
-
-

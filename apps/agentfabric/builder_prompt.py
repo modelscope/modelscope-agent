@@ -1,5 +1,5 @@
-from modelscope_agent.prompt import MessagesGenerator
 from modelscope_agent import prompt_generator_register
+from modelscope_agent.prompt import MessagesGenerator
 
 SYSTEM = 'You are a helpful assistant.'
 
@@ -34,6 +34,7 @@ starter_messages = [{
 
 @prompt_generator_register
 class BuilderPromptGenerator(MessagesGenerator):
+
     def __init__(self,
                  system_template=SYSTEM,
                  custom_starter_messages=starter_messages,
@@ -41,6 +42,3 @@ class BuilderPromptGenerator(MessagesGenerator):
         super().__init__(
             system_template=system_template,
             custom_starter_messages=starter_messages)
-
-
-

@@ -1,7 +1,7 @@
 import json
+from modelscope_agent import prompt_generator_register
 
 from .prompt import LengthConstraint, PromptGenerator
-from modelscope_agent import prompt_generator_register
 
 CHATGLM_DEFAULT_SYSTEM_TEMPLATE = """<|system|>
 Answer the following questions as best you can. You have access to the following tools:

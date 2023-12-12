@@ -3,10 +3,10 @@ import traceback
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
-from .agent_types import AgentType
-from .llm import LLM
 from .action_parser import ActionParser
 from .action_parser_factory import get_action_parser
+from .agent_types import AgentType
+from .llm import LLM
 from .output_wrapper import display
 from .prompt import PromptGenerator, get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
@@ -53,7 +53,8 @@ class AgentExecutor:
         self.llm.set_agent_type(agent_type)
         self.prompt_generator = prompt_generator or get_prompt_generator(
             agent_type, llm, prompt_parser_cfg, **kwargs)
-        self.action_parser = action_parser or get_action_parser(agent_type, llm, prompt_parser_cfg, **kwargs)
+        self.action_parser = action_parser or get_action_parser(
+            agent_type, llm, prompt_parser_cfg, **kwargs)
 
         self._init_tools(tool_cfg, additional_tool_list)
 
