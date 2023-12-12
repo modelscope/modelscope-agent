@@ -15,32 +15,26 @@ class ActionParserFactory:
     def get_action_parser(cls,
                           agent_type: AgentType = AgentType.DEFAULT,
                           model: LLM = None,
-                          cfg: Dict = None,
                           **kwargs):
-
-        # cfg eg. {"prompt_generator": "MessagesGenerator", "action_parser": "MRKLActionParser"}
-        if cfg:
-            action_parser = cfg.get('action_parser', None)
-            print('action_parser: {action_parser}')
-            if action_parser:
-                return cls._string_to_obj(cls, action_parser, **kwargs)
-
         print(
-            f'agent_type: {agent_type}, model: {model}, cfg: {cfg}, **kwargs : {kwargs}'
+            f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}'
         )
+        action_parser = kwargs.get('action_parser', None)
+        if action_parser:
+            print(f'action_parser: {action_parser}')
+            return cls._string_to_obj(action_parser, **kwargs)
+
 
         if model:
             language = kwargs.pop('language', 'en')
-            action_parser = cls._get_model_default_type(cls, model, language)
+            action_parser = cls._get_model_default_type(model, language)
             if action_parser:
-                return cls._string_to_obj(cls, action_parser, **kwargs)
-        print(
-            f'2agent_type: {agent_type}, model: {model}, cfg: {cfg}, **kwargs : {kwargs}'
-        )
+                print(f'action_parser: {action_parser}')
+                return cls._string_to_obj(action_parser, **kwargs)
 
-        return cls._get_action_parser_by_agent_type(cls, agent_type, **kwargs)
+        return cls._get_action_parser_by_agent_type(agent_type, **kwargs)
 
-    def _string_to_obj(cls, action_parser_name: str, **kwargs):
+    def _string_to_obj(action_parser_name: str, **kwargs):
         print(
             f'action_parser_register.registered: {action_parser_register.registered}'
         )
@@ -54,7 +48,7 @@ class ActionParserFactory:
         raise ValueError(
             f'prompt parser {action_parser_name} is not registered.')
 
-    def _get_model_default_type(cls, model: LLM, language: str = 'en'):
+    def _get_model_default_type(model: LLM, language: str = 'en'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
@@ -78,7 +72,7 @@ class ActionParserFactory:
         return None
 
     def _get_action_parser_by_agent_type(
-            cls, agent_type: AgentType = AgentType.DEFAULT):
+            agent_type: AgentType = AgentType.DEFAULT):
         if AgentType.DEFAULT == agent_type or agent_type == AgentType.MS_AGENT:
             return MsActionParser()
         elif AgentType.MRKL == agent_type:

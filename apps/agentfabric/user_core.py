@@ -44,12 +44,6 @@ def init_user_chatbot_agent(uuid_str=''):
         'uuid_str':
         uuid_str
     }
-    #prompt_generator = CustomPromptGenerator(
-    #    add_addition_round=True,
-    #    knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
-    #        builder_cfg.knowledge) > 0 else ''),
-    #    llm=llm,
-    #    uuid_str=uuid_str)
 
     # get knowledge
     # 开源版本的向量库配置

@@ -41,18 +41,18 @@ def init_builder_chatbot_agent(uuid_str):
 
     # build prompt
     # prompt generator
-    prompt_parser_cfg = {'prompt_generator': 'BuilderPromptGenerator'}
+    prompt_generator = 'BuilderPromptGenerator'
     language = builder_cfg.get('language', 'en')
     if language == 'zh':
-        prompt_parser_cfg = {'prompt_generator': 'ZhBuilderPromptGenerator'}
+        prompt_generator = 'ZhBuilderPromptGenerator'
 
     # build agent
     agent = BuilderChatbotAgent(
         llm,
         tool_cfg,
         agent_type=AgentType.Messages,
-        prompt_parser_cfg=prompt_parser_cfg,
-        additional_tool_list=additional_tool_list)
+        additional_tool_list=additional_tool_list,
+        prompt_generator=prompt_generator)
     agent.set_available_tools([LOGO_TOOL_NAME])
     return agent
 
