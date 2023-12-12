@@ -257,7 +257,7 @@ class AgentExecutor:
                                                   function_list):
                     llm_result += s
                     yield {'llm_text': s}
-            except RuntimeError:
+            except NotImplementedError:
                 s = self.llm.generate(llm_artifacts)
                 llm_result += s
                 yield {'llm_text': s}
