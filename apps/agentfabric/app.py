@@ -292,16 +292,19 @@ with demo:
             with gr.Accordion(
                     label=i18n.get('publish'),
                     open=False) as publish_accordion:
+                publish_alert_md = gr.Markdown(f'{i18n.get("publish_alert")}')
                 with gr.Row():
                     with gr.Column():
                         publish_button = gr.Button(i18n.get_whole('build'))
-                        gr.Markdown(f'#### 1.{i18n.get_whole("build_hint")}')
+                        build_hint_md = gr.Markdown(
+                            f'#### 1.{i18n.get("build_hint")}')
 
                     with gr.Column():
                         publish_link = gr.HTML(
                             value=format_goto_publish_html(
                                 i18n.get_whole('publish'), '', {}, True))
-                        gr.Markdown(f'#### 2.{i18n.get_whole("publish_hint")}')
+                        publish_hint_md = gr.Markdown(
+                            f'#### 2.{i18n.get("publish_hint")}')
 
     configure_updated_outputs = [
         state,
@@ -624,6 +627,12 @@ with demo:
             gr.UploadButton(i18n.get('upload_btn')),
             header:
             gr.Markdown(i18n.get('header')),
+            publish_alert_md:
+            gr.Markdown(f'{i18n.get("publish_alert")}'),
+            build_hint_md:
+            gr.Markdown(f'#### 1.{i18n.get("build_hint")}'),
+            publish_hint_md:
+            gr.Markdown(f'#### 2.{i18n.get("publish_hint")}'),
         }
 
     language.select(
@@ -632,7 +641,8 @@ with demo:
         outputs=configure_updated_outputs + [
             configure_button, create_chat_input, open_api_accordion,
             preview_header, preview_chat_input, publish_accordion,
-            upload_button, header
+            upload_button, header, publish_alert_md, build_hint_md,
+            publish_hint_md
         ])
 
     def init_all(uuid_str, _state):
