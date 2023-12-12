@@ -219,6 +219,11 @@ with demo:
                             type='array',
                             col_count=(1, 'fixed'),
                             interactive=True)
+                        gr.Markdown(
+                            '*注意：知识库上传的文本文档默认按照\\n\\n切分，pdf默认按照页切分。如果片段'
+                            '对应的字符大于[配置文件](https://github.com/modelscope/modelscope-agent/'
+                            'blob/master/apps/agentfabric/config/model_config.json)中指定模型的'
+                            'knowledge限制，则在被召回时有可能会被截断。*')
                         knowledge_input = gr.File(
                             label=i18n.get('form_knowledge'),
                             file_count='multiple',
@@ -278,10 +283,7 @@ with demo:
             with gr.Row():
                 upload_button = gr.UploadButton(
                     i18n.get('upload_btn'),
-                    file_types=[
-                        '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt',
-                        '.md', '.pdf', '.jpeg', '.png', '.jpg', '.gif'
-                    ],
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
                     file_count='multiple')
                 preview_send_button = gr.Button(
                     i18n.get('sendOnLoading'), interactive=False)
@@ -543,7 +545,11 @@ with demo:
                 shutil.copy(file.name, file_path)
                 file_paths.append(file_path)
             new_file_paths.append(file_path)
-            chatbot.append((None, f'上传文件{file_name}，成功'))
+            if file_name.endswith(('.jpeg', '.png', '.jpg')):
+                chatbot += [((file_path, ), None)]
+
+            else:
+                chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
             user_chat_bot_cover: gr.HTML.update(visible=False),

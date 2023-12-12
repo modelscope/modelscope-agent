@@ -31,5 +31,10 @@
     "name": "Web Searching",
     "is_active": false,
     "use": false
+  },
+  "qwen_vl": {
+    "name": "Qwen-VL识图",
+    "is_active": true,
+    "use": false
   }
 }

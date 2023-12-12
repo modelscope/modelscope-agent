@@ -116,13 +116,25 @@ class AgentExecutor:
             self.set_available_tools(available_tool_list=retrieve_tools.keys())
         return self.available_tool_list.values()
 
-    def get_knowledge(self, query: str) -> List[str]:
+    def get_knowledge(self, query: str, append_files: list = []) -> List[str]:
         """retrieve knowledge given query
 
         Args:
             query (str): query
+            append_files(str): user insert append_files during runtime
 
         """
+        if len(append_files) > 0:
+            # get the sub list of files only end with .txt, .pdf, .md
+            append_files = [
+                item for item in append_files
+                if item.endswith(('.txt', '.pdf', '.md'))
+            ]
+            if not self.knowledge_retrieval:
+                self.knowledge_retrieval = KnowledgeRetrieval.from_file(
+                    append_files)
+            else:
+                self.knowledge_retrieval.add_file(append_files)
         return self.knowledge_retrieval.retrieve(
             query) if self.knowledge_retrieval else []
 
@@ -137,7 +149,7 @@ class AgentExecutor:
             task (str): concrete task
             remote (bool, optional): whether to execute tool in remote mode. Defaults to False.
             print_info (bool, optional): whether to print prompt info. Defaults to False.
-
+            append_files(list): the list of append_files that need to add to knowledge or refered
         Returns:
             List[Dict]: execute result. One task may need to interact with llm multiple times,
             so a list of dict is returned. Each dict contains the result of one interaction.
@@ -145,7 +157,7 @@ class AgentExecutor:
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
-        knowledge_list = self.get_knowledge(task)
+        knowledge_list = self.get_knowledge(task, append_files)
 
         self.prompt_generator.init_prompt(
             task, tool_list, knowledge_list, append_files=append_files)
@@ -222,7 +234,7 @@ class AgentExecutor:
             task (str): concrete task
             remote (bool, optional): whether to execute tool in remote mode. Defaults to True.
             print_info (bool, optional): whether to print prompt info. Defaults to False.
-            files that individually used in each run, no need to record to global state
+            append_files(list of str) files that individually used in each run
 
         Yields:
             Iterator[Dict]: iterator of llm response and tool execution result
@@ -230,7 +242,7 @@ class AgentExecutor:
 
         # retrieve tools
         tool_list = self.retrieve_tools(task)
-        knowledge_list = self.get_knowledge(task)
+        knowledge_list = self.get_knowledge(task, append_files)
 
         self.prompt_generator.init_prompt(
             task,

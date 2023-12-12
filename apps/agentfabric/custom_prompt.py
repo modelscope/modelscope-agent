@@ -111,6 +111,12 @@ class CustomPromptGenerator(PromptGenerator):
 
         if 'append_files' in kwargs:
             append_files = kwargs.get('append_files', [])
+
+            # remove all files that should add to knowledge
+            # exclude_extensions = {".txt", ".md", ".pdf"}
+            # filtered_files = [file for file in append_files if
+            #                   not any(file.endswith(ext) for ext in exclude_extensions)]
+
             if len(append_files) > 0:
                 file_names = ','.join(
                     [os.path.basename(path) for path in append_files])
