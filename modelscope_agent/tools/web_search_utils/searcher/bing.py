@@ -15,11 +15,12 @@ class BingWebSearcher(WebSearcher):
         timeout=3000,
         mkt='en-US',
         endpoint='https://api.bing.microsoft.com/v7.0/search',
+        **kwargs,
     ):
         self.mkt = mkt
         self.endpoint = endpoint
         self.timeout = timeout
-        self.token = os.environ.get(AuthenticationKey.bing)
+        self.token = os.environ.get(AuthenticationKey.bing.value)
 
     def __call__(self, query, **kwargs):
         params = {'q': query, 'mkt': self.mkt}
