@@ -165,5 +165,4 @@ def parse_configuration(uuid_str=''):
             print(
                 'Error:FormatError, with detail: The format of the plugin config file is incorrect.'
             )
-
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
