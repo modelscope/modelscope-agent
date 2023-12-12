@@ -8,7 +8,8 @@ from .llm import LLM
 from .output_parser import OutputParser, get_output_parser
 from .output_wrapper import display
 from .prompt import PromptGenerator, get_prompt_generator
-from .retrieve import KnowledgeRetrieval, ToolRetrieval
+from .retrieve import (SUPPORTED_KNOWLEDGE_TYPE, KnowledgeRetrieval,
+                       ToolRetrieval)
 from .tools import TOOL_INFO_LIST
 
 
@@ -124,19 +125,25 @@ class AgentExecutor:
             append_files(str): user insert append_files during runtime
 
         """
-        if len(append_files) > 0:
-            # get the sub list of files only end with .txt, .pdf, .md
+        try:
             append_files = [
                 item for item in append_files
-                if item.endswith(('.txt', '.pdf', '.md'))
+                if item.endswith(tuple(SUPPORTED_KNOWLEDGE_TYPE))
             ]
-            if not self.knowledge_retrieval:
-                self.knowledge_retrieval = KnowledgeRetrieval.from_file(
-                    append_files)
-            else:
-                self.knowledge_retrieval.add_file(append_files)
-        return self.knowledge_retrieval.retrieve(
-            query) if self.knowledge_retrieval else []
+            if len(append_files) > 0:
+                # get the sub list of files only end with .txt, .pdf, .md
+                if not self.knowledge_retrieval:
+                    self.knowledge_retrieval = KnowledgeRetrieval.from_file(
+                        append_files)
+                else:
+                    self.knowledge_retrieval.add_file(append_files)
+            return self.knowledge_retrieval.retrieve(
+                query) if self.knowledge_retrieval else []
+        except Exception as e:
+            print(
+                f'Error when retrieving knowledge: {e} and {traceback.print_exc()}'
+            )
+            return []
 
     def run(self,
             task: str,

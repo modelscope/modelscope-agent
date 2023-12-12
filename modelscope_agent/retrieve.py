@@ -10,6 +10,8 @@ from langchain.schema import Document
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS, VectorStore
 
+SUPPORTED_KNOWLEDGE_TYPE = ['.txt', '.md', '.pdf']
+
 
 class Retrieval:
 
