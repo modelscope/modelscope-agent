@@ -11,7 +11,8 @@ LOG_FILE_PATH = 'LOG_FILE_PATH'
 LOG_MAX_BYTES = 'LOG_MAX_BYTES'
 LOG_BACKUP_COUNT = 'LOG_BACKUP_COUNT'
 LOG_LEVEL = 'LOG_LEVEL'
-LOG_FORMAT = 'LOG_FORMAT'
+LOG_CONSOLE_FORMAT = 'LOG_CONSOLE_FORMAT'
+LOG_FILE_FORMAT = 'LOG_FILE_FORMAT'
 
 # constant
 LOG_NAME = 'modelscope-agent'
@@ -25,6 +26,14 @@ def get_root_dir():
     parent_dir_path = os.path.dirname(current_dir_path)
     grandparent_dir_path = os.path.dirname(parent_dir_path)
     return grandparent_dir_path
+
+
+def get_formatter(log_format_env):
+    if log_format_env == 'json':
+        formatter = JsonFormatter()
+    else:
+        formatter = TextFormatter()
+    return formatter
 
 
 class JsonFormatter(logging.Formatter):
@@ -48,7 +57,7 @@ class JsonFormatter(logging.Formatter):
         log_record = {k: v for k, v in log_record.items() if v is not None}
         if record.exc_info:
             log_record['exc_info'] = self.formatException(record.exc_info)
-        return json.dumps(log_record)
+        return json.dumps(log_record, ensure_ascii=False)
 
 
 class TextFormatter(logging.Formatter):
@@ -104,26 +113,24 @@ class Logger:
         log_level = os.getenv(LOG_LEVEL, 'INFO').upper()
         self.logger.setLevel(getattr(logging, log_level))
 
-        # Determine the log format
-        log_format_env = os.getenv(LOG_FORMAT, 'normal').lower()
-        if log_format_env == 'json':
-            formatter = JsonFormatter()
-        else:
-            formatter = TextFormatter()
-
-        # Create console handler
+        # Create console handler with TextFormatter
+        console_log_formatter = get_formatter(
+            os.getenv(LOG_CONSOLE_FORMAT, 'normal').lower())
         console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
+        console_handler.setFormatter(
+            get_formatter(log_format_env=console_log_formatter))
         self.logger.addHandler(console_handler)
 
-        # Create info file handler
+        # Create file handlers with JsonFormatter
+        file_log_formatter = get_formatter(
+            os.getenv(LOG_FILE_FORMAT, 'json').lower())
         info_file_path = os.path.join(log_dir, INFO_LOG_FILE_NAME)
         info_file_handler = RotatingFileHandler(
             info_file_path,
             mode='a',
             maxBytes=max_bytes,
             backupCount=backup_count)
-        info_file_handler.setFormatter(formatter)
+        info_file_handler.setFormatter(file_log_formatter)
         info_file_handler.setLevel(logging.INFO)
 
         # Create error file handler
@@ -133,7 +140,7 @@ class Logger:
             mode='a',
             maxBytes=max_bytes,
             backupCount=backup_count)
-        error_file_handler.setFormatter(formatter)
+        error_file_handler.setFormatter(file_log_formatter)
         error_file_handler.setLevel(logging.ERROR)
 
         # Add handlers to the logger

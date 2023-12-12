@@ -335,7 +335,7 @@ with demo:
         logger.info(
             uuid=uuid_str,
             message='builder_cfg',
-            content={'builder_cfg': builder_cfg})
+            content={'builder_cfg': str(builder_cfg)})
         # available models
         models = list(model_cfg.keys())
         capabilities = [(tool_cfg[tool_key]['name'], tool_key)
@@ -438,7 +438,7 @@ with demo:
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
             logger.info(
-                uuid=uuid_str, message='frame', content={'frame': frame})
+                uuid=uuid_str, message='frame', content={'frame': str(frame)})
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
