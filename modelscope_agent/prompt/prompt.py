@@ -1,6 +1,8 @@
 import copy
 from typing import Union
 
+from modelscope_agent.llm.base import LLM
+
 from .raw_prompt_builder import build_raw_prompt
 
 LANG = 'zh'
@@ -65,7 +67,7 @@ class PromptGenerator:
         self.assistant_template = assistant_template
         self.exec_template = exec_template
         self.sep = sep
-        if llm:
+        if isinstance(llm, LLM) and llm.model_id:
             self.prompt_preprocessor = build_raw_prompt(llm.model_id)
         self.prompt_max_length = length_constraint.prompt_max_length
         self.reset()
@@ -75,7 +77,12 @@ class PromptGenerator:
         self.history = []
         self.messages = []
 
-    def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
+    def init_prompt(self,
+                    task,
+                    tool_list,
+                    knowledge_list,
+                    llm_model=None,
+                    **kwargs):
         """
         in this function, the prompt will be initialized.
         """

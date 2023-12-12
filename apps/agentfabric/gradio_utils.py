@@ -63,10 +63,10 @@ def format_cover_html(configuration, bot_avatar_path):
 """
 
 
-def format_goto_publish_html(zip_url, agent_user_params, disable=False):
+def format_goto_publish_html(label, zip_url, agent_user_params, disable=False):
     if disable:
-        return """<div class="publish_link_container">
-        <a class="disabled">Publish</a>
+        return f"""<div class="publish_link_container">
+        <a class="disabled">{label}</a>
     </div>
     """
     else:
@@ -77,7 +77,7 @@ def format_goto_publish_html(zip_url, agent_user_params, disable=False):
         link_url = f'https://www.modelscope.cn/studios/fork?target={template}&overwriteEnv={parse.quote(params_str)}'
         return f"""
     <div class="publish_link_container">
-        <a href="{link_url}" target="_blank">Publish</a>
+        <a href="{link_url}" target="_blank">{label}</a>
     </div>
     """
 
@@ -115,7 +115,7 @@ class ChatBot(ChatBotBase):
         result = markdown.markdown(
             bot_message,
             extensions=[
-                'toc', 'extra', 'tables', 'markdown_katex', 'codehilite',
+                'toc', 'extra', 'tables', 'codehilite',
                 'markdown_cjk_spacing.cjk_spacing', 'pymdownx.magiclink'
             ],
             extension_configs={

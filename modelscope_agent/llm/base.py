@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import List
 
 import json
 
@@ -10,6 +11,7 @@ class LLM:
         self.cfg = cfg
         self.agent_type = None
         self.model = None
+        self.model_id = self.model
 
     def set_agent_type(self, agent_type):
         self.agent_type = agent_type
@@ -41,7 +43,7 @@ class LLM:
         """
         raise NotImplementedError
 
-    def tokenize(self, input_text: str) -> list[int]:
+    def tokenize(self, input_text: str) -> List[int]:
         """tokenize is used to calculate the length of the text to meet the model's input length requirements
 
         Args:
@@ -51,7 +53,7 @@ class LLM:
         """
         raise NotImplementedError
 
-    def detokenize(self, input_ids: list[int]) -> str:
+    def detokenize(self, input_ids: List[int]) -> str:
         """detokenize
 
         Args:

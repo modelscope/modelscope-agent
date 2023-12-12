@@ -49,8 +49,7 @@ class MessagesGenerator(PromptGenerator):
         self.custom_starter_messages = kwargs.get('custom_starter_messages',
                                                   None)
 
-    def init_prompt(self, task, tool_list, knowledge_list, llm_model,
-                    **kwargs):
+    def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
         """
         in this function, the prompt will be initialized.
         """

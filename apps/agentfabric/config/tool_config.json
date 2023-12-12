@@ -26,5 +26,15 @@
     "name": "艺术字纹理生成",
     "is_active": true,
     "use": false
+  },
+  "web_search": {
+    "name": "Web Searching",
+    "is_active": false,
+    "use": false
+  },
+  "qwen_vl": {
+    "name": "Qwen-VL识图",
+    "is_active": true,
+    "use": false
   }
 }

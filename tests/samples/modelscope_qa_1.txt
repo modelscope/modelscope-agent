@@ -1,0 +1,39 @@
+常见问题
+本文整理了 ModelScope 模型使用过程中遇到的常见问题，希望能够通过此文档为您解答使用过程中的疑惑。
+
+Q1：ModelScope 社区平台的模型支持商用吗？
+
+开源的模型商用需要遵循开源协议，具体可参考下对应的模型的开源协议。
+
+Q2：pip install 的时候有些包下载特别慢怎么办？
+
+在国内 pip 安装的时候，如果默认是用海外的 pypi 源的话，可能因为网络问题，下载速度受限。建议在国内可以通过"-i https://pypi.tuna.tsinghua.edu.cn/simple" 的命令行选项，来配置仓库来源使用"清华源"。例如：
+
+pip install "modelscope[nlp]" -f https://modelscope.oss-cn-beijing.aliyuncs.com/releases/repo.html -i https://pypi.tuna.tsinghua.edu.cn/simple
+Q3：用 git 拉取模型到本地，发现模型文件和远程仓库文件大小不一致，是什么问题？
+
+因部分文件使用 lfs 进行存储，需要先安装 lfs 工具。请检查下是否没有安装 git lfs（pip list|grep lfs），如果没有安装，请使用 git lfs install 命令安装。具体可参见模型详情页的【快速使用】页面。
+
+Q4：我的系统目前是 Windows，使用某模型的时候报错，是什么问题？
+
+ModelScope 框架本身支持 Windows 环境的运行。但是平台上多种多样的模型，本身难免会有一些模型会部分依赖于系统环境，从而影响在 Windows 上的兼容性。 一方面您通过 ModelScope 网站上提供的 notebook 环境试用，另一方面，对于少数在 Windows 需要单独配置的模型，可以通过创建 windows linux subsystem 来模拟 Linux 环境，或者根据具体三方依赖包的官方网站说明，来在 Windows 环境下多独立安装。
+
+Q5：ModelScope 模型的使用依赖于互联网连接吗？
+
+ModelScope 通过 Model Hub 和 Dataset Hub 来进行模型和数据集的管理和版本管理。因此要获取最好的用户体验，我们建议尽量在联网环境下使用。这能确保您使用的模型和数据集都能是最新的版本，获取最好的模型和数据集。另一方面，如果您使用 ModelScope 开源模型的环境没有网络连接，那也可以通过将模型下载到本地，再从本地直接加载的方式来使用。具体范例如下： 第一步：拉取模型数据到本地：
+
+from modelscope.hub.snapshot_download import snapshot_download
+path = snapshot_download('damo/cv_convnextTiny_ocr-recognition-general_damo')
+print(path)
+第二步：然后把模型数据（即 path 文件夹的内容），拷贝到一个新的本地路径 new_path. 第三部：通过本地路径来加载模型，构建 pipeline。
+
+ ocr_recognition = pipeline(Tasks.ocr_recognition, model=new_path)
+注意：这里需要再次强调的是，使用这种方式如果社区有模型有更新的话，则无法直接检测到。
+
+Q6：环境 mac os x86,系统 Ventura 13 Beta 13，环境安装报错“missing xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun”
+
+MBP 新环境碰到这个问题，您需要执行 xcode-select --install。
+
+Q7：基础大模型下载下来之后如何支持下游模型？
+
+针对大模型您可以尝试 zeroshot，fine tune 后会有更好的表现。
