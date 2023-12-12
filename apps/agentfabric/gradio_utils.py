@@ -115,7 +115,7 @@ class ChatBot(ChatBotBase):
         result = markdown.markdown(
             bot_message,
             extensions=[
-                'toc', 'extra', 'tables', 'markdown_katex', 'codehilite',
+                'toc', 'extra', 'tables', 'codehilite',
                 'markdown_cjk_spacing.cjk_spacing', 'pymdownx.magiclink'
             ],
             extension_configs={
