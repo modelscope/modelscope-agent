@@ -35,7 +35,16 @@ def init_user_chatbot_agent(uuid_str=''):
         raise gr.Error(str(e))
 
     # build prompt with zero shot react template
+    prompt_generator = builder_cfg.get('prompt_generator', None)
+    if not prompt_generator:
+        prompt_generator = 'CustomPromptGenerator'
+    language = builder_cfg.get('language', 'en')
+    if language == 'zh':
+        prompt_generator = 'ZhCustomPromptGenerator'
+
     prompt_cfg = {
+        'prompt_generator':
+        prompt_generator,
         'add_addition_round':
         True,
         'knowledge_file_name':

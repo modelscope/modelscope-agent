@@ -10,3 +10,7 @@ class Register:
 
     def register(self, cls):
         self.registered.append(cls)
+
+
+prompt_generator_register = Register()
+action_parser_register = Register()

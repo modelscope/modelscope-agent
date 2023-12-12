@@ -20,7 +20,7 @@ class AgentExecutor:
                  tool_cfg: Optional[Dict] = {},
                  agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
-                 prompt_generator: Optional[PromptGenerator] = None,
+                 prompt_generator: Union[PromptGenerator, str] = None,
                  action_parser: Optional[ActionParser] = None,
                  tool_retrieval: Optional[Union[bool, ToolRetrieval]] = True,
                  knowledge_retrieval: Optional[KnowledgeRetrieval] = None,
@@ -50,10 +50,16 @@ class AgentExecutor:
 
         self.agent_type = agent_type
         self.llm.set_agent_type(agent_type)
-        self.prompt_generator = prompt_generator or get_prompt_generator(
-            agent_type, llm, **kwargs)
-        self.action_parser = action_parser or get_action_parser(
-            agent_type, llm, **kwargs)
+        if issubclass(prompt_generator.__class__, PromptGenerator):
+            self.prompt_generator = prompt_generator
+        else:
+            self.prompt_generator = get_prompt_generator(
+                agent_type, llm, **kwargs)
+
+        if issubclass(action_parser.__class__, ActionParser):
+            self.action_parser = action_parser
+        else:
+            self.action_parser = get_action_parser(agent_type, llm, **kwargs)
 
         self._init_tools(tool_cfg, additional_tool_list)
 

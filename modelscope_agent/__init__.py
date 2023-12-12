@@ -1,11 +1,8 @@
-from .register import Register
+from modelscope_agent.register import (action_parser_register,
+                                       prompt_generator_register)
 
-prompt_generator_register = Register()
-action_parser_register = Register()
-
-import apps.agentfabric
-import modelscope_agent.prompt
-from modelscope_agent.action_parser_factory import get_action_parser
+from .action_parser_factory import get_action_parser
+from .prompt import get_prompt_generator
 
 # PROMPT_MODULES = ["prompt"]
 #

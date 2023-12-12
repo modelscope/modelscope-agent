@@ -1,5 +1,5 @@
 from modelscope_agent.llm import LLM
-from modelscope_agent.output_parser import OutputParser
+from modelscope_agent.action_parser import ActionParser
 from modelscope_agent.prompt import PromptGenerator
 from modelscope_agent.tools import Tool
 
@@ -27,7 +27,7 @@ class MockPromptGenerator(PromptGenerator):
         super().__init__()
 
 
-class MockOutParser(OutputParser):
+class MockOutParser(ActionParser):
 
     def __init__(self, action, args, count=1):
         super().__init__()

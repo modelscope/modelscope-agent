@@ -17,25 +17,21 @@ class PromptGeneratorFactory:
                              agent_type: AgentType = AgentType.DEFAULT,
                              model: LLM = None,
                              **kwargs):
-        print(
-            f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}'
-        )
+        print(f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}')
 
         prompt_generator = kwargs.get('prompt_generator', None)
         if prompt_generator:
             print('prompt_generator: {prompt_generator}')
-            return cls._string_to_obj(
-                prompt_generator, llm=model, **kwargs)
+            return cls._string_to_obj(prompt_generator, llm=model, **kwargs)
 
         if model:
             language = kwargs.pop('language', 'en')
-            prompt_generator = cls._get_model_default_type(
-                model, language)
+            prompt_generator = cls._get_model_default_type(model, language)
             print('prompt_generator: {prompt_generator}')
             if prompt_generator:
                 return cls._string_to_obj(
                     prompt_generator, llm=model, **kwargs)
-        
+
         return cls._get_prompt_generator_by_agent_type(
             agent_type, llm=model, **kwargs)
 
@@ -76,9 +72,8 @@ class PromptGeneratorFactory:
             return model_cfg.get('prompt_generator', None)
         return None
 
-    def _get_prompt_generator_by_agent_type(agent_type: AgentType = AgentType.
-                                            DEFAULT,
-                                            **kwargs):
+    def _get_prompt_generator_by_agent_type(
+            agent_type: AgentType = AgentType.DEFAULT, **kwargs):
         if AgentType.DEFAULT == agent_type or agent_type == AgentType.MS_AGENT:
             return MSPromptGenerator(**kwargs)
         elif AgentType.MRKL == agent_type:

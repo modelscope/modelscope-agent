@@ -1,3 +1,4 @@
+import importlib
 import os
 import random
 import re
@@ -16,6 +17,8 @@ from config_utils import (Config, get_avatar_image, get_ci_dir,
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from publish_util import pop_user_info_from_config, prepare_agent_zip
 from user_core import init_user_chatbot_agent
+
+importlib.import_module('apps.agentfabric')
 
 
 def init_user(uuid_str, state):

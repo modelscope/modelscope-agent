@@ -16,14 +16,11 @@ class ActionParserFactory:
                           agent_type: AgentType = AgentType.DEFAULT,
                           model: LLM = None,
                           **kwargs):
-        print(
-            f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}'
-        )
+        print(f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}')
         action_parser = kwargs.get('action_parser', None)
         if action_parser:
             print(f'action_parser: {action_parser}')
             return cls._string_to_obj(action_parser, **kwargs)
-
 
         if model:
             language = kwargs.pop('language', 'en')
@@ -46,7 +43,7 @@ class ActionParserFactory:
                 obj = parser(**kwargs)
                 return obj
         raise ValueError(
-            f'prompt parser {action_parser_name} is not registered.')
+            f'action parser {action_parser_name} is not registered.')
 
     def _get_model_default_type(model: LLM, language: str = 'en'):
         if not issubclass(model.__class__, LLM):
