@@ -8,9 +8,12 @@ from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
 
 from modelscope.utils.config import Config
 
-DEFAULT_BUILDER_CONFIG_DIR = './config'
-DEFAULT_BUILDER_CONFIG_FILE = './config/builder_config.json'
-DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = './config/openapi_plugin_config.json'
+DEFAULT_AGENT_DIR = '/tmp/agentfabric'
+DEFAULT_BUILDER_CONFIG_DIR = os.path.join(DEFAULT_AGENT_DIR, 'config')
+DEFAULT_BUILDER_CONFIG_FILE = os.path.join(DEFAULT_BUILDER_CONFIG_DIR,
+                                           'builder_config.json')
+DEFAULT_OPENAPI_PLUGIN_CONFIG_FILE = os.path.join(
+    DEFAULT_BUILDER_CONFIG_DIR, 'openapi_plugin_config.json')
 DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
@@ -18,7 +21,7 @@ DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
 
 
 def get_user_dir(uuid_str=''):
-    return os.path.join('config', uuid_str)
+    return os.path.join(DEFAULT_BUILDER_CONFIG_DIR, uuid_str)
 
 
 def get_ci_dir():
@@ -80,23 +83,22 @@ def get_avatar_image(bot_avatar, uuid_str=''):
         os.path.dirname(__file__), 'assets/user.jpg')
     bot_avatar_path = os.path.join(os.path.dirname(__file__), 'assets/bot.jpg')
     if len(bot_avatar) > 0:
-        bot_avatar_path = os.path.join(
-            os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, uuid_str,
-            bot_avatar)
+        bot_avatar_path = os.path.join(DEFAULT_BUILDER_CONFIG_DIR, uuid_str,
+                                       bot_avatar)
         if uuid_str != '':
             # use default if not exists
             if not os.path.exists(bot_avatar_path):
                 # create parents directory
                 os.makedirs(os.path.dirname(bot_avatar_path), exist_ok=True)
                 # copy the template to the address
-                temp_bot_avatar_path = os.path.join(
-                    os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR,
-                    bot_avatar)
+                temp_bot_avatar_path = os.path.join(DEFAULT_BUILDER_CONFIG_DIR,
+                                                    bot_avatar)
                 if not os.path.exists(temp_bot_avatar_path):
-                    # fall back to default avatar image
-                    temp_bot_avatar_path = os.path.join(
-                        os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR,
-                        'custom_bot_avatar.png')
+                    # fall back to default local avatar image
+                    temp_bot_avatar_path = os.path.join('./config', bot_avatar)
+                    if not os.path.exists(temp_bot_avatar_path):
+                        temp_bot_avatar_path = os.path.join(
+                            './config', 'custom_bot_avatar.png')
 
                 shutil.copy(temp_bot_avatar_path, bot_avatar_path)
 
@@ -105,9 +107,8 @@ def get_avatar_image(bot_avatar, uuid_str=''):
 
 def save_avatar_image(image_path, uuid_str=''):
     bot_avatar = os.path.basename(image_path)
-    bot_avatar_path = os.path.join(
-        os.path.dirname(__file__), DEFAULT_BUILDER_CONFIG_DIR, uuid_str,
-        bot_avatar)
+    bot_avatar_path = os.path.join(DEFAULT_BUILDER_CONFIG_DIR, uuid_str,
+                                   bot_avatar)
     shutil.copy(image_path, bot_avatar_path)
     return bot_avatar, bot_avatar_path
 
@@ -129,8 +130,8 @@ def parse_configuration(uuid_str=''):
         # create parents directory
         os.makedirs(os.path.dirname(builder_cfg_file), exist_ok=True)
         # copy the template to the address
-        builder_cfg_file_temp = os.environ.get('BUILDER_CONFIG_FILE',
-                                               DEFAULT_BUILDER_CONFIG_FILE)
+        builder_cfg_file_temp = './config/builder_config.json'
+
         if builder_cfg_file_temp != builder_cfg_file:
             shutil.copy(builder_cfg_file_temp, builder_cfg_file)
 
@@ -165,4 +166,5 @@ def parse_configuration(uuid_str=''):
             print(
                 'Error:FormatError, with detail: The format of the plugin config file is incorrect.'
             )
+
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
