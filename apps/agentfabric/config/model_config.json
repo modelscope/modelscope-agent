@@ -18,6 +18,22 @@
     "qwen-max": {
         "type": "dashscope",
         "model": "qwen-max",
+        "length_constraint": {
+            "knowledge": 4000,
+            "input": 6000
+        },
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8
+        }
+    },
+    "qwen-max-longcontext": {
+        "type": "dashscope",
+        "model": "qwen-max-longcontext",
+        "length_constraint": {
+            "knowledge": 28000,
+            "input": 30000
+        },
         "generate_cfg": {
             "use_raw_prompt": true,
             "top_p": 0.8

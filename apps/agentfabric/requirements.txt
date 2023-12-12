@@ -3,7 +3,6 @@ faiss-cpu
 gradio==3.47.1
 langchain
 markdown-cjk-spacing
-markdown_katex
 mdx_truly_sane_lists
 pymdown-extensions
 python-slugify

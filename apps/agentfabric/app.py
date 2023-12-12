@@ -8,12 +8,13 @@ import gradio as gr
 import json
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
-from config_utils import (Config, get_avatar_image, get_ci_dir,
-                          get_user_cfg_file, get_user_dir,
+from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
+                          get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
+from i18n import I18n
 from publish_util import pop_user_info_from_config, prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
@@ -147,32 +148,44 @@ def process_configuration(uuid_str, bot_avatar, name, description,
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
+
     uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed})
+    i18n = I18n('zh-cn')
+    with gr.Row():
+        with gr.Column(scale=5):
+            header = gr.Markdown(i18n.get('header'))
+        with gr.Column(scale=1):
+            language = gr.Dropdown(
+                choices=[('中文', 'zh-cn'), ('English', 'en')],
+                show_label=False,
+                container=False,
+                value='zh-cn',
+                interactive=True)
     with gr.Row():
         with gr.Column():
             with gr.Tabs() as tabs:
-                with gr.TabItem('Create', id=0):
+                with gr.Tab(i18n.get_whole('create'), id=0) as create_tab:
                     with gr.Column():
                         # "Create" 标签页的 Chatbot 组件
                         start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
                             '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
                         create_chatbot = gr.Chatbot(
-                            label='Create Chatbot', value=[[None, start_text]])
+                            show_label=False, value=[[None, start_text]])
                         create_chat_input = gr.Textbox(
-                            label='Message',
-                            placeholder='Type a message here...')
+                            label=i18n.get('message'),
+                            placeholder=i18n.get('message_placeholder'))
                         create_send_button = gr.Button(
-                            'Send (Agent Loading...)', interactive=False)
+                            i18n.get('sendOnLoading'), interactive=False)
 
-                configure_tab = gr.Tab('Configure', id=1)
+                configure_tab = gr.Tab(i18n.get_whole('configure'), id=1)
                 with configure_tab:
                     with gr.Column():
                         # "Configure" 标签页的配置输入字段
                         with gr.Row():
                             bot_avatar_comp = gr.Image(
-                                label='Avatar',
+                                label=i18n.get('form_avatar'),
                                 placeholder='Chatbot avatar image',
                                 source='upload',
                                 interactive=True,
@@ -183,36 +196,46 @@ with demo:
                             )
                             with gr.Column(scale=4):
                                 name_input = gr.Textbox(
-                                    label='Name', placeholder='Name your GPT')
+                                    label=i18n.get('form_name'),
+                                    placeholder=i18n.get(
+                                        'form_name_placeholder'))
                                 description_input = gr.Textbox(
-                                    label='Description',
-                                    placeholder=
-                                    'Add a short description about what this GPT does'
-                                )
+                                    label=i18n.get('form_description'),
+                                    placeholder=i18n.get(
+                                        'form_description_placeholder'))
 
                         instructions_input = gr.Textbox(
-                            label='Instructions',
-                            placeholder=
-                            'What does this GPT do? How does it behave? What should it avoid doing?',
+                            label=i18n.get('form_instructions'),
+                            placeholder=i18n.get(
+                                'form_instructions_placeholder'),
                             lines=3)
                         model_selector = model_selector = gr.Dropdown(
-                            label='model')
+                            label=i18n.get('form_model'))
                         suggestion_input = gr.Dataframe(
                             show_label=False,
                             value=[['']],
                             datatype=['str'],
-                            headers=['prompt suggestion(双击行可修改)'],
+                            headers=[i18n.get_whole('form_prompt_suggestion')],
                             type='array',
                             col_count=(1, 'fixed'),
                             interactive=True)
+                        gr.Markdown(
+                            '*注意：知识库上传的文本文档默认按照\\n\\n切分，pdf默认按照页切分。如果片段'
+                            '对应的字符大于[配置文件](https://github.com/modelscope/modelscope-agent/'
+                            'blob/master/apps/agentfabric/config/model_config.json)中指定模型的'
+                            'knowledge限制，则在被召回时有可能会被截断。*')
                         knowledge_input = gr.File(
-                            label='Knowledge',
+                            label=i18n.get('form_knowledge'),
                             file_count='multiple',
-                            file_types=['text', '.json', '.csv', '.pdf'])
+                            file_types=[
+                                'text', '.json', '.csv', '.pdf', '.md'
+                            ])
                         capabilities_checkboxes = gr.CheckboxGroup(
-                            label='Capabilities')
+                            label=i18n.get('form_capabilities'))
 
-                        with gr.Accordion('OpenAPI Configuration', open=False):
+                        with gr.Accordion(
+                                i18n.get('open_api_accordion'),
+                                open=False) as open_api_accordion:
                             openapi_schema = gr.Textbox(
                                 label='Schema',
                                 placeholder=
@@ -233,11 +256,13 @@ with demo:
                                 label='Privacy Policy',
                                 placeholder='Enter privacy policy URL')
 
-                        configure_button = gr.Button('Update Configuration')
+                        configure_button = gr.Button(
+                            i18n.get('form_update_button'))
 
         with gr.Column():
             # Preview
-            gr.HTML("""<div class="preview_header">Preview<div>""")
+            preview_header = gr.HTML(
+                f"""<div class="preview_header">{i18n.get('preview')}<div>""")
 
             user_chat_bot_cover = gr.HTML(format_cover_html({}, None))
             user_chatbot = ChatBot(
@@ -250,34 +275,40 @@ with demo:
                 show_label=False,
                 visible=False)
             preview_chat_input = gr.Textbox(
-                label='Send a message', placeholder='Type a message...')
+                label=i18n.get('message'),
+                placeholder=i18n.get('message_placeholder'))
             user_chat_bot_suggest = gr.Dataset(
-                label='Prompt Suggestions',
+                label=i18n.get('prompt_suggestion'),
                 components=[preview_chat_input],
                 samples=[])
             # preview_send_button = gr.Button('Send')
-            upload_button = gr.UploadButton(
-                'Click to Upload a File',
-                file_types=[
-                    '.csv', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.md',
-                    '.pdf', '.jpeg', '.png', '.jpg', '.gif'
-                ],
-                file_count='multiple')
-            preview_send_button = gr.Button(
-                'Send (Agent Loading...)', interactive=False)
+            with gr.Row():
+                upload_button = gr.UploadButton(
+                    i18n.get('upload_btn'),
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
+                    file_count='multiple')
+                preview_send_button = gr.Button(
+                    i18n.get('sendOnLoading'), interactive=False)
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
                 outputs=[preview_chat_input])
-            with gr.Accordion(label='发布', open=False):
+            with gr.Accordion(
+                    label=i18n.get('publish'),
+                    open=False) as publish_accordion:
+                publish_alert_md = gr.Markdown(f'{i18n.get("publish_alert")}')
                 with gr.Row():
                     with gr.Column():
-                        gr.Markdown('### 1.点击 Build 完成构建')
-                        publish_button = gr.Button('Build')
+                        publish_button = gr.Button(i18n.get_whole('build'))
+                        build_hint_md = gr.Markdown(
+                            f'#### 1.{i18n.get("build_hint")}')
+
                     with gr.Column():
-                        gr.Markdown('### 2.点击 Publish 跳转创空间完成 Agent 发布')
                         publish_link = gr.HTML(
-                            value=format_goto_publish_html('', {}, True))
+                            value=format_goto_publish_html(
+                                i18n.get_whole('publish'), '', {}, True))
+                        publish_hint_md = gr.Markdown(
+                            f'#### 2.{i18n.get("publish_hint")}')
 
     configure_updated_outputs = [
         state,
@@ -466,24 +497,34 @@ with demo:
         }
 
         response = ''
+        try:
+            for frame in user_agent.stream_run(
+                    input,
+                    print_info=True,
+                    remote=False,
+                    append_files=new_file_paths):
+                llm_result = frame.get('llm_text', '')
+                exec_result = frame.get('exec_result', '')
+                if len(exec_result) != 0:
+                    # action_exec_result
+                    if isinstance(exec_result, dict):
+                        exec_result = str(exec_result['result'])
+                    frame_text = f'<result>{exec_result}</result>'
+                else:
+                    # llm result
+                    frame_text = llm_result
 
-        for frame in user_agent.stream_run(
-                input, print_info=True, remote=False,
-                append_files=new_file_paths):
-            llm_result = frame.get('llm_text', '')
-            exec_result = frame.get('exec_result', '')
-            if len(exec_result) != 0:
-                # action_exec_result
-                if isinstance(exec_result, dict):
-                    exec_result = str(exec_result['result'])
-                frame_text = f'<result>{exec_result}</result>'
+                # important! do not change this
+                response += frame_text
+                chatbot[-1] = (input, response)
+                yield {user_chatbot: chatbot}
+        except Exception as e:
+            if 'dashscope.common.error.AuthenticationError' in str(e):
+                msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
+                    'https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key'
             else:
-                # llm result
-                frame_text = llm_result
-
-            # important! do not change this
-            response += frame_text
-            chatbot[-1] = (input, response)
+                msg = str(e)
+            chatbot[-1] = (input, msg)
             yield {user_chatbot: chatbot}
 
     preview_send_button.click(
@@ -509,7 +550,11 @@ with demo:
                 shutil.copy(file.name, file_path)
                 file_paths.append(file_path)
             new_file_paths.append(file_path)
-            chatbot.append((None, f'上传文件{file_name}，成功'))
+            if file_name.endswith(('.jpeg', '.png', '.jpg')):
+                chatbot += [((file_path, ), None)]
+
+            else:
+                chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
             user_chat_bot_cover: gr.HTML.update(visible=False),
@@ -527,17 +572,89 @@ with demo:
     # configuration for publish
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
-        src_dir = os.path.abspath(os.path.dirname(__file__))
-        user_info = pop_user_info_from_config(src_dir, uuid_str)
-        output_url = prepare_agent_zip(name, src_dir, uuid_str, state)
+        env_params = {}
+        env_params.update(
+            pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
+        output_url, envs_required = prepare_agent_zip(name, DEFAULT_AGENT_DIR,
+                                                      uuid_str, state)
+        env_params.update(envs_required)
         # output_url = "https://test.url"
-        return format_goto_publish_html(output_url, user_info)
+        return format_goto_publish_html(
+            i18n.get_whole('publish'), output_url, env_params)
 
     publish_button.click(
         publish_agent,
         inputs=[name_input, uuid_str, state],
         outputs=[publish_link],
     )
+
+    def change_lang(language):
+        i18n = I18n(language)
+        return {
+            bot_avatar_comp:
+            gr.Image(label=i18n.get('form_avatar')),
+            name_input:
+            gr.Textbox(
+                label=i18n.get('form_name'),
+                placeholder=i18n.get('form_name_placeholder')),
+            description_input:
+            gr.Textbox(
+                label=i18n.get('form_description'),
+                placeholder=i18n.get('form_description_placeholder')),
+            instructions_input:
+            gr.Textbox(
+                label=i18n.get('form_instructions'),
+                placeholder=i18n.get('form_instructions_placeholder')),
+            model_selector:
+            gr.Dropdown(label=i18n.get('form_model')),
+            knowledge_input:
+            gr.File(label=i18n.get('form_knowledge')),
+            capabilities_checkboxes:
+            gr.CheckboxGroup(label=i18n.get('form_capabilities')),
+            open_api_accordion:
+            gr.Accordion(label=i18n.get('open_api_accordion')),
+            configure_button:
+            gr.Button(i18n.get('form_update_button')),
+            preview_header:
+            gr.HTML(
+                f"""<div class="preview_header">{i18n.get('preview')}<div>"""),
+            preview_send_button:
+            gr.Button.update(value=i18n.get('send')),
+            create_chat_input:
+            gr.Textbox(
+                label=i18n.get('message'),
+                placeholder=i18n.get('message_placeholder')),
+            create_send_button:
+            gr.Button.update(value=i18n.get('send')),
+            user_chat_bot_suggest:
+            gr.Dataset(label=i18n.get('prompt_suggestion')),
+            preview_chat_input:
+            gr.Textbox(
+                label=i18n.get('message'),
+                placeholder=i18n.get('message_placeholder')),
+            publish_accordion:
+            gr.Accordion(label=i18n.get('publish')),
+            upload_button:
+            gr.UploadButton(i18n.get('upload_btn')),
+            header:
+            gr.Markdown(i18n.get('header')),
+            publish_alert_md:
+            gr.Markdown(f'{i18n.get("publish_alert")}'),
+            build_hint_md:
+            gr.Markdown(f'#### 1.{i18n.get("build_hint")}'),
+            publish_hint_md:
+            gr.Markdown(f'#### 2.{i18n.get("publish_hint")}'),
+        }
+
+    language.select(
+        change_lang,
+        inputs=[language],
+        outputs=configure_updated_outputs + [
+            configure_button, create_chat_input, open_api_accordion,
+            preview_header, preview_chat_input, publish_accordion,
+            upload_button, header, publish_alert_md, build_hint_md,
+            publish_hint_md
+        ])
 
     def init_all(uuid_str, _state):
         uuid_str = check_uuid(uuid_str)
@@ -549,15 +666,16 @@ with demo:
         init_user(uuid_str, _state)
         init_builder(uuid_str, _state)
         yield {
-            state: _state,
+            state:
+            _state,
             preview_send_button:
-            gr.Button.update(value='Send', interactive=True),
+            gr.Button.update(value=i18n.get('send'), interactive=True),
             create_send_button:
-            gr.Button.update(value='Send', interactive=True),
+            gr.Button.update(value=i18n.get('send'), interactive=True),
         }
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
 
 demo.queue(concurrency_count=10)
-demo.launch()
+demo.launch(show_error=True)

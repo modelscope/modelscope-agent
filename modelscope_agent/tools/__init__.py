@@ -15,6 +15,8 @@ from .text_to_video_tool import TextToVideoTool
 from .tool import Tool
 from .translation_en2zh_tool import TranslationEn2ZhTool
 from .translation_zh2en_tool import TranslationZh2EnTool
+from .web_browser import WebBrowser
+from .web_search import WebSearch
 from .wordart_tool import WordArtTexture
 
 TOOL_INFO_LIST = {

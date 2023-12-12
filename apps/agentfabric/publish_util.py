@@ -8,6 +8,9 @@ import oss2
 
 from modelscope.utils.config import Config
 
+MS_VERSION = '0.2.2rc0'
+DEFAULT_MS_PKG = 'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v/modelscope_agent-version-py3-none-any.whl'  # noqa E501
+
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 上传文件到阿里云OSS
@@ -70,6 +73,7 @@ def pop_user_info_from_config(src_dir, uuid_str):
 
 def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     # 设置阿里云OSS的认证信息
+    local_file = os.path.abspath(os.path.dirname(__file__))
     ak_id, ak_secret, endpoint, bucket_name = get_oss_config()
     auth = oss2.Auth(ak_id, ak_secret)
     bucket = oss2.Bucket(auth, endpoint, bucket_name)
@@ -83,17 +87,19 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 复制config下的uuid_str目录到new_directory下并改名为local_user
     uuid_str_path = f'{src_dir}/config/{uuid_str}'  # 指向uuid_str目录的路径
-    local_user_path = f'{new_directory}/config/local_user'  # 新的目录路径
+    local_user_path = f'{new_directory}/config'  # 新的目录路径
     shutil.copytree(uuid_str_path, local_user_path, dirs_exist_ok=True)
 
     target_conf = os.path.join(local_user_path, 'builder_config.json')
     builder_cfg = Config.from_file(target_conf)
     builder_cfg.knowledge = [
-        f.replace(uuid_str, 'local_user') for f in builder_cfg.knowledge
+        'config/' + f.split('/')[-1] for f in builder_cfg.knowledge
     ]
+    with open(target_conf, 'w') as f:
+        json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
 
     # 复制config目录下所有.json文件到new_directory/config
-    config_path = f'{src_dir}/config'
+    config_path = f'{local_file}/config'
     new_config_path = f'{new_directory}/config'
 
     def find_json_and_images(directory):
@@ -118,23 +124,24 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
         shutil.copy(f, new_config_path)
 
     # 复制assets目录到new_directory
-    assets_path = f'{src_dir}/assets'
+    assets_path = f'{local_file}/assets'
     new_assets_path = f'{new_directory}/assets'
     shutil.copytree(assets_path, new_assets_path, dirs_exist_ok=True)
 
     # 在requirements.txt中添加新的行
-    requirements_file = f'{src_dir}/requirements.txt'
+    requirements_file = f'{local_file}/requirements.txt'
     new_requirements_file = f'{new_directory}/requirements.txt'
+    modelscope_agent_pkg = DEFAULT_MS_PKG.replace('version', MS_VERSION)
     with open(requirements_file, 'r') as file:
         content = file.readlines()
     with open(new_requirements_file, 'w') as file:
-        file.write('git+https://github.com/modelscope/modelscope-agent.git\n')
+        file.write(modelscope_agent_pkg + '\n')
         file.writelines(content)
 
     # 复制.py文件到新目录
-    for file in os.listdir(src_dir):
+    for file in os.listdir(local_file):
         if file.endswith('.py'):
-            shutil.copy(f'{src_dir}/{file}', new_directory)
+            shutil.copy(f'{local_file}/{file}', new_directory)
 
     # 打包新目录
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)
@@ -145,7 +152,12 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     shutil.rmtree(new_directory)
 
-    return file_url
+    # 获取必须设置的envs
+    envs_required = {}
+    for t in builder_cfg.tools:
+        if t == 'amap_weather':
+            envs_required['AMAP_TOKEN'] = 'Your-AMAP-TOKEN'
+    return file_url, envs_required
 
 
 if __name__ == '__main__':

@@ -23,6 +23,18 @@ class WordArtTexture(Tool):
         'description':
         'Users’ style requirements for word art may be requirements in terms of shape, color, entity, etc.',
         'required': True
+    }, {
+        'name': 'input.texture_style',
+        'description':
+        'Type of texture style;Default is "material";If not provided by the user, \
+            defaults to "material".Another value is scene.',
+        'required': True
+    }, {
+        'name': 'input.text.output_image_ratio',
+        'description':
+        'The aspect ratio of the text input image; the default is "1:1", \
+            the available ratios are: "1:1", "16:9", "9:16";',
+        'required': True
     }]
 
     def __init__(self, cfg={}):
@@ -30,7 +42,7 @@ class WordArtTexture(Tool):
         # remote call
         self.url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/wordart/texture'
         self.token = self.cfg.get('token',
-                                  os.environ.get('DASHSCOPE_API_TOKEN', ''))
+                                  os.environ.get('DASHSCOPE_API_KEY', ''))
         assert self.token != '', 'dashscope api token must be acquired with wordart'
 
         try:

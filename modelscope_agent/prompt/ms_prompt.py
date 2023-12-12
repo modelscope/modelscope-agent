@@ -1,4 +1,4 @@
-from .prompt import PromptGenerator
+from .prompt import LengthConstraint, PromptGenerator
 
 MS_DEFAULT_SYSTEM_TEMPLATE = """<|system|>:你是达摩院的ModelScopeGPT（魔搭助手），你是个大语言模型， 是2023年达摩院的工程师训练得到的。\
 你有多种能力，可以通过插件集成魔搭社区的模型api来回复用户的问题，还能解答用户使用模型遇到的问题和模型知识相关问答。
@@ -23,7 +23,12 @@ class MSPromptGenerator(PromptGenerator):
                  exec_template=MS_DEFAULT_EXEC_TEMPLATE,
                  assistant_template=MS_DEFAULT_ASSISTANT_TEMPLATE,
                  sep='\n\n',
-                 prompt_max_length=10000):
-        super().__init__(system_template, instruction_template, user_template,
-                         exec_template, assistant_template, sep,
-                         prompt_max_length)
+                 length_constraint=LengthConstraint()):
+        super().__init__(
+            system_template=system_template,
+            instruction_template=instruction_template,
+            user_template=user_template,
+            exec_template=exec_template,
+            assistant_template=assistant_template,
+            sep=sep,
+            length_constraint=length_constraint)

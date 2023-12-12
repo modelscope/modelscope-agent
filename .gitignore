@@ -8,10 +8,6 @@ test/
 # C extensions
 *.so
 
-# local user
-local_user/
-user/
-
 # Distribution / packaging
 .Python
 build/
@@ -38,6 +34,8 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+release.sh
+*.html
 
 # Installer logs
 pip-log.txt
