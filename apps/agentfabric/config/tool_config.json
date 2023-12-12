@@ -28,6 +28,17 @@
     "is_active": true,
     "use": false
   },
+  "web_search": {
+    "name": "Web Searching",
+    "is_active": true,
+    "use": false,
+    "searcher": "bing"
+  },
+  "qwen_vl": {
+    "name": "Qwen-VL识图",
+    "is_active": true,
+    "use": false
+  },
   "style_repaint": {
     "name": "人物风格重绘",
     "is_active": true,
