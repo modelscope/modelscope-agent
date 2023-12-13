@@ -66,9 +66,9 @@ def check_uuid(uuid_str):
 
 
 def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, suggestions, knowledge_files,
-                          capabilities_checkboxes, openapi_schema,
-                          openapi_auth, openapi_auth_apikey,
+                          instructions, model, agent_language, suggestions,
+                          knowledge_files, capabilities_checkboxes,
+                          openapi_schema, openapi_auth, openapi_auth_apikey,
                           openapi_auth_apikey_type, openapi_privacy_policy,
                           state):
     uuid_str = check_uuid(uuid_str)
@@ -103,6 +103,7 @@ def process_configuration(uuid_str, bot_avatar, name, description,
             for capability in map(lambda item: item[1], capabilities)
         },
         'model': model,
+        'language': agent_language,
     }
 
     try:
@@ -209,8 +210,12 @@ with demo:
                             placeholder=i18n.get(
                                 'form_instructions_placeholder'),
                             lines=3)
-                        model_selector = model_selector = gr.Dropdown(
+                        model_selector = gr.Dropdown(
                             label=i18n.get('form_model'))
+                        agent_language_selector = gr.Dropdown(
+                            label=i18n.get('form_agent_language'),
+                            choices=['zh', 'en'],
+                            value='zh')
                         suggestion_input = gr.Dataframe(
                             show_label=False,
                             value=[['']],
@@ -318,6 +323,7 @@ with demo:
         description_input,
         instructions_input,
         model_selector,
+        agent_language_selector,
         suggestion_input,
         knowledge_input,
         capabilities_checkboxes,
@@ -356,6 +362,8 @@ with demo:
             model_selector:
             gr.Dropdown.update(
                 value=builder_cfg.get('model', models[0]), choices=models),
+            agent_language_selector:
+            builder_cfg.get('language') or 'zh',
             suggestion_input: [[str] for str in suggests],
             knowledge_input:
             builder_cfg.get('knowledge', [])
@@ -469,10 +477,10 @@ with demo:
         process_configuration,
         inputs=[
             uuid_str, bot_avatar_comp, name_input, description_input,
-            instructions_input, model_selector, suggestion_input,
-            knowledge_input, capabilities_checkboxes, openapi_schema,
-            openapi_auth_type, openapi_auth_apikey, openapi_auth_apikey_type,
-            openapi_privacy_policy, state
+            instructions_input, model_selector, agent_language_selector,
+            suggestion_input, knowledge_input, capabilities_checkboxes,
+            openapi_schema, openapi_auth_type, openapi_auth_apikey,
+            openapi_auth_apikey_type, openapi_privacy_policy, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,
@@ -607,6 +615,8 @@ with demo:
                 placeholder=i18n.get('form_instructions_placeholder')),
             model_selector:
             gr.Dropdown(label=i18n.get('form_model')),
+            agent_language_selector:
+            gr.Dropdown(label=i18n.get('form_agent_language')),
             knowledge_input:
             gr.File(label=i18n.get('form_knowledge')),
             capabilities_checkboxes:
