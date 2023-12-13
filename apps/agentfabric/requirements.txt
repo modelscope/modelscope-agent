@@ -1,8 +1,9 @@
 dashscope
 faiss-cpu
 gradio==3.47.1
-langchain
+langchain==0.0.349
 markdown-cjk-spacing
 mdx_truly_sane_lists
 pymdown-extensions
 python-slugify
+unstructured
