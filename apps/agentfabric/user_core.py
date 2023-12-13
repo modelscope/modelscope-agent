@@ -7,12 +7,14 @@ from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
                            parse_role_config)
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
+from logger import get_agentfabric_logger
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
-from modelscope_agent.utils.logger import logger
+
+logger = get_agentfabric_logger()
 
 
 # init user chatbot_agent

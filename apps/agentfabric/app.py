@@ -14,9 +14,11 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
-from modelscope_agent.utils.logger import logger
+from logger import get_agentfabric_logger
 from publish_util import pop_user_info_from_config, prepare_agent_zip
 from user_core import init_user_chatbot_agent
+
+logger = get_agentfabric_logger()
 
 
 def init_user(uuid_str, state):

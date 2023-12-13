@@ -7,9 +7,6 @@ from typing import Dict
 import json
 
 # environ params
-LOG_FILE_PATH = 'LOG_FILE_PATH'
-LOG_MAX_BYTES = 'LOG_MAX_BYTES'
-LOG_BACKUP_COUNT = 'LOG_BACKUP_COUNT'
 LOG_LEVEL = 'LOG_LEVEL'
 LOG_CONSOLE_FORMAT = 'LOG_CONSOLE_FORMAT'
 LOG_FILE_FORMAT = 'LOG_FILE_FORMAT'
@@ -18,14 +15,6 @@ LOG_FILE_FORMAT = 'LOG_FILE_FORMAT'
 LOG_NAME = 'modelscope-agent'
 INFO_LOG_FILE_NAME = 'info.log'
 ERROR_LOG_FILE_NAME = 'error.log'
-
-
-def get_root_dir():
-    current_file_path = os.path.abspath(__file__)
-    current_dir_path = os.path.dirname(current_file_path)
-    parent_dir_path = os.path.dirname(current_dir_path)
-    grandparent_dir_path = os.path.dirname(parent_dir_path)
-    return grandparent_dir_path
 
 
 def get_formatter(log_format_env):
@@ -99,13 +88,9 @@ class TextFormatter(logging.Formatter):
 
 class Logger:
 
-    def __init__(self, log_dir, max_bytes=50 * 1024 * 1024, backup_count=7):
+    def __init__(self):
         """
         Initialize the Logger with basic configuration.
-        Args:
-            log_dir (str): Directory to save the log files.
-            max_bytes (int): Maximum size in bytes for a single log file, default 50MB.
-            backup_count (int): The number of log files to keep, default is 7.
         """
         # Create logger
         self.logger = logging.getLogger(LOG_NAME)
@@ -121,6 +106,34 @@ class Logger:
             get_formatter(log_format_env=console_log_formatter))
         self.logger.addHandler(console_handler)
 
+    def get_logger(self):
+        """
+        Returns the configured logger object.
+        Returns:
+            logging.Logger: The configured logger object.
+        """
+        return self.logger
+
+
+class AgentLogger:
+
+    def __init__(self):
+        self._init_loger()
+
+    def _init_loger(self):
+        # Initialize Logger with the path to the log file
+        self.logger = Logger().get_logger()
+
+    def set_file_handle(self,
+                        log_dir,
+                        max_bytes=50 * 1024 * 1024,
+                        backup_count=7):
+        """
+        Args:
+            log_dir (str): Directory to save the log files.
+            max_bytes (int): Maximum size in bytes for a single log file, default 50MB.
+            backup_count (int): The number of log files to keep, default is 7.
+        """
         # Create file handlers with JsonFormatter
         file_log_formatter = get_formatter(
             os.getenv(LOG_FILE_FORMAT, 'json').lower())
@@ -146,30 +159,6 @@ class Logger:
         # Add handlers to the logger
         self.logger.addHandler(info_file_handler)
         self.logger.addHandler(error_file_handler)
-
-    def get_logger(self):
-        """
-        Returns the configured logger object.
-        Returns:
-            logging.Logger: The configured logger object.
-        """
-        return self.logger
-
-
-class AgentLogger:
-
-    def __init__(self):
-        self._init_loger()
-
-    def _init_loger(self):
-        # Initialize Logger with the path to the log file
-        _log_dir = os.getenv(LOG_FILE_PATH, f'{get_root_dir()}/logs')
-        os.makedirs(_log_dir, exist_ok=True)
-        self.logger = Logger(
-            log_dir=_log_dir,
-            max_bytes=int(os.environ.get(LOG_MAX_BYTES, 50 * 1024 * 1024)),
-            backup_count=int(os.environ.get(LOG_BACKUP_COUNT,
-                                            7))).get_logger()
 
     def info(self,
              uuid: str = 'default_user',

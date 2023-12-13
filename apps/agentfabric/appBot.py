@@ -6,8 +6,10 @@ import traceback
 import gradio as gr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import ChatBot, format_cover_html
-from modelscope_agent.utils.logger import logger
+from logger import get_agentfabric_logger
 from user_core import init_user_chatbot_agent
+
+logger = get_agentfabric_logger()
 
 uuid_str = 'local_user'
 builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
