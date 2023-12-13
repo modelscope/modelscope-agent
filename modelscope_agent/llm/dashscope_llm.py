@@ -56,7 +56,7 @@ class DashScopeLLM(LLM):
                 llm_result = CustomOutputWrapper.handle_message_text_completion(
                     response)
             return llm_result
-        except Exception as e:
+        except NotImplementedError as e:
             error = traceback.format_exc()
             error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
             print(error_msg)
@@ -122,4 +122,4 @@ class DashScopeLLM(LLM):
                     response.request_id, response.status_code, response.code,
                     response.message)
                 print(err_msg)
-                raise RuntimeError(err_msg)
+                raise RuntimeError('DashScope ' + err_msg)

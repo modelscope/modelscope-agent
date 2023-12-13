@@ -1,12 +1,12 @@
 import httpx
-from langchain.document_loaders import AsyncHtmlLoader
+from langchain.document_loaders import AsyncChromiumLoader, AsyncHtmlLoader
 from langchain.document_transformers import BeautifulSoupTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from modelscope_agent.tools.tool import Tool
 
 
 class WebBrowser(Tool):
-    description = '生成艺术字纹理图片'
+    description = '调用web browser api处理网页内容'
     name = 'web_browser'
     parameters: list = [{
         'name': 'urls',
@@ -17,6 +17,7 @@ class WebBrowser(Tool):
     def __init__(self, cfg={}):
         super().__init__(cfg)
         self.split_url_into_chunk = self.cfg.get('split_url_into_chunk', False)
+        self.max_browser_length = self.cfg.get('max_browser_length', 2000)
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
         }
@@ -51,7 +52,8 @@ class WebBrowser(Tool):
         for item in splits:
             result = {
                 'url': item.metadata['source'],
-                'content': item.page_content
+                'content': item.page_content[
+                    0:self.max_browser_length]  # make it maximum 2000k
             }
             search_results.append(result)
 
