@@ -4,7 +4,6 @@ import re
 
 import json
 from apps.agentfabric.config_utils import get_user_cfg_file
-from modelscope_agent import prompt_generator_register
 from modelscope_agent.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
                                             KNOWLEDGE_PROMPT, LengthConstraint,
                                             PromptGenerator, build_raw_prompt)
@@ -54,7 +53,6 @@ TOOL_DESC = (
 )
 
 
-@prompt_generator_register
 class CustomPromptGenerator(PromptGenerator):
 
     def __init__(

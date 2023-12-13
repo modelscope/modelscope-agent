@@ -1,5 +1,4 @@
 import json
-from modelscope_agent import prompt_generator_register
 
 from .prompt import LengthConstraint, PromptGenerator
 
@@ -38,7 +37,6 @@ FORMAT_DESC = {
 }
 
 
-@prompt_generator_register
 class MrklPromptGenerator(PromptGenerator):
 
     def __init__(self,

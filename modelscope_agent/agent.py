@@ -8,7 +8,8 @@ from .action_parser_factory import get_action_parser
 from .agent_types import AgentType
 from .llm import LLM
 from .output_wrapper import display
-from .prompt import PromptGenerator, get_prompt_generator
+from .prompt import PromptGenerator
+from .prompt.prompt_factory import get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
 from .tools import TOOL_INFO_LIST
 

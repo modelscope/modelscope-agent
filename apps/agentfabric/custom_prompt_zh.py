@@ -1,5 +1,4 @@
 from apps.agentfabric.custom_prompt import CustomPromptGenerator
-from modelscope_agent import prompt_generator_register
 
 DEFAULT_SYSTEM_TEMPLATE = """
 
@@ -44,7 +43,6 @@ TOOL_DESC = (
 )
 
 
-@prompt_generator_register
 class ZhCustomPromptGenerator(CustomPromptGenerator):
 
     def __init__(

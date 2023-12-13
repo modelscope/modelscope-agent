@@ -1,7 +1,5 @@
 from typing import Union
 
-from modelscope_agent import prompt_generator_register
-
 from .prompt import LengthConstraint, PromptGenerator
 
 OPENAI_DEFAULT_SYSTEM_TEMPLATE = """
@@ -26,7 +24,6 @@ applications. Packages like ffmpeg and pandoc that are well-supported and powerf
 """
 
 
-@prompt_generator_register
 class MessagesGenerator(PromptGenerator):
 
     def __init__(self,

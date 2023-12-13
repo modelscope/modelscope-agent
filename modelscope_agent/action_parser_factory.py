@@ -34,8 +34,8 @@ class ActionParserFactory:
             f'action_parser_register.registered: {action_parser_register.registered}'
         )
         print(f'action_parser_name: {action_parser_name}')
-        for parser in action_parser_register.registered:
-            if action_parser_name == parser.__name__:
+        for name, parser in action_parser_register.registered.items():
+            if action_parser_name == name:
                 obj = parser(**kwargs)
                 return obj
         raise ValueError(

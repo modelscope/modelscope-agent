@@ -1,5 +1,4 @@
 import json
-from modelscope_agent import prompt_generator_register
 
 from .prompt import LengthConstraint, PromptGenerator
 
@@ -16,7 +15,6 @@ CHATGLM_DEFAULT_EXEC_TEMPLATE = """<|observation|>\n<exec_result>"""
 CHATGLM_DEFAULT_ASSISTANT_TEMPLATE = """<|assistant|>"""
 
 
-@prompt_generator_register
 class ChatGLMPromptGenerator(PromptGenerator):
 
     def __init__(self,

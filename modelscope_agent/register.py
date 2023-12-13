@@ -1,16 +1,18 @@
 import functools
 
+from modelscope_agent.action_parser import action_parsers
+from modelscope_agent.prompt import prompt_generators
+
 
 class Register:
-    registered = []
+    registered = dict()
 
-    def __call__(self, cls):
-        self.register(cls)
-        return cls
+    def __init__(self, init_classes):
+        self.registered = init_classes
 
-    def register(self, cls):
-        self.registered.append(cls)
+    def __call__(self, new_classes):
+        self.registered.update(new_classes)
 
 
-prompt_generator_register = Register()
-action_parser_register = Register()
+prompt_generator_register = Register(prompt_generators)
+action_parser_register = Register(action_parsers)

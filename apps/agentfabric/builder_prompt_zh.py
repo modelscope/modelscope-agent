@@ -1,5 +1,4 @@
 from apps.agentfabric.builder_prompt import BuilderPromptGenerator
-from modelscope_agent import prompt_generator_register
 
 SYSTEM = 'You are a helpful assistant.'
 
@@ -39,7 +38,6 @@ starter_messages = [{
 }]
 
 
-@prompt_generator_register
 class ZhBuilderPromptGenerator(BuilderPromptGenerator):
 
     def __init__(self, custom_starter_messages=starter_messages, **kwargs):

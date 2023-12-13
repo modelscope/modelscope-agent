@@ -38,8 +38,8 @@ class PromptGeneratorFactory:
             f'prompt_generator_register.registered: {prompt_generator_register.registered}'
         )
         print(f'prompt_generator_name: {prompt_generator_name}')
-        for generator in prompt_generator_register.registered:
-            if prompt_generator_name == generator.__name__:
+        for name, generator in prompt_generator_register.registered.items():
+            if prompt_generator_name == name:
                 obj = generator(**kwargs)
                 return obj
         raise ValueError(
@@ -80,3 +80,6 @@ class PromptGeneratorFactory:
             return MessagesGenerator(**kwargs)
         else:
             raise NotImplementedError
+
+
+get_prompt_generator = PromptGeneratorFactory.get_prompt_generator

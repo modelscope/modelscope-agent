@@ -2,7 +2,6 @@ import re
 from typing import Dict, Tuple
 
 import json
-from modelscope_agent import action_parser_register
 from modelscope_agent.agent_types import AgentType
 
 
@@ -27,7 +26,6 @@ class ActionParser:
             raise ValueError('Wrong response format for action parser')
 
 
-@action_parser_register
 class MsActionParser(ActionParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
@@ -65,7 +63,6 @@ class MsActionParser(ActionParser):
             return ActionParser.handle_fallback(action, parameters)
 
 
-@action_parser_register
 class ChatGLMActionParser(ActionParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
@@ -105,7 +102,6 @@ class ChatGLMActionParser(ActionParser):
         return action, parameters
 
 
-@action_parser_register
 class MRKLActionParser(ActionParser):
 
     def parse_response(self, response: str) -> Tuple[str, Dict]:
@@ -138,7 +134,6 @@ class MRKLActionParser(ActionParser):
             return ActionParser.handle_fallback(action, action_para)
 
 
-@action_parser_register
 class OpenAiFunctionsActionParser(ActionParser):
 
     def parse_response(self, response: dict) -> Tuple[str, Dict]:
@@ -176,3 +171,11 @@ class OpenAiFunctionsActionParser(ActionParser):
                 f'Error during parse action might be handled with detail {e}')
             return ActionParser.handle_fallback(function_call['name'],
                                                 function_call['arguments'])
+
+
+action_parsers = {
+    'MsActionParser': MsActionParser,
+    'ChatGLMActionParser': ChatGLMActionParser,
+    'MRKLActionParser': MRKLActionParser,
+    'OpenAiFunctionsActionParser': OpenAiFunctionsActionParser
+}
