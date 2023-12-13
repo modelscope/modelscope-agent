@@ -58,10 +58,7 @@ def get_logo_path(uuid_str=''):
 
 def call_wanx(prompt, save_path):
     rsp = ImageSynthesis.call(
-        model=ImageSynthesis.Models.wanx_v1,
-        prompt=prompt,
-        n=1,
-        size='1024*1024')
+        model='wanx-lite', prompt=prompt, n=1, size='768*768')
     if rsp.status_code == HTTPStatus.OK:
         if os.path.exists(save_path):
             os.remove(save_path)
