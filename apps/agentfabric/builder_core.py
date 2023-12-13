@@ -5,13 +5,12 @@ from typing import Dict
 import json
 from config_utils import parse_configuration
 from help_tools import LogoGeneratorTool, config_conversion
-from logger import get_agentfabric_logger
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MessagesGenerator
+from modelscope_agent.utils.logger import agent_logger as logger
 
-logger = get_agentfabric_logger()
 SYSTEM = 'You are a helpful assistant.'
 
 PROMPT_CUSTOM = """你现在要扮演一个制造AI角色（AI-Agent）的AI助手（QwenBuilder）。

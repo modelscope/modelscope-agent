@@ -10,6 +10,10 @@ import json
 LOG_LEVEL = 'LOG_LEVEL'
 LOG_CONSOLE_FORMAT = 'LOG_CONSOLE_FORMAT'
 LOG_FILE_FORMAT = 'LOG_FILE_FORMAT'
+LOG_ENABLE_FILE = 'LOG_ENABLE_FILE'
+LOG_FILE_PATH = 'LOG_FILE_PATH'
+LOG_MAX_BYTES = 'LOG_MAX_BYTES'
+LOG_BACKUP_COUNT = 'LOG_BACKUP_COUNT'
 
 # constant
 LOG_NAME = 'modelscope-agent'
@@ -86,13 +90,9 @@ class TextFormatter(logging.Formatter):
         return log_message
 
 
-class Logger:
+class AgentLogger:
 
     def __init__(self):
-        """
-        Initialize the Logger with basic configuration.
-        """
-        # Create logger
         self.logger = logging.getLogger(LOG_NAME)
         self.logger.propagate = False
         log_level = os.getenv(LOG_LEVEL, 'INFO').upper()
@@ -106,23 +106,13 @@ class Logger:
             get_formatter(log_format_env=console_log_formatter))
         self.logger.addHandler(console_handler)
 
-    def get_logger(self):
-        """
-        Returns the configured logger object.
-        Returns:
-            logging.Logger: The configured logger object.
-        """
-        return self.logger
-
-
-class AgentLogger:
-
-    def __init__(self):
-        self._init_loger()
-
-    def _init_loger(self):
-        # Initialize Logger with the path to the log file
-        self.logger = Logger().get_logger()
+        if os.environ.get(LOG_ENABLE_FILE, 'on').lower() == 'on':
+            _log_dir = os.getenv(LOG_FILE_PATH, f'{os.getcwd()}/logs')
+            os.makedirs(_log_dir, exist_ok=True)
+            self.set_file_handle(
+                log_dir=_log_dir,
+                max_bytes=int(os.environ.get(LOG_MAX_BYTES, 50 * 1024 * 1024)),
+                backup_count=int(os.environ.get(LOG_BACKUP_COUNT, 7)))
 
     def set_file_handle(self,
                         log_dir,
@@ -201,4 +191,4 @@ class AgentLogger:
             })
 
 
-logger = AgentLogger()
+agent_logger = AgentLogger()

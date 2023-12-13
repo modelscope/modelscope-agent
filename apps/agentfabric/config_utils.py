@@ -3,12 +3,10 @@ import shutil
 import traceback
 
 import json
-from logger import get_agentfabric_logger
 from modelscope_agent.tools.openapi_plugin import openapi_schema_convert
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
-
-logger = get_agentfabric_logger()
 
 DEFAULT_AGENT_DIR = '/tmp/agentfabric'
 DEFAULT_BUILDER_CONFIG_DIR = os.path.join(DEFAULT_AGENT_DIR, 'config')
