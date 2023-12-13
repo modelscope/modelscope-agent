@@ -38,5 +38,20 @@
     "name": "Qwen-VL识图",
     "is_active": true,
     "use": false
+  },
+  "modelscope_video-generation": {
+    "name": "video generation",
+    "is_active": true,
+    "use": false
+  },
+  "modelscope_text-translation-zh2en": {
+    "name": "translate zh to en",
+    "is_active": true,
+    "use": false
+  },
+  "modelscope_speech-generation": {
+    "name": "文本转语音",
+    "is_active": true,
+    "use": false
   }
 }
