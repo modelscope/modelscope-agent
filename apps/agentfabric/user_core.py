@@ -1,6 +1,8 @@
 import os
+import ssl
 
 import gradio as gr
+import nltk
 from config_utils import parse_configuration
 from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
                            DEFAULT_USER_TEMPLATE, CustomPromptGenerator,
@@ -13,6 +15,16 @@ from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
 from modelscope_agent.utils.logger import agent_logger as logger
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 
 # init user chatbot_agent
