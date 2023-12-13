@@ -24,6 +24,7 @@ i18n = {
         'What does this agent do? How does it behave? What should it avoid doing?'
     ],
     'form_model': ['模型', 'Model'],
+    'form_agent_language': ['Agent 语言', 'Agent Language'],
     'form_prompt_suggestion':
     ['推荐提示词，双击行可修改', 'prompt suggestion，double click to modify'],
     'form_knowledge': ['知识库', 'Knowledge Base'],
