@@ -82,7 +82,7 @@ class CustomPromptGenerator(PromptGenerator):
         self.builder_cfg = builder_cfg
         self.knowledge_file_name = kwargs.get('knowledge_file_name', '')
         if not len(instruction_template):
-            self._parse_role_config(builder_cfg)
+            instruction_template = self._parse_role_config(builder_cfg)
 
         self.llm = llm
         self.prompt_preprocessor = build_raw_prompt(llm.model_id)
