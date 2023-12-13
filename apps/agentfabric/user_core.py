@@ -36,11 +36,11 @@ def init_user_chatbot_agent(uuid_str=''):
 
     # build prompt with zero shot react template
     prompt_generator = builder_cfg.get('prompt_generator', None)
-    if not prompt_generator:
+    if builder_cfg.model.startswith('qwen') and not prompt_generator:
         prompt_generator = 'CustomPromptGenerator'
-    language = builder_cfg.get('language', 'en')
-    if language == 'zh':
-        prompt_generator = 'ZhCustomPromptGenerator'
+        language = builder_cfg.get('language', 'en')
+        if language == 'zh':
+            prompt_generator = 'ZhCustomPromptGenerator'
 
     prompt_cfg = {
         'prompt_generator':
