@@ -60,4 +60,4 @@ class BuilderPromptGenerator(MessagesGenerator):
                  **kwargs):
         super().__init__(
             system_template=system_template,
-            custom_starter_messages=starter_messages)
+            custom_starter_messages=custom_starter_messages)

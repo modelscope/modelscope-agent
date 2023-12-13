@@ -19,14 +19,12 @@ class ActionParserFactory:
         print(f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}')
         action_parser = kwargs.get('action_parser', None)
         if action_parser:
-            print(f'action_parser: {action_parser}')
             return cls._string_to_obj(action_parser, **kwargs)
 
         if model:
             language = kwargs.pop('language', 'en')
             action_parser = cls._get_model_default_type(model, language)
             if action_parser:
-                print(f'action_parser: {action_parser}')
                 return cls._string_to_obj(action_parser, **kwargs)
 
         return cls._get_action_parser_by_agent_type(agent_type, **kwargs)
@@ -35,10 +33,8 @@ class ActionParserFactory:
         print(
             f'action_parser_register.registered: {action_parser_register.registered}'
         )
+        print(f'action_parser_name: {action_parser_name}')
         for parser in action_parser_register.registered:
-            print(
-                f'action_parser_name: {action_parser_name}, parser.__name__: {parser.__name__}'
-            )
             if action_parser_name == parser.__name__:
                 obj = parser(**kwargs)
                 return obj
@@ -49,7 +45,6 @@ class ActionParserFactory:
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
-        print(f'model: {model_id}')
         if not model_id:
             # logger.warning
             print(f'model has no name: {model}')
@@ -59,6 +54,9 @@ class ActionParserFactory:
         for key in DEFAULT_MODEL_CONFIG.keys():
             if model_id.startswith(key):
                 candidate.append(key)
+        print(
+            f'action parser factory: model = {model_id}, candidate= {candidate}'
+        )
 
         full_model_id = max(candidate, key=len, default=None)
         if full_model_id:

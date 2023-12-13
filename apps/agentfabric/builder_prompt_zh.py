@@ -42,5 +42,5 @@ starter_messages = [{
 @prompt_generator_register
 class ZhBuilderPromptGenerator(BuilderPromptGenerator):
 
-    def __init__(self, custom_starter_messages=starter_messages):
-        super().__init__(custom_starter_messages=starter_messages)
+    def __init__(self, custom_starter_messages=starter_messages, **kwargs):
+        super().__init__(custom_starter_messages=starter_messages, **kwargs)

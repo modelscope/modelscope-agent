@@ -53,9 +53,6 @@ class ZhCustomPromptGenerator(CustomPromptGenerator):
             instruction_template=DEFAULT_INSTRUCTION_TEMPLATE,
             user_template=DEFAULT_USER_TEMPLATE,
             exec_template=DEFAULT_EXEC_TEMPLATE,
-            assistant_template='',
-            sep='\n\n',
-            llm=None,
             tool_desc=TOOL_DESC,
             default_user_template_without_tool=DEFAULT_USER_TEMPLATE_WITHOUT_TOOL,
             default_system_template_without_tool=DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL,
@@ -66,17 +63,14 @@ class ZhCustomPromptGenerator(CustomPromptGenerator):
             instruction_template=instruction_template,
             user_template=user_template,
             exec_template=exec_template,
-            assistant_template=assistant_template,
             tool_desc=tool_desc,
             default_user_template_without_tool=
             default_user_template_without_tool,
             default_system_template_without_tool=
             default_system_template_without_tool,
-            sep=sep,
-            llm=llm,
-            length_constraint=length_constraint)
+            **kwargs)
 
-    def _parse_role_config(config: dict):
+    def _parse_role_config(self, config: dict):
         prompt = '你扮演AI-Agent，'
 
         # concat prompt

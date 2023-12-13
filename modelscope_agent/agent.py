@@ -59,7 +59,8 @@ class AgentExecutor:
         if issubclass(action_parser.__class__, ActionParser):
             self.action_parser = action_parser
         else:
-            self.action_parser = get_action_parser(agent_type, llm, action_parser=action_parser, **kwargs)
+            self.action_parser = get_action_parser(
+                agent_type, llm, action_parser=action_parser, **kwargs)
 
         self._init_tools(tool_cfg, additional_tool_list)
 

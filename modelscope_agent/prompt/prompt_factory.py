@@ -21,13 +21,11 @@ class PromptGeneratorFactory:
 
         prompt_generator = kwargs.get('prompt_generator', None)
         if prompt_generator:
-            print(f'prompt_generator: {prompt_generator}')
             return cls._string_to_obj(prompt_generator, llm=model, **kwargs)
 
         if model:
             language = kwargs.pop('language', 'en')
             prompt_generator = cls._get_model_default_type(model, language)
-            print(f'prompt_generator: {prompt_generator}')
             if prompt_generator:
                 return cls._string_to_obj(
                     prompt_generator, llm=model, **kwargs)
@@ -39,10 +37,8 @@ class PromptGeneratorFactory:
         print(
             f'prompt_generator_register.registered: {prompt_generator_register.registered}'
         )
+        print(f'prompt_generator_name: {prompt_generator_name}')
         for generator in prompt_generator_register.registered:
-            print(
-                f'prompt_generator_name: {prompt_generator_name}, generator.__name__: {generator.__name__}'
-            )
             if prompt_generator_name == generator.__name__:
                 obj = generator(**kwargs)
                 return obj
@@ -53,7 +49,6 @@ class PromptGeneratorFactory:
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
-        print(f'model: {model_id}')
         if not model_id:
             # logger.warning
             print(f'model has no name: {model}')
@@ -61,11 +56,12 @@ class PromptGeneratorFactory:
 
         candidate = []
         for key in DEFAULT_MODEL_CONFIG.keys():
-            print(f'model_id: {model_id}, key: {key}')
             if model_id.startswith(key):
                 candidate.append(key)
 
-        print(f'candidate: {candidate}')
+        print(
+            f'prompt generator factory: model_id = {model_id}, candidate = {candidate}'
+        )
         full_model_id = max(candidate, key=len, default=None)
         if full_model_id:
             model_cfg = DEFAULT_MODEL_CONFIG.get(full_model_id, {})
