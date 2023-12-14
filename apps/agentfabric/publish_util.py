@@ -1,10 +1,14 @@
 import glob
 import os
+import re
 import shutil
+import zipfile
 from configparser import ConfigParser
+from urllib.parse import unquote, urlparse
 
 import json
 import oss2
+import requests
 
 from modelscope.utils.config import Config
 
@@ -160,7 +164,103 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     return file_url, envs_required
 
 
+def parse_version_from_file(file_path):
+    # 用于匹配 __version__ 行的正则表达式
+    version_pattern = r"^__version__\s*=\s*['\"]([^'\"]+)['\"]"
+
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                # 检查每一行是否匹配版本模式
+                match = re.match(version_pattern, line.strip())
+                if match:
+                    # 返回匹配的版本号
+                    return match.group(1)
+        return None  # 如果文件中没有找到版本号
+    except FileNotFoundError:
+        return None  # 如果文件不存在
+
+
+def reload_agent_zip(agent_url, dst_dir, uuid_str, state):
+    # download zip from agent_url, and unzip to dst_dir/uuid_str
+    # 从URL中解析出文件名
+    parsed_url = urlparse(agent_url)
+    filename = os.path.basename(parsed_url.path)
+    zip_path = os.path.join(dst_dir, filename)
+
+    # 提取agent_name（去掉'.zip'）
+    agent_name, _ = os.path.splitext(filename)
+
+    # 创建临时解压目录
+    temp_extract_dir = os.path.join(dst_dir, f'temp_{uuid_str}')
+    if os.path.exists(temp_extract_dir):
+        shutil.rmtree(temp_extract_dir)
+    os.makedirs(temp_extract_dir)
+
+    # 下载ZIP文件
+    response = requests.get(agent_url)
+    if response.status_code == 200:
+        with open(zip_path, 'wb') as file:
+            file.write(response.content)
+    else:
+        raise RuntimeError(
+            f'download file from {agent_url} error:\n {response.reason}')
+
+    # 解压ZIP文件到临时目录
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(temp_extract_dir)
+
+    # 解析version信息
+    version = parse_version_from_file(
+        os.path.join(temp_extract_dir, '/version.py'))
+    print(f'agent fabric version: {version}')
+    # 创建目标config路径
+    target_config_path = os.path.join(dst_dir, 'config', uuid_str)
+    if os.path.exists(target_config_path):
+        shutil.rmtree(target_config_path)
+    os.makedirs(target_config_path)
+
+    # 复制config目录
+    # 兼容老版本配置放到local_user目录下，以及新版本直接放在config目录下
+    if os.path.exists(os.path.join(temp_extract_dir, 'config', 'local_user')):
+        config_source_path = os.path.join(temp_extract_dir, 'config',
+                                          'local_user')
+    elif os.path.exists(os.path.join(temp_extract_dir, 'config')):
+        config_source_path = os.path.join(temp_extract_dir, 'config')
+    else:
+        raise RuntimeError('未找到正确的配置文件信息')
+
+    if os.path.exists(config_source_path):
+        for item in os.listdir(config_source_path):
+            s = os.path.join(config_source_path, item)
+            d = os.path.join(target_config_path, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
+
+    # 清理：删除临时目录和下载的ZIP文件
+    shutil.rmtree(temp_extract_dir)
+    os.remove(zip_path)
+
+    # 修改知识库路径 config/xxx  to /tmp/agentfabric/config/$uuid/xxx
+    target_conf = os.path.join(target_config_path, 'builder_config.json')
+    builder_cfg = Config.from_file(target_conf)
+    builder_cfg.knowledge = [
+        f'{target_config_path}/' + f.split('/')[-1]
+        for f in builder_cfg.knowledge
+    ]
+    with open(target_conf, 'w') as f:
+        json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
+
+    return agent_name
+
+
 if __name__ == '__main__':
     src_dir = os.path.abspath(os.path.dirname(__file__))
-    url = prepare_agent_zip('test', src_dir, 'local_user', {})
+    url, envs = prepare_agent_zip('test', src_dir, 'local_user', {})
     print(url)
+
+    agent_name = reload_agent_zip(url, '/tmp/agentfabric_test', 'local_user',
+                                  {})
+    print(agent_name)
