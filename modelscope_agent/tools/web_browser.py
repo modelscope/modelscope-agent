@@ -33,12 +33,12 @@ class WebBrowser(Tool):
             return {'result': ''}
 
         # # load html
-        loader = AsyncHtmlLoader(urls)
+        loader = AsyncChromiumLoader(urls)
         docs = loader.load()
         # Transform
         bs_transformer = BeautifulSoupTransformer()
         docs_transformed = bs_transformer.transform_documents(
-            docs, tags_to_extract=['span'])
+            docs, tags_to_extract=['span', 'div', 'p'])
 
         # split url content into chunk in order to get fine-grained results
         if self.split_url_into_chunk:
