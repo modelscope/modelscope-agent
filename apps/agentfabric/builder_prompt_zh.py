@@ -1,4 +1,4 @@
-from apps.agentfabric.builder_prompt import BuilderPromptGenerator
+from builder_prompt import BuilderPromptGenerator
 
 SYSTEM = 'You are a helpful assistant.'
 
