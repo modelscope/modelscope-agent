@@ -523,7 +523,7 @@ with demo:
         ])
 
     # 配置 "Preview" 的消息发送功能
-    def preview_send_message(chatbot, input, _state):
+    def preview_send_message(chatbot, input, _state, uuid_str):
         # 将发送的消息添加到聊天历史
         user_agent = _state['user_agent']
         if 'new_file_paths' in _state:
@@ -545,7 +545,8 @@ with demo:
                     input,
                     print_info=True,
                     remote=False,
-                    append_files=new_file_paths):
+                    append_files=new_file_paths,
+                    uuid=uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 if len(exec_result) != 0:
@@ -572,7 +573,7 @@ with demo:
 
     preview_send_button.click(
         preview_send_message,
-        inputs=[user_chatbot, preview_chat_input, state],
+        inputs=[user_chatbot, preview_chat_input, state, uuid_str],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     def upload_file(chatbot, upload_button, _state, uuid_str):
