@@ -17,7 +17,6 @@ from i18n import I18n
 from modelscope_agent.utils.logger import agent_logger as logger
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
-
 from user_core import init_user_chatbot_agent
 
 
