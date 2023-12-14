@@ -7,7 +7,7 @@ from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
 
 def test_web_browsing():
     # test code interpreter
-    input = 'https://mp.weixin.qq.com/s/ED2nYza15ZpEVLOGPIEyeg'
+    input = 'blog.sina.com.cn/zhangwuchang'
     kwargs = {'urls': input}
     web_browser = WebBrowser()
     res = web_browser._local_call(**kwargs)
