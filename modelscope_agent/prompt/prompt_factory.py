@@ -53,7 +53,8 @@ class PromptGeneratorFactory:
             f'prompt generator {prompt_generator_name} is not registered.',
             content={'registered': prompt_generator_register.registered})
         raise ValueError(
-            f'prompt generator {prompt_generator_name} is not registered.')
+            f'prompt generator {prompt_generator_name} is not registered. prompt_generator_register.registered: \
+              {prompt_generator_register.registered}')
 
     def _get_model_default_type(model: LLM, language: str = 'en'):
         if not issubclass(model.__class__, LLM):
