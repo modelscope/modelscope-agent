@@ -1,7 +1,8 @@
 import pytest
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
-from modelscope_agent.prompt import PromptGenerator, get_prompt_generator
+from modelscope_agent.prompt import PromptGenerator
+from modelscope_agent.prompt.prompt_factory import get_prompt_generator
 from tests.utils import MockLLM, MockPromptGenerator, MockTool
 
 from modelscope.utils.config import Config

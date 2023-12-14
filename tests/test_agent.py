@@ -12,17 +12,17 @@ def _get_tool(name='search_tool', func=lambda x: x, description='mock tool'):
     return tool
 
 
-def _get_output_parser(action, args):
-    output_parser = MockOutParser(action, args)
-    return output_parser
+def _get_action_parser(action, args):
+    action_parser = MockOutParser(action, args)
+    return action_parser
 
 
-def _get_agent(llm, tools={}, prompt_generator=None, output_parser=None):
+def _get_agent(llm, tools={}, prompt_generator=None, action_parser=None):
     agent = AgentExecutor(
         llm,
         additional_tool_list=tools,
         prompt_generator=prompt_generator,
-        output_parser=output_parser)
+        action_parser=action_parser)
     return agent
 
 
@@ -47,14 +47,14 @@ def test_unknown_action_error():
     # test when llm and parser return unknown action
     llm = _get_llm()
     tools = {'search_tool': _get_tool('search_tool')}
-    output_parser = _get_output_parser('fake_search_tool',
+    action_parser = _get_action_parser('fake_search_tool',
                                        {'query': 'mock query'})
     prompt_generator = MockPromptGenerator()
     agent = _get_agent(
         llm,
         tools,
         prompt_generator=prompt_generator,
-        output_parser=output_parser)
+        action_parser=action_parser)
     res = agent.run('mock task')
     assert res == [{'exec_result': "Unknown action: 'fake_search_tool'. "}]
 
@@ -65,13 +65,13 @@ def test_tool_execute_error():
     tools = {
         'search_tool': _get_tool('search_tool', lambda x: 1 / 0, 'mock tool')
     }
-    output_parser = _get_output_parser('search_tool', {'query': 'mock query'})
+    action_parser = _get_action_parser('search_tool', {'query': 'mock query'})
     prompt_generator = MockPromptGenerator()
     agent = _get_agent(
         llm,
         tools,
         prompt_generator=prompt_generator,
-        output_parser=output_parser)
+        action_parser=action_parser)
     res = agent.run('mock task')
     assert res[0]['exec_result'].startswith(
         "Action call error: search_tool: {'query': 'mock query'}.")

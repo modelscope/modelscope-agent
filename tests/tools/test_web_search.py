@@ -22,14 +22,14 @@ def test_web_search_agent():
 
     tools = {'web_search_utils': WebSearch()}
     prompt_generator = MockPromptGenerator()
-    output_parser = MockOutParser('web_search_utils',
+    action_parser = MockOutParser('web_search_utils',
                                   {'query': '2024元旦 哈尔滨 天气'})
 
     agent = AgentExecutor(
         llm,
         additional_tool_list=tools,
         prompt_generator=prompt_generator,
-        output_parser=output_parser,
+        action_parser=action_parser,
         tool_retrieval=False,
     )
     res = agent.run('帮我查询2024年元旦时哈尔滨天气情况')
