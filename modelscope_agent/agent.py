@@ -1,16 +1,18 @@
 import importlib
-import traceback
-from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
 from .action_parser import ActionParser
 from .action_parser_factory import get_action_parser
+from modelscope_agent.utils.logger import agent_logger as logger
+
 from .agent_types import AgentType
 from .llm import LLM
 from .output_wrapper import display
 from .prompt import PromptGenerator
 from .prompt.prompt_factory import get_prompt_generator
 from .retrieve import KnowledgeRetrieval, ToolRetrieval
+from .retrieve import (SUPPORTED_KNOWLEDGE_TYPE, KnowledgeRetrieval,
+                       ToolRetrieval)
 from .tools import TOOL_INFO_LIST
 
 
@@ -135,19 +137,25 @@ class AgentExecutor:
             append_files(str): user insert append_files during runtime
 
         """
-        if len(append_files) > 0:
-            # get the sub list of files only end with .txt, .pdf, .md
+        try:
             append_files = [
                 item for item in append_files
-                if item.endswith(('.txt', '.pdf', '.md'))
+                if item.endswith(tuple(SUPPORTED_KNOWLEDGE_TYPE))
             ]
-            if not self.knowledge_retrieval:
-                self.knowledge_retrieval = KnowledgeRetrieval.from_file(
-                    append_files)
-            else:
-                self.knowledge_retrieval.add_file(append_files)
-        return self.knowledge_retrieval.retrieve(
-            query) if self.knowledge_retrieval else []
+            if len(append_files) > 0:
+                # get the sub list of files only end with .txt, .pdf, .md
+                if not self.knowledge_retrieval:
+                    self.knowledge_retrieval = KnowledgeRetrieval.from_file(
+                        append_files)
+                else:
+                    self.knowledge_retrieval.add_file(append_files)
+            return self.knowledge_retrieval.retrieve(
+                query) if self.knowledge_retrieval else []
+        except Exception as e:
+            print(
+                f'Error when retrieving knowledge: {e} and {traceback.print_exc()}'
+            )
+            return []
 
     def run(self,
             task: str,
@@ -191,7 +199,9 @@ class AgentExecutor:
                 return [{'exec_result': str(e)}]
 
             if print_info:
-                print(f'|LLM inputs in round {idx}: {llm_artifacts}')
+                logger.info(
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             # parse and get tool name and arguments
             try:
@@ -218,7 +228,9 @@ class AgentExecutor:
                 try:
                     exec_result = tool(**action_args, remote=remote)
                     if print_info:
-                        print(f'|exec_result: {exec_result}')
+                        logger.info(
+                            message='exec_result',
+                            content={'exec_result': exec_result})
 
                     # parse exec result and store result to agent state
                     final_res.append(exec_result)
@@ -272,7 +284,9 @@ class AgentExecutor:
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
             if print_info:
-                print(f'|LLM inputs in round {idx}:\n{llm_artifacts}')
+                logger.info(
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             llm_result = ''
             try:
@@ -280,7 +294,7 @@ class AgentExecutor:
                                                   function_list):
                     llm_result += s
                     yield {'llm_text': s}
-            except RuntimeError:
+            except NotImplementedError:
                 s = self.llm.generate(llm_artifacts)
                 llm_result += s
                 yield {'llm_text': s}
@@ -343,7 +357,9 @@ class AgentExecutor:
             try:
                 true_arg = self.agent_state.get(arg, arg)
             except Exception as e:
-                print(f'Error when parsing action args: {e}, using fall back')
+                logger.error(
+                    error=
+                    f'Error when parsing action args: {e}, using fall back')
                 true_arg = arg
             parsed_action_args[name] = true_arg
         return parsed_action_args

@@ -59,8 +59,9 @@ class TextToImageTool(ModelscopePipelineTool):
         if prompt is None:
             return None
         dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
+        model = kwargs.get('model', 'wanx-v1')
         response = ImageSynthesis.call(
-            model=ImageSynthesis.Models.wanx_v1,
+            model=model,
             prompt=prompt,
             n=1,
             size=resolution,
