@@ -98,7 +98,6 @@ class ChatGLMActionParser(ActionParser):
                 f'Error during parse action might be handled with detail {e}')
             return ActionParser.handle_fallback(action, action_para)
 
-        print(f'\n\naction: {action}\n parameters: {parameters}\n\n')
         return action, parameters
 
 

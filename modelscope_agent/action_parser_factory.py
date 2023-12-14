@@ -4,6 +4,7 @@ from modelscope_agent import action_parser_register
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.constant import DEFAULT_MODEL_CONFIG
 from modelscope_agent.llm import LLM
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .action_parser import (MRKLActionParser, MsActionParser,
                             OpenAiFunctionsActionParser)
@@ -16,7 +17,9 @@ class ActionParserFactory:
                           agent_type: AgentType = AgentType.DEFAULT,
                           model: LLM = None,
                           **kwargs):
-        print(f'agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}')
+        logger.info(
+            f'Initiating action parser. agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}'
+        )
         action_parser = kwargs.get('action_parser', None)
         if action_parser:
             return cls._string_to_obj(action_parser, **kwargs)
@@ -30,33 +33,26 @@ class ActionParserFactory:
         return cls._get_action_parser_by_agent_type(agent_type, **kwargs)
 
     def _string_to_obj(action_parser_name: str, **kwargs):
-        print(
-            f'action_parser_register.registered: {action_parser_register.registered}'
-        )
-        print(f'action_parser_name: {action_parser_name}')
         for name, parser in action_parser_register.registered.items():
             if action_parser_name == name:
                 obj = parser(**kwargs)
                 return obj
         raise ValueError(
-            f'action parser {action_parser_name} is not registered.')
+            f'action parser {action_parser_name} is not registered. action_parser_register.registered: \
+              {action_parser_register.registered}')
 
     def _get_model_default_type(model: LLM, language: str = 'en'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
         if not model_id:
-            # logger.warning
-            print(f'model has no name: {model}')
+            logger.warning(f'llm has no name: {model}')
             return None
 
         candidate = []
         for key in DEFAULT_MODEL_CONFIG.keys():
             if model_id.startswith(key):
                 candidate.append(key)
-        print(
-            f'action parser factory: model = {model_id}, candidate= {candidate}'
-        )
 
         full_model_id = max(candidate, key=len, default=None)
         if full_model_id:
@@ -64,6 +60,10 @@ class ActionParserFactory:
             if model_cfg.get(language, None):
                 return model_cfg[language].get('action_parser', None)
             return model_cfg.get('action_parser', None)
+        logger.warning(
+            f'action parser cannot initiated by model type: model_id = {model_id}, candidate = \
+              {candidate}, model with default prompt type = {DEFAULT_MODEL_CONFIG.keys()}'
+        )
         return None
 
     def _get_action_parser_by_agent_type(
