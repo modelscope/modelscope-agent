@@ -24,8 +24,8 @@ class PromptGeneratorFactory:
             message='Initiating prompt generator.',
             content={
                 'agent_type': agent_type,
-                'model': model,
-                'kwargs': kwargs
+                'model': str(model),
+                'kwargs': str(kwargs)
             })
 
         prompt_generator = kwargs.get('prompt_generator', None)
@@ -34,7 +34,7 @@ class PromptGeneratorFactory:
 
         if model:
             language = kwargs.pop('language', 'en')
-            prompt_generator = cls._get_model_default_type(model, language)
+            prompt_generator = cls._get_model_default_type(model, language, uuid)
             if prompt_generator:
                 return cls._string_to_obj(
                     prompt_generator, llm=model, **kwargs)
@@ -43,6 +43,7 @@ class PromptGeneratorFactory:
             agent_type, llm=model, **kwargs)
 
     def _string_to_obj(prompt_generator_name: str, **kwargs):
+        uuid = kwargs.get('uuid', 'default_user')
         for name, generator in prompt_generator_register.registered.items():
             if prompt_generator_name == name:
                 obj = generator(**kwargs)
@@ -51,12 +52,12 @@ class PromptGeneratorFactory:
             uuid=uuid,
             message=
             f'prompt generator {prompt_generator_name} is not registered.',
-            content={'registered': prompt_generator_register.registered})
+            content={'registered': str(prompt_generator_register.registered)})
         raise ValueError(
             f'prompt generator {prompt_generator_name} is not registered. prompt_generator_register.registered: \
               {prompt_generator_register.registered}')
 
-    def _get_model_default_type(model: LLM, language: str = 'en'):
+    def _get_model_default_type(model: LLM, language: str = 'en', uuid: str = 'default_user'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
@@ -80,8 +81,8 @@ class PromptGeneratorFactory:
             message='prompt generator cannot initiated by model type.',
             content={
                 'model_id': model_id,
-                'candidate': candidate,
-                'model_with_default_type': DEFAULT_MODEL_CONFIG.keys()
+                'candidate': str(candidate),
+                'model_with_default_type': str(DEFAULT_MODEL_CONFIG.keys())
             })
         return None
 
