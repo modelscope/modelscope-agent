@@ -200,6 +200,7 @@ class AgentExecutor:
 
             if print_info:
                 logger.info(
+                    uuid=kwargs.get('uuid', 'default_user'),
                     message=f'LLM inputs in round {idx}',
                     content={'llm_artifacts': llm_artifacts})
 
