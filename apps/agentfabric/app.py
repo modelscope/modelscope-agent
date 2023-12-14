@@ -61,18 +61,16 @@ def init_builder(uuid_str, state):
 
 
 def update_builder(uuid_str, state):
-    builder_agent = state['builder_agent']
 
     try:
-        builder_cfg_file = get_user_cfg_file(uuid_str=uuid_str)
-        with open(builder_cfg_file, 'r') as f:
-            config = json.load(f)
-        builder_agent.update_config_to_history(config)
+        builder_agent = init_builder_chatbot_agent(uuid_str)
+        state['builder_agent'] = builder_agent
     except Exception as e:
         logger.error(
             uuid=uuid_str,
             error=str(e),
             content={'error_traceback': traceback.format_exc()})
+
     return state
 
 
