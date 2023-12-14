@@ -108,16 +108,15 @@ class StyleRepaint(Tool):
             else:
                 # if the key does not contain ".", directly store the key-value pair into restored_dict
                 restored_dict[key] = value
-            kwargs = restored_dict
-            image_path = kwargs['input'].pop('image_path', None)
-            if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
-                # 生成 image_url，然后设置到 kwargs['input'] 中
-                image_url = path2url(image_path, f'{self.name}/{image_path}')
-                kwargs['input']['image_url'] = image_url
-            else:
-                raise ValueError('请先上传一张正确格式的图片')
-            kwargs['model'] = 'wanx-style-repaint-v1'
-            # kwargs['input']['style_index'] = int(kwargs['input']['style_index'])
+        kwargs = restored_dict
+        image_path = kwargs['input'].pop('image_path', None)
+        if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
+            # 生成 image_url，然后设置到 kwargs['input'] 中
+            image_url = path2url(image_path, f'{self.name}/{image_path}')
+            kwargs['input']['image_url'] = image_url
+        else:
+            raise ValueError('请先上传一张正确格式的图片')
+        kwargs['model'] = 'wanx-style-repaint-v1'
         print('传给style_repaint tool的参数：', kwargs)
         return kwargs
 
