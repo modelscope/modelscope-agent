@@ -61,18 +61,16 @@ def init_builder(uuid_str, state):
 
 
 def update_builder(uuid_str, state):
-    builder_agent = state['builder_agent']
 
     try:
-        builder_cfg_file = get_user_cfg_file(uuid_str=uuid_str)
-        with open(builder_cfg_file, 'r') as f:
-            config = json.load(f)
-        builder_agent.update_config_to_history(config)
+        builder_agent = init_builder_chatbot_agent(uuid_str)
+        state['builder_agent'] = builder_agent
     except Exception as e:
         logger.error(
             uuid=uuid_str,
             error=str(e),
             content={'error_traceback': traceback.format_exc()})
+
     return state
 
 
@@ -523,8 +521,9 @@ with demo:
         ])
 
     # 配置 "Preview" 的消息发送功能
-    def preview_send_message(chatbot, input, _state):
+    def preview_send_message(chatbot, input, _state, uuid_str):
         # 将发送的消息添加到聊天历史
+        _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
         if 'new_file_paths' in _state:
             new_file_paths = _state['new_file_paths']
@@ -545,7 +544,8 @@ with demo:
                     input,
                     print_info=True,
                     remote=False,
-                    append_files=new_file_paths):
+                    append_files=new_file_paths,
+                    uuid=_uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 if len(exec_result) != 0:
@@ -572,7 +572,7 @@ with demo:
 
     preview_send_button.click(
         preview_send_message,
-        inputs=[user_chatbot, preview_chat_input, state],
+        inputs=[user_chatbot, preview_chat_input, state, uuid_str],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     def upload_file(chatbot, upload_button, _state, uuid_str):

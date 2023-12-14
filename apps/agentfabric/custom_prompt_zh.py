@@ -1,4 +1,4 @@
-from apps.agentfabric.custom_prompt import CustomPromptGenerator
+from custom_prompt import CustomPromptGenerator
 
 DEFAULT_SYSTEM_TEMPLATE = """
 

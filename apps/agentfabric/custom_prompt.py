@@ -3,7 +3,7 @@ import os
 import re
 
 import json
-from apps.agentfabric.config_utils import get_user_cfg_file
+from config_utils import get_user_cfg_file
 from modelscope_agent.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
                                             KNOWLEDGE_PROMPT, LengthConstraint,
                                             PromptGenerator, build_raw_prompt)

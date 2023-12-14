@@ -160,7 +160,8 @@ class AgentExecutor:
             task: str,
             remote: bool = False,
             print_info: bool = False,
-            append_files: list = []) -> List[Dict]:
+            append_files: list = [],
+            **kwargs) -> List[Dict]:
         """ use llm and tools to execute task given by user
 
         Args:
@@ -199,6 +200,7 @@ class AgentExecutor:
 
             if print_info:
                 logger.info(
+                    uuid=kwargs.get('uuid', 'default_user'),
                     message=f'LLM inputs in round {idx}',
                     content={'llm_artifacts': llm_artifacts})
 
@@ -228,6 +230,7 @@ class AgentExecutor:
                     exec_result = tool(**action_args, remote=remote)
                     if print_info:
                         logger.info(
+                            uuid=kwargs.get('uuid', 'default_user'),
                             message='exec_result',
                             content={'exec_result': exec_result})
 
@@ -248,7 +251,8 @@ class AgentExecutor:
                    task: str,
                    remote: bool = True,
                    print_info: bool = False,
-                   append_files: list = []) -> Dict:
+                   append_files: list = [],
+                   **kwargs) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.
         It will yield the result of each interaction, so that the caller can display the result
 
@@ -284,6 +288,7 @@ class AgentExecutor:
                 llm_result, exec_result)
             if print_info:
                 logger.info(
+                    uuid=kwargs.get('uuid', 'default_user'),
                     message=f'LLM inputs in round {idx}',
                     content={'llm_artifacts': llm_artifacts})
 

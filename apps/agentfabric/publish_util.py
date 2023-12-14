@@ -12,7 +12,7 @@ import requests
 
 from modelscope.utils.config import Config
 
-MS_VERSION = '0.2.2rc1'
+MS_VERSION = '0.2.3rc1'
 DEFAULT_MS_PKG = 'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v/modelscope_agent-version-py3-none-any.whl'  # noqa E501
 
 
