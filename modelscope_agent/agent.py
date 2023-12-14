@@ -1,7 +1,7 @@
 import importlib
-import traceback
-from copy import deepcopy
 from typing import Dict, List, Optional, Union
+
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .agent_types import AgentType
 from .llm import LLM
@@ -187,7 +187,9 @@ class AgentExecutor:
                 return [{'exec_result': str(e)}]
 
             if print_info:
-                print(f'|LLM inputs in round {idx}: {llm_artifacts}')
+                logger.info(
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             # parse and get tool name and arguments
             try:
@@ -214,7 +216,9 @@ class AgentExecutor:
                 try:
                     exec_result = tool(**action_args, remote=remote)
                     if print_info:
-                        print(f'|exec_result: {exec_result}')
+                        logger.info(
+                            message='exec_result',
+                            content={'exec_result': exec_result})
 
                     # parse exec result and store result to agent state
                     final_res.append(exec_result)
@@ -268,7 +272,9 @@ class AgentExecutor:
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
             if print_info:
-                print(f'|LLM inputs in round {idx}:\n{llm_artifacts}')
+                logger.info(
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             llm_result = ''
             try:
@@ -339,7 +345,9 @@ class AgentExecutor:
             try:
                 true_arg = self.agent_state.get(arg, arg)
             except Exception as e:
-                print(f'Error when parsing action args: {e}, using fall back')
+                logger.error(
+                    error=
+                    f'Error when parsing action args: {e}, using fall back')
                 true_arg = arg
             parsed_action_args[name] = true_arg
         return parsed_action_args

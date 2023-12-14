@@ -1,6 +1,5 @@
 # flake8: noqa E501
 import re
-import traceback
 from typing import Dict
 
 import json
@@ -10,6 +9,7 @@ from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MessagesGenerator
+from modelscope_agent.utils.logger import agent_logger as logger
 
 SYSTEM = 'You are a helpful assistant.'
 
@@ -52,7 +52,8 @@ def init_builder_chatbot_agent(uuid_str):
     tool_cfg = {LOGO_TOOL_NAME: {'is_remote_tool': True}}
 
     # build llm
-    print(f'using builder model {builder_cfg.model}')
+    logger.info(
+        uuid=uuid_str, message=f'using builder model {builder_cfg.model}')
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
     llm.set_agent_type(AgentType.Messages)
 
@@ -119,7 +120,10 @@ class BuilderChatbotAgent(AgentExecutor):
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
             if print_info:
-                print(f'|LLM inputs in round {idx}:\n{llm_artifacts}')
+                logger.info(
+                    uuid=uuid_str,
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             llm_result = ''
             try:
@@ -135,7 +139,10 @@ class BuilderChatbotAgent(AgentExecutor):
                     yield result
 
                 if print_info:
-                    print(f'|LLM output in round {idx}:\n{llm_result}')
+                    logger.info(
+                        uuid=uuid_str,
+                        message=f'LLM output in round {idx}',
+                        content={'llm_result': llm_result})
             except Exception as e:
                 yield {'error': 'llm result is not valid'}
 
@@ -153,7 +160,7 @@ class BuilderChatbotAgent(AgentExecutor):
                 try:
                     answer = json.loads(rich_config)
                 except Exception:
-                    print('parse RichConfig error')
+                    logger.error(uuid=uuid_str, error='parse RichConfig error')
                     return
                 self._last_assistant_structured_response[
                     'rich_config_dict'] = answer
@@ -161,7 +168,7 @@ class BuilderChatbotAgent(AgentExecutor):
                 yield {'exec_result': {'result': builder_cfg}}
                 yield {'step': CONFIG_UPDATED_STEP}
             except ValueError as e:
-                print(e)
+                logger.error(uuid=uuid_str, error=str(e))
                 yield {'error content=[{}]'.format(llm_result)}
                 return
 

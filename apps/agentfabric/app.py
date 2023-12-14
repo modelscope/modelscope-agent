@@ -1,6 +1,5 @@
 import os
 import random
-import re
 import shutil
 import traceback
 
@@ -15,6 +14,7 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
+from modelscope_agent.utils.logger import agent_logger as logger
 from publish_util import pop_user_info_from_config, prepare_agent_zip
 from user_core import init_user_chatbot_agent
 
@@ -26,19 +26,22 @@ def init_user(uuid_str, state):
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
     return state
 
 
 def init_builder(uuid_str, state):
-
     try:
         builder_agent = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
     return state
 
 
@@ -51,8 +54,10 @@ def update_builder(uuid_str, state):
             config = json.load(f)
         builder_agent.update_config_to_history(config)
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
     return state
 
 
@@ -128,8 +133,10 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         if is_valid_plugin_configuration(openapi_plugin_cfg):
             save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
 
     save_builder_configuration(builder_cfg, uuid_str)
     update_builder(uuid_str, state)
@@ -336,7 +343,10 @@ with demo:
 
     # 初始化表单
     def init_ui_config(uuid_str, _state, builder_cfg, model_cfg, tool_cfg):
-        print('builder_cfg:', builder_cfg)
+        logger.info(
+            uuid=uuid_str,
+            message='builder_cfg',
+            content={'builder_cfg': str(builder_cfg)})
         # available models
         models = list(model_cfg.keys())
         capabilities = [(tool_cfg[tool_key]['name'], tool_key)
@@ -440,7 +450,8 @@ with demo:
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
-            print(frame)
+            logger.info(
+                uuid=uuid_str, message='frame', content={'frame': str(frame)})
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
