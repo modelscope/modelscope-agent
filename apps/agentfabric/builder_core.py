@@ -53,7 +53,8 @@ def init_builder_chatbot_agent(uuid_str):
         tool_cfg,
         agent_type=AgentType.Messages,
         additional_tool_list=additional_tool_list,
-        prompt_generator=prompt_generator)
+        prompt_generator=prompt_generator,
+        uuid=uuid_str)
     agent.set_available_tools([LOGO_TOOL_NAME])
     return agent
 
