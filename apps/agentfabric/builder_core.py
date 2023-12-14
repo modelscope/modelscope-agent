@@ -78,6 +78,7 @@ class BuilderChatbotAgent(AgentExecutor):
                    task: str,
                    remote: bool = True,
                    print_info: bool = False,
+                   append_files: list = [],
                    uuid_str: str = '') -> Dict:
 
         # retrieve tools

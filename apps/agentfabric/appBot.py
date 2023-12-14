@@ -142,7 +142,8 @@ with demo:
                     input,
                     print_info=True,
                     remote=False,
-                    append_files=new_file_paths):
+                    append_files=new_file_paths,
+                    uuid=uuid_str):
                 # is_final = frame.get("frame_is_final")
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
