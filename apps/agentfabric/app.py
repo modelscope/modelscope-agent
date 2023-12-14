@@ -1,6 +1,6 @@
+import importlib
 import os
 import random
-import re
 import shutil
 import traceback
 
@@ -8,15 +8,30 @@ import gradio as gr
 import json
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
+from builder_prompt import BuilderPromptGenerator
+from builder_prompt_zh import ZhBuilderPromptGenerator
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
+from custom_prompt import CustomPromptGenerator
+from custom_prompt_zh import ZhCustomPromptGenerator
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
-from publish_util import pop_user_info_from_config, prepare_agent_zip
+from modelscope_agent import prompt_generator_register
+from modelscope_agent.utils.logger import agent_logger as logger
+from publish_util import (pop_user_info_from_config, prepare_agent_zip,
+                          reload_agent_zip)
 from user_core import init_user_chatbot_agent
+
+prompts = {
+    'BuilderPromptGenerator': BuilderPromptGenerator,
+    'ZhBuilderPromptGenerator': ZhBuilderPromptGenerator,
+    'CustomPromptGenerator': CustomPromptGenerator,
+    'ZhCustomPromptGenerator': ZhCustomPromptGenerator,
+}
+prompt_generator_register(prompts)
 
 
 def init_user(uuid_str, state):
@@ -26,33 +41,36 @@ def init_user(uuid_str, state):
         user_agent.seed = seed
         state['user_agent'] = user_agent
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
     return state
 
 
 def init_builder(uuid_str, state):
+    try:
+        builder_agent = init_builder_chatbot_agent(uuid_str)
+        state['builder_agent'] = builder_agent
+    except Exception as e:
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
+    return state
+
+
+def update_builder(uuid_str, state):
 
     try:
         builder_agent = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
-    return state
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
 
-
-def update_builder(uuid_str, state):
-    builder_agent = state['builder_agent']
-
-    try:
-        builder_cfg_file = get_user_cfg_file(uuid_str=uuid_str)
-        with open(builder_cfg_file, 'r') as f:
-            config = json.load(f)
-        builder_agent.update_config_to_history(config)
-    except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
     return state
 
 
@@ -66,9 +84,9 @@ def check_uuid(uuid_str):
 
 
 def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, suggestions, knowledge_files,
-                          capabilities_checkboxes, openapi_schema,
-                          openapi_auth, openapi_auth_apikey,
+                          instructions, model, agent_language, suggestions,
+                          knowledge_files, capabilities_checkboxes,
+                          openapi_schema, openapi_auth, openapi_auth_apikey,
                           openapi_auth_apikey_type, openapi_privacy_policy,
                           state):
     uuid_str = check_uuid(uuid_str)
@@ -103,6 +121,7 @@ def process_configuration(uuid_str, bot_avatar, name, description,
             for capability in map(lambda item: item[1], capabilities)
         },
         'model': model,
+        'language': agent_language,
     }
 
     try:
@@ -127,8 +146,10 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         if is_valid_plugin_configuration(openapi_plugin_cfg):
             save_plugin_configuration(openapi_plugin_cfg, uuid_str)
     except Exception as e:
-        error = traceback.format_exc()
-        print(f'Error:{e}, with detail: {error}')
+        logger.error(
+            uuid=uuid_str,
+            error=str(e),
+            content={'error_traceback': traceback.format_exc()})
 
     save_builder_configuration(builder_cfg, uuid_str)
     update_builder(uuid_str, state)
@@ -209,8 +230,12 @@ with demo:
                             placeholder=i18n.get(
                                 'form_instructions_placeholder'),
                             lines=3)
-                        model_selector = model_selector = gr.Dropdown(
+                        model_selector = gr.Dropdown(
                             label=i18n.get('form_model'))
+                        agent_language_selector = gr.Dropdown(
+                            label=i18n.get('form_agent_language'),
+                            choices=['zh', 'en'],
+                            value='zh')
                         suggestion_input = gr.Dataframe(
                             show_label=False,
                             value=[['']],
@@ -310,6 +335,15 @@ with demo:
                         publish_hint_md = gr.Markdown(
                             f'#### 2.{i18n.get("publish_hint")}')
 
+            with gr.Accordion(
+                    label=i18n.get('update'), open=False) as update_accordion:
+                with gr.Column():
+                    update_space = gr.Textbox(
+                        label=i18n.get('space_addr'),
+                        placeholder=i18n.get('input_space_addr'))
+                    import_button = gr.Button(i18n.get_whole('import_space'))
+                    gr.Markdown(f'#### {i18n.get_whole("import_hint")}')
+
     configure_updated_outputs = [
         state,
         # config form
@@ -318,6 +352,7 @@ with demo:
         description_input,
         instructions_input,
         model_selector,
+        agent_language_selector,
         suggestion_input,
         knowledge_input,
         capabilities_checkboxes,
@@ -330,7 +365,10 @@ with demo:
 
     # 初始化表单
     def init_ui_config(uuid_str, _state, builder_cfg, model_cfg, tool_cfg):
-        print('builder_cfg:', builder_cfg)
+        logger.info(
+            uuid=uuid_str,
+            message='builder_cfg',
+            content={'builder_cfg': str(builder_cfg)})
         # available models
         models = list(model_cfg.keys())
         capabilities = [(tool_cfg[tool_key]['name'], tool_key)
@@ -356,6 +394,8 @@ with demo:
             model_selector:
             gr.Dropdown.update(
                 value=builder_cfg.get('model', models[0]), choices=models),
+            agent_language_selector:
+            builder_cfg.get('language') or 'zh',
             suggestion_input: [[str] for str in suggests],
             knowledge_input:
             builder_cfg.get('knowledge', [])
@@ -432,7 +472,8 @@ with demo:
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
-            print(frame)
+            logger.info(
+                uuid=uuid_str, message='frame', content={'frame': str(frame)})
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
@@ -469,10 +510,10 @@ with demo:
         process_configuration,
         inputs=[
             uuid_str, bot_avatar_comp, name_input, description_input,
-            instructions_input, model_selector, suggestion_input,
-            knowledge_input, capabilities_checkboxes, openapi_schema,
-            openapi_auth_type, openapi_auth_apikey, openapi_auth_apikey_type,
-            openapi_privacy_policy, state
+            instructions_input, model_selector, agent_language_selector,
+            suggestion_input, knowledge_input, capabilities_checkboxes,
+            openapi_schema, openapi_auth_type, openapi_auth_apikey,
+            openapi_auth_apikey_type, openapi_privacy_policy, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,
@@ -480,8 +521,9 @@ with demo:
         ])
 
     # 配置 "Preview" 的消息发送功能
-    def preview_send_message(chatbot, input, _state):
+    def preview_send_message(chatbot, input, _state, uuid_str):
         # 将发送的消息添加到聊天历史
+        _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
         if 'new_file_paths' in _state:
             new_file_paths = _state['new_file_paths']
@@ -502,7 +544,8 @@ with demo:
                     input,
                     print_info=True,
                     remote=False,
-                    append_files=new_file_paths):
+                    append_files=new_file_paths,
+                    uuid=_uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 if len(exec_result) != 0:
@@ -529,7 +572,7 @@ with demo:
 
     preview_send_button.click(
         preview_send_message,
-        inputs=[user_chatbot, preview_chat_input, state],
+        inputs=[user_chatbot, preview_chat_input, state, uuid_str],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     def upload_file(chatbot, upload_button, _state, uuid_str):
@@ -588,6 +631,22 @@ with demo:
         outputs=[publish_link],
     )
 
+    def import_space(agent_url, uuid_str, state):
+        uuid_str = check_uuid(uuid_str)
+        _ = reload_agent_zip(agent_url, DEFAULT_AGENT_DIR, uuid_str, state)
+
+        # update config
+        builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
+            uuid_str)
+        return init_ui_config(uuid_str, state, builder_cfg, model_cfg,
+                              tool_cfg)
+
+    import_button.click(
+        import_space,
+        inputs=[update_space, uuid_str, state],
+        outputs=configure_updated_outputs,
+    )
+
     def change_lang(language):
         i18n = I18n(language)
         return {
@@ -607,6 +666,8 @@ with demo:
                 placeholder=i18n.get('form_instructions_placeholder')),
             model_selector:
             gr.Dropdown(label=i18n.get('form_model')),
+            agent_language_selector:
+            gr.Dropdown(label=i18n.get('form_agent_language')),
             knowledge_input:
             gr.File(label=i18n.get('form_knowledge')),
             capabilities_checkboxes:

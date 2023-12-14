@@ -1,13 +1,15 @@
 import importlib
-import traceback
-from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
+from modelscope_agent.utils.logger import agent_logger as logger
+
+from .action_parser import ActionParser
+from .action_parser_factory import get_action_parser
 from .agent_types import AgentType
 from .llm import LLM
-from .output_parser import OutputParser, get_output_parser
 from .output_wrapper import display
-from .prompt import PromptGenerator, get_prompt_generator
+from .prompt import PromptGenerator
+from .prompt.prompt_factory import get_prompt_generator
 from .retrieve import (SUPPORTED_KNOWLEDGE_TYPE, KnowledgeRetrieval,
                        ToolRetrieval)
 from .tools import TOOL_INFO_LIST
@@ -20,10 +22,11 @@ class AgentExecutor:
                  tool_cfg: Optional[Dict] = {},
                  agent_type: AgentType = AgentType.DEFAULT,
                  additional_tool_list: Optional[Dict] = {},
-                 prompt_generator: Optional[PromptGenerator] = None,
-                 output_parser: Optional[OutputParser] = None,
-                 tool_retrieval: Optional[Union[bool, ToolRetrieval]] = True,
-                 knowledge_retrieval: Optional[KnowledgeRetrieval] = None):
+                 prompt_generator: Union[PromptGenerator, str] = None,
+                 action_parser: Union[ActionParser, str] = None,
+                 tool_retrieval: Optional[Union[bool, ToolRetrieval]] = False,
+                 knowledge_retrieval: Optional[KnowledgeRetrieval] = None,
+                 **kwargs):
         """
         the core class of ms agent. It is responsible for the interaction between user, llm and tools,
         and return the execution result to user.
@@ -36,8 +39,8 @@ class AgentExecutor:
             additional_tool_list (Optional[Dict], optional): user-defined additional tool list. Defaults to {}.
             prompt_generator (Optional[PromptGenerator], optional): this module is responsible for generating prompt
             according to interaction result. Defaults to use MSPromptGenerator.
-            output_parser (Optional[OutputParser], optional): this module is responsible for parsing output of llm
-            to executable actions. Defaults to use MsOutputParser.
+            action_parser (Optional[ActionParser], optional): this module is responsible for parsing output of llm
+            to executable actions. Defaults to use MsActionParser.
             tool_retrieval (Optional[Union[bool, ToolRetrieval]], optional): Retrieve related tools by input task,
             since most of the tools may be useless for LLM in specific task.
             If it is bool type and is True, will use default tool_retrieval. Defaults to True.
@@ -49,9 +52,17 @@ class AgentExecutor:
 
         self.agent_type = agent_type
         self.llm.set_agent_type(agent_type)
-        self.prompt_generator = prompt_generator or get_prompt_generator(
-            agent_type)
-        self.output_parser = output_parser or get_output_parser(agent_type)
+        if issubclass(prompt_generator.__class__, PromptGenerator):
+            self.prompt_generator = prompt_generator
+        else:
+            self.prompt_generator = get_prompt_generator(
+                agent_type, llm, prompt_generator=prompt_generator, **kwargs)
+
+        if issubclass(action_parser.__class__, ActionParser):
+            self.action_parser = action_parser
+        else:
+            self.action_parser = get_action_parser(
+                agent_type, llm, action_parser=action_parser, **kwargs)
 
         self._init_tools(tool_cfg, additional_tool_list)
 
@@ -149,7 +160,8 @@ class AgentExecutor:
             task: str,
             remote: bool = False,
             print_info: bool = False,
-            append_files: list = []) -> List[Dict]:
+            append_files: list = [],
+            **kwargs) -> List[Dict]:
         """ use llm and tools to execute task given by user
 
         Args:
@@ -187,11 +199,14 @@ class AgentExecutor:
                 return [{'exec_result': str(e)}]
 
             if print_info:
-                print(f'|LLM inputs in round {idx}: {llm_artifacts}')
+                logger.info(
+                    uuid=kwargs.get('uuid', 'default_user'),
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             # parse and get tool name and arguments
             try:
-                action, action_args = self.output_parser.parse_response(
+                action, action_args = self.action_parser.parse_response(
                     llm_result)
             except ValueError as e:
                 return [{'exec_result': f'{e}'}]
@@ -214,7 +229,10 @@ class AgentExecutor:
                 try:
                     exec_result = tool(**action_args, remote=remote)
                     if print_info:
-                        print(f'|exec_result: {exec_result}')
+                        logger.info(
+                            uuid=kwargs.get('uuid', 'default_user'),
+                            message='exec_result',
+                            content={'exec_result': exec_result})
 
                     # parse exec result and store result to agent state
                     final_res.append(exec_result)
@@ -233,7 +251,8 @@ class AgentExecutor:
                    task: str,
                    remote: bool = True,
                    print_info: bool = False,
-                   append_files: list = []) -> Dict:
+                   append_files: list = [],
+                   **kwargs) -> Dict:
         """this is a stream version of run, which can be used in scenario like gradio.
         It will yield the result of each interaction, so that the caller can display the result
 
@@ -268,7 +287,10 @@ class AgentExecutor:
             llm_artifacts = self.prompt_generator.generate(
                 llm_result, exec_result)
             if print_info:
-                print(f'|LLM inputs in round {idx}:\n{llm_artifacts}')
+                logger.info(
+                    uuid=kwargs.get('uuid', 'default_user'),
+                    message=f'LLM inputs in round {idx}',
+                    content={'llm_artifacts': llm_artifacts})
 
             llm_result = ''
             try:
@@ -285,7 +307,7 @@ class AgentExecutor:
 
             # parse and get tool name and arguments
             try:
-                action, action_args = self.output_parser.parse_response(
+                action, action_args = self.action_parser.parse_response(
                     llm_result)
             except ValueError as e:
                 yield {'exec_result': f'{e}'}
@@ -339,7 +361,9 @@ class AgentExecutor:
             try:
                 true_arg = self.agent_state.get(arg, arg)
             except Exception as e:
-                print(f'Error when parsing action args: {e}, using fall back')
+                logger.error(
+                    error=
+                    f'Error when parsing action args: {e}, using fall back')
                 true_arg = arg
             parsed_action_args[name] = true_arg
         return parsed_action_args

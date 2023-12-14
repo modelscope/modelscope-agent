@@ -1,7 +1,6 @@
 from __future__ import annotations
 import base64
 import html
-import io
 import os
 import re
 from urllib import parse
@@ -9,7 +8,7 @@ from urllib import parse
 import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
-from modelscope_agent.output_parser import MRKLOutputParser
+from modelscope_agent.action_parser import MRKLActionParser
 from PIL import Image
 
 ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
@@ -159,7 +158,7 @@ class ChatBot(ChatBotBase):
                     r'Action:([\s\S]+)Action Input:([\s\S]+)<\|startofexec\|>')
                 res = re_pattern_action.search(message)
                 if res is None:
-                    action, action_parameters = MRKLOutputParser(
+                    action, action_parameters = MRKLActionParser(
                     ).parse_response(message)
                 else:
                     action = res.group(1).strip()

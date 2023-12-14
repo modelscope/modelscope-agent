@@ -3,8 +3,8 @@ import shutil
 import traceback
 
 import json
-from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
-                                                   openapi_schema_convert)
+from modelscope_agent.tools.openapi_plugin import openapi_schema_convert
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
 
@@ -161,10 +161,14 @@ def parse_configuration(uuid_str=''):
             for name, config in config_dict.items():
                 available_plugin_list.append(name)
         except Exception as e:
-            error = traceback.format_exc()
-            print(f'Error:{e}, with detail: {error}')
-            print(
-                'Error:FormatError, with detail: The format of the plugin config file is incorrect.'
-            )
+            logger.error(
+                uuid=uuid_str,
+                error=str(e),
+                content={
+                    'error_traceback':
+                    traceback.format_exc(),
+                    'error_details':
+                    'The format of the plugin config file is incorrect.'
+                })
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
