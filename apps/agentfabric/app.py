@@ -284,6 +284,18 @@ with demo:
                         configure_button = gr.Button(
                             i18n.get('form_update_button'))
 
+                        with gr.Accordion(
+                                label=i18n.get('import_config'),
+                                open=False) as update_accordion:
+                            with gr.Column():
+                                update_space = gr.Textbox(
+                                    label=i18n.get('space_addr'),
+                                    placeholder=i18n.get('input_space_addr'))
+                                import_button = gr.Button(
+                                    i18n.get_whole('import_space'))
+                                gr.Markdown(
+                                    f'#### {i18n.get_whole("import_hint")}')
+
         with gr.Column():
             # Preview
             preview_header = gr.HTML(
@@ -334,15 +346,6 @@ with demo:
                                 i18n.get_whole('publish'), '', {}, True))
                         publish_hint_md = gr.Markdown(
                             f'#### 2.{i18n.get("publish_hint")}')
-
-            with gr.Accordion(
-                    label=i18n.get('update'), open=False) as update_accordion:
-                with gr.Column():
-                    update_space = gr.Textbox(
-                        label=i18n.get('space_addr'),
-                        placeholder=i18n.get('input_space_addr'))
-                    import_button = gr.Button(i18n.get_whole('import_space'))
-                    gr.Markdown(f'#### {i18n.get_whole("import_hint")}')
 
     configure_updated_outputs = [
         state,
