@@ -49,7 +49,9 @@ class ActionParserFactory:
             message=f'action parser {action_parser_name} is not registered.',
             content={'registered': str(action_parser_register.registered)})
 
-    def _get_model_default_type(model: LLM, language: str = 'en', uuid: str = 'default_user'):
+    def _get_model_default_type(model: LLM,
+                                language: str = 'en',
+                                uuid: str = 'default_user'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id

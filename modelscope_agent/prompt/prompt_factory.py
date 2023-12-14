@@ -34,7 +34,8 @@ class PromptGeneratorFactory:
 
         if model:
             language = kwargs.pop('language', 'en')
-            prompt_generator = cls._get_model_default_type(model, language, uuid)
+            prompt_generator = cls._get_model_default_type(
+                model, language, uuid)
             if prompt_generator:
                 return cls._string_to_obj(
                     prompt_generator, llm=model, **kwargs)
@@ -57,7 +58,9 @@ class PromptGeneratorFactory:
             f'prompt generator {prompt_generator_name} is not registered. prompt_generator_register.registered: \
               {prompt_generator_register.registered}')
 
-    def _get_model_default_type(model: LLM, language: str = 'en', uuid: str = 'default_user'):
+    def _get_model_default_type(model: LLM,
+                                language: str = 'en',
+                                uuid: str = 'default_user'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
