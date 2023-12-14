@@ -35,6 +35,7 @@ MANIFEST
 *.manifest
 *.spec
 release.sh
+*.html
 
 # Installer logs
 pip-log.txt

@@ -1,3 +1,4 @@
+# flake8: noqa
 support_lang = ['zh-cn', 'en']
 
 i18n = {
@@ -23,6 +24,7 @@ i18n = {
         'What does this agent do? How does it behave? What should it avoid doing?'
     ],
     'form_model': ['模型', 'Model'],
+    'form_agent_language': ['Agent 语言', 'Agent Language'],
     'form_prompt_suggestion':
     ['推荐提示词，双击行可修改', 'prompt suggestion，double click to modify'],
     'form_knowledge': ['知识库', 'Knowledge Base'],
@@ -44,6 +46,15 @@ i18n = {
     'publish_hint': [
         '点击"发布"跳转创空间完成 Agent 发布',
         'Click "Publish" to jump to the space to finish agent publishing'
+    ],
+    'publish_alert': [
+        """#### 注意：Agent实际发布时需要配置相关API的key。
+- 千问、万相、艺术字等 DashScope API 所需： [申请入口](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key)
+- 高德天气 API： [申请入口](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)""",
+        """#### Note: The key of the relevant API needs to be configured when the Agent is actually released.
+- Qwen,Wanx,WordArt,etc DashScope API: [Application entrance](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key)
+- Amap Weather API: [Application entrance](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)
+"""
     ],
     'header': [
         '<span style="font-size: 20px; font-weight: 500;">\N{fire} AgentFabric -- 由 Modelscope-agent 驱动 </span> [github 点赞](https://github.com/modelscope/modelscope-agent/tree/main)',  # noqa E501

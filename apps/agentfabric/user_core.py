@@ -1,7 +1,8 @@
-import copy
 import os
+import ssl
 
 import gradio as gr
+import nltk
 from config_utils import parse_configuration
 from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
                            DEFAULT_USER_TEMPLATE, CustomPromptGenerator,
@@ -13,6 +14,17 @@ from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
+from modelscope_agent.utils.logger import agent_logger as logger
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 
 # init user chatbot_agent
@@ -24,8 +36,10 @@ def init_user_chatbot_agent(uuid_str=''):
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
     # build model
-    print(f'using model {builder_cfg.model}')
-    print(f'model config {model_cfg[builder_cfg.model]}')
+    logger.info(
+        uuid=uuid_str,
+        message=f'using model {builder_cfg.model}',
+        content={'model_config': model_cfg[builder_cfg.model]})
 
     # # check configuration
     # if builder_cfg.model in ['qwen-max', 'qwen-72b-api', 'qwen-14b-api', 'qwen-plus']:
