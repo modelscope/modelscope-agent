@@ -3,6 +3,7 @@
   "avatar": "custom_bot_avatar.png",
   "description": "",
   "instruction": "",
+  "language": "zh",
   "prompt_recommend": [
     "你可以做什么？",
     "你有什么功能？",
