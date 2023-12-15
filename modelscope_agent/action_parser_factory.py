@@ -17,36 +17,46 @@ class ActionParserFactory:
                           agent_type: AgentType = AgentType.DEFAULT,
                           model: LLM = None,
                           **kwargs):
+        uuid = kwargs.get('uuid', 'default_user')
         logger.info(
-            f'Initiating action parser. agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}'
-        )
+            uuid=uuid,
+            message='Initiating action parser.',
+            content={
+                'agent_type': agent_type,
+                'model': str(model),
+                'kwargs': str(kwargs)
+            })
         action_parser = kwargs.get('action_parser', None)
         if action_parser:
             return cls._string_to_obj(action_parser, **kwargs)
 
         if model:
             language = kwargs.pop('language', 'en')
-            action_parser = cls._get_model_default_type(model, language)
+            action_parser = cls._get_model_default_type(model, language, uuid)
             if action_parser:
                 return cls._string_to_obj(action_parser, **kwargs)
 
         return cls._get_action_parser_by_agent_type(agent_type, **kwargs)
 
     def _string_to_obj(action_parser_name: str, **kwargs):
+        uuid = kwargs.get('uuid', 'default_user')
         for name, parser in action_parser_register.registered.items():
             if action_parser_name == name:
                 obj = parser(**kwargs)
                 return obj
         raise ValueError(
-            f'action parser {action_parser_name} is not registered. action_parser_register.registered: \
-              {action_parser_register.registered}')
+            uuid=uuid,
+            message=f'action parser {action_parser_name} is not registered.',
+            content={'registered': str(action_parser_register.registered)})
 
-    def _get_model_default_type(model: LLM, language: str = 'en'):
+    def _get_model_default_type(model: LLM,
+                                language: str = 'en',
+                                uuid: str = 'default_user'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
         if not model_id:
-            logger.warning(f'llm has no name: {model}')
+            logger.warning(uuid=uuid, message=f'llm has no name: {model}')
             return None
 
         candidate = []
@@ -61,9 +71,13 @@ class ActionParserFactory:
                 return model_cfg[language].get('action_parser', None)
             return model_cfg.get('action_parser', None)
         logger.warning(
-            f'action parser cannot initiated by model type: model_id = {model_id}, candidate = \
-              {candidate}, model with default prompt type = {DEFAULT_MODEL_CONFIG.keys()}'
-        )
+            uuid=uuid,
+            message='action parser cannot initiated by model type.',
+            content={
+                'model_id': model_id,
+                'candidate': str(candidate),
+                'model_with_default_config': str(DEFAULT_MODEL_CONFIG.keys())
+            })
         return None
 
     def _get_action_parser_by_agent_type(
