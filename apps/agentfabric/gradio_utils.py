@@ -81,6 +81,31 @@ def format_goto_publish_html(label, zip_url, agent_user_params, disable=False):
     """
 
 
+def postprocess_messages(
+    message_pairs: list[list[str | tuple[str] | tuple[str, str] | None]
+                        | tuple]
+) -> list[list[str | dict | None]]:
+    if message_pairs is None:
+        return []
+    processed_messages = []
+    for message_pair in message_pairs:
+        assert isinstance(
+            message_pair, (tuple, list)
+        ), f'Expected a list of lists or list of tuples. Received: {message_pair}'
+        assert (
+            len(message_pair) == 2
+        ), f'Expected a list of lists of length 2 or list of tuples of length 2. Received: {message_pair}'
+
+        user_message, bot_message = message_pair
+
+        # TODO: 是否需要进行任何其他的后处理
+        processed_messages.append([
+            user_message,
+            bot_message,
+        ])
+    return processed_messages
+
+
 class ChatBot(ChatBotBase):
 
     def normalize_markdown(self, bot_message):

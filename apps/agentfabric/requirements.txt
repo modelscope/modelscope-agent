@@ -1,6 +1,6 @@
 dashscope
 faiss-cpu
-gradio==3.47.1
+gradio==4.8
 langchain
 markdown-cjk-spacing
 mdx_truly_sane_lists

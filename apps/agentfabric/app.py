@@ -143,6 +143,7 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     save_builder_configuration(builder_cfg, uuid_str)
     update_builder(uuid_str, state)
     init_user(uuid_str, state)
+    [['']]
     return [
         gr.HTML.update(
             visible=True,
