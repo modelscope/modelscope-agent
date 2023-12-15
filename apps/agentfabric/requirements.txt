@@ -6,3 +6,4 @@ markdown-cjk-spacing
 mdx_truly_sane_lists
 pymdown-extensions
 python-slugify
+unstructured

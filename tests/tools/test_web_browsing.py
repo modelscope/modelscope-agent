@@ -38,12 +38,12 @@ def test_integrated_web_browser_agent():
     tools = {'web_browser': WebBrowser()}
     prompt_generator = MockPromptGenerator()
     url = 'https://blog.sina.com.cn/zhangwuchang'
-    output_parser = MockOutParser('web_browser', {'urls': [url]})
+    action_parser = MockOutParser('web_browser', {'urls': [url]})
     agent = AgentExecutor(
         llm,
         additional_tool_list=tools,
         prompt_generator=prompt_generator,
-        output_parser=output_parser,
+        action_parser=action_parser,
         tool_retrieval=False,
     )
     res = agent.run('please search the information about zhangwuchang')
