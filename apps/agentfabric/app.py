@@ -177,8 +177,7 @@ with demo:
                                 open=False) as open_api_accordion:
                             openapi_schema = gr.Textbox(
                                 label='Schema',
-                                placeholder=
-                                'Enter your OpenAPI schema here, JSON or YAML format only'
+                                placeholder='Enter your OpenAPI schema here, JSON or YAML format only'
                             )
 
                             with gr.Group():
