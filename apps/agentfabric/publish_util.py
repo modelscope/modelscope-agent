@@ -9,10 +9,10 @@ from urllib.parse import unquote, urlparse
 import json
 import oss2
 import requests
+from version import __ms__version__ as MS_VERSION
 
 from modelscope.utils.config import Config
 
-MS_VERSION = '0.2.3rc3'
 DEFAULT_MS_PKG = 'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v/modelscope_agent-version-py3-none-any.whl'  # noqa E501
 
 
