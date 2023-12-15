@@ -386,7 +386,8 @@ with demo:
                 value=builder_cfg.get('model', models[0]), choices=models),
             agent_language_selector:
             builder_cfg.get('language') or 'zh',
-            suggestion_input: [[str] for str in suggests],
+            suggestion_input:
+            [[str] for str in suggests] if len(suggests) > 0 else [['']],
             knowledge_input:
             builder_cfg.get('knowledge', [])
             if len(builder_cfg['knowledge']) > 0 else None,
