@@ -557,7 +557,7 @@ with demo:
                 msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
                     'https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key'
             elif 'rate limit' in str(e):
-                msg = 'Too many people are calling, please try again later!'
+                msg = 'Too many people are calling, please try again later.'
             else:
                 msg = str(e)
             chatbot[-1] = (input, msg)
