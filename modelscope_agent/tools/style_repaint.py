@@ -153,7 +153,6 @@ class StyleRepaint(Tool):
     def get_stylerepaint_result(self):
         try:
             result = self.get_result()
-            print(result)
             while True:
                 result_data = result.get('result', {})
                 output = result_data.get('output', {})
@@ -161,19 +160,23 @@ class StyleRepaint(Tool):
 
                 if task_status == 'SUCCEEDED':
                     print('任务已完成')
-                    return result
+                    # 取出result里url的部分，提高url图片展示稳定性
+                    output_url = self._parse_output(
+                        result['result']['output']['results'][0])
+                    return output_url
 
                 elif task_status == 'FAILED':
                     if 'rate limit' in output.get('meaasge', ''):
-                        time.sleep(3)  # 等待 3 秒钟
+                        time.sleep(2)  # 等待 2 秒钟
                         result = self.get_result()
+                        print(f'速率限制后重启:{result}')
                     else:
-                        raise Exception('任务失败')
+                        raise Exception(output.get('meaasge', '任务失败，请重试'))
                 else:
                     # 继续轮询，等待一段时间后再次调用
-                    time.sleep(2)  # 等待 2 秒钟
+                    time.sleep(0.5)  # 等待 0.5 秒钟
                     result = self.get_result()
-                    print(result)
+                    print(f'Running:{result}')
 
         except Exception as e:
             print('get Remote Error:', str(e))
