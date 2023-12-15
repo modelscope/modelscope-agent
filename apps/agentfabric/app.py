@@ -81,6 +81,8 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     capabilities = state['capabilities']
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
+    if len(suggestions_filtered) == 0:
+        suggestions_filtered == [['']]
     user_dir = get_user_dir(uuid_str)
     if knowledge_files is not None:
         new_knowledge_files = [
@@ -369,7 +371,7 @@ with demo:
         _state['capabilities'] = capabilities
         bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''),
                                       uuid_str)[1]
-        suggests = builder_cfg.get('prompt_recommend', [])
+        suggests = builder_cfg.get('prompt_recommend', [''])
         return {
             state:
             _state,
@@ -428,7 +430,7 @@ with demo:
                                         uuid_str):
         uuid_str = check_uuid(uuid_str)
         bot_avatar = builder_cfg.get('avatar', '')
-        prompt_recommend = builder_cfg.get('prompt_recommend', [])
+        prompt_recommend = builder_cfg.get('prompt_recommend', [''])
         suggestion = [[row] for row in prompt_recommend]
         bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
         save_builder_configuration(builder_cfg, uuid_str)
