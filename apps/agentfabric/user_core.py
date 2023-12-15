@@ -1,11 +1,9 @@
-import copy
 import os
+import ssl
 
 import gradio as gr
+import nltk
 from config_utils import parse_configuration
-from custom_prompt import (DEFAULT_EXEC_TEMPLATE, DEFAULT_SYSTEM_TEMPLATE,
-                           DEFAULT_USER_TEMPLATE, CustomPromptGenerator,
-                           parse_role_config)
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
 from modelscope_agent.agent import AgentExecutor
@@ -13,6 +11,17 @@ from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.retrieve import KnowledgeRetrieval
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
+from modelscope_agent.utils.logger import agent_logger as logger
+
+# try:
+#     _create_unverified_https_context = ssl._create_unverified_context
+# except AttributeError:
+#     pass
+# else:
+#     ssl._create_default_https_context = _create_unverified_https_context
+#
+# nltk.download('punkt')
+# nltk.download('averaged_perceptron_tagger')
 
 
 # init user chatbot_agent
@@ -24,8 +33,10 @@ def init_user_chatbot_agent(uuid_str=''):
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
     # build model
-    print(f'using model {builder_cfg.model}')
-    print(f'model config {model_cfg[builder_cfg.model]}')
+    logger.info(
+        uuid=uuid_str,
+        message=f'using model {builder_cfg.model}',
+        content={'model_config': model_cfg[builder_cfg.model]})
 
     # # check configuration
     # if builder_cfg.model in ['qwen-max', 'qwen-72b-api', 'qwen-14b-api', 'qwen-plus']:
@@ -38,18 +49,24 @@ def init_user_chatbot_agent(uuid_str=''):
         raise gr.Error(str(e))
 
     # build prompt with zero shot react template
-    instruction_template = parse_role_config(builder_cfg)
-    prompt_generator = CustomPromptGenerator(
-        system_template=DEFAULT_SYSTEM_TEMPLATE,
-        user_template=DEFAULT_USER_TEMPLATE,
-        exec_template=DEFAULT_EXEC_TEMPLATE,
-        instruction_template=instruction_template,
-        add_addition_round=True,
-        addition_assistant_reply='好的。',
-        knowledge_file_name=os.path.basename(builder_cfg.knowledge[0] if len(
-            builder_cfg.knowledge) > 0 else ''),
-        llm=llm,
-        uuid_str=uuid_str)
+    prompt_generator = builder_cfg.get('prompt_generator', None)
+    if builder_cfg.model.startswith('qwen') and not prompt_generator:
+        prompt_generator = 'CustomPromptGenerator'
+        language = builder_cfg.get('language', 'en')
+        if language == 'zh':
+            prompt_generator = 'ZhCustomPromptGenerator'
+
+    prompt_cfg = {
+        'prompt_generator':
+        prompt_generator,
+        'add_addition_round':
+        True,
+        'knowledge_file_name':
+        os.path.basename(builder_cfg.knowledge[0]
+                         if len(builder_cfg.knowledge) > 0 else ''),
+        'uuid_str':
+        uuid_str
+    }
 
     # get knowledge
     # 开源版本的向量库配置
@@ -74,9 +91,9 @@ def init_user_chatbot_agent(uuid_str=''):
         additional_tool_list=additional_tool_list,
         tool_cfg=tool_cfg,
         agent_type=AgentType.MRKL,
-        prompt_generator=prompt_generator,
         knowledge_retrieval=knowledge_retrieval,
-        tool_retrieval=False)
+        tool_retrieval=False,
+        **prompt_cfg)
     agent.set_available_tools(available_tool_list + available_plugin_list)
     return agent
 

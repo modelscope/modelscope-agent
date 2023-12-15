@@ -24,7 +24,8 @@ class ChatGLMPromptGenerator(PromptGenerator):
                  exec_template=CHATGLM_DEFAULT_EXEC_TEMPLATE,
                  assistant_template=CHATGLM_DEFAULT_ASSISTANT_TEMPLATE,
                  sep='\n',
-                 length_constraint=LengthConstraint()):
+                 length_constraint=LengthConstraint(),
+                 **kwargs):
         super().__init__(
             system_template=system_template,
             instruction_template=instruction_template,
