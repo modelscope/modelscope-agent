@@ -164,10 +164,14 @@ class StyleRepaint(Tool):
                     return result
 
                 elif task_status == 'FAILED':
-                    raise ('任务失败')
+                    if 'rate limit' in output.get('meaasge', ''):
+                        time.sleep(3)  # 等待 3 秒钟
+                        result = self.get_result()
+                    else:
+                        raise Exception('任务失败')
                 else:
                     # 继续轮询，等待一段时间后再次调用
-                    time.sleep(1)  # 等待 1 秒钟
+                    time.sleep(2)  # 等待 2 秒钟
                     result = self.get_result()
                     print(result)
 
