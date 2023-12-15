@@ -3,13 +3,22 @@ import re
 from typing import Dict
 
 import json
+from builder_prompt import BuilderPromptGenerator
+from builder_prompt_zh import ZhBuilderPromptGenerator
 from config_utils import parse_configuration
 from help_tools import LogoGeneratorTool, config_conversion
+from modelscope_agent import prompt_generator_register
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.prompt import MessagesGenerator
 from modelscope_agent.utils.logger import agent_logger as logger
+
+prompts = {
+    'BuilderPromptGenerator': BuilderPromptGenerator,
+    'ZhBuilderPromptGenerator': ZhBuilderPromptGenerator,
+}
+prompt_generator_register(prompts)
 
 SYSTEM = 'You are a helpful assistant.'
 
@@ -53,7 +62,8 @@ def init_builder_chatbot_agent(uuid_str):
         tool_cfg,
         agent_type=AgentType.Messages,
         additional_tool_list=additional_tool_list,
-        prompt_generator=prompt_generator)
+        prompt_generator=prompt_generator,
+        uuid=uuid_str)
     agent.set_available_tools([LOGO_TOOL_NAME])
     return agent
 
