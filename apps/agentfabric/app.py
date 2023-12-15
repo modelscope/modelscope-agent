@@ -8,30 +8,17 @@ import gradio as gr
 import json
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
-from builder_prompt import BuilderPromptGenerator
-from builder_prompt_zh import ZhBuilderPromptGenerator
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
-from custom_prompt import CustomPromptGenerator
-from custom_prompt_zh import ZhCustomPromptGenerator
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
-from modelscope_agent import prompt_generator_register
 from modelscope_agent.utils.logger import agent_logger as logger
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
-
-prompts = {
-    'BuilderPromptGenerator': BuilderPromptGenerator,
-    'ZhBuilderPromptGenerator': ZhBuilderPromptGenerator,
-    'CustomPromptGenerator': CustomPromptGenerator,
-    'ZhCustomPromptGenerator': ZhCustomPromptGenerator,
-}
-prompt_generator_register(prompts)
 
 
 def init_user(uuid_str, state):
