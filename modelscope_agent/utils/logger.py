@@ -190,5 +190,25 @@ class AgentLogger:
                 'error': error
             })
 
+    def warning(self,
+                uuid: str = 'default_user',
+                request_id: str = 'default_request_id',
+                content: Dict = None,
+                step: str = '',
+                message: str = '',
+                error: str = ''):
+        if content is None:
+            content = {}
+
+        self.logger.warning(
+            message,
+            extra={
+                'uuid': uuid,
+                'request_id': request_id,
+                'content': content,
+                'step': step,
+                'error': error
+            })
+
 
 agent_logger = AgentLogger()
