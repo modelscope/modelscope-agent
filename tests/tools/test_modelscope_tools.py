@@ -2,6 +2,7 @@ from modelscope.utils.config import Config
 
 cfg = Config.from_file('config/cfg_tool_template.json')
 
+
 def test_modelscope_speech_generation():
     from modelscope_agent.tools.text_to_speech_tool import TexttoSpeechTool
     input = '北京今天天气怎样?'
@@ -11,7 +12,9 @@ def test_modelscope_speech_generation():
 
     print(res)
 
+
 test_modelscope_speech_generation()
+
 
 def test_modelscope_text_address():
     from modelscope_agent.tools.text_address_tool import TextAddressTool
@@ -22,6 +25,7 @@ def test_modelscope_text_address():
 
     print(res)
 
+
 def test_modelscope_text_ner():
     from modelscope_agent.tools.text_ner_tool import TextNerTool
     input = '北京今天天气怎样?'
@@ -30,6 +34,7 @@ def test_modelscope_text_ner():
     res = txt_ner._remote_call(**kwargs)
 
     print(res)
+
 
 def test_modelscope_video_generation():
     from modelscope_agent.tools.text_to_video_tool import TextToVideoTool
@@ -40,6 +45,7 @@ def test_modelscope_video_generation():
 
     print(res)
 
+
 def test_modelscope_zh2en():
     from modelscope_agent.tools.translation_zh2en_tool import TranslationZh2EnTool
     input = '北京今天天气怎样?'
@@ -49,6 +55,7 @@ def test_modelscope_zh2en():
 
     print(res)
 
+
 def test_modelscope_en2zh():
     from modelscope_agent.tools.translation_en2zh_tool import TranslationEn2ZhTool
     input = 'Autonomous agents have long been a prominent research focus in both academic and industry communities.'
@@ -57,5 +64,3 @@ def test_modelscope_en2zh():
     res = en_to_zh._remote_call(**kwargs)
 
     print(res)
-
-
