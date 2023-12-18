@@ -38,7 +38,7 @@ featuring a feather fountain pen"}
 
 Say "OK." if you understand, do not say anything else."""
 
-starter_messages = [{
+STARTER_MESSAGE = [{
     'role': 'system',
     'content': SYSTEM
 }, {
@@ -54,7 +54,7 @@ class BuilderPromptGenerator(MessagesGenerator):
 
     def __init__(self,
                  system_template=SYSTEM,
-                 custom_starter_messages=starter_messages,
+                 custom_starter_messages=STARTER_MESSAGE,
                  **kwargs):
         super().__init__(
             system_template=system_template,

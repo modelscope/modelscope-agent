@@ -26,7 +26,7 @@ RichConfig: ... # 格式和核心内容和Config相同，但是保证name和desc
 
 明白了请说“好的。”， 不要说其他的。"""
 
-starter_messages = [{
+STARTER_MESSAGE = [{
     'role': 'system',
     'content': SYSTEM
 }, {
@@ -40,5 +40,6 @@ starter_messages = [{
 
 class ZhBuilderPromptGenerator(BuilderPromptGenerator):
 
-    def __init__(self, custom_starter_messages=starter_messages, **kwargs):
-        super().__init__(custom_starter_messages=starter_messages, **kwargs)
+    def __init__(self, custom_starter_messages=STARTER_MESSAGE, **kwargs):
+        super().__init__(
+            custom_starter_messages=custom_starter_messages, **kwargs)
