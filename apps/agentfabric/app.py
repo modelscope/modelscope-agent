@@ -114,10 +114,9 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         'prompt_recommend': [row[0] for row in suggestions_filtered],
         'knowledge': new_knowledge_files,
         'tools': {
-            capability: dict(
-                name=tool_cfg[capability]['name'],
-                is_active=tool_cfg[capability]['is_active'],
-                use=True if capability in capabilities_checkboxes else False)
+            capability: dict([(key, value if key != 'use' else
+                               (capability in capabilities_checkboxes))
+                              for key, value in tool_cfg[capability].items()])
             for capability in map(lambda item: item[1], capabilities)
         },
         'model': model,
