@@ -6,6 +6,7 @@ import traceback
 
 import gradio as gr
 import json
+import modelscope_gradio_components as mgr
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
@@ -13,9 +14,11 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
-from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
+from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_gradio_components.components.Chatbot.llm_thking_presets import \
+    qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
@@ -145,14 +148,14 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     init_user(uuid_str, state)
     [['']]
     return [
-        gr.HTML.update(
+        gr.HTML(
             visible=True,
             value=format_cover_html(builder_cfg, bot_avatar_path)),
-        gr.Chatbot.update(
+        mgr.Chatbot(
             visible=False,
             avatar_images=get_avatar_image(bot_avatar, uuid_str)),
-        gr.Dataset.update(samples=suggestions_filtered),
-        gr.DataFrame.update(value=suggestions_filtered)
+        gr.Dataset(samples=suggestions_filtered),
+        gr.DataFrame(value=suggestions_filtered)
     ]
 
 
@@ -182,8 +185,10 @@ with demo:
                         # "Create" 标签页的 Chatbot 组件
                         start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
                             '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
-                        create_chatbot = gr.Chatbot(
-                            show_label=False, value=[[None, start_text]])
+                        create_chatbot = mgr.Chatbot(
+                            show_label=False,
+                            value=[[None, start_text]],
+                            llm_thinking_presets=[qwen()])
                         create_chat_input = gr.Textbox(
                             label=i18n.get('message'),
                             placeholder=i18n.get('message_placeholder'))
@@ -197,8 +202,7 @@ with demo:
                         with gr.Row():
                             bot_avatar_comp = gr.Image(
                                 label=i18n.get('form_avatar'),
-                                placeholder='Chatbot avatar image',
-                                source='upload',
+                                sources=['upload'],
                                 interactive=True,
                                 type='filepath',
                                 scale=1,
@@ -292,7 +296,7 @@ with demo:
                 f"""<div class="preview_header">{i18n.get('preview')}<div>""")
 
             user_chat_bot_cover = gr.HTML(format_cover_html({}, None))
-            user_chatbot = ChatBot(
+            user_chatbot = mgr.Chatbot(
                 value=[[None, None]],
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
@@ -300,7 +304,8 @@ with demo:
                 height=650,
                 latex_delimiters=[],
                 show_label=False,
-                visible=False)
+                visible=False,
+                llm_thinking_presets=[qwen()])
             preview_chat_input = gr.Textbox(
                 label=i18n.get('message'),
                 placeholder=i18n.get('message_placeholder'))
@@ -377,7 +382,7 @@ with demo:
             state:
             _state,
             bot_avatar_comp:
-            gr.Image.update(value=bot_avatar),
+            gr.Image(value=bot_avatar),
             name_input:
             builder_cfg.get('name', ''),
             description_input:
@@ -385,7 +390,7 @@ with demo:
             instructions_input:
             builder_cfg.get('instruction'),
             model_selector:
-            gr.Dropdown.update(
+            gr.Dropdown(
                 value=builder_cfg.get('model', models[0]), choices=models),
             agent_language_selector:
             builder_cfg.get('language') or 'zh',
@@ -395,7 +400,7 @@ with demo:
             builder_cfg.get('knowledge', [])
             if len(builder_cfg['knowledge']) > 0 else None,
             capabilities_checkboxes:
-            gr.CheckboxGroup.update(
+            gr.CheckboxGroup(
                 value=[
                     tool for tool in builder_cfg.get('tools', {}).keys()
                     if builder_cfg.get('tools').get(tool).get('use', False)
@@ -405,7 +410,9 @@ with demo:
             user_chat_bot_cover:
             format_cover_html(builder_cfg, bot_avatar),
             user_chat_bot_suggest:
-            gr.Dataset.update(samples=[[item] for item in suggests]),
+            gr.Dataset(
+                components=[preview_chat_input],
+                samples=[[item] for item in suggests]),
         }
 
     # tab 切换的事件处理
@@ -440,15 +447,15 @@ with demo:
             create_chatbot:
             chatbot,
             user_chat_bot_cover:
-            gr.HTML.update(
+            gr.HTML(
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             user_chatbot:
-            gr.Chatbot.update(
+            mgr.Chatbot(
                 visible=False,
                 avatar_images=get_avatar_image(bot_avatar, uuid_str)),
             user_chat_bot_suggest:
-            gr.Dataset.update(samples=suggestion)
+            gr.Dataset(components=[preview_chat_input], samples=suggestion)
         }
 
     def create_send_message(chatbot, input, _state, uuid_str):
@@ -458,7 +465,7 @@ with demo:
         chatbot.append((input, ''))
         yield {
             create_chatbot: chatbot,
-            create_chat_input: gr.Textbox.update(value=''),
+            create_chat_input: gr.Textbox(value=''),
         }
         response = ''
         for frame in builder_agent.stream_run(
@@ -527,9 +534,9 @@ with demo:
 
         chatbot.append((input, ''))
         yield {
-            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            user_chat_bot_cover: gr.HTML.update(visible=False),
-            preview_chat_input: gr.Textbox.update(value='')
+            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML(visible=False),
+            preview_chat_input: gr.Textbox(value='')
         }
 
         response = ''
@@ -595,9 +602,9 @@ with demo:
             else:
                 chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
-            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            user_chat_bot_cover: gr.HTML.update(visible=False),
-            preview_chat_input: gr.Textbox.update(value='')
+            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML(visible=False),
+            preview_chat_input: gr.Textbox(value='')
         }
 
         _state['file_paths'] = file_paths
@@ -676,15 +683,17 @@ with demo:
             gr.HTML(
                 f"""<div class="preview_header">{i18n.get('preview')}<div>"""),
             preview_send_button:
-            gr.Button.update(value=i18n.get('send')),
+            gr.Button(value=i18n.get('send')),
             create_chat_input:
             gr.Textbox(
                 label=i18n.get('message'),
                 placeholder=i18n.get('message_placeholder')),
             create_send_button:
-            gr.Button.update(value=i18n.get('send')),
+            gr.Button(value=i18n.get('send')),
             user_chat_bot_suggest:
-            gr.Dataset(label=i18n.get('prompt_suggestion')),
+            gr.Dataset(
+                components=[preview_chat_input],
+                label=i18n.get('prompt_suggestion')),
             preview_chat_input:
             gr.Textbox(
                 label=i18n.get('message'),
@@ -726,13 +735,13 @@ with demo:
             state:
             _state,
             preview_send_button:
-            gr.Button.update(value=i18n.get('send'), interactive=True),
+            gr.Button(value=i18n.get('send'), interactive=True),
             create_send_button:
-            gr.Button.update(value=i18n.get('send'), interactive=True),
+            gr.Button(value=i18n.get('send'), interactive=True),
         }
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
 
-demo.queue(concurrency_count=10)
-demo.launch(show_error=True)
+demo.queue()
+demo.launch(show_error=True, max_threads=10)
