@@ -9,11 +9,16 @@ from urllib.parse import unquote, urlparse
 import json
 import oss2
 import requests
+from version import __ms_version__ as MS_VERSION
 
 from modelscope.utils.config import Config
 
-MS_VERSION = '0.2.3rc1'
-DEFAULT_MS_PKG = 'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v/modelscope_agent-version-py3-none-any.whl'  # noqa E501
+main_version = MS_VERSION.split('rc')[0]
+sub_version = main_version
+if len(MS_VERSION.split('rc')) > 1:
+    sub_version += 'rc' + MS_VERSION.split('rc')[1]
+
+DEFAULT_MS_PKG = f'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v{main_version}/modelscope_agent-{sub_version}-py3-none-any.whl'  # noqa E501
 
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):

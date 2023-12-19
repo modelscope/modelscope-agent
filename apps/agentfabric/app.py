@@ -8,30 +8,17 @@ import gradio as gr
 import json
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
-from builder_prompt import BuilderPromptGenerator
-from builder_prompt_zh import ZhBuilderPromptGenerator
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
-from custom_prompt import CustomPromptGenerator
-from custom_prompt_zh import ZhCustomPromptGenerator
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
-from modelscope_agent import prompt_generator_register
 from modelscope_agent.utils.logger import agent_logger as logger
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
-
-prompts = {
-    'BuilderPromptGenerator': BuilderPromptGenerator,
-    'ZhBuilderPromptGenerator': ZhBuilderPromptGenerator,
-    'CustomPromptGenerator': CustomPromptGenerator,
-    'ZhCustomPromptGenerator': ZhCustomPromptGenerator,
-}
-prompt_generator_register(prompts)
 
 
 def init_user(uuid_str, state):
@@ -94,6 +81,8 @@ def process_configuration(uuid_str, bot_avatar, name, description,
     capabilities = state['capabilities']
     bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
     suggestions_filtered = [row for row in suggestions if row[0]]
+    if len(suggestions_filtered) == 0:
+        suggestions_filtered == [['']]
     user_dir = get_user_dir(uuid_str)
     if knowledge_files is not None:
         new_knowledge_files = [
@@ -284,6 +273,18 @@ with demo:
                         configure_button = gr.Button(
                             i18n.get('form_update_button'))
 
+                        with gr.Accordion(
+                                label=i18n.get('import_config'),
+                                open=False) as update_accordion:
+                            with gr.Column():
+                                update_space = gr.Textbox(
+                                    label=i18n.get('space_addr'),
+                                    placeholder=i18n.get('input_space_addr'))
+                                import_button = gr.Button(
+                                    i18n.get_whole('import_space'))
+                                gr.Markdown(
+                                    f'#### {i18n.get_whole("import_hint")}')
+
         with gr.Column():
             # Preview
             preview_header = gr.HTML(
@@ -335,15 +336,6 @@ with demo:
                         publish_hint_md = gr.Markdown(
                             f'#### 2.{i18n.get("publish_hint")}')
 
-            with gr.Accordion(
-                    label=i18n.get('update'), open=False) as update_accordion:
-                with gr.Column():
-                    update_space = gr.Textbox(
-                        label=i18n.get('space_addr'),
-                        placeholder=i18n.get('input_space_addr'))
-                    import_button = gr.Button(i18n.get_whole('import_space'))
-                    gr.Markdown(f'#### {i18n.get_whole("import_hint")}')
-
     configure_updated_outputs = [
         state,
         # config form
@@ -379,7 +371,7 @@ with demo:
         _state['capabilities'] = capabilities
         bot_avatar = get_avatar_image(builder_cfg.get('avatar', ''),
                                       uuid_str)[1]
-        suggests = builder_cfg.get('prompt_recommend', [])
+        suggests = builder_cfg.get('prompt_recommend', [''])
         return {
             state:
             _state,
@@ -396,7 +388,8 @@ with demo:
                 value=builder_cfg.get('model', models[0]), choices=models),
             agent_language_selector:
             builder_cfg.get('language') or 'zh',
-            suggestion_input: [[str] for str in suggests],
+            suggestion_input:
+            [[str] for str in suggests] if len(suggests) > 0 else [['']],
             knowledge_input:
             builder_cfg.get('knowledge', [])
             if len(builder_cfg['knowledge']) > 0 else None,
@@ -437,7 +430,7 @@ with demo:
                                         uuid_str):
         uuid_str = check_uuid(uuid_str)
         bot_avatar = builder_cfg.get('avatar', '')
-        prompt_recommend = builder_cfg.get('prompt_recommend', [])
+        prompt_recommend = builder_cfg.get('prompt_recommend', [''])
         suggestion = [[row] for row in prompt_recommend]
         bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
         save_builder_configuration(builder_cfg, uuid_str)
@@ -565,6 +558,8 @@ with demo:
             if 'dashscope.common.error.AuthenticationError' in str(e):
                 msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
                     'https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key'
+            elif 'rate limit' in str(e):
+                msg = 'Too many people are calling, please try again later.'
             else:
                 msg = str(e)
             chatbot[-1] = (input, msg)

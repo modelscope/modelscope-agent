@@ -116,12 +116,10 @@ class StyleRepaint(Tool):
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
             image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
-            print('wwwww', image_path)
             image_url = get_upload_url(
                 model='qwen-vl-plus',
                 upload_path=image_path,
                 api_key=os.environ.get('DASHSCOPE_API_KEY', ''))
-            print('wwww', image_url)
             kwargs['input']['image_url'] = image_url
         else:
             raise ValueError('请先上传一张正确格式的图片')

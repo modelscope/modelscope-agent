@@ -1,3 +1,4 @@
+import copy
 from typing import Union
 
 from .prompt import LengthConstraint, PromptGenerator
@@ -76,9 +77,9 @@ class MessagesGenerator(PromptGenerator):
             if self.custom_starter_messages:
                 assert isinstance(self.custom_starter_messages, list)
                 assert self.custom_starter_messages[-1]['role'] != 'user', \
-                    'user message should not be the last one in custom starter messages'
+                    'user message should not be the last one in custom starter messages.'
 
-                self.history = self.custom_starter_messages
+                self.history = copy.deepcopy(self.custom_starter_messages)
                 self.history.append({'role': 'user', 'content': prompt})
 
             self.prompt = prompt
