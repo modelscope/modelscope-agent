@@ -174,7 +174,7 @@ class StyleRepaint(Tool):
                     return output_url
 
                 elif task_status == 'FAILED':
-                    raise Exception(output.get('meaasge', '任务失败，请重试'))
+                    raise Exception(output.get('message', '任务失败，请重试'))
                 else:
                     # 继续轮询，等待一段时间后再次调用
                     time.sleep(0.5)  # 等待 0.5 秒钟
@@ -182,4 +182,4 @@ class StyleRepaint(Tool):
                     print(f'Running:{result}')
 
         except Exception as e:
-            print('get Remote Error:', str(e))
+            raise Exception('get Remote Error:', str(e))
