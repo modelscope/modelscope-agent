@@ -117,8 +117,9 @@ class StyleRepaint(Tool):
             # 复用dashscope公共oss
             image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
             image_url = get_upload_url(
-                model='qwen-vl-plus',
-                upload_path=image_path,
+                model=
+                'style_repaint',  # The default setting here is "style_repaint".
+                file_to_upload=image_path,
                 api_key=os.environ.get('DASHSCOPE_API_KEY', ''))
             kwargs['input']['image_url'] = image_url
         else:
