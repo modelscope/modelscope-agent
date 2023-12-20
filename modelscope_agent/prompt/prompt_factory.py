@@ -18,9 +18,15 @@ class PromptGeneratorFactory:
                              agent_type: AgentType = AgentType.DEFAULT,
                              model: LLM = None,
                              **kwargs):
+        uuid = kwargs.get('uuid', 'default_user')
         logger.info(
-            f'Initiating prompt generator. agent_type: {agent_type}, model: {model}, **kwargs : {kwargs}'
-        )
+            uuid=uuid,
+            message='Initiating prompt generator.',
+            content={
+                'agent_type': agent_type,
+                'model': str(model),
+                'kwargs': str(kwargs)
+            })
 
         prompt_generator = kwargs.get('prompt_generator', None)
         if prompt_generator:
@@ -28,7 +34,8 @@ class PromptGeneratorFactory:
 
         if model:
             language = kwargs.pop('language', 'en')
-            prompt_generator = cls._get_model_default_type(model, language)
+            prompt_generator = cls._get_model_default_type(
+                model, language, uuid)
             if prompt_generator:
                 return cls._string_to_obj(
                     prompt_generator, llm=model, **kwargs)
@@ -37,20 +44,28 @@ class PromptGeneratorFactory:
             agent_type, llm=model, **kwargs)
 
     def _string_to_obj(prompt_generator_name: str, **kwargs):
+        uuid = kwargs.get('uuid', 'default_user')
         for name, generator in prompt_generator_register.registered.items():
             if prompt_generator_name == name:
                 obj = generator(**kwargs)
                 return obj
+        logger.error(
+            uuid=uuid,
+            message=
+            f'prompt generator {prompt_generator_name} is not registered.',
+            content={'registered': str(prompt_generator_register.registered)})
         raise ValueError(
             f'prompt generator {prompt_generator_name} is not registered. prompt_generator_register.registered: \
               {prompt_generator_register.registered}')
 
-    def _get_model_default_type(model: LLM, language: str = 'en'):
+    def _get_model_default_type(model: LLM,
+                                language: str = 'en',
+                                uuid: str = 'default_user'):
         if not issubclass(model.__class__, LLM):
             return None
         model_id = model.model_id
         if not model_id:
-            logger.warning(f'llm has no name: {model}')
+            logger.warning(uuid=uuid, message=f'llm has no name: {model}')
             return None
 
         candidate = []
@@ -65,8 +80,13 @@ class PromptGeneratorFactory:
                 return model_cfg[language].get('prompt_generator', None)
             return model_cfg.get('prompt_generator', None)
         logger.warning(
-            f'prompt generator cannot initiated by model type: model_id = {model_id}, candidate = {candidate}, \
-              model with default prompt type = {DEFAULT_MODEL_CONFIG.keys()}')
+            uuid=uuid,
+            message='prompt generator cannot initiated by model type.',
+            content={
+                'model_id': model_id,
+                'candidate': str(candidate),
+                'model_with_default_type': str(DEFAULT_MODEL_CONFIG.keys())
+            })
         return None
 
     def _get_prompt_generator_by_agent_type(

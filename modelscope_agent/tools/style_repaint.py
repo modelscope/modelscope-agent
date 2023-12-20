@@ -3,13 +3,13 @@ import time
 
 import json
 import requests
-from modelscope_agent.tools.localfile2url_utils.localfile2url import path2url
+from modelscope_agent.tools.localfile2url_utils.localfile2url import \
+    get_upload_url
 from modelscope_agent.tools.tool import Tool, ToolSchema
 from pydantic import ValidationError
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
-
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
 
@@ -67,6 +67,8 @@ class StyleRepaint(Tool):
             'Authorization': f'Bearer {self.token}',
             'X-DashScope-Async': 'enable'
         }
+        # 解析oss
+        headers['X-DashScope-OssResourceResolve'] = 'enable'
         while retry_times:
             retry_times -= 1
             try:
@@ -112,7 +114,13 @@ class StyleRepaint(Tool):
         image_path = kwargs['input'].pop('image_path', None)
         if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
             # 生成 image_url，然后设置到 kwargs['input'] 中
-            image_url = path2url(image_path, f'{self.name}/{image_path}')
+            # 复用dashscope公共oss
+            image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
+            image_url = get_upload_url(
+                model=
+                'style_repaint',  # The default setting here is "style_repaint".
+                file_to_upload=image_path,
+                api_key=os.environ.get('DASHSCOPE_API_KEY', ''))
             kwargs['input']['image_url'] = image_url
         else:
             raise ValueError('请先上传一张正确格式的图片')
@@ -153,7 +161,6 @@ class StyleRepaint(Tool):
     def get_stylerepaint_result(self):
         try:
             result = self.get_result()
-            print(result)
             while True:
                 result_data = result.get('result', {})
                 output = result_data.get('output', {})
@@ -161,15 +168,18 @@ class StyleRepaint(Tool):
 
                 if task_status == 'SUCCEEDED':
                     print('任务已完成')
-                    return result
+                    # 取出result里url的部分，提高url图片展示稳定性
+                    output_url = self._parse_output(
+                        result['result']['output']['results'][0])
+                    return output_url
 
                 elif task_status == 'FAILED':
-                    raise ('任务失败')
+                    raise Exception(output.get('message', '任务失败，请重试'))
                 else:
                     # 继续轮询，等待一段时间后再次调用
-                    time.sleep(1)  # 等待 1 秒钟
+                    time.sleep(0.5)  # 等待 0.5 秒钟
                     result = self.get_result()
-                    print(result)
+                    print(f'Running:{result}')
 
         except Exception as e:
-            print('get Remote Error:', str(e))
+            raise Exception('get Remote Error:', str(e))
