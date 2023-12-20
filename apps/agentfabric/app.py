@@ -73,92 +73,6 @@ def check_uuid(uuid_str):
     return uuid_str
 
 
-def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, agent_language, suggestions,
-                          knowledge_files, capabilities_checkboxes,
-                          openapi_schema, openapi_auth, openapi_auth_apikey,
-                          openapi_auth_apikey_type, openapi_privacy_policy,
-                          state):
-    uuid_str = check_uuid(uuid_str)
-    tool_cfg = state['tool_cfg']
-    capabilities = state['capabilities']
-    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
-    suggestions_filtered = [row for row in suggestions if row[0]]
-    if len(suggestions_filtered) == 0:
-        suggestions_filtered == [['']]
-    user_dir = get_user_dir(uuid_str)
-    if knowledge_files is not None:
-        new_knowledge_files = [
-            os.path.join(user_dir, os.path.basename((f.name)))
-            for f in knowledge_files
-        ]
-        for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
-            if not os.path.exists(dst_file):
-                shutil.copy(src_file.name, dst_file)
-    else:
-        new_knowledge_files = []
-
-    builder_cfg = {
-        'name': name,
-        'avatar': bot_avatar,
-        'description': description,
-        'instruction': instructions,
-        'prompt_recommend': [row[0] for row in suggestions_filtered],
-        'knowledge': new_knowledge_files,
-        'tools': {
-            capability: dict(
-                name=tool_cfg[capability]['name'],
-                is_active=tool_cfg[capability]['is_active'],
-                use=True if capability in capabilities_checkboxes else False)
-            for capability in map(lambda item: item[1], capabilities)
-        },
-        'model': model,
-        'language': agent_language,
-    }
-
-    try:
-        try:
-            schema_dict = json.loads(openapi_schema)
-        except json.decoder.JSONDecodeError:
-            schema_dict = yaml.safe_load(openapi_schema)
-        except Exception as e:
-            raise gr.Error(
-                f'OpenAPI schema format error, should be one of json and yaml: {e}'
-            )
-
-        openapi_plugin_cfg = {
-            'schema': schema_dict,
-            'auth': {
-                'type': openapi_auth,
-                'apikey': openapi_auth_apikey,
-                'apikey_type': openapi_auth_apikey_type
-            },
-            'privacy_policy': openapi_privacy_policy
-        }
-        if is_valid_plugin_configuration(openapi_plugin_cfg):
-            save_plugin_configuration(openapi_plugin_cfg, uuid_str)
-    except Exception as e:
-        logger.error(
-            uuid=uuid_str,
-            error=str(e),
-            content={'error_traceback': traceback.format_exc()})
-
-    save_builder_configuration(builder_cfg, uuid_str)
-    update_builder(uuid_str, state)
-    init_user(uuid_str, state)
-    [['']]
-    return [
-        gr.HTML(
-            visible=True,
-            value=format_cover_html(builder_cfg, bot_avatar_path)),
-        mgr.Chatbot(
-            visible=False,
-            avatar_images=get_avatar_image(bot_avatar, uuid_str)),
-        gr.Dataset(samples=suggestions_filtered),
-        gr.DataFrame(value=suggestions_filtered)
-    ]
-
-
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
@@ -188,6 +102,7 @@ with demo:
                         create_chatbot = mgr.Chatbot(
                             show_label=False,
                             value=[[None, start_text]],
+                            flushing=False,
                             llm_thinking_presets=[qwen()])
                         create_chat_input = gr.Textbox(
                             label=i18n.get('message'),
@@ -505,6 +420,94 @@ with demo:
             create_chatbot, user_chat_bot_cover, user_chatbot,
             user_chat_bot_suggest, create_chat_input
         ])
+
+    def process_configuration(uuid_str, bot_avatar, name, description,
+                              instructions, model, agent_language, suggestions,
+                              knowledge_files, capabilities_checkboxes,
+                              openapi_schema, openapi_auth,
+                              openapi_auth_apikey, openapi_auth_apikey_type,
+                              openapi_privacy_policy, state):
+        uuid_str = check_uuid(uuid_str)
+        tool_cfg = state['tool_cfg']
+        capabilities = state['capabilities']
+        bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
+        suggestions_filtered = [row for row in suggestions if row[0]]
+        if len(suggestions_filtered) == 0:
+            suggestions_filtered == [['']]
+        user_dir = get_user_dir(uuid_str)
+        if knowledge_files is not None:
+            new_knowledge_files = [
+                os.path.join(user_dir, os.path.basename((f.name)))
+                for f in knowledge_files
+            ]
+            for src_file, dst_file in zip(knowledge_files,
+                                          new_knowledge_files):
+                if not os.path.exists(dst_file):
+                    shutil.copy(src_file.name, dst_file)
+        else:
+            new_knowledge_files = []
+
+        builder_cfg = {
+            'name': name,
+            'avatar': bot_avatar,
+            'description': description,
+            'instruction': instructions,
+            'prompt_recommend': [row[0] for row in suggestions_filtered],
+            'knowledge': new_knowledge_files,
+            'tools': {
+                capability: dict(
+                    name=tool_cfg[capability]['name'],
+                    is_active=tool_cfg[capability]['is_active'],
+                    use=True
+                    if capability in capabilities_checkboxes else False)
+                for capability in map(lambda item: item[1], capabilities)
+            },
+            'model': model,
+            'language': agent_language,
+        }
+
+        try:
+            try:
+                schema_dict = json.loads(openapi_schema)
+            except json.decoder.JSONDecodeError:
+                schema_dict = yaml.safe_load(openapi_schema)
+            except Exception as e:
+                raise gr.Error(
+                    f'OpenAPI schema format error, should be one of json and yaml: {e}'
+                )
+
+            openapi_plugin_cfg = {
+                'schema': schema_dict,
+                'auth': {
+                    'type': openapi_auth,
+                    'apikey': openapi_auth_apikey,
+                    'apikey_type': openapi_auth_apikey_type
+                },
+                'privacy_policy': openapi_privacy_policy
+            }
+            if is_valid_plugin_configuration(openapi_plugin_cfg):
+                save_plugin_configuration(openapi_plugin_cfg, uuid_str)
+        except Exception as e:
+            logger.error(
+                uuid=uuid_str,
+                error=str(e),
+                content={'error_traceback': traceback.format_exc()})
+
+        save_builder_configuration(builder_cfg, uuid_str)
+        update_builder(uuid_str, state)
+        init_user(uuid_str, state)
+        return [
+            gr.HTML(
+                visible=True,
+                value=format_cover_html(builder_cfg, bot_avatar_path)),
+            mgr.Chatbot(
+                visible=False,
+                # avatar_images=get_avatar_image(bot_avatar, uuid_str), # TODO: chatbot avatar_images 不再支持更新
+            ),
+            gr.Dataset(
+                components=[preview_chat_input], samples=suggestions_filtered),
+            gr.DataFrame(value=suggestions_filtered)
+        ]
 
     # 配置 "Configure" 标签页的提交按钮功能
     configure_button.click(
