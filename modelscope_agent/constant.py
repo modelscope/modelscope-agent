@@ -18,11 +18,11 @@ DEFAULT_MODEL_CONFIG = {
         'action_parser': 'ChatGLMActionParser'
     },
     'gpt': {
-        'prompt_generator': 'MrklPromptGenerator',
-        'action_parser': 'MRKLActionParser'
+        'prompt_generator': 'MessagesGenerator',
+        'action_parser': 'OpenAiFunctionsActionParser'
     },
     'openai': {
-        'prompt_generator': 'MrklPromptGenerator',
-        'action_parser': 'MRKLActionParser'
+        'prompt_generator': 'MessagesGenerator',
+        'action_parser': 'OpenAiFunctionsActionParser'
     }
 }

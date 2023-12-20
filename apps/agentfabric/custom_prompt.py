@@ -99,7 +99,8 @@ class CustomPromptGenerator(PromptGenerator):
             assistant_template=assistant_template,
             sep=sep,
             llm=llm,
-            length_constraint=length_constraint)
+            length_constraint=length_constraint,
+            **kwargs)
 
     def _parse_role_config(self, config: dict):
         prompt = 'You are playing as an AI-Agent, '
