@@ -62,7 +62,7 @@
       "name": "语音生成",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k",
       "use": false,
-      "is_active": true,
+      "is_active": false,
       "is_remote_tool": true
   },
   "modelscope_video-generation": {
