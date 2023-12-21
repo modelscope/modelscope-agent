@@ -17,7 +17,7 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
 from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
 from modelscope_agent.utils.logger import agent_logger as logger
-from modelscope_gradio_components.components.Chatbot.llm_thking_presets import \
+from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
@@ -502,7 +502,9 @@ with demo:
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             mgr.Chatbot(
                 visible=False,
-                # avatar_images=get_avatar_image(bot_avatar, uuid_str), # TODO: chatbot avatar_images 不再支持更新
+                avatar_images=get_avatar_image(
+                    bot_avatar,
+                    uuid_str),  # TODO: chatbot avatar_images 不再支持更新
             ),
             gr.Dataset(
                 components=[preview_chat_input], samples=suggestions_filtered),
