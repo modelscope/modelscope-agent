@@ -103,7 +103,11 @@ with demo:
                             show_label=False,
                             value=[[None, start_text]],
                             flushing=False,
-                            llm_thinking_presets=[qwen()])
+                            llm_thinking_presets=[
+                                qwen(
+                                    action_input_title='调用 <Action>',
+                                    action_output_title='完成调用')
+                            ])
                         create_chat_input = gr.Textbox(
                             label=i18n.get('message'),
                             placeholder=i18n.get('message_placeholder'))
@@ -220,7 +224,11 @@ with demo:
                 latex_delimiters=[],
                 show_label=False,
                 visible=False,
-                llm_thinking_presets=[qwen()])
+                llm_thinking_presets=[
+                    qwen(
+                        action_input_title='调用 <Action>',
+                        action_output_title='完成调用')
+                ])
             preview_chat_input = gr.Textbox(
                 label=i18n.get('message'),
                 placeholder=i18n.get('message_placeholder'))
@@ -368,7 +376,8 @@ with demo:
             user_chatbot:
             mgr.Chatbot(
                 visible=False,
-                avatar_images=get_avatar_image(bot_avatar, uuid_str)),
+                avatar_images=get_avatar_image(bot_avatar, uuid_str),
+                _force_update=True),
             user_chat_bot_suggest:
             gr.Dataset(components=[preview_chat_input], samples=suggestion)
         }
@@ -496,20 +505,23 @@ with demo:
         save_builder_configuration(builder_cfg, uuid_str)
         update_builder(uuid_str, state)
         init_user(uuid_str, state)
-        return [
+        return {
+            user_chat_bot_cover:
             gr.HTML(
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
+            user_chatbot:
             mgr.Chatbot(
                 visible=False,
-                avatar_images=get_avatar_image(
-                    bot_avatar,
-                    uuid_str),  # TODO: chatbot avatar_images 不再支持更新
+                avatar_images=get_avatar_image(bot_avatar, uuid_str),
+                _force_update=True,
             ),
+            user_chat_bot_suggest:
             gr.Dataset(
                 components=[preview_chat_input], samples=suggestions_filtered),
+            suggestion_input:
             gr.DataFrame(value=suggestions_filtered)
-        ]
+        }
 
     # 配置 "Configure" 标签页的提交按钮功能
     configure_button.click(
