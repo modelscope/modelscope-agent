@@ -103,6 +103,7 @@ with demo:
                             show_label=False,
                             value=[[None, start_text]],
                             flushing=False,
+                            show_copy_button=True,
                             llm_thinking_presets=[
                                 qwen(
                                     action_input_title='调用 <Action>',
@@ -224,6 +225,7 @@ with demo:
                 latex_delimiters=[],
                 show_label=False,
                 visible=False,
+                show_copy_button=True,
                 llm_thinking_presets=[
                     qwen(
                         action_input_title='调用 <Action>',

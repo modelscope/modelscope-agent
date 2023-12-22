@@ -67,6 +67,7 @@ with demo:
                     height=600,
                     latex_delimiters=[],
                     show_label=False,
+                    show_copy_button=True,
                     llm_thinking_presets=[qwen()])
             with gr.Row():
                 with gr.Column(scale=12):
