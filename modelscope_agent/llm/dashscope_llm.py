@@ -154,7 +154,7 @@ class DashScopeLLM(LLM):
                     error_message_list.append(err_msg)
                     time.sleep(i * 2 + 1)
                     # raise RuntimeError(err_msg)
-            if len(error_message_list) < i:
+            if len(error_message_list) <= i:
                 break
         if len(error_message_list) >= 3:
             raise RuntimeError('DashScope: \n' + "\n".join(error_message_list))
