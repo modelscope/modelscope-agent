@@ -6,6 +6,7 @@ import traceback
 
 import gradio as gr
 import json
+import modelscope_gradio_components as mgr
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
@@ -13,9 +14,11 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           is_valid_plugin_configuration, parse_configuration,
                           save_avatar_image, save_builder_configuration,
                           save_plugin_configuration)
-from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
+from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
+    qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
@@ -70,91 +73,6 @@ def check_uuid(uuid_str):
     return uuid_str
 
 
-def process_configuration(uuid_str, bot_avatar, name, description,
-                          instructions, model, agent_language, suggestions,
-                          knowledge_files, capabilities_checkboxes,
-                          openapi_schema, openapi_auth, openapi_auth_apikey,
-                          openapi_auth_apikey_type, openapi_privacy_policy,
-                          state):
-    uuid_str = check_uuid(uuid_str)
-    tool_cfg = state['tool_cfg']
-    capabilities = state['capabilities']
-    bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
-    suggestions_filtered = [row for row in suggestions if row[0]]
-    if len(suggestions_filtered) == 0:
-        suggestions_filtered == [['']]
-    user_dir = get_user_dir(uuid_str)
-    if knowledge_files is not None:
-        new_knowledge_files = [
-            os.path.join(user_dir, os.path.basename((f.name)))
-            for f in knowledge_files
-        ]
-        for src_file, dst_file in zip(knowledge_files, new_knowledge_files):
-            if not os.path.exists(dst_file):
-                shutil.copy(src_file.name, dst_file)
-    else:
-        new_knowledge_files = []
-
-    builder_cfg = {
-        'name': name,
-        'avatar': bot_avatar,
-        'description': description,
-        'instruction': instructions,
-        'prompt_recommend': [row[0] for row in suggestions_filtered],
-        'knowledge': new_knowledge_files,
-        'tools': {
-            capability: dict(
-                name=tool_cfg[capability]['name'],
-                is_active=tool_cfg[capability]['is_active'],
-                use=True if capability in capabilities_checkboxes else False)
-            for capability in map(lambda item: item[1], capabilities)
-        },
-        'model': model,
-        'language': agent_language,
-    }
-
-    try:
-        try:
-            schema_dict = json.loads(openapi_schema)
-        except json.decoder.JSONDecodeError:
-            schema_dict = yaml.safe_load(openapi_schema)
-        except Exception as e:
-            raise gr.Error(
-                f'OpenAPI schema format error, should be one of json and yaml: {e}'
-            )
-
-        openapi_plugin_cfg = {
-            'schema': schema_dict,
-            'auth': {
-                'type': openapi_auth,
-                'apikey': openapi_auth_apikey,
-                'apikey_type': openapi_auth_apikey_type
-            },
-            'privacy_policy': openapi_privacy_policy
-        }
-        if is_valid_plugin_configuration(openapi_plugin_cfg):
-            save_plugin_configuration(openapi_plugin_cfg, uuid_str)
-    except Exception as e:
-        logger.error(
-            uuid=uuid_str,
-            error=str(e),
-            content={'error_traceback': traceback.format_exc()})
-
-    save_builder_configuration(builder_cfg, uuid_str)
-    update_builder(uuid_str, state)
-    init_user(uuid_str, state)
-    return [
-        gr.HTML.update(
-            visible=True,
-            value=format_cover_html(builder_cfg, bot_avatar_path)),
-        gr.Chatbot.update(
-            visible=False,
-            avatar_images=get_avatar_image(bot_avatar, uuid_str)),
-        gr.Dataset.update(samples=suggestions_filtered),
-        gr.DataFrame.update(value=suggestions_filtered)
-    ]
-
-
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
@@ -181,8 +99,16 @@ with demo:
                         # "Create" 标签页的 Chatbot 组件
                         start_text = '欢迎使用agent创建助手。我可以帮助您创建一个定制agent。'\
                             '您希望您的agent主要用于什么领域或任务？比如，您可以说，我想做一个RPG游戏agent'
-                        create_chatbot = gr.Chatbot(
-                            show_label=False, value=[[None, start_text]])
+                        create_chatbot = mgr.Chatbot(
+                            show_label=False,
+                            value=[[None, start_text]],
+                            flushing=False,
+                            show_copy_button=True,
+                            llm_thinking_presets=[
+                                qwen(
+                                    action_input_title='调用 <Action>',
+                                    action_output_title='完成调用')
+                            ])
                         create_chat_input = gr.Textbox(
                             label=i18n.get('message'),
                             placeholder=i18n.get('message_placeholder'))
@@ -196,8 +122,7 @@ with demo:
                         with gr.Row():
                             bot_avatar_comp = gr.Image(
                                 label=i18n.get('form_avatar'),
-                                placeholder='Chatbot avatar image',
-                                source='upload',
+                                sources=['upload'],
                                 interactive=True,
                                 type='filepath',
                                 scale=1,
@@ -291,7 +216,7 @@ with demo:
                 f"""<div class="preview_header">{i18n.get('preview')}<div>""")
 
             user_chat_bot_cover = gr.HTML(format_cover_html({}, None))
-            user_chatbot = ChatBot(
+            user_chatbot = mgr.Chatbot(
                 value=[[None, None]],
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
@@ -299,7 +224,13 @@ with demo:
                 height=650,
                 latex_delimiters=[],
                 show_label=False,
-                visible=False)
+                visible=False,
+                show_copy_button=True,
+                llm_thinking_presets=[
+                    qwen(
+                        action_input_title='调用 <Action>',
+                        action_output_title='完成调用')
+                ])
             preview_chat_input = gr.Textbox(
                 label=i18n.get('message'),
                 placeholder=i18n.get('message_placeholder'))
@@ -376,7 +307,7 @@ with demo:
             state:
             _state,
             bot_avatar_comp:
-            gr.Image.update(value=bot_avatar),
+            gr.Image(value=bot_avatar),
             name_input:
             builder_cfg.get('name', ''),
             description_input:
@@ -384,7 +315,7 @@ with demo:
             instructions_input:
             builder_cfg.get('instruction'),
             model_selector:
-            gr.Dropdown.update(
+            gr.Dropdown(
                 value=builder_cfg.get('model', models[0]), choices=models),
             agent_language_selector:
             builder_cfg.get('language') or 'zh',
@@ -394,7 +325,7 @@ with demo:
             builder_cfg.get('knowledge', [])
             if len(builder_cfg['knowledge']) > 0 else None,
             capabilities_checkboxes:
-            gr.CheckboxGroup.update(
+            gr.CheckboxGroup(
                 value=[
                     tool for tool in builder_cfg.get('tools', {}).keys()
                     if builder_cfg.get('tools').get(tool).get('use', False)
@@ -404,7 +335,9 @@ with demo:
             user_chat_bot_cover:
             format_cover_html(builder_cfg, bot_avatar),
             user_chat_bot_suggest:
-            gr.Dataset.update(samples=[[item] for item in suggests]),
+            gr.Dataset(
+                components=[preview_chat_input],
+                samples=[[item] for item in suggests]),
         }
 
     # tab 切换的事件处理
@@ -439,15 +372,16 @@ with demo:
             create_chatbot:
             chatbot,
             user_chat_bot_cover:
-            gr.HTML.update(
+            gr.HTML(
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             user_chatbot:
-            gr.Chatbot.update(
+            mgr.Chatbot(
                 visible=False,
-                avatar_images=get_avatar_image(bot_avatar, uuid_str)),
+                avatar_images=get_avatar_image(bot_avatar, uuid_str),
+                _force_update=True),
             user_chat_bot_suggest:
-            gr.Dataset.update(samples=suggestion)
+            gr.Dataset(components=[preview_chat_input], samples=suggestion)
         }
 
     def create_send_message(chatbot, input, _state, uuid_str):
@@ -457,7 +391,7 @@ with demo:
         chatbot.append((input, ''))
         yield {
             create_chatbot: chatbot,
-            create_chat_input: gr.Textbox.update(value=''),
+            create_chat_input: gr.Textbox(value=''),
         }
         response = ''
         for frame in builder_agent.stream_run(
@@ -498,6 +432,99 @@ with demo:
             user_chat_bot_suggest, create_chat_input
         ])
 
+    def process_configuration(uuid_str, bot_avatar, name, description,
+                              instructions, model, agent_language, suggestions,
+                              knowledge_files, capabilities_checkboxes,
+                              openapi_schema, openapi_auth,
+                              openapi_auth_apikey, openapi_auth_apikey_type,
+                              openapi_privacy_policy, state):
+        uuid_str = check_uuid(uuid_str)
+        tool_cfg = state['tool_cfg']
+        capabilities = state['capabilities']
+        bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
+        suggestions_filtered = [row for row in suggestions if row[0]]
+        if len(suggestions_filtered) == 0:
+            suggestions_filtered == [['']]
+        user_dir = get_user_dir(uuid_str)
+        if knowledge_files is not None:
+            new_knowledge_files = [
+                os.path.join(user_dir, os.path.basename((f.name)))
+                for f in knowledge_files
+            ]
+            for src_file, dst_file in zip(knowledge_files,
+                                          new_knowledge_files):
+                if not os.path.exists(dst_file):
+                    shutil.copy(src_file.name, dst_file)
+        else:
+            new_knowledge_files = []
+
+        builder_cfg = {
+            'name': name,
+            'avatar': bot_avatar,
+            'description': description,
+            'instruction': instructions,
+            'prompt_recommend': [row[0] for row in suggestions_filtered],
+            'knowledge': new_knowledge_files,
+            'tools': {
+                capability: dict(
+                    name=tool_cfg[capability]['name'],
+                    is_active=tool_cfg[capability]['is_active'],
+                    use=True
+                    if capability in capabilities_checkboxes else False)
+                for capability in map(lambda item: item[1], capabilities)
+            },
+            'model': model,
+            'language': agent_language,
+        }
+
+        try:
+            try:
+                schema_dict = json.loads(openapi_schema)
+            except json.decoder.JSONDecodeError:
+                schema_dict = yaml.safe_load(openapi_schema)
+            except Exception as e:
+                raise gr.Error(
+                    f'OpenAPI schema format error, should be one of json and yaml: {e}'
+                )
+
+            openapi_plugin_cfg = {
+                'schema': schema_dict,
+                'auth': {
+                    'type': openapi_auth,
+                    'apikey': openapi_auth_apikey,
+                    'apikey_type': openapi_auth_apikey_type
+                },
+                'privacy_policy': openapi_privacy_policy
+            }
+            if is_valid_plugin_configuration(openapi_plugin_cfg):
+                save_plugin_configuration(openapi_plugin_cfg, uuid_str)
+        except Exception as e:
+            logger.error(
+                uuid=uuid_str,
+                error=str(e),
+                content={'error_traceback': traceback.format_exc()})
+
+        save_builder_configuration(builder_cfg, uuid_str)
+        update_builder(uuid_str, state)
+        init_user(uuid_str, state)
+        return {
+            user_chat_bot_cover:
+            gr.HTML(
+                visible=True,
+                value=format_cover_html(builder_cfg, bot_avatar_path)),
+            user_chatbot:
+            mgr.Chatbot(
+                visible=False,
+                avatar_images=get_avatar_image(bot_avatar, uuid_str),
+                _force_update=True,
+            ),
+            user_chat_bot_suggest:
+            gr.Dataset(
+                components=[preview_chat_input], samples=suggestions_filtered),
+            suggestion_input:
+            gr.DataFrame(value=suggestions_filtered)
+        }
+
     # 配置 "Configure" 标签页的提交按钮功能
     configure_button.click(
         process_configuration,
@@ -526,9 +553,9 @@ with demo:
 
         chatbot.append((input, ''))
         yield {
-            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            user_chat_bot_cover: gr.HTML.update(visible=False),
-            preview_chat_input: gr.Textbox.update(value='')
+            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML(visible=False),
+            preview_chat_input: gr.Textbox(value='')
         }
 
         response = ''
@@ -594,9 +621,9 @@ with demo:
             else:
                 chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
-            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            user_chat_bot_cover: gr.HTML.update(visible=False),
-            preview_chat_input: gr.Textbox.update(value='')
+            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML(visible=False),
+            preview_chat_input: gr.Textbox(value='')
         }
 
         _state['file_paths'] = file_paths
@@ -675,15 +702,17 @@ with demo:
             gr.HTML(
                 f"""<div class="preview_header">{i18n.get('preview')}<div>"""),
             preview_send_button:
-            gr.Button.update(value=i18n.get('send')),
+            gr.Button(value=i18n.get('send')),
             create_chat_input:
             gr.Textbox(
                 label=i18n.get('message'),
                 placeholder=i18n.get('message_placeholder')),
             create_send_button:
-            gr.Button.update(value=i18n.get('send')),
+            gr.Button(value=i18n.get('send')),
             user_chat_bot_suggest:
-            gr.Dataset(label=i18n.get('prompt_suggestion')),
+            gr.Dataset(
+                components=[preview_chat_input],
+                label=i18n.get('prompt_suggestion')),
             preview_chat_input:
             gr.Textbox(
                 label=i18n.get('message'),
@@ -725,13 +754,13 @@ with demo:
             state:
             _state,
             preview_send_button:
-            gr.Button.update(value=i18n.get('send'), interactive=True),
+            gr.Button(value=i18n.get('send'), interactive=True),
             create_send_button:
-            gr.Button.update(value=i18n.get('send'), interactive=True),
+            gr.Button(value=i18n.get('send'), interactive=True),
         }
 
     demo.load(
         init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
 
-demo.queue(concurrency_count=10)
-demo.launch(show_error=True)
+demo.queue()
+demo.launch(show_error=True, max_threads=10)
