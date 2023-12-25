@@ -71,17 +71,27 @@ with demo:
                     llm_thinking_presets=[qwen()])
             with gr.Row():
                 with gr.Column(scale=12):
-                    preview_chat_input = gr.Textbox(
-                        show_label=False,
-                        container=False,
-                        placeholder='跟我聊聊吧～')
-                with gr.Column(min_width=70, scale=1):
-                    upload_button = gr.UploadButton(
-                        '上传',
+                    user_chatbot_input = mgr.MultimodalInput(
+                        interactive=True,
+                        placeholder='跟我聊聊吧～',
+                        file_count='multiple',
                         file_types=['file', 'image', 'audio', 'video', 'text'],
-                        file_count='multiple')
+                    )
                 with gr.Column(min_width=70, scale=1):
                     preview_send_button = gr.Button('发送', variant='primary')
+            # with gr.Row():
+            #     with gr.Column(scale=12):
+            #         preview_chat_input = gr.Textbox(
+            #             show_label=False,
+            #             container=False,
+            #             placeholder='跟我聊聊吧～')
+            #     with gr.Column(min_width=70, scale=1):
+            #         upload_button = gr.UploadButton(
+            #             '上传',
+            #             file_types=['file', 'image', 'audio', 'video', 'text'],
+            #             file_count='multiple')
+            #     with gr.Column(min_width=70, scale=1):
+            #         preview_send_button = gr.Button('发送', variant='primary')
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(
@@ -89,7 +99,7 @@ with demo:
             user_chat_bot_suggest = gr.Examples(
                 label='Prompt Suggestions',
                 examples=suggests,
-                inputs=[preview_chat_input])
+                inputs=[user_chatbot_input])
 
     def upload_file(chatbot, upload_button, _state):
         _uuid_str = check_uuid(uuid_str)
@@ -116,16 +126,16 @@ with demo:
                 chatbot.append((None, f'上传文件{file_name}，成功'))
         yield {
             user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            preview_chat_input: gr.Textbox.update(value='')
+            user_chatbot_input: ''
         }
 
         _state['file_paths'] = file_paths
         _state['new_file_paths'] = new_file_paths
 
-    upload_button.upload(
-        upload_file,
-        inputs=[user_chatbot, upload_button, state],
-        outputs=[user_chatbot, preview_chat_input])
+    # upload_button.upload(
+    #     upload_file,
+    #     inputs=[user_chatbot, upload_button, state],
+    #     outputs=[user_chatbot, preview_chat_input])
 
     def send_message(chatbot, input, _state):
         # 将发送的消息添加到聊天历史
@@ -138,7 +148,7 @@ with demo:
         chatbot.append((input, ''))
         yield {
             user_chatbot: chatbot,
-            preview_chat_input: gr.Textbox(value=''),
+            user_chatbot_input: '',
         }
 
         response = ''
@@ -180,8 +190,8 @@ with demo:
 
     preview_send_button.click(
         send_message,
-        inputs=[user_chatbot, preview_chat_input, state],
-        outputs=[user_chatbot, preview_chat_input])
+        inputs=[user_chatbot, user_chatbot_input, state],
+        outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
