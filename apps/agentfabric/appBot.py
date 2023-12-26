@@ -44,6 +44,7 @@ def init_user(state):
             uuid=uuid_str,
             error=str(e),
             content={'error_traceback': traceback.format_exc()})
+        raise Exception(e)
     return state
 
 
@@ -129,6 +130,9 @@ with demo:
 
     def send_message(chatbot, input, _state):
         # 将发送的消息添加到聊天历史
+        if 'user_agent' not in _state:
+            init_user(_state)
+
         user_agent = _state['user_agent']
         if 'new_file_paths' in _state:
             new_file_paths = _state['new_file_paths']
@@ -185,5 +189,5 @@ with demo:
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
-demo.queue()
-demo.launch()
+demo.queue(concurrency_count=10)
+demo.launch(show_error=True)
