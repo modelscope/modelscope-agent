@@ -4,10 +4,10 @@ import shutil
 import traceback
 
 import gradio as gr
+import modelscope_gradio_components as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
 from modelscope_agent.utils.logger import agent_logger as logger
-import modelscope_gradio_components as mgr
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from user_core import init_user_chatbot_agent
@@ -68,18 +68,19 @@ with demo:
                     latex_delimiters=[],
                     show_label=False,
                     show_copy_button=True,
-                    llm_thinking_presets=[qwen(
-                        action_input_title='调用 <Action>',
-                        action_output_title='完成调用')])
+                    llm_thinking_presets=[
+                        qwen(
+                            action_input_title='调用 <Action>',
+                            action_output_title='完成调用')
+                    ])
             with gr.Row():
                 user_chatbot_input = mgr.MultimodalInput(
                     interactive=True,
                     placeholder='跟我聊聊吧～',
                     upload_button_props=dict(
                         file_count='multiple',
-                        file_types=['file', 'image', 'audio', 'video', 'text']
-                    )
-                )
+                        file_types=['file', 'image', 'audio', 'video',
+                                    'text']))
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(
@@ -93,10 +94,7 @@ with demo:
         # 将发送的消息添加到聊天历史
         user_agent = _state['user_agent']
         append_files = list(map(lambda f: f.path, input.files))
-        chatbot.append([{
-            "text": input.text,
-            "files": input.files
-        }, None])
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             user_chatbot: chatbot,
             user_chatbot_input: None,
@@ -139,7 +137,9 @@ with demo:
             chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-            gr.on([user_chatbot_input.submit], fn=send_message, inputs=[user_chatbot, user_chatbot_input, state],
+            gr.on([user_chatbot_input.submit],
+                  fn=send_message,
+                  inputs=[user_chatbot, user_chatbot_input, state],
                   outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])

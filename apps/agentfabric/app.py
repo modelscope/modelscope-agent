@@ -110,7 +110,11 @@ with demo:
                             ])
                         create_chat_input = mgr.MultimodalInput(
                             label=i18n.get('message'),
-                            placeholder=i18n.get('message_placeholder'), interactive=False, upload_button_props=dict(visible=False), submit_button_props=dict(label=i18n.get('sendOnLoading')))
+                            placeholder=i18n.get('message_placeholder'),
+                            interactive=False,
+                            upload_button_props=dict(visible=False),
+                            submit_button_props=dict(
+                                label=i18n.get('sendOnLoading')))
 
                 configure_tab = gr.Tab(i18n.get_whole('configure'), id=1)
                 with configure_tab:
@@ -174,7 +178,8 @@ with demo:
                                 open=False) as open_api_accordion:
                             openapi_schema = gr.Textbox(
                                 label='Schema',
-                                placeholder='Enter your OpenAPI schema here, JSON or YAML format only'
+                                placeholder=
+                                'Enter your OpenAPI schema here, JSON or YAML format only'
                             )
 
                             with gr.Group():
@@ -227,8 +232,15 @@ with demo:
                         action_input_title='调用 <Action>',
                         action_output_title='完成调用')
                 ])
-            preview_chat_input = mgr.MultimodalInput(interactive=False, label=i18n.get(
-                'message'), placeholder=i18n.get('message_placeholder'), upload_button_props=dict(label=i18n.get('upload_btn'), file_types=['file', 'image', 'audio', 'video', 'text'], file_count='multiple'), submit_button_props=dict(label=i18n.get('sendOnLoading')))
+            preview_chat_input = mgr.MultimodalInput(
+                interactive=False,
+                label=i18n.get('message'),
+                placeholder=i18n.get('message_placeholder'),
+                upload_button_props=dict(
+                    label=i18n.get('upload_btn'),
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
+                    file_count='multiple'),
+                submit_button_props=dict(label=i18n.get('sendOnLoading')))
             user_chat_bot_suggest = gr.Dataset(
                 label=i18n.get('prompt_suggestion'),
                 components=[preview_chat_input],
@@ -375,10 +387,7 @@ with demo:
         uuid_str = check_uuid(uuid_str)
         # 将发送的消息添加到聊天历史
         builder_agent = _state['builder_agent']
-        chatbot.append([{
-            "text": input.text,
-            "files": input.files
-        }, None])
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             create_chatbot: chatbot,
             create_chat_input: None,
@@ -456,7 +465,8 @@ with demo:
             'prompt_recommend': [row[0] for row in suggestions_filtered],
             'knowledge': new_knowledge_files,
             'tools': {
-                capability: dict(
+                capability:
+                dict(
                     name=tool_cfg[capability]['name'],
                     is_active=tool_cfg[capability]['is_active'],
                     use=True
@@ -532,6 +542,7 @@ with demo:
 
     # 配置 "Preview" 的消息发送功能
 
+
     def preview_send_message(chatbot, input, _state, uuid_str):
         # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
@@ -548,10 +559,7 @@ with demo:
                 shutil.copy(file.path, file_path)
             append_files.append(file_path)
 
-        chatbot.append([{
-            "text": input.text,
-            "files": input.files
-        }, None])
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
             user_chat_bot_cover: gr.HTML(visible=False),
@@ -596,7 +604,9 @@ with demo:
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state, uuid_str],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
+
     # configuration for publish
+
 
     def publish_agent(name, uuid_str, state):
         uuid_str = check_uuid(uuid_str)
@@ -664,14 +674,20 @@ with demo:
             preview_header:
             gr.HTML(
                 f"""<div class="preview_header">{i18n.get('preview')}<div>"""),
-            preview_chat_input: mgr.MultimodalInput(label=i18n.get('message'),
-                                                    placeholder=i18n.get('message_placeholder'), submit_button_props=dict(label=i18n.get('send')), upload_button_props=dict(label=i18n.get('upload_btn'), file_types=['file', 'image', 'audio', 'video', 'text'], file_count='multiple')),
-
-
+            preview_chat_input:
+            mgr.MultimodalInput(
+                label=i18n.get('message'),
+                placeholder=i18n.get('message_placeholder'),
+                submit_button_props=dict(label=i18n.get('send')),
+                upload_button_props=dict(
+                    label=i18n.get('upload_btn'),
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
+                    file_count='multiple')),
             create_chat_input:
             mgr.MultimodalInput(
                 label=i18n.get('message'),
-                placeholder=i18n.get('message_placeholder'), submit_button_props=dict(label=i18n.get('send'))),
+                placeholder=i18n.get('message_placeholder'),
+                submit_button_props=dict(label=i18n.get('send'))),
             user_chat_bot_suggest:
             gr.Dataset(
                 components=[preview_chat_input],
@@ -693,9 +709,8 @@ with demo:
         inputs=[language],
         outputs=configure_updated_outputs + [
             configure_button, create_chat_input, open_api_accordion,
-            preview_header, preview_chat_input, publish_accordion,
-            header, publish_alert_md, build_hint_md,
-            publish_hint_md
+            preview_header, preview_chat_input, publish_accordion, header,
+            publish_alert_md, build_hint_md, publish_hint_md
         ])
 
     def init_all(uuid_str, _state):
@@ -711,9 +726,13 @@ with demo:
             state:
             _state,
             preview_chat_input:
-            mgr.MultimodalInput(submit_button_props=dict(label=i18n.get('send')), interactive=True),
+            mgr.MultimodalInput(
+                submit_button_props=dict(label=i18n.get('send')),
+                interactive=True),
             create_chat_input:
-            mgr.MultimodalInput(submit_button_props=dict(label=i18n.get('send')), interactive=True),
+            mgr.MultimodalInput(
+                submit_button_props=dict(label=i18n.get('send')),
+                interactive=True),
         }
 
     demo.load(
