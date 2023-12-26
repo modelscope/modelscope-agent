@@ -1,11 +1,11 @@
 import os
 import random
+import time
 import traceback
 from http import HTTPStatus
 from typing import Union
 
 import dashscope
-import time
 import json
 from dashscope import Generation
 from modelscope_agent.agent_types import AgentType
@@ -32,7 +32,7 @@ class DashScopeLLM(LLM):
                  **kwargs):
         error_message_list = []
         for i in range(3):
-            print("call generate at {} time".format(i + 1))
+            print('call generate at {} time'.format(i + 1))
             try:
                 if self.agent_type == AgentType.Messages:
                     messages = llm_artifacts if len(
@@ -53,8 +53,8 @@ class DashScopeLLM(LLM):
                         return llm_result
                     else:
                         err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
-                            response.request_id, response.status_code, response.code,
-                            response.message)
+                            response.request_id, response.status_code,
+                            response.code, response.message)
                         print(err_msg)
                         error_message_list.append(err_msg)
                         time.sleep(i * 2 + 1)
@@ -70,8 +70,8 @@ class DashScopeLLM(LLM):
                         return llm_result
                     else:
                         err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
-                            response.request_id, response.status_code, response.code,
-                            response.message)
+                            response.request_id, response.status_code,
+                            response.code, response.message)
                         print(err_msg)
                         error_message_list.append(err_msg)
                         time.sleep(i * 2 + 1)
@@ -83,7 +83,7 @@ class DashScopeLLM(LLM):
                 # raise RuntimeError(error)
                 time.sleep(i * 2 + 1)
         if len(error_message_list) == 3:
-            raise RuntimeError('DashScope: \n' + "\n".join(error_message_list))
+            raise RuntimeError('DashScope: \n' + '\n'.join(error_message_list))
 
         if self.agent_type == AgentType.MS_AGENT:
             # in the form of text
@@ -102,10 +102,10 @@ class DashScopeLLM(LLM):
                         llm_artifacts: Union[str, dict],
                         functions=[],
                         **kwargs):
-        print("call stream generate")
+        print('call stream generate')
         error_message_list = []
         for i in range(3):
-            print("call stream generate at {} time".format(i + 1))
+            print('call stream generate at {} time'.format(i + 1))
             total_response = ''
             try:
                 if self.agent_type == AgentType.Messages:
@@ -135,7 +135,8 @@ class DashScopeLLM(LLM):
                     if self.agent_type == AgentType.Messages:
                         llm_result = CustomOutputWrapper.handle_message_chat_completion(
                             response)
-                        frame_text = llm_result['content'][len(total_response):]
+                        frame_text = llm_result['content'][len(total_response
+                                                               ):]
                     else:
                         llm_result = CustomOutputWrapper.handle_message_text_completion(
                             response)
@@ -148,8 +149,8 @@ class DashScopeLLM(LLM):
                         total_response = llm_result
                 else:
                     err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
-                        response.request_id, response.status_code, response.code,
-                        response.message)
+                        response.request_id, response.status_code,
+                        response.code, response.message)
                     print(err_msg)
                     error_message_list.append(err_msg)
                     time.sleep(i * 2 + 1)
@@ -157,6 +158,4 @@ class DashScopeLLM(LLM):
             if len(error_message_list) <= i:
                 break
         if len(error_message_list) >= 3:
-            raise RuntimeError('DashScope: \n' + "\n".join(error_message_list))
-
-
+            raise RuntimeError('DashScope: \n' + '\n'.join(error_message_list))
