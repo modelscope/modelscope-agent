@@ -72,15 +72,14 @@ with demo:
                         action_input_title='调用 <Action>',
                         action_output_title='完成调用')])
             with gr.Row():
-                with gr.Column(scale=12):
-                    user_chatbot_input = mgr.MultimodalInput(
-                        interactive=True,
-                        placeholder='跟我聊聊吧～',
+                user_chatbot_input = mgr.MultimodalInput(
+                    interactive=True,
+                    placeholder='跟我聊聊吧～',
+                    upload_button_props=dict(
                         file_count='multiple',
-                        file_types=['file', 'image', 'audio', 'video', 'text'],
+                        file_types=['file', 'image', 'audio', 'video', 'text']
                     )
-                with gr.Column(min_width=70, scale=1):
-                    preview_send_button = gr.Button('发送', variant='primary')
+                )
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(
@@ -141,8 +140,8 @@ with demo:
             chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-    gr.on([preview_send_button.click, user_chatbot_input.submit], fn=send_message, inputs=[user_chatbot, user_chatbot_input, state],
-          outputs=[user_chatbot, user_chatbot_input])
+            gr.on([user_chatbot_input.submit], fn=send_message, inputs=[user_chatbot, user_chatbot_input, state],
+                  outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
