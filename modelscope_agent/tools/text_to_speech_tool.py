@@ -33,8 +33,9 @@ class TexttoSpeechTool(ModelscopePipelineTool):
     def _remote_parse_input(self, *args, **kwargs):
         if 'gender' not in kwargs:
             kwargs['gender'] = 'man'
-        voice = 'zhizhe_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
-        kwargs['voice'] = voice
+        voice = 'zhizhe_emo' if kwargs['gender'] == 'man' or kwargs[
+            'gender'] == 'male' else 'zhiyan_emo'
+        kwargs['parameters'] = {'voice': voice}
         kwargs.pop('gender')
         return kwargs
 
