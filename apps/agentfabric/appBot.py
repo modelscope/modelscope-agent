@@ -93,7 +93,6 @@ with demo:
         # 将发送的消息添加到聊天历史
         user_agent = _state['user_agent']
         append_files = list(map(lambda f: f.path, input.files))
-        _state['new_file_paths'] = []
         chatbot.append([{
             "text": input.text,
             "files": input.files
