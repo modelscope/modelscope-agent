@@ -102,18 +102,15 @@ with demo:
                         create_chatbot = mgr.Chatbot(
                             show_label=False,
                             value=[[None, start_text]],
-                            flushing=False,
                             show_copy_button=True,
                             llm_thinking_presets=[
                                 qwen(
                                     action_input_title='调用 <Action>',
                                     action_output_title='完成调用')
                             ])
-                        create_chat_input = gr.Textbox(
+                        create_chat_input = mgr.MultimodalInput(
                             label=i18n.get('message'),
-                            placeholder=i18n.get('message_placeholder'))
-                        create_send_button = gr.Button(
-                            i18n.get('sendOnLoading'), interactive=False)
+                            placeholder=i18n.get('message_placeholder'), interactive=False, upload_button_props=dict(visible=False), submit_button_props=dict(label=i18n.get('sendOnLoading')))
 
                 configure_tab = gr.Tab(i18n.get_whole('configure'), id=1)
                 with configure_tab:
@@ -273,7 +270,7 @@ with demo:
         user_chat_bot_cover,
         user_chat_bot_suggest,
         preview_chat_input,
-        create_send_button,
+        create_chat_input,
     ]
 
     # 初始化表单
@@ -378,14 +375,17 @@ with demo:
         uuid_str = check_uuid(uuid_str)
         # 将发送的消息添加到聊天历史
         builder_agent = _state['builder_agent']
-        chatbot.append((input, ''))
+        chatbot.append([{
+            "text": input.text,
+            "files": input.files
+        }, None])
         yield {
             create_chatbot: chatbot,
-            create_chat_input: gr.Textbox(value=''),
+            create_chat_input: None,
         }
         response = ''
         for frame in builder_agent.stream_run(
-                input, print_info=True, uuid_str=uuid_str):
+                input.text, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
@@ -409,12 +409,12 @@ with demo:
                 frame_text = content
                 response = beauty_output(f'{response}{frame_text}',
                                          step_result)
-                chatbot[-1] = (input, response)
+                chatbot[-1][1] = response
                 yield {
                     create_chatbot: chatbot,
                 }
 
-    create_send_button.click(
+    create_chat_input.submit(
         create_send_message,
         inputs=[create_chatbot, create_chat_input, state, uuid_str],
         outputs=[
@@ -666,12 +666,12 @@ with demo:
                 f"""<div class="preview_header">{i18n.get('preview')}<div>"""),
             preview_chat_input: mgr.MultimodalInput(label=i18n.get('message'),
                                                     placeholder=i18n.get('message_placeholder'), submit_button_props=dict(label=i18n.get('send')), upload_button_props=dict(label=i18n.get('upload_btn'), file_types=['file', 'image', 'audio', 'video', 'text'], file_count='multiple')),
+
+
             create_chat_input:
-            gr.Textbox(
+            mgr.MultimodalInput(
                 label=i18n.get('message'),
-                placeholder=i18n.get('message_placeholder')),
-            create_send_button:
-            gr.Button(value=i18n.get('send')),
+                placeholder=i18n.get('message_placeholder'), submit_button_props=dict(label=i18n.get('send'))),
             user_chat_bot_suggest:
             gr.Dataset(
                 components=[preview_chat_input],
@@ -712,8 +712,8 @@ with demo:
             _state,
             preview_chat_input:
             mgr.MultimodalInput(submit_button_props=dict(label=i18n.get('send')), interactive=True),
-            create_send_button:
-            gr.Button(value=i18n.get('send'), interactive=True),
+            create_chat_input:
+            mgr.MultimodalInput(submit_button_props=dict(label=i18n.get('send')), interactive=True),
         }
 
     demo.load(
