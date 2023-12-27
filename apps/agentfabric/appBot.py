@@ -1,16 +1,16 @@
+import gradio as gr
+import modelscope_gradio_components as mgr
 import os
 import random
 import shutil
 import traceback
-
-import gradio as gr
-import modelscope_gradio_components as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
-from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from user_core import init_user_chatbot_agent
+
+from modelscope_agent.utils.logger import agent_logger as logger
 
 uuid_str = 'local_user'
 builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
