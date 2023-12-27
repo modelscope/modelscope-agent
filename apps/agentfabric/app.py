@@ -1,11 +1,12 @@
-import gradio as gr
 import importlib
-import json
-import modelscope_gradio_components as mgr
 import os
 import random
 import shutil
 import traceback
+
+import gradio as gr
+import json
+import modelscope_gradio_components as mgr
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
@@ -15,13 +16,12 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
-
-from modelscope_agent.utils.logger import agent_logger as logger
 
 
 def init_user(uuid_str, state):
