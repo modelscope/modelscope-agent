@@ -44,6 +44,7 @@ def init_user(state):
             uuid=uuid_str,
             error=str(e),
             content={'error_traceback': traceback.format_exc()})
+        raise Exception(e)
     return state
 
 
@@ -68,30 +69,19 @@ with demo:
                     latex_delimiters=[],
                     show_label=False,
                     show_copy_button=True,
-                    llm_thinking_presets=[qwen()])
+                    llm_thinking_presets=[
+                        qwen(
+                            action_input_title='调用 <Action>',
+                            action_output_title='完成调用')
+                    ])
             with gr.Row():
-                with gr.Column(scale=12):
-                    user_chatbot_input = mgr.MultimodalInput(
-                        interactive=True,
-                        placeholder='跟我聊聊吧～',
+                user_chatbot_input = mgr.MultimodalInput(
+                    interactive=True,
+                    placeholder='跟我聊聊吧～',
+                    upload_button_props=dict(
                         file_count='multiple',
-                        file_types=['file', 'image', 'audio', 'video', 'text'],
-                    )
-                with gr.Column(min_width=70, scale=1):
-                    preview_send_button = gr.Button('发送', variant='primary')
-            # with gr.Row():
-            #     with gr.Column(scale=12):
-            #         preview_chat_input = gr.Textbox(
-            #             show_label=False,
-            #             container=False,
-            #             placeholder='跟我聊聊吧～')
-            #     with gr.Column(min_width=70, scale=1):
-            #         upload_button = gr.UploadButton(
-            #             '上传',
-            #             file_types=['file', 'image', 'audio', 'video', 'text'],
-            #             file_count='multiple')
-            #     with gr.Column(min_width=70, scale=1):
-            #         preview_send_button = gr.Button('发送', variant='primary')
+                        file_types=['file', 'image', 'audio', 'video',
+                                    'text']))
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(
@@ -101,63 +91,26 @@ with demo:
                 examples=suggests,
                 inputs=[user_chatbot_input])
 
-    def upload_file(chatbot, upload_button, _state):
-        _uuid_str = check_uuid(uuid_str)
-        new_file_paths = []
-        if 'file_paths' in _state:
-            file_paths = _state['file_paths']
-        else:
-            file_paths = []
-        for file in upload_button:
-            file_name = os.path.basename(file.name)
-            # covert xxx.json to xxx_uuid_str.json
-            file_name = file_name.replace('.', f'_{_uuid_str}.')
-            file_path = os.path.join(get_ci_dir(), file_name)
-            if not os.path.exists(file_path):
-                # make sure file path's directory exists
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                shutil.copy(file.name, file_path)
-                file_paths.append(file_path)
-            new_file_paths.append(file_path)
-            if file_name.endswith(('.jpeg', '.png', '.jpg')):
-                chatbot += [((file_path, ), None)]
-
-            else:
-                chatbot.append((None, f'上传文件{file_name}，成功'))
-        yield {
-            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            user_chatbot_input: ''
-        }
-
-        _state['file_paths'] = file_paths
-        _state['new_file_paths'] = new_file_paths
-
-    # upload_button.upload(
-    #     upload_file,
-    #     inputs=[user_chatbot, upload_button, state],
-    #     outputs=[user_chatbot, preview_chat_input])
-
     def send_message(chatbot, input, _state):
         # 将发送的消息添加到聊天历史
+        if 'user_agent' not in _state:
+            init_user(_state)
+
         user_agent = _state['user_agent']
-        if 'new_file_paths' in _state:
-            new_file_paths = _state['new_file_paths']
-        else:
-            new_file_paths = []
-        _state['new_file_paths'] = []
-        chatbot.append((input, ''))
+        append_files = list(map(lambda f: f.path, input.files))
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             user_chatbot: chatbot,
-            user_chatbot_input: '',
+            user_chatbot_input: None,
         }
 
         response = ''
         try:
             for frame in user_agent.stream_run(
-                    input,
+                    input.text,
                     print_info=True,
                     remote=False,
-                    append_files=new_file_paths):
+                    append_files=append_files):
                 # is_final = frame.get("frame_is_final")
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
@@ -173,7 +126,7 @@ with demo:
 
                 # important! do not change this
                 response += frame_text
-                chatbot[-1] = (input, response)
+                chatbot[-1][1] = response
                 yield {
                     user_chatbot: chatbot,
                 }
@@ -185,15 +138,15 @@ with demo:
                 msg = 'Too many people are calling, please try again later.'
             else:
                 msg = str(e)
-            chatbot[-1] = (input, msg)
+            chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-    preview_send_button.click(
-        send_message,
-        inputs=[user_chatbot, user_chatbot_input, state],
-        outputs=[user_chatbot, user_chatbot_input])
+            gr.on([user_chatbot_input.submit],
+                  fn=send_message,
+                  inputs=[user_chatbot, user_chatbot_input, state],
+                  outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
-demo.queue()
-demo.launch()
+demo.queue(concurrency_count=10)
+demo.launch(show_error=True)

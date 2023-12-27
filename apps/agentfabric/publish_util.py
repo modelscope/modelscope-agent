@@ -163,9 +163,13 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 获取必须设置的envs
     envs_required = {}
-    for t in builder_cfg.tools:
-        if t == 'amap_weather':
+    for t, t_cfg in builder_cfg.tools.items():
+        if t == 'amap_weather' and t_cfg['is_active'] and t_cfg['use']:
             envs_required['AMAP_TOKEN'] = 'Your-AMAP-TOKEN'
+        elif t in ['web_search'] and t_cfg['is_active'] and t_cfg['use']:
+            envs_required[
+                'BING_SEARCH_V7_SUBSCRIPTION_KEY'] = 'Yor-BingSearch-KEY'
+
     return file_url, envs_required
 
 
