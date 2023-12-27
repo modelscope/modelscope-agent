@@ -102,18 +102,19 @@ with demo:
                         create_chatbot = mgr.Chatbot(
                             show_label=False,
                             value=[[None, start_text]],
-                            flushing=False,
                             show_copy_button=True,
                             llm_thinking_presets=[
                                 qwen(
                                     action_input_title='调用 <Action>',
                                     action_output_title='完成调用')
                             ])
-                        create_chat_input = gr.Textbox(
+                        create_chat_input = mgr.MultimodalInput(
                             label=i18n.get('message'),
-                            placeholder=i18n.get('message_placeholder'))
-                        create_send_button = gr.Button(
-                            i18n.get('sendOnLoading'), interactive=False)
+                            placeholder=i18n.get('message_placeholder'),
+                            interactive=False,
+                            upload_button_props=dict(visible=False),
+                            submit_button_props=dict(
+                                label=i18n.get('sendOnLoading')))
 
                 configure_tab = gr.Tab(i18n.get_whole('configure'), id=1)
                 with configure_tab:
@@ -231,21 +232,19 @@ with demo:
                         action_input_title='调用 <Action>',
                         action_output_title='完成调用')
                 ])
-            preview_chat_input = gr.Textbox(
+            preview_chat_input = mgr.MultimodalInput(
+                interactive=False,
                 label=i18n.get('message'),
-                placeholder=i18n.get('message_placeholder'))
+                placeholder=i18n.get('message_placeholder'),
+                upload_button_props=dict(
+                    label=i18n.get('upload_btn'),
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
+                    file_count='multiple'),
+                submit_button_props=dict(label=i18n.get('sendOnLoading')))
             user_chat_bot_suggest = gr.Dataset(
                 label=i18n.get('prompt_suggestion'),
                 components=[preview_chat_input],
                 samples=[])
-            # preview_send_button = gr.Button('Send')
-            with gr.Row():
-                upload_button = gr.UploadButton(
-                    i18n.get('upload_btn'),
-                    file_types=['file', 'image', 'audio', 'video', 'text'],
-                    file_count='multiple')
-                preview_send_button = gr.Button(
-                    i18n.get('sendOnLoading'), interactive=False)
             user_chat_bot_suggest.select(
                 lambda evt: evt[0],
                 inputs=[user_chat_bot_suggest],
@@ -282,8 +281,8 @@ with demo:
         # bot
         user_chat_bot_cover,
         user_chat_bot_suggest,
-        preview_send_button,
-        create_send_button,
+        preview_chat_input,
+        create_chat_input,
     ]
 
     # 初始化表单
@@ -388,14 +387,14 @@ with demo:
         uuid_str = check_uuid(uuid_str)
         # 将发送的消息添加到聊天历史
         builder_agent = _state['builder_agent']
-        chatbot.append((input, ''))
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             create_chatbot: chatbot,
-            create_chat_input: gr.Textbox(value=''),
+            create_chat_input: None,
         }
         response = ''
         for frame in builder_agent.stream_run(
-                input, print_info=True, uuid_str=uuid_str):
+                input.text, print_info=True, uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
@@ -419,12 +418,12 @@ with demo:
                 frame_text = content
                 response = beauty_output(f'{response}{frame_text}',
                                          step_result)
-                chatbot[-1] = (input, response)
+                chatbot[-1][1] = response
                 yield {
                     create_chatbot: chatbot,
                 }
 
-    create_send_button.click(
+    create_chat_input.submit(
         create_send_message,
         inputs=[create_chatbot, create_chat_input, state, uuid_str],
         outputs=[
@@ -544,26 +543,32 @@ with demo:
         # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
-        if 'new_file_paths' in _state:
-            new_file_paths = _state['new_file_paths']
-        else:
-            new_file_paths = []
-        _state['new_file_paths'] = []
+        append_files = []
+        for file in input.files:
+            file_name = os.path.basename(file.path)
+            # covert xxx.json to xxx_uuid_str.json
+            file_name = file_name.replace('.', f'_{uuid_str}.')
+            file_path = os.path.join(get_ci_dir(), file_name)
+            if not os.path.exists(file_path):
+                # make sure file path's directory exists
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                shutil.copy(file.path, file_path)
+            append_files.append(file_path)
 
-        chatbot.append((input, ''))
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
             user_chat_bot_cover: gr.HTML(visible=False),
-            preview_chat_input: gr.Textbox(value='')
+            preview_chat_input: None
         }
 
         response = ''
         try:
             for frame in user_agent.stream_run(
-                    input,
+                    input.text,
                     print_info=True,
                     remote=False,
-                    append_files=new_file_paths,
+                    append_files=append_files,
                     uuid=_uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
@@ -578,7 +583,7 @@ with demo:
 
                 # important! do not change this
                 response += frame_text
-                chatbot[-1] = (input, response)
+                chatbot[-1][1] = response
                 yield {user_chatbot: chatbot}
         except Exception as e:
             if 'dashscope.common.error.AuthenticationError' in str(e):
@@ -588,49 +593,12 @@ with demo:
                 msg = 'Too many people are calling, please try again later.'
             else:
                 msg = str(e)
-            chatbot[-1] = (input, msg)
+            chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-    preview_send_button.click(
+    preview_chat_input.submit(
         preview_send_message,
         inputs=[user_chatbot, preview_chat_input, state, uuid_str],
-        outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
-
-    def upload_file(chatbot, upload_button, _state, uuid_str):
-        uuid_str = check_uuid(uuid_str)
-        new_file_paths = []
-        if 'file_paths' in _state:
-            file_paths = _state['file_paths']
-        else:
-            file_paths = []
-        for file in upload_button:
-            file_name = os.path.basename(file.name)
-            # covert xxx.json to xxx_uuid_str.json
-            file_name = file_name.replace('.', f'_{uuid_str}.')
-            file_path = os.path.join(get_ci_dir(), file_name)
-            if not os.path.exists(file_path):
-                # make sure file path's directory exists
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                shutil.copy(file.name, file_path)
-                file_paths.append(file_path)
-            new_file_paths.append(file_path)
-            if file_name.endswith(('.jpeg', '.png', '.jpg')):
-                chatbot += [((file_path, ), None)]
-
-            else:
-                chatbot.append((None, f'上传文件{file_name}，成功'))
-        yield {
-            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
-            user_chat_bot_cover: gr.HTML(visible=False),
-            preview_chat_input: gr.Textbox(value='')
-        }
-
-        _state['file_paths'] = file_paths
-        _state['new_file_paths'] = new_file_paths
-
-    upload_button.upload(
-        upload_file,
-        inputs=[user_chatbot, upload_button, state, uuid_str],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     # configuration for publish
@@ -700,26 +668,26 @@ with demo:
             preview_header:
             gr.HTML(
                 f"""<div class="preview_header">{i18n.get('preview')}<div>"""),
-            preview_send_button:
-            gr.Button(value=i18n.get('send')),
-            create_chat_input:
-            gr.Textbox(
+            preview_chat_input:
+            mgr.MultimodalInput(
                 label=i18n.get('message'),
-                placeholder=i18n.get('message_placeholder')),
-            create_send_button:
-            gr.Button(value=i18n.get('send')),
+                placeholder=i18n.get('message_placeholder'),
+                submit_button_props=dict(label=i18n.get('send')),
+                upload_button_props=dict(
+                    label=i18n.get('upload_btn'),
+                    file_types=['file', 'image', 'audio', 'video', 'text'],
+                    file_count='multiple')),
+            create_chat_input:
+            mgr.MultimodalInput(
+                label=i18n.get('message'),
+                placeholder=i18n.get('message_placeholder'),
+                submit_button_props=dict(label=i18n.get('send'))),
             user_chat_bot_suggest:
             gr.Dataset(
                 components=[preview_chat_input],
                 label=i18n.get('prompt_suggestion')),
-            preview_chat_input:
-            gr.Textbox(
-                label=i18n.get('message'),
-                placeholder=i18n.get('message_placeholder')),
             publish_accordion:
             gr.Accordion(label=i18n.get('publish')),
-            upload_button:
-            gr.UploadButton(i18n.get('upload_btn')),
             header:
             gr.Markdown(i18n.get('header')),
             publish_alert_md:
@@ -735,9 +703,8 @@ with demo:
         inputs=[language],
         outputs=configure_updated_outputs + [
             configure_button, create_chat_input, open_api_accordion,
-            preview_header, preview_chat_input, publish_accordion,
-            upload_button, header, publish_alert_md, build_hint_md,
-            publish_hint_md
+            preview_header, preview_chat_input, publish_accordion, header,
+            publish_alert_md, build_hint_md, publish_hint_md
         ])
 
     def init_all(uuid_str, _state):
@@ -752,10 +719,14 @@ with demo:
         yield {
             state:
             _state,
-            preview_send_button:
-            gr.Button(value=i18n.get('send'), interactive=True),
-            create_send_button:
-            gr.Button(value=i18n.get('send'), interactive=True),
+            preview_chat_input:
+            mgr.MultimodalInput(
+                submit_button_props=dict(label=i18n.get('send')),
+                interactive=True),
+            create_chat_input:
+            mgr.MultimodalInput(
+                submit_button_props=dict(label=i18n.get('send')),
+                interactive=True),
         }
 
     demo.load(
