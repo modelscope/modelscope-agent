@@ -517,11 +517,10 @@ with demo:
                 avatar_images=get_avatar_image(bot_avatar, uuid_str),
                 _force_update=True,
             ),
+            suggestion_input: [item[:] for item in suggestions_filtered],
             user_chat_bot_suggest:
             gr.Dataset(
                 components=[preview_chat_input], samples=suggestions_filtered),
-            suggestion_input:
-            gr.DataFrame(value=suggestions_filtered)
         }
 
     # 配置 "Configure" 标签页的提交按钮功能
