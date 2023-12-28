@@ -91,9 +91,15 @@ class OpenAPIPluginTool(Tool):
                 except Timeout:
                     continue
                 except RequestException as e:
-                    raise ValueError(
-                        f'Remote call failed with error code: {e.response.status_code},\
-                        error message: {e.response.content.decode("utf-8")}')
+                    if e.response:
+                        error_message = (f"Remote call failed with error code: {e.response.status_code}, "
+                                         f"error message: {e.response.content.decode('utf-8')}")
+                    else:
+                        error_message = (
+                            "Remote call failed with no response from the server. "
+                            f"Error details: {e}"
+                        )
+                    raise ValueError(error_message)
 
             raise ValueError(
                 'Remote call max retry times exceeded! Please try to use local call.'
