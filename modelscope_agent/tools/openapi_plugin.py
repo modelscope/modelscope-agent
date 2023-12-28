@@ -78,7 +78,8 @@ class OpenAPIPluginTool(Tool):
                         'POST',
                         url=self.url,
                         headers=self.header,
-                        data=remote_parsed_input)
+                        data=remote_parsed_input,
+                        verify=False)
 
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
