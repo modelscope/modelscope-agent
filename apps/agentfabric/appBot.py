@@ -148,5 +148,5 @@ with demo:
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
-demo.queue(concurrency_count=10)
-demo.launch(show_error=True)
+demo.queue()
+demo.launch(show_error=True, max_threads=10)
