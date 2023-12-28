@@ -76,7 +76,7 @@
       "name": "英译中",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_en2zh",
       "use": false,
-      "is_active": true,
+      "is_active": false,
       "is_remote_tool": true
   },
   "text-translation-zh2en": {
