@@ -111,8 +111,7 @@ class QwenPromptGenerator(PromptGenerator):
     def _update_user_prompt_without_knowledge(self, task, tool_list, **kwargs):
         if len(tool_list) > 0:
             # user input
-            user_input = self.user_template.replace('<role_name>',
-                                                    '')
+            user_input = self.user_template.replace('<role_name>', '')
             user_input = user_input.replace(
                 '<tool_name_list>',
                 ','.join([tool.name for tool in tool_list]))

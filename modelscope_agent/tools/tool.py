@@ -6,7 +6,6 @@ import requests
 from pydantic import BaseModel, ValidationError
 from requests.exceptions import RequestException, Timeout
 
-
 MAX_RETRY_TIMES = 3
 
 
