@@ -74,9 +74,9 @@ tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
 # instantiation LLM
-model_name = 'qwen-max'
+model_name = 'qwen-72b'
 
-print('To use qwen-max model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen max. It is expected to take half a day to pass')
+print('To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
 os.environ['DASHSCOPE_API_KEY'] = input()
 
 llm = LLMFactory.build_llm(model_name, model_cfg)
