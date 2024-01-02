@@ -71,7 +71,6 @@ class ImageWrapper(OutputWrapper):
             if os.path.isfile(image):
                 self._path = image
             else:
-                origin_image = image
                 self._path = self.get_remote_file(image, 'png')
             try:
                 image = Image.open(self._path)
@@ -79,7 +78,6 @@ class ImageWrapper(OutputWrapper):
             except FileNotFoundError:
                 # Image store in remote server when use remote mode
                 raise FileNotFoundError(f'Invalid path: {image}')
-            self._path = origin_image
         else:
             if not isinstance(image, Image.Image):
                 image = Image.fromarray(image.astype(np.uint8))

@@ -3,7 +3,6 @@ import os
 import re
 
 import json
-from config_utils import get_user_cfg_file
 from modelscope_agent.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
                                             KNOWLEDGE_PROMPT, LengthConstraint,
                                             PromptGenerator, build_raw_prompt)
@@ -41,10 +40,8 @@ DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL = """
 DEFAULT_INSTRUCTION_TEMPLATE = ''
 
 DEFAULT_USER_TEMPLATE = (
-    '(You are playing as <role_name>, you can use tools: <tool_name_list><knowledge_note>)<file_names><user_input>'
+    '(You are playing as <role_name>, you can use tools: <tool_name_list>)<file_names><user_input>'
 )
-
-DEFAULT_USER_TEMPLATE_WITHOUT_TOOL = """(You are playing as <role_name><knowledge_note>) <file_names><user_input>"""
 
 DEFAULT_EXEC_TEMPLATE = """Observation: <result><exec_result></result>\nAnswer:"""
 
@@ -53,7 +50,7 @@ TOOL_DESC = (
 )
 
 
-class CustomPromptGenerator(PromptGenerator):
+class QwenPromptGenerator(PromptGenerator):
 
     def __init__(
             self,
@@ -64,9 +61,7 @@ class CustomPromptGenerator(PromptGenerator):
             assistant_template='',
             sep='\n\n',
             llm=None,
-            length_constraint=LengthConstraint(),
             tool_desc=TOOL_DESC,
-            default_user_template_without_tool=DEFAULT_USER_TEMPLATE_WITHOUT_TOOL,
             default_system_template_without_tool=DEFAULT_SYSTEM_TEMPLATE_WITHOUT_TOOL,
             addition_assistant_reply='OK.',
             **kwargs):
@@ -74,21 +69,11 @@ class CustomPromptGenerator(PromptGenerator):
         # hack here for special prompt, such as add an addition round before user input
         self.add_addition_round = kwargs.get('add_addition_round', False)
         self.addition_assistant_reply = addition_assistant_reply
-        builder_cfg_file = get_user_cfg_file(
-            uuid_str=kwargs.get('uuid_str', ''))
-        builder_cfg = Config.from_file(builder_cfg_file)
-        self.builder_cfg = builder_cfg
-        self.knowledge_file_name = kwargs.get('knowledge_file_name', '')
-        if not len(instruction_template):
-            instruction_template = self._parse_role_config(builder_cfg)
 
         self.llm = llm
         self.prompt_preprocessor = build_raw_prompt(llm.model_id)
-        self.length_constraint = length_constraint
-        self._parse_length_restriction()
 
         self.tool_desc = tool_desc
-        self.default_user_template_without_tool = default_user_template_without_tool
         self.default_system_template_without_tool = default_system_template_without_tool
 
         super().__init__(
@@ -99,47 +84,34 @@ class CustomPromptGenerator(PromptGenerator):
             assistant_template=assistant_template,
             sep=sep,
             llm=llm,
-            length_constraint=length_constraint,
             **kwargs)
 
-    def _parse_role_config(self, config: dict):
-        prompt = 'You are playing as an AI-Agent, '
+    def get_tool_str(self, tool_list):
+        tool_texts = []
+        for tool in tool_list:
+            tool_texts.append(
+                self.tool_desc.format(
+                    name_for_model=tool.name,
+                    name_for_human=tool.name,
+                    description_for_model=tool.description,
+                    parameters=json.dumps(tool.parameters,
+                                          ensure_ascii=False)))
+            # + ' ' + FORMAT_DESC['json'])
+        tool_str = '\n\n'.join(tool_texts)
+        return tool_str
 
-        # concat prompt
-        if 'name' in config and config['name']:
-            prompt += ('Your name is ' + config['name'] + '.')
-        if 'description' in config and config['description']:
-            prompt += config['description']
-        prompt += '\nYou have the following specific functions:'
+    def get_tool_name_str(self, tool_list):
+        tool_name = []
+        for tool in tool_list:
+            tool_name.append(tool.name)
 
-        if 'instruction' in config and config['instruction']:
-            if isinstance(config['instruction'], list):
-                for ins in config['instruction']:
-                    prompt += ins
-                    prompt += '；'
-            elif isinstance(config['instruction'], str):
-                prompt += config['instruction']
-            if prompt[-1] == '；':
-                prompt = prompt[:-1]
-
-        prompt += '\nNow you will start playing as'
-        if 'name' in config and config['name']:
-            prompt += config['name']
-        prompt += ', say "OK." if you understand, do not say anything else.'
-
-        return prompt
-
-    def _parse_length_restriction(self):
-        constraint = self.llm.cfg.get('length_constraint', None)
-        # if isinstance(constraint, Config):
-        #     constraint = constraint.to_dict()
-        self.length_constraint.update(constraint)
+        tool_name_str = json.dumps(tool_name, ensure_ascii=False)
+        return tool_name_str
 
     def _update_user_prompt_without_knowledge(self, task, tool_list, **kwargs):
         if len(tool_list) > 0:
             # user input
-            user_input = self.user_template.replace('<role_name>',
-                                                    self.builder_cfg.name)
+            user_input = self.user_template.replace('<role_name>', '')
             user_input = user_input.replace(
                 '<tool_name_list>',
                 ','.join([tool.name for tool in tool_list]))
@@ -171,9 +143,6 @@ class CustomPromptGenerator(PromptGenerator):
 
         return user_input
 
-    def _get_knowledge_template(self):
-        return '. Please read the knowledge base at the beginning.'
-
     def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
 
         if len(self.history) == 0:
@@ -198,12 +167,6 @@ class CustomPromptGenerator(PromptGenerator):
 
             user_input = self._update_user_prompt_without_knowledge(
                 task, tool_list, **kwargs)
-
-            if len(knowledge_list) > 0:
-                user_input = user_input.replace('<knowledge_note>',
-                                                self._get_knowledge_template())
-            else:
-                user_input = user_input.replace('<knowledge_note>', '')
 
             self.system_prompt = copy.deepcopy(prompt)
 
@@ -236,79 +199,12 @@ class CustomPromptGenerator(PromptGenerator):
         else:
             user_input = self._update_user_prompt_without_knowledge(
                 task, tool_list, **kwargs)
-            if len(knowledge_list) > 0:
-                user_input = user_input.replace('<knowledge_note>',
-                                                self._get_knowledge_template())
-            else:
-                user_input = user_input.replace('<knowledge_note>', '')
 
             self.history.append({'role': 'user', 'content': user_input})
             self.history.append({
                 'role': 'assistant',
                 'content': self.assistant_template
             })
-
-        if len(knowledge_list) > 0:
-            knowledge_str = self.get_knowledge_str(
-                knowledge_list,
-                file_name=self.knowledge_file_name,
-                only_content=True)
-            self.update_knowledge_str(knowledge_str)
-
-    def _get_tool_template(self):
-        return '\n\n# Tools\n\n'
-
-    def update_knowledge_str(self, knowledge_str):
-        """If knowledge base information was not used previously, it will be added;
-        if knowledge base information was previously used, it will be replaced.
-
-        Args:
-            knowledge_str (str): knowledge str generated by get_knowledge_str
-        """
-        knowledge_introduction = KNOWLEDGE_INTRODUCTION_PROMPT.replace(
-            '<file_name>', self.knowledge_file_name)
-        if len(knowledge_str) > self.length_constraint.knowledge:
-            # todo: use tokenizer to constrain length
-            knowledge_str = knowledge_str[-self.length_constraint.knowledge:]
-        knowledge_str = f'{KNOWLEDGE_PROMPT}{self.sep}{knowledge_introduction}{self.sep}{knowledge_str}'
-
-        for i in range(0, len(self.history)):
-            if self.history[i]['role'] == 'user':
-                content: str = self.history[i]['content']
-                start_pos = content.find(f'{KNOWLEDGE_PROMPT}{self.sep}')
-                end_pos = content.rfind(self._get_tool_template())
-                if start_pos >= 0 and end_pos >= 0:  # replace knowledge
-
-                    self.history[i]['content'] = content[
-                        0:start_pos] + knowledge_str + content[end_pos:]
-                    break
-                elif start_pos < 0 and end_pos == 0:  # add knowledge
-                    self.history[i]['content'] = knowledge_str + content
-                    break
-                else:
-                    continue
-
-    def get_tool_str(self, tool_list):
-        tool_texts = []
-        for tool in tool_list:
-            tool_texts.append(
-                self.tool_desc.format(
-                    name_for_model=tool.name,
-                    name_for_human=tool.name,
-                    description_for_model=tool.description,
-                    parameters=json.dumps(tool.parameters,
-                                          ensure_ascii=False)))
-            # + ' ' + FORMAT_DESC['json'])
-        tool_str = '\n\n'.join(tool_texts)
-        return tool_str
-
-    def get_tool_name_str(self, tool_list):
-        tool_name = []
-        for tool in tool_list:
-            tool_name.append(tool.name)
-
-        tool_name_str = json.dumps(tool_name, ensure_ascii=False)
-        return tool_name_str
 
     def _generate(self, llm_result, exec_result: str):
         """

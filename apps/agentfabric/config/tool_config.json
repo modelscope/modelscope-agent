@@ -44,46 +44,46 @@
     "is_active": true,
     "use": false
   },
-  "modelscope_text-address": {
+  "text-address": {
     "name": "地址解析",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base",
     "use": false,
     "is_active": true,
     "is_remote_tool": true
   },
-  "modelscope_text-ner": {
+  "text-ner": {
     "name": "命名实体识别",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee",
     "use": false,
     "is_active": true,
     "is_remote_tool": true
   },
-  "modelscope_speech-generation": {
+  "speech-generation": {
       "name": "语音生成",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k",
       "use": false,
-      "is_active": false,
+      "is_active": true,
       "is_remote_tool": true
   },
-  "modelscope_video-generation": {
+  "video-generation": {
       "name": "视频生成",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis",
       "use": false,
       "is_active": true,
       "is_remote_tool": true
   },
-  "modelscope_text-translation-en2zh": {
+  "text-translation-en2zh": {
       "name": "英译中",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_en2zh",
       "use": false,
       "is_active": false,
       "is_remote_tool": true
   },
-  "modelscope_text-translation-zh2en": {
+  "text-translation-zh2en": {
       "name": "中译英",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en",
       "use": false,
-      "is_active": false,
+      "is_active": true,
       "is_remote_tool": true
   }
 }
