@@ -64,8 +64,8 @@ To use modelscope-agent, all you need is to instantiate an `AgentExecutor` objec
 import os
 
 from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
+from agent_scope.llm import LLMFactory
+from agent_scope.agent import AgentExecutor
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
@@ -76,7 +76,8 @@ tool_cfg = Config.from_file(tool_cfg_file)
 # instantiation LLM
 model_name = 'qwen-72b'
 
-print('To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
+print(
+    'To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
 os.environ['DASHSCOPE_API_KEY'] = input()
 
 llm = LLMFactory.build_llm(model_name, model_cfg)
@@ -161,12 +162,12 @@ You can also use open-source LLM from ModelScope or Huggingface and inference lo
 # local llm cfg
 import os
 from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
+from agent_scope.llm import LLMFactory
+from agent_scope.agent import AgentExecutor
 
 model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-7b':{
+    'modelscope-agent-7b': {
         'type': 'modelscope',
         'model_id': 'damo/ModelScope-Agent-7B',
         'model_revision': 'v1.0.0',
@@ -193,9 +194,10 @@ Also, you can custom your tools by inheriting base tool and define names, descri
 - Text-to-Speech Tool
 
 ```python
-from modelscope_agent.tools import ModelscopePipelineTool
+from agent_scope.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
-from modelscope_agent.output_wrapper import AudioWrapper
+from agent_scope.output_wrapper import AudioWrapper
+
 
 class TexttoSpeechTool(ModelscopePipelineTool):
     default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
@@ -221,7 +223,6 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         return kwargs
 
     def _parse_output(self, origin_result, remote=True):
-
         audio = origin_result['output_wav']
         return {'result': AudioWrapper(audio)}
 ```
@@ -229,8 +230,9 @@ class TexttoSpeechTool(ModelscopePipelineTool):
 - Text-Address Tool
 
 ```python
-from modelscope_agent.tools import ModelscopePipelineTool
+from agent_scope.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
+
 
 class TextAddressTool(ModelscopePipelineTool):
     default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'
@@ -254,7 +256,7 @@ Moreover, if the tool is a `langchain tool`, you can directly use our `Langchain
 
 ```Python
 
-from modelscope_agent.tools import LangchainTool
+from agent_scope.tools import LangchainTool
 from langchain.tools import ShellTool, ReadFileTool
 
 # wrap langchain tools

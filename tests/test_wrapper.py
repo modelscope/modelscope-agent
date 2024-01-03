@@ -1,8 +1,8 @@
 import os
 
 import numpy as np
-from modelscope_agent.output_wrapper import (AudioWrapper, ImageWrapper,
-                                             OutputWrapper, VideoWrapper)
+from agent_scope.output_wrapper import (AudioWrapper, ImageWrapper,
+                                        OutputWrapper, VideoWrapper)
 from PIL import Image
 
 

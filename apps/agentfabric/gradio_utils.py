@@ -7,8 +7,8 @@ from urllib import parse
 
 import json
 import markdown
+from agent_scope.action_parser import MRKLActionParser
 from gradio.components import Chatbot as ChatBotBase
-from modelscope_agent.action_parser import MRKLActionParser
 from PIL import Image
 
 ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'

@@ -1,5 +1,5 @@
 import pytest
-from modelscope_agent.action_parser import MsActionParser
+from agent_scope.action_parser import MsActionParser
 
 
 def test_ms_action_parser():

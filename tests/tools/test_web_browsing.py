@@ -1,7 +1,7 @@
 import re
 
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.tools import WebBrowser
+from agent_scope.agent import AgentExecutor
+from agent_scope.tools import WebBrowser
 from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
 
 

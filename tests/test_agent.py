@@ -1,4 +1,4 @@
-from modelscope_agent.agent import AgentExecutor
+from agent_scope.agent import AgentExecutor
 from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
 
 

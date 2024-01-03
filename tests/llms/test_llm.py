@@ -1,4 +1,4 @@
-from modelscope_agent.llm import LLM
+from agent_scope.llm import LLM
 
 
 def test_llm_inputs_outputs_generation():

@@ -16,7 +16,7 @@ def readme():
     return content
 
 
-version_file = 'modelscope_agent/version.py'
+version_file = 'agent_scope/version.py'
 
 
 def get_version():

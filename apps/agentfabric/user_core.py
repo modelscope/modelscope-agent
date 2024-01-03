@@ -3,18 +3,18 @@ import ssl
 
 import gradio as gr
 import nltk
+from agent_scope import prompt_generator_register
+from agent_scope.agent import AgentExecutor
+from agent_scope.agent_types import AgentType
+from agent_scope.llm import LLMFactory
+from agent_scope.retrieve import KnowledgeRetrieval
+from agent_scope.tools.openapi_plugin import OpenAPIPluginTool
+from agent_scope.utils.logger import agent_logger as logger
 from config_utils import parse_configuration
 from custom_prompt import CustomPromptGenerator
 from custom_prompt_zh import ZhCustomPromptGenerator
 from langchain.embeddings import ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
-from modelscope_agent import prompt_generator_register
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.agent_types import AgentType
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.retrieve import KnowledgeRetrieval
-from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
-from modelscope_agent.utils.logger import agent_logger as logger
 
 prompts = {
     'CustomPromptGenerator': CustomPromptGenerator,

@@ -16,16 +16,15 @@ To start, all you need to do is initialize an `LLM` object and an `AgentExecutor
 ```Python
 import os
 from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.prompt import MSPromptGenerator
+from agent_scope.llm import LLMFactory
+from agent_scope.agent import AgentExecutor
+from agent_scope.prompt import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
 model_cfg = Config.from_file(model_cfg_file)
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
-
 
 # instantiation LLM
 model_name = 'modelscope-agent-qwen-7b'

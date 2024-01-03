@@ -4,9 +4,9 @@ import shutil
 import traceback
 
 import gradio as gr
+from agent_scope.utils.logger import agent_logger as logger
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import ChatBot, format_cover_html
-from modelscope_agent.utils.logger import agent_logger as logger
 from user_core import init_user_chatbot_agent
 
 uuid_str = 'local_user'

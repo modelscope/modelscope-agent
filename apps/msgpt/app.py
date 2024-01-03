@@ -4,10 +4,10 @@ import sys
 from functools import partial
 
 import gradio as gr
+from agent_scope.agent import AgentExecutor
+from agent_scope.llm import LLMFactory
 from dotenv import load_dotenv
 from gradio_chatbot import ChatBot
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.llm import LLMFactory
 from predict import stream_predict, upload_image
 
 from modelscope.utils.config import Config

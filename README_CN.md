@@ -68,8 +68,8 @@ Notebook环境使用简单，您只需要按以下步骤操作（注意：目前
 import os
 
 from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
+from agent_scope.llm import LLMFactory
+from agent_scope.agent import AgentExecutor
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
@@ -80,7 +80,8 @@ tool_cfg = Config.from_file(tool_cfg_file)
 # instantiation LLM
 model_name = 'qwen-72b'
 
-print('To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
+print(
+  'To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
 os.environ['DASHSCOPE_API_KEY'] = input()
 
 llm = LLMFactory.build_llm(model_name, model_cfg)
@@ -168,18 +169,18 @@ agent.run('给这个故事配一张图', remote=True)
 # 本地LLM配置
 import os
 from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
+from agent_scope.llm import LLMFactory
+from agent_scope.agent import AgentExecutor
 
 model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-7b':{
-        'type': 'modelscope',
-        'model_id': 'damo/ModelScope-Agent-7B',
-        'model_revision': 'v1.0.0',
-        'use_raw_generation_config': True,
-        'custom_chat': True
-    }
+  'modelscope-agent-7b': {
+    'type': 'modelscope',
+    'model_id': 'damo/ModelScope-Agent-7B',
+    'model_revision': 'v1.0.0',
+    'use_raw_generation_config': True,
+    'custom_chat': True
+  }
 }
 
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
@@ -204,68 +205,69 @@ agent = AgentExecutor(llm, tool_cfg)
 - 文本转语音工具
 
 ```python
-from modelscope_agent.tools import ModelscopePipelineTool
+from agent_scope.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
-from modelscope_agent.output_wrapper import AudioWrapper
+from agent_scope.output_wrapper import AudioWrapper
+
 
 class TexttoSpeechTool(ModelscopePipelineTool):
-    default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
-    description = '文本转语音服务，将文字转换为自然而逼真的语音，可配置男声/女声'
-    name = 'modelscope_speech-generation'
-    parameters: list = [{
-        'name': 'input',
-        'description': '要转成语音的文本',
-        'required': True
-    }, {
-        'name': 'gender',
-        'description': '用户身份',
-        'required': True
-    }]
-    task = Tasks.text_to_speech
+  default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
+  description = '文本转语音服务，将文字转换为自然而逼真的语音，可配置男声/女声'
+  name = 'modelscope_speech-generation'
+  parameters: list = [{
+    'name': 'input',
+    'description': '要转成语音的文本',
+    'required': True
+  }, {
+    'name': 'gender',
+    'description': '用户身份',
+    'required': True
+  }]
+  task = Tasks.text_to_speech
 
-    def _remote_parse_input(self, *args, **kwargs):
-        if 'gender' not in kwargs:
-            kwargs['gender'] = 'man'
-        voice = 'zhibei_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
-        kwargs['parameters'] = voice
-        kwargs.pop('gender')
-        return kwargs
+  def _remote_parse_input(self, *args, **kwargs):
+    if 'gender' not in kwargs:
+      kwargs['gender'] = 'man'
+    voice = 'zhibei_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
+    kwargs['parameters'] = voice
+    kwargs.pop('gender')
+    return kwargs
 
-    def _parse_output(self, origin_result, remote=True):
-
-        audio = origin_result['output_wav']
-        return {'result': AudioWrapper(audio)}
+  def _parse_output(self, origin_result, remote=True):
+    audio = origin_result['output_wav']
+    return {'result': AudioWrapper(audio)}
 ```
 
 - 文本地址工具
 
 ```python
-from modelscope_agent.tools import ModelscopePipelineTool
+from agent_scope.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
 
-class TextAddressTool(ModelscopePipelineTool):
-    default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'
-    description = '地址解析服务，针对中文地址信息，识别出里面的元素，包括省、市、区、镇、社区、道路、路号、POI、楼栋号、户室号等'
-    name = 'modelscope_text-address'
-    parameters: list = [{
-        'name': 'input',
-        'description': '用户输入的地址信息',
-        'required': True
-    }]
-    task = Tasks.token_classification
 
-    def _parse_output(self, origin_result, *args, **kwargs):
-        final_result = {}
-        for e in origin_result['output']:
-            final_result[e['type']] = e['span']
-        return final_result
+class TextAddressTool(ModelscopePipelineTool):
+  default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'
+  description = '地址解析服务，针对中文地址信息，识别出里面的元素，包括省、市、区、镇、社区、道路、路号、POI、楼栋号、户室号等'
+  name = 'modelscope_text-address'
+  parameters: list = [{
+    'name': 'input',
+    'description': '用户输入的地址信息',
+    'required': True
+  }]
+  task = Tasks.token_classification
+
+  def _parse_output(self, origin_result, *args, **kwargs):
+    final_result = {}
+    for e in origin_result['output']:
+      final_result[e['type']] = e['span']
+    return final_result
 ```
 
 此外，如果用户希望使用来自`langchain`的工具，我们也为用户提供了便捷接口。用户可以直接使用 `LangchainTool` 来进行调用。 具体如下：
 
 ```Python
 
-from modelscope_agent.tools import LangchainTool
+from agent_scope.tools import LangchainTool
 from langchain.tools import ShellTool
 
 # 包装 langchain 工具
