@@ -1,12 +1,11 @@
+import gradio as gr
 import importlib
+import json
+import modelscope_gradio_components as mgr
 import os
 import random
 import shutil
 import traceback
-
-import gradio as gr
-import json
-import modelscope_gradio_components as mgr
 import yaml
 from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
@@ -16,12 +15,13 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
-from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
+
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 def init_user(uuid_str, state):
@@ -444,7 +444,7 @@ with demo:
         bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
         suggestions_filtered = [row for row in suggestions if row[0]]
         if len(suggestions_filtered) == 0:
-            suggestions_filtered == [['']]
+            suggestions_filtered = [['']]
         user_dir = get_user_dir(uuid_str)
         if knowledge_files is not None:
             new_knowledge_files = [
@@ -457,7 +457,6 @@ with demo:
                     shutil.copy(src_file.name, dst_file)
         else:
             new_knowledge_files = []
-
         builder_cfg = {
             'name': name,
             'avatar': bot_avatar,
