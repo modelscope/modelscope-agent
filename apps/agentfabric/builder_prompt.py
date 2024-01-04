@@ -1,4 +1,4 @@
-from modelscope_agent.prompt import MessagesGenerator
+from modelscope_agent.prompts import MessagesGenerator
 
 SYSTEM = 'You are a helpful assistant.'
 

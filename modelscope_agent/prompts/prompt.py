@@ -1,9 +1,9 @@
 import copy
 from typing import Union
 
-from modelscope_agent.llm.base import LLM
-
 from .raw_prompt_builder import build_raw_prompt
+
+# from modelscope_agent.llm.base import LLM
 
 LANG = 'zh'
 
@@ -49,7 +49,7 @@ class PromptGenerator:
                  length_constraint=LengthConstraint(),
                  **kwargs):
         """
-        prompt genertor
+        prompts genertor
         Args:
             system_template (str, optional): System template, normally the role of LLM.
             instruction_template (str, optional): Indicate the instruction for LLM.
@@ -84,7 +84,7 @@ class PromptGenerator:
                     llm_model=None,
                     **kwargs):
         """
-        in this function, the prompt will be initialized.
+        in this function, the prompts will be initialized.
         """
         prompt = self.sep.join(
             [self.system_template, self.instruction_template])
@@ -124,7 +124,7 @@ class PromptGenerator:
 
         self.function_calls = self.get_function_list(tool_list)
 
-    # TODO change the output from single prompt to artifacts including prompt, messages, funciton_call
+    # TODO change the output from single prompts to artifacts including prompts, messages, funciton_call
     def generate(self, llm_result, exec_result: Union[str, dict]):
         if isinstance(exec_result, dict):
             exec_result = str(exec_result['result'])
@@ -132,7 +132,7 @@ class PromptGenerator:
 
     def _generate(self, llm_result, exec_result: str):
         """
-        generate next round prompt based on previous llm_result and exec_result and update history
+        generate next round prompts based on previous llm_result and exec_result and update history
         """
         if len(llm_result) != 0:
             self.prompt = f'{self.prompt}{llm_result}'
@@ -151,7 +151,7 @@ class PromptGenerator:
     # In this case llm_result is Message, and exec_result is Function_call
     def _generate_messages(self, llm_result, exec_result: str):
         """
-        generate next round prompt based on previous llm_result and exec_result and update history
+        generate next round prompts based on previous llm_result and exec_result and update history
         """
 
         # init task should be

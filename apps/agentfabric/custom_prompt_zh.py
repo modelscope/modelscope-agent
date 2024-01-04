@@ -71,7 +71,7 @@ class ZhCustomPromptGenerator(CustomPromptGenerator):
     def _parse_role_config(self, config: dict):
         prompt = '你扮演AI-Agent，'
 
-        # concat prompt
+        # concat prompts
         if 'name' in config and config['name']:
             prompt += ('你的名字是' + config['name'] + '。')
         if 'description' in config and config['description']:

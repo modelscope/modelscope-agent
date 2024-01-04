@@ -11,7 +11,7 @@ from modelscope_agent import prompt_generator_register
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.agent_types import AgentType
 from modelscope_agent.llm import LLMFactory
-from modelscope_agent.prompt import MessagesGenerator
+from modelscope_agent.prompts import MessagesGenerator
 from modelscope_agent.utils.logger import agent_logger as logger
 
 prompts = {
@@ -49,8 +49,8 @@ def init_builder_chatbot_agent(uuid_str):
     llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
     llm.set_agent_type(AgentType.Messages)
 
-    # build prompt
-    # prompt generator
+    # build prompts
+    # prompts generator
     prompt_generator = 'BuilderPromptGenerator'
     language = builder_cfg.get('language', 'en')
     if language == 'zh':

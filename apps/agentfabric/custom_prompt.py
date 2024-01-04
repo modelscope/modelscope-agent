@@ -4,9 +4,10 @@ import re
 
 import json
 from config_utils import get_user_cfg_file
-from modelscope_agent.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
-                                            KNOWLEDGE_PROMPT, LengthConstraint,
-                                            PromptGenerator, build_raw_prompt)
+from modelscope_agent.prompts.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
+                                             KNOWLEDGE_PROMPT,
+                                             LengthConstraint, PromptGenerator,
+                                             build_raw_prompt)
 
 from modelscope.utils.config import Config
 
@@ -71,7 +72,7 @@ class CustomPromptGenerator(PromptGenerator):
             addition_assistant_reply='OK.',
             **kwargs):
 
-        # hack here for special prompt, such as add an addition round before user input
+        # hack here for special prompts, such as add an addition round before user input
         self.add_addition_round = kwargs.get('add_addition_round', False)
         self.addition_assistant_reply = addition_assistant_reply
         builder_cfg_file = get_user_cfg_file(
@@ -105,7 +106,7 @@ class CustomPromptGenerator(PromptGenerator):
     def _parse_role_config(self, config: dict):
         prompt = 'You are playing as an AI-Agent, '
 
-        # concat prompt
+        # concat prompts
         if 'name' in config and config['name']:
             prompt += ('Your name is ' + config['name'] + '.')
         if 'description' in config and config['description']:
@@ -312,7 +313,7 @@ class CustomPromptGenerator(PromptGenerator):
 
     def _generate(self, llm_result, exec_result: str):
         """
-        generate next round prompt based on previous llm_result and exec_result and update history
+        generate next round prompts based on previous llm_result and exec_result and update history
         """
         if len(llm_result) != 0:
             self.history[-1]['content'] += f'{llm_result}'
@@ -327,6 +328,6 @@ class CustomPromptGenerator(PromptGenerator):
                                                      str(exec_result))
             self.history[-1]['content'] += exec_result
 
-        # generate plate prompt here
+        # generate plate prompts here
         self.prompt = self.prompt_preprocessor(self.history)
         return self.prompt

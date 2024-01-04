@@ -59,7 +59,7 @@ def init_user_chatbot_agent(uuid_str=''):
     except Exception as e:
         raise gr.Error(str(e))
 
-    # build prompt with zero shot react template
+    # build prompts with zero shot react template
     prompt_generator = builder_cfg.get('prompt_generator', None)
     if builder_cfg.model.startswith('qwen') and not prompt_generator:
         prompt_generator = 'CustomPromptGenerator'

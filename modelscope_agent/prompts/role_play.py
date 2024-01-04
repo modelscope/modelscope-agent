@@ -16,12 +16,12 @@ TOOL_TEMPLATE_ZH = """
 
 ## 你拥有如下工具：
 
-<tool_list>
+{tool_descs}
 
 ## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令，可以根据需求调用零次或多次：
 
 工具调用
-Action: 工具的名称，必须是<tool_name_list>之一
+Action: 工具的名称，必须是[{tool_names}]之一
 Action Input: 工具的输入
 Observation: <result>工具返回的结果</result>
 Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请不要展示出。
@@ -52,12 +52,12 @@ TOOL_TEMPLATE_EN = """
 
 ## You have the following tools:
 
-<tool_list>
+{tool_descs}
 
 ## When you need to call a tool, please intersperse the following tool command in your reply. %s
 
 Tool Invocation
-Action: The name of the tool, must be one of <tool_name_list>
+Action: The name of the tool, must be one of [{tool_names}]
 Action Input: Tool input
 Observation: <result>Tool returns result</result>
 Answer: Summarize the results of this tool call based on Observation. If the result contains url, please do not show it.
@@ -119,10 +119,10 @@ SPECIAL_PREFIX_TEMPLATE_FILE = {
 
 DEFAULT_EXEC_TEMPLATE = """\nObservation: <result>{exec_result}</result>\nAnswer:"""
 
-ACTION_TOKEN = '\nAction:'
-ARGS_TOKEN = '\nAction Input:'
-OBSERVATION_TOKEN = '\nObservation:'
-ANSWER_TOKEN = '\nAnswer:'
+ACTION_TOKEN = 'Action:'
+ARGS_TOKEN = 'Action Input:'
+OBSERVATION_TOKEN = 'Observation:'
+ANSWER_TOKEN = 'Answer:'
 
 
 class RolePlay(Agent):
@@ -215,6 +215,9 @@ class RolePlay(Agent):
 
         max_turn = 10
         while True and max_turn > 0:
+            print('=====one input planning_prompt======')
+            print(planning_prompt)
+            print('=============Answer=================')
             max_turn -= 1
             output = self.llm.chat_with_raw_prompt(
                 prompt=planning_prompt,
@@ -223,11 +226,13 @@ class RolePlay(Agent):
             use_tool, action, action_input, output = self._detect_tool(output)
 
             yield output
+            print(output)
             if use_tool:
                 observation = self._call_tool(action, action_input)
                 observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield observation
+                print(observation)
                 planning_prompt += output + observation
             else:
                 planning_prompt += output
@@ -259,7 +264,7 @@ class RolePlay(Agent):
     def _parse_role_config_en(self, config: dict) -> str:
         prompt = 'You are playing as an AI-Agent, '
 
-        # concat prompt
+        # concat prompts
         if 'name' in config and config['name']:
             prompt += ('Your name is ' + config['name'] + '.')
         if 'description' in config and config['description']:
@@ -285,7 +290,7 @@ class RolePlay(Agent):
     def _parse_role_config_zh(self, config: dict) -> str:
         prompt = '你扮演AI-Agent，'
 
-        # concat prompt
+        # concat prompts
         if 'name' in config and config['name']:
             prompt += ('你的名字是' + config['name'] + '。')
         if 'description' in config and config['description']:

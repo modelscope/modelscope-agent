@@ -98,9 +98,9 @@ class BaseTool(ABC):
         """
         tool_desc_template = {
             'zh':
-            '{name}: {name} API。{description} 输入参数: {parameters}',
+            '{name}: {name} API。{description} 输入参数: {parameters} Format the arguments as a JSON object.',
             'en':
-            '{name}: {name} API. {description} Input parameters: {parameters}'
+            '{name}: {name} API. {description} Parameters: {parameters} Format the arguments as a JSON object.'
         }
 
         if has_chinese_chars(self.function['description']):

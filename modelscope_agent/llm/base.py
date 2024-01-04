@@ -43,7 +43,7 @@ class BaseChatModel(ABC):
             assert isinstance(prompt, str)
             messages = [{'role': 'user', 'content': prompt}]
         else:
-            assert prompt is None, 'Do not pass prompt and messages at the same time.'
+            assert prompt is None, 'Do not pass prompts and messages at the same time.'
 
         if stream:
             return self._chat_stream(messages, stop=stop, **kwargs)

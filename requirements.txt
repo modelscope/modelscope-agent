@@ -1,6 +1,7 @@
 dashscope
 datasets>=2.8.0
 ipython
+json5
 jupyter>=1.0.0
 langchain<=0.0.292
 modelscope>=1.7.0

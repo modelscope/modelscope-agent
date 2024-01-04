@@ -50,7 +50,7 @@ class MessagesGenerator(PromptGenerator):
 
     def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
         """
-        in this function, the prompt will be initialized.
+        in this function, the prompts will be initialized.
         """
         prompt = self.user_template.replace('<user_input>', task)
 

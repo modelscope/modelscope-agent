@@ -21,7 +21,7 @@ class PromptGeneratorFactory:
         uuid = kwargs.get('uuid', 'default_user')
         logger.info(
             uuid=uuid,
-            message='Initiating prompt generator.',
+            message='Initiating prompts generator.',
             content={
                 'agent_type': agent_type,
                 'model': str(model),
@@ -51,10 +51,10 @@ class PromptGeneratorFactory:
         logger.error(
             uuid=uuid,
             message=
-            f'prompt generator {prompt_generator_name} is not registered.',
+            f'prompts generator {prompt_generator_name} is not registered.',
             content={'registered': str(prompt_generator_register.registered)})
         raise ValueError(
-            f'prompt generator {prompt_generator_name} is not registered. prompt_generator_register.registered: \
+            f'prompts generator {prompt_generator_name} is not registered. prompt_generator_register.registered: \
               {prompt_generator_register.registered}')
 
     def _get_model_default_type(model: LLM,
@@ -80,7 +80,7 @@ class PromptGeneratorFactory:
             return model_cfg.get('prompt_generator', None)
         logger.warning(
             uuid=uuid,
-            message='prompt generator cannot initiated by model type.',
+            message='prompts generator cannot initiated by model type.',
             content={
                 'model_id': model_id,
                 'candidate': str(candidate),

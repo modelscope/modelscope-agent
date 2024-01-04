@@ -1,9 +1,9 @@
 from modelscope_agent.action_parser import (ChatGLMActionParser,
                                             MRKLActionParser, MsActionParser,
                                             OpenAiFunctionsActionParser)
-from modelscope_agent.prompt import (ChatGLMPromptGenerator, MessagesGenerator,
-                                     MrklPromptGenerator, MSPromptGenerator,
-                                     QwenPromptGenerator)
+from modelscope_agent.prompts import (ChatGLMPromptGenerator,
+                                      MessagesGenerator, MrklPromptGenerator,
+                                      MSPromptGenerator, QwenPromptGenerator)
 
 DEFAULT_MODEL_CONFIG = {
     'qwen': {

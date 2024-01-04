@@ -75,7 +75,7 @@ class ModelScopeLLM(BaseChatModel):
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
-        # prompt = messages[0]['content']
+        # prompts = messages[0]['content']
         # todo: implement the streaming chat
         raise NotImplementedError
 

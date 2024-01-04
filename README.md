@@ -77,7 +77,7 @@ tool_cfg = Config.from_file(tool_cfg_file)
 model_name = 'qwen-72b'
 
 print(
-    'To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
+  'To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
 os.environ['DASHSCOPE_API_KEY'] = input()
 
 llm = LLMFactory.build_llm(model_name, model_cfg)
@@ -167,13 +167,13 @@ from modelscope_agent.agent import AgentExecutor
 
 model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-7b': {
-        'type': 'modelscope',
-        'model_id': 'damo/ModelScope-Agent-7B',
-        'model_revision': 'v1.0.0',
-        'use_raw_generation_config': True,
-        'custom_chat': True
-    }
+  'modelscope-agent-7b': {
+    'type': 'modelscope',
+    'model_id': 'damo/ModelScope-Agent-7B',
+    'model_revision': 'v1.0.0',
+    'use_raw_generation_config': True,
+    'custom_chat': True
+  }
 }
 
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')

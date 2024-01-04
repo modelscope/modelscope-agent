@@ -1,8 +1,8 @@
 import pytest
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.llm import LLMFactory
-from modelscope_agent.prompt import PromptGenerator
-from modelscope_agent.prompt.prompt_factory import get_prompt_generator
+from modelscope_agent.prompts import PromptGenerator
+from modelscope_agent.prompts.prompt_factory import get_prompt_generator
 from tests.utils import MockLLM, MockPromptGenerator, MockTool
 
 from modelscope.utils.config import Config
@@ -17,7 +17,7 @@ def test_qwen_zh():
     llm = LLMFactory.build_llm(model_id, model_cfg)
     agent = AgentExecutor(llm, **cfg)
 
-    from modelscope_agent.prompt import MrklPromptGenerator
+    from modelscope_agent.prompts import MrklPromptGenerator
     assert isinstance(agent.prompt_generator, MrklPromptGenerator)
 
 
@@ -26,7 +26,7 @@ def test_qwen_default():
     llm = LLMFactory.build_llm(model_id, model_cfg)
     agent = AgentExecutor(llm)
 
-    from modelscope_agent.prompt import MessagesGenerator
+    from modelscope_agent.prompts import MessagesGenerator
     assert isinstance(agent.prompt_generator, MessagesGenerator)
 
 
@@ -35,7 +35,7 @@ def test_chatglm():
     llm = LLMFactory.build_llm(model_id, model_cfg)
     agent = AgentExecutor(llm)
 
-    from modelscope_agent.prompt import ChatGLMPromptGenerator
+    from modelscope_agent.prompts import ChatGLMPromptGenerator
     assert isinstance(agent.prompt_generator, ChatGLMPromptGenerator)
 
 
@@ -44,5 +44,5 @@ def test_gpt():
     llm = LLMFactory.build_llm(model_id, model_cfg)
     agent = AgentExecutor(llm)
 
-    from modelscope_agent.prompt import MessagesGenerator
+    from modelscope_agent.prompts import MessagesGenerator
     assert isinstance(agent.prompt_generator, MessagesGenerator)
