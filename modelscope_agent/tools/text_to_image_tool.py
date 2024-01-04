@@ -5,7 +5,6 @@ import cv2
 import dashscope
 import json
 from dashscope import ImageSynthesis
-
 from modelscope_agent.tools.base import BaseTool, register_tool
 
 
@@ -31,9 +30,7 @@ class TextToImageTool(BaseTool):
         if isinstance(params, str):
             return 'Parameter Error'
 
-        if params['resolution'] in [
-                '1024*1024', '720*1280', '1280*720'
-        ]:
+        if params['resolution'] in ['1024*1024', '720*1280', '1280*720']:
             resolution = params['resolution']
         else:
             resolution = '1280*720'
@@ -54,4 +51,3 @@ class TextToImageTool(BaseTool):
             seed=seed)
         image_url = response.output['results'][0]['url']
         return image_url
-
