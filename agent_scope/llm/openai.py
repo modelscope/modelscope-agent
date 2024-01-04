@@ -1,71 +1,61 @@
 import os
+from typing import Dict, Iterator, List, Optional
 
 import openai
-from agent_scope.agent_types import AgentType
-
-from .base import LLM
-from .utils import CustomOutputWrapper
-
-openai.api_key = os.getenv('OPENAI_API_KEY')
+from agent_scope.llm.base import BaseChatModel, register_llm
 
 
-class OpenAi(LLM):
-    name = 'openai'
+@register_llm('openai')
+class OpenAi(BaseChatModel):
 
-    def __init__(self, cfg):
-        super().__init__(cfg)
+    def __init__(self, model: str, model_server: str, **kwargs):
+        super().__init__(model, model_server)
 
-        self.model = self.cfg.get('model', 'gpt-3.5-turbo')
-        self.model_id = self.model
-        self.api_base = self.cfg.get('api_base', 'https://api.openai.com/v1')
-        self.agent_type = self.cfg.get('agent_type', AgentType.DEFAULT)
+        openai.api_base = kwargs.get('api_base',
+                                     'https://api.openai.com/v1').strip()
+        openai.api_key = kwargs.get(
+            'api_key', os.getenv('OPENAI_API_KEY', default='EMPTY')).strip()
 
-    def generate(self,
-                 llm_artifacts,
-                 functions=[],
-                 function_call='none',
-                 **kwargs):
-        if self.agent_type != AgentType.Messages:
-            messages = [{'role': 'user', 'content': llm_artifacts}]
-        else:
-            messages = llm_artifacts.get(
-                'messages', {
-                    'role':
-                    'user',
-                    'content':
-                    'No entry from user - please suggest something to enter'
-                })
+    def _chat_stream(self,
+                     messages: List[Dict],
+                     stop: Optional[List[str]] = None,
+                     **kwargs) -> Iterator[str]:
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            messages=messages,
+            stop=stop,
+            stream=True,
+            **kwargs)
+        # TODO: error handling
+        for chunk in response:
+            if hasattr(chunk.choices[0].delta, 'content'):
+                yield chunk.choices[0].delta.content
 
-        # call openai function call api
-        assert isinstance(functions, list)
-        if len(functions) > 0 and self.agent_type == AgentType.Messages:
-            function_call = 'auto'
+    def _chat_no_stream(self,
+                        messages: List[Dict],
+                        stop: Optional[List[str]] = None,
+                        **kwargs) -> str:
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            messages=messages,
+            stop=stop,
+            stream=False,
+            **kwargs)
+        # TODO: error handling
+        return response.choices[0].message.content
 
-        # covert to stream=True with stream updating
-        try:
+    def chat_with_functions(self,
+                            messages: List[Dict],
+                            functions: Optional[List[Dict]] = None,
+                            **kwargs) -> Dict:
+        if functions:
             response = openai.ChatCompletion.create(
                 model=self.model,
-                api_base=self.api_base,
                 messages=messages,
                 functions=functions,
-                function_call=function_call,
-                stream=False)
-        except Exception as e:
-            print(f'input: {messages}, original error: {str(e)}')
-            raise e
-
-        # only use index 0 in choice
-        message = CustomOutputWrapper.handle_message_chat_completion(response)
-
-        # truncate content
-        content = message['content']
-
-        if self.agent_type == AgentType.MS_AGENT:
-            idx = content.find('<|endofthink|>')
-            if idx != -1:
-                content = content[:idx + len('<|endofthink|>')]
-            return content
-        elif self.agent_type == AgentType.Messages:
-            return message
+                **kwargs)
         else:
-            return content
+            response = openai.ChatCompletion.create(
+                model=self.model, messages=messages, **kwargs)
+        # TODO: error handling
+        return response.choices[0].message
