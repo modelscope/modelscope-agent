@@ -182,15 +182,7 @@ class RolePlay(Agent):
                 file_names=file_names)
 
         # Concat the system as one round of dialogue
-        messages = ([{
-            'role':
-            'user',
-            'content':
-            self.system_prompt + PREFIX_PROMPT_TEMPLATE[lang]
-        }, {
-            'role': 'assistant',
-            'content': SYSTEM_ANSWER_TEMPLATE[lang]
-        }])
+        messages = [{'role': 'system', 'content': self.system_prompt}]
 
         # Todo: Limit the length of conversation history
         if history:

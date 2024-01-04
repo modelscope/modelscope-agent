@@ -5,4 +5,5 @@
 # from .prompt import PromptGenerator
 # from .qwen_prompt import QwenPromptGenerator
 # from .raw_prompt_builder import build_raw_prompt
+from .agent_builder import AgentBuilder
 from .role_play import RolePlay
