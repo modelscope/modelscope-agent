@@ -3,16 +3,16 @@ import re
 from typing import Dict
 
 import json
-from agent_scope import prompt_generator_register
-from agent_scope.agent import AgentExecutor
-from agent_scope.agent_types import AgentType
-from agent_scope.llm import LLMFactory
-from agent_scope.prompt import MessagesGenerator
-from agent_scope.utils.logger import agent_logger as logger
 from builder_prompt import BuilderPromptGenerator
 from builder_prompt_zh import ZhBuilderPromptGenerator
 from config_utils import parse_configuration
 from help_tools import LogoGeneratorTool, config_conversion
+from modelscope_agent import prompt_generator_register
+from modelscope_agent.agent import AgentExecutor
+from modelscope_agent.agent_types import AgentType
+from modelscope_agent.llm import LLMFactory
+from modelscope_agent.prompt import MessagesGenerator
+from modelscope_agent.utils.logger import agent_logger as logger
 
 prompts = {
     'BuilderPromptGenerator': BuilderPromptGenerator,

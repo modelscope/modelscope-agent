@@ -3,10 +3,10 @@ from http import HTTPStatus
 
 import json
 import requests
-from agent_scope.tools import Tool
-from agent_scope.utils.logger import agent_logger as logger
 from config_utils import DEFAULT_BUILDER_CONFIG_DIR, get_user_cfg_file
 from dashscope import ImageSynthesis
+from modelscope_agent.tools import Tool
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
 

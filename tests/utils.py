@@ -1,7 +1,7 @@
-from agent_scope.action_parser import ActionParser
-from agent_scope.llm import LLM
-from agent_scope.prompt import PromptGenerator
-from agent_scope.tools import Tool
+from modelscope_agent.action_parser import ActionParser
+from modelscope_agent.llm import LLM
+from modelscope_agent.prompt import PromptGenerator
+from modelscope_agent.tools import Tool
 
 
 class MockLLM(LLM):

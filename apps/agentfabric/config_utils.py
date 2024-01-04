@@ -3,8 +3,8 @@ import shutil
 import traceback
 
 import json
-from agent_scope.tools.openapi_plugin import openapi_schema_convert
-from agent_scope.utils.logger import agent_logger as logger
+from modelscope_agent.tools.openapi_plugin import openapi_schema_convert
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
 

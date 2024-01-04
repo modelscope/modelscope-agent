@@ -4,7 +4,7 @@ cfg = Config.from_file('config/cfg_tool_template.json')
 
 
 def test_modelscope_speech_generation():
-    from agent_scope.tools.text_to_speech_tool import TexttoSpeechTool
+    from modelscope_agent.tools.text_to_speech_tool import TexttoSpeechTool
     input = '北京今天天气怎样?'
     kwargs = {'input': input, 'gender': 'man'}
     txt2speech = TexttoSpeechTool(cfg)
@@ -17,7 +17,7 @@ test_modelscope_speech_generation()
 
 
 def test_modelscope_text_address():
-    from agent_scope.tools.text_address_tool import TextAddressTool
+    from modelscope_agent.tools.text_address_tool import TextAddressTool
     input = '北京朝阳望京东金辉大厦'
     kwargs = {'input': input}
     txt_addr = TextAddressTool(cfg)
@@ -27,7 +27,7 @@ def test_modelscope_text_address():
 
 
 def test_modelscope_text_ner():
-    from agent_scope.tools.text_ner_tool import TextNerTool
+    from modelscope_agent.tools.text_ner_tool import TextNerTool
     input = '北京今天天气怎样?'
     kwargs = {'input': input}
     txt_ner = TextNerTool(cfg)
@@ -37,7 +37,7 @@ def test_modelscope_text_ner():
 
 
 def test_modelscope_video_generation():
-    from agent_scope.tools.text_to_video_tool import TextToVideoTool
+    from modelscope_agent.tools.text_to_video_tool import TextToVideoTool
     input = '一个正在打篮球的人'
     kwargs = {'text': input}
     video_gen = TextToVideoTool(cfg)
@@ -47,7 +47,7 @@ def test_modelscope_video_generation():
 
 
 def test_modelscope_zh2en():
-    from agent_scope.tools.translation_zh2en_tool import TranslationZh2EnTool
+    from modelscope_agent.tools.translation_zh2en_tool import TranslationZh2EnTool
     input = '北京今天天气怎样?'
     kwargs = {'input': input}
     zh_to_en = TranslationZh2EnTool(cfg)
@@ -57,7 +57,7 @@ def test_modelscope_zh2en():
 
 
 def test_modelscope_en2zh():
-    from agent_scope.tools.translation_en2zh_tool import TranslationEn2ZhTool
+    from modelscope_agent.tools.translation_en2zh_tool import TranslationEn2ZhTool
     input = 'Autonomous agents have long been a prominent research focus in both academic and industry communities.'
     kwargs = {'input': input}
     en_to_zh = TranslationEn2ZhTool(cfg)

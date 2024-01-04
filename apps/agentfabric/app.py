@@ -7,7 +7,6 @@ import traceback
 import gradio as gr
 import json
 import yaml
-from agent_scope.utils.logger import agent_logger as logger
 from builder_core import beauty_output, init_builder_chatbot_agent
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
@@ -16,6 +15,7 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
+from modelscope_agent.utils.logger import agent_logger as logger
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent

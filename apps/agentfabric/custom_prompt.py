@@ -3,10 +3,10 @@ import os
 import re
 
 import json
-from agent_scope.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
-                                       KNOWLEDGE_PROMPT, LengthConstraint,
-                                       PromptGenerator, build_raw_prompt)
 from config_utils import get_user_cfg_file
+from modelscope_agent.prompt.prompt import (KNOWLEDGE_INTRODUCTION_PROMPT,
+                                            KNOWLEDGE_PROMPT, LengthConstraint,
+                                            PromptGenerator, build_raw_prompt)
 
 from modelscope.utils.config import Config
 

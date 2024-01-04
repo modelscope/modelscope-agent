@@ -1,9 +1,9 @@
 import os
 
 import pytest
-from agent_scope.retrieve import KnowledgeRetrieval, ToolRetrieval
 from langchain.embeddings import DashScopeEmbeddings, ModelScopeEmbeddings
 from langchain.vectorstores import FAISS
+from modelscope_agent.retrieve import KnowledgeRetrieval, ToolRetrieval
 
 
 @pytest.fixture

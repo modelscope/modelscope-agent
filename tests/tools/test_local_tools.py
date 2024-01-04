@@ -1,4 +1,4 @@
-from agent_scope.tools import ModelscopePipelineTool, Tool
+from modelscope_agent.tools import ModelscopePipelineTool, Tool
 
 
 def test_modelscope_pipline():

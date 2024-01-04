@@ -64,8 +64,8 @@ To use modelscope-agent, all you need is to instantiate an `AgentExecutor` objec
 import os
 
 from modelscope.utils.config import Config
-from agent_scope.llm import LLMFactory
-from agent_scope.agent import AgentExecutor
+from modelscope_agent.llm import LLMFactory
+from modelscope_agent.agent import AgentExecutor
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
@@ -162,8 +162,8 @@ You can also use open-source LLM from ModelScope or Huggingface and inference lo
 # local llm cfg
 import os
 from modelscope.utils.config import Config
-from agent_scope.llm import LLMFactory
-from agent_scope.agent import AgentExecutor
+from modelscope_agent.llm import LLMFactory
+from modelscope_agent.agent import AgentExecutor
 
 model_name = 'modelscope-agent-7b'
 model_cfg = {
@@ -194,9 +194,9 @@ Also, you can custom your tools by inheriting base tool and define names, descri
 - Text-to-Speech Tool
 
 ```python
-from agent_scope.tools import ModelscopePipelineTool
+from modelscope_agent.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
-from agent_scope.output_wrapper import AudioWrapper
+from modelscope_agent.output_wrapper import AudioWrapper
 
 
 class TexttoSpeechTool(ModelscopePipelineTool):
@@ -230,7 +230,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
 - Text-Address Tool
 
 ```python
-from agent_scope.tools import ModelscopePipelineTool
+from modelscope_agent.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
 
 
@@ -256,7 +256,7 @@ Moreover, if the tool is a `langchain tool`, you can directly use our `Langchain
 
 ```Python
 
-from agent_scope.tools import LangchainTool
+from modelscope_agent.tools import LangchainTool
 from langchain.tools import ShellTool, ReadFileTool
 
 # wrap langchain tools

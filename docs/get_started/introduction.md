@@ -16,9 +16,9 @@ To start, all you need to do is initialize an `LLM` object and an `AgentExecutor
 ```Python
 import os
 from modelscope.utils.config import Config
-from agent_scope.llm import LLMFactory
-from agent_scope.agent import AgentExecutor
-from agent_scope.prompt import MSPromptGenerator
+from modelscope_agent.llm import LLMFactory
+from modelscope_agent.agent import AgentExecutor
+from modelscope_agent.prompt import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')

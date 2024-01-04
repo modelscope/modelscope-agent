@@ -2,7 +2,7 @@
 
 We provide some default pipeline tools of multiple domain that integrates in modelscope.
 
-Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. An example of custom tool is provided below in [custom_tool](../../agent_scope/tools/custom_tool.py):
+Also, you can custom your tools by inheriting base tool and define names, descriptions, and parameters according to pre-defined schema. And you can implement `_local_call()` or `_remote_call()` according to your requirement. An example of custom tool is provided below in [custom_tool](../../modelscope_agent/tools/custom_tool.py):
 
 ```python
 from .tool import Tool
@@ -38,7 +38,7 @@ Moreover, if the tool is a `langchain tool`, you can directly use our `Langchain
 
 ```Python
 
-from agent_scope.tools import LangchainTool
+from modelscope_agent.tools import LangchainTool
 from langchain.tools import ShellTool, ReadFileTool
 
 # wrap langchain tools
