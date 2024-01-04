@@ -2,7 +2,7 @@ from .base import register_llm
 from .modelscope import ModelScopeLLM
 
 
-@register_llm('chatglm_modelscope')
+@register_llm('modelscope_chatglm')
 class ModelScopeChatGLM(ModelScopeLLM):
 
     def _inference(self, prompt: str) -> str:

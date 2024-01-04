@@ -6,7 +6,7 @@ from agent_scope.llm.base import register_llm
 from agent_scope.llm.dashscope import DashScopeLLM
 
 
-@register_llm('qwen_dashscope')
+@register_llm('dashscope_qwen')
 class QwenChatAtDS(DashScopeLLM):
     """
     qwen_model from dashscope
