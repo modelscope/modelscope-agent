@@ -14,5 +14,9 @@ def test_is_langchain_tool():
 def test_run_langchin_tool():
     # test run langchain tool
     shell_tool = LangchainTool(ShellTool())
-    res = shell_tool(commands=["echo 'Hello World!'"])
-    assert res['result'] == 'Hello World!\n'
+    input = """{'commands': ["echo 'Hello World!'"]}"""
+    res = shell_tool.call(input)
+    print(res)
+    assert res == 'Hello World!\n'
+
+test_run_langchin_tool()

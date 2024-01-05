@@ -1,9 +1,16 @@
 from copy import deepcopy
+from modelscope_agent.tools.base import BaseTool, register_tool
 
-from .tool import Tool
-
-
-class LangchainTool(Tool):
+@register_tool('plugin')
+class LangchainTool(BaseTool):
+    description = '通过调用langchain插件来支持对语言模型的输入输出格式进行处理，输入文本字符，输出经过格式处理的结果'
+    name = 'plugin'
+    parameters: list = [{
+        'name': 'commands',
+        'description': '需要进行格式处理的文本字符列表',
+        'required': True,
+        'type': "string"
+    }]
 
     def __init__(self, langchain_tool):
         from langchain.tools import BaseTool
@@ -23,8 +30,11 @@ class LangchainTool(Tool):
             tool_arg = deepcopy(arg)
             tool_arg['name'] = name
             tool_arg['required'] = True
+            tool_arg['type'] = arg['anyOf'][0].get("type","string")
             tool_arg.pop('title')
             self.parameters.append(tool_arg)
 
-    def _local_call(self, *args, **kwargs):
-        return {'result': self.langchain_tool.run(kwargs)}
+    def call(self, params: str, **kwargs):
+        params = self._verify_args(params)
+        res = self.langchain_tool.run(params)
+        return res
