@@ -61,7 +61,7 @@ class Agent(ABC):
 
     @abstractmethod
     def _run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
-        pass
+        raise NotImplementedError
 
     def _call_llm(self,
                   prompt: Optional[str] = None,
