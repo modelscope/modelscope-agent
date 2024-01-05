@@ -20,5 +20,5 @@
       "use": false
     }
   },
-  "model": "qwen-max"
+  "model": "qwen-max-1201"
 }
