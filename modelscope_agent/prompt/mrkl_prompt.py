@@ -57,7 +57,8 @@ class MrklPromptGenerator(PromptGenerator):
             assistant_template=assistant_template,
             sep=sep,
             llm=llm,
-            length_constraint=length_constraint)
+            length_constraint=length_constraint,
+            **kwargs)
 
     def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
         if len(self.history) == 0:

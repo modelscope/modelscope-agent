@@ -5,7 +5,7 @@ from .pipeline_tool import ModelscopePipelineTool
 class TranslationZh2EnTool(ModelscopePipelineTool):
     default_model = 'damo/nlp_csanmt_translation_zh2en'
     description = '根据输入指令，将相应的中文文本翻译成英文回复'
-    name = 'modelscope_text-translation-zh2en'
+    name = 'text-translation-zh2en'
     task = Tasks.translation
     parameters: list = [{
         'name': 'input',
