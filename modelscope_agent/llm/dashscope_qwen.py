@@ -16,6 +16,8 @@ class QwenChatAtDS(DashScopeLLM):
                              prompt: str,
                              stop: Optional[List[str]] = None,
                              **kwargs) -> str:
+        if prompt == '':
+            return ''
         stop = stop or []
         top_p = kwargs.get('top_p', 0.8)
 
@@ -46,7 +48,7 @@ class QwenChatAtDS(DashScopeLLM):
         im_start = '<|im_start|>'
         im_end = '<|im_end|>'
         if messages[0]['role'] == 'system':
-            sys = messages[0]['role']
+            sys = messages[0]['content']
             prompt = f'{im_start}system\n{sys}{im_end}'
         else:
             prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'

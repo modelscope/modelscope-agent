@@ -184,17 +184,10 @@ class RolePlay(Agent):
         # Concat the system as one round of dialogue
         messages = [{'role': 'system', 'content': self.system_prompt}]
 
-        # Todo: Limit the length of conversation history
         if history:
-            for x in history:
-                messages.append({
-                    'role': 'user',
-                    'content': x[0],
-                })
-                messages.append({
-                    'role': 'assistant',
-                    'content': x[1],
-                })
+            assert history[-1][
+                'role'] != 'user', 'The history should not include the latest user query.'
+            messages.extend(history)
 
         # concat the new messages
         messages.append({

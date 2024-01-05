@@ -95,11 +95,20 @@ class BaseChatModel(ABC):
                             **kwargs) -> Dict:
         raise FnCallNotImplError
 
+    def support_raw_prompt(self) -> bool:
+        try:
+            if self.chat_with_raw_prompt(prompt='') == '[Do not Support]':
+                return False
+            else:
+                return True
+        except Exception:
+            return False
+
     def chat_with_raw_prompt(self,
                              prompt: str,
                              stop: Optional[List[str]] = None,
                              **kwargs) -> str:
-        raise FnCallNotImplError
+        raise '[Do not Support]'
 
     @abstractmethod
     def _chat_stream(self,
