@@ -31,6 +31,7 @@ class DashScopeLLM(LLM):
                  functions=[],
                  **kwargs):
         error_message_list = []
+        llm_result = ''
         for i in range(3):
             print('call generate at {} time'.format(i + 1))
             try:
@@ -57,7 +58,11 @@ class DashScopeLLM(LLM):
                             response.code, response.message)
                         print(err_msg)
                         error_message_list.append(err_msg)
-                        time.sleep(i * 2 + 1)
+                        if 400 <= response.status_code < 500:
+                            return err_msg
+                            # break
+                        else:
+                            time.sleep(i * 2 + 1)
                 else:
                     response = Generation.call(
                         model=self.model,
@@ -74,7 +79,11 @@ class DashScopeLLM(LLM):
                             response.code, response.message)
                         print(err_msg)
                         error_message_list.append(err_msg)
-                        time.sleep(i * 2 + 1)
+                        if 400 <= response.status_code < 500:
+                            return err_msg
+                            # break
+                        else:
+                            time.sleep(i * 2 + 1)
             except Exception as e:
                 error = traceback.format_exc()
                 error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
@@ -129,7 +138,7 @@ class DashScopeLLM(LLM):
                 error_message_list.append(error_msg)
                 time.sleep(i * 2 + 1)
                 continue
-
+            need_break = False
             for response in responses:
                 if response.status_code == HTTPStatus.OK:
                     if self.agent_type == AgentType.Messages:
@@ -153,9 +162,17 @@ class DashScopeLLM(LLM):
                         response.code, response.message)
                     print(err_msg)
                     error_message_list.append(err_msg)
-                    time.sleep(i * 2 + 1)
+                    if 400 <= response.status_code < 500:
+                        yield err_msg
+                        need_break = True
+                        break
+                    else:
+                        time.sleep(i * 2 + 1)
                     # raise RuntimeError(err_msg)
+            if need_break:
+                break
             if len(error_message_list) <= i:
                 break
         if len(error_message_list) >= 3:
-            raise RuntimeError('DashScope: \n' + '\n'.join(error_message_list))
+            total_error = 'DashScope: \n' + '\n'.join(error_message_list)
+            raise RuntimeError(total_error)
