@@ -1,5 +1,6 @@
 import os
 import random
+import time
 import traceback
 from http import HTTPStatus
 from typing import Union
@@ -29,38 +30,75 @@ class DashScopeLLM(LLM):
                  llm_artifacts: Union[str, dict],
                  functions=[],
                  **kwargs):
-
-        # TODO retry and handle message
-        try:
-            if self.agent_type == AgentType.Messages:
-                messages = llm_artifacts if len(
-                    llm_artifacts) > 0 else DEFAULT_MESSAGE
-                self.generate_cfg['use_raw_prompt'] = False
-                response = dashscope.Generation.call(
-                    model=self.model,
-                    messages=messages,
-                    # set the random seed, optional, default to 1234 if not set
-                    seed=random.randint(1, 10000),
-                    result_format=
-                    'message',  # set the result to be "message" format.
-                    stream=False,
-                    **self.generate_cfg)
-                llm_result = CustomOutputWrapper.handle_message_chat_completion(
-                    response)
-            else:
-                response = Generation.call(
-                    model=self.model,
-                    prompt=llm_artifacts,
-                    stream=False,
-                    **self.generate_cfg)
-                llm_result = CustomOutputWrapper.handle_message_text_completion(
-                    response)
-            return llm_result
-        except NotImplementedError as e:
-            error = traceback.format_exc()
-            error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
-            print(error_msg)
-            raise RuntimeError(error)
+        error_message_list = []
+        llm_result = ''
+        for i in range(3):
+            print('call generate at {} time'.format(i + 1))
+            try:
+                if self.agent_type == AgentType.Messages:
+                    messages = llm_artifacts if len(
+                        llm_artifacts) > 0 else DEFAULT_MESSAGE
+                    self.generate_cfg['use_raw_prompt'] = False
+                    response = dashscope.Generation.call(
+                        model=self.model,
+                        messages=messages,
+                        # set the random seed, optional, default to 1234 if not set
+                        seed=random.randint(1, 10000),
+                        result_format=
+                        'message',  # set the result to be "message" format.
+                        stream=False,
+                        **self.generate_cfg)
+                    if response.status_code == HTTPStatus.OK:
+                        llm_result = CustomOutputWrapper.handle_message_chat_completion(
+                            response)
+                        return llm_result
+                    else:
+                        err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
+                            response.request_id, response.status_code,
+                            response.code, response.message)
+                        print(err_msg)
+                        error_message_list.append(err_msg)
+                        if 400 <= response.status_code < 500:
+                            return err_msg
+                        elif response.status_code == 500 and (
+                                'input length' in response.message
+                                or 'inappropriate' in response.message):
+                            raise RuntimeError(err_msg)
+                        else:
+                            time.sleep(i * 2 + 1)
+                else:
+                    response = Generation.call(
+                        model=self.model,
+                        prompt=llm_artifacts,
+                        stream=False,
+                        **self.generate_cfg)
+                    if response.status_code == HTTPStatus.OK:
+                        llm_result = CustomOutputWrapper.handle_message_text_completion(
+                            response)
+                        return llm_result
+                    else:
+                        err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
+                            response.request_id, response.status_code,
+                            response.code, response.message)
+                        print(err_msg)
+                        error_message_list.append(err_msg)
+                        if 400 <= response.status_code < 500:
+                            return err_msg
+                        elif response.status_code == 500 and (
+                                'input length' in response.message
+                                or 'inappropriate' in response.message):
+                            raise RuntimeError(err_msg)
+                        else:
+                            time.sleep(i * 2 + 1)
+            except Exception as e:
+                error = traceback.format_exc()
+                error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
+                print(error_msg)
+                error_message_list.append(error_msg)
+                # raise RuntimeError(error)
+                time.sleep(i * 2 + 1)
+        if len(error_message_list) == 3:
+            raise RuntimeError('DashScope: \n' + '\n'.join(error_message_list))
 
         if self.agent_type == AgentType.MS_AGENT:
             # in the form of text
@@ -79,47 +117,66 @@ class DashScopeLLM(LLM):
                         llm_artifacts: Union[str, dict],
                         functions=[],
                         **kwargs):
-        total_response = ''
-        try:
-            if self.agent_type == AgentType.Messages:
-                self.generate_cfg['use_raw_prompt'] = False
-                responses = Generation.call(
-                    model=self.model,
-                    messages=llm_artifacts,
-                    stream=True,
-                    result_format='message',
-                    **self.generate_cfg)
-            else:
-                responses = Generation.call(
-                    model=self.model,
-                    prompt=llm_artifacts,
-                    stream=True,
-                    **self.generate_cfg)
-        except Exception as e:
-            error = traceback.format_exc()
-            error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
-            print(error_msg)
-            raise RuntimeError(error)
-
-        for response in responses:
-            if response.status_code == HTTPStatus.OK:
+        print('call stream generate')
+        error_message_list = []
+        for i in range(3):
+            print('call stream generate at {} time'.format(i + 1))
+            total_response = ''
+            try:
                 if self.agent_type == AgentType.Messages:
-                    llm_result = CustomOutputWrapper.handle_message_chat_completion(
-                        response)
-                    frame_text = llm_result['content'][len(total_response):]
+                    self.generate_cfg['use_raw_prompt'] = False
+                    responses = Generation.call(
+                        model=self.model,
+                        messages=llm_artifacts,
+                        stream=True,
+                        result_format='message',
+                        **self.generate_cfg)
                 else:
-                    llm_result = CustomOutputWrapper.handle_message_text_completion(
-                        response)
-                    frame_text = llm_result[len(total_response):]
-                yield frame_text
+                    responses = Generation.call(
+                        model=self.model,
+                        prompt=llm_artifacts,
+                        stream=True,
+                        **self.generate_cfg)
+            except Exception as e:
+                error = traceback.format_exc()
+                error_msg = f'LLM error with input {llm_artifacts} \n dashscope error: {str(e)} with traceback {error}'
+                print(error_msg)
+                error_message_list.append(error_msg)
+                time.sleep(i * 2 + 1)
+                continue
+            for response in responses:
+                if response.status_code == HTTPStatus.OK:
+                    if self.agent_type == AgentType.Messages:
+                        llm_result = CustomOutputWrapper.handle_message_chat_completion(
+                            response)
+                        frame_text = llm_result['content'][len(total_response
+                                                               ):]
+                    else:
+                        llm_result = CustomOutputWrapper.handle_message_text_completion(
+                            response)
+                        frame_text = llm_result[len(total_response):]
+                    yield frame_text
 
-                if self.agent_type == AgentType.Messages:
-                    total_response = llm_result['content']
+                    if self.agent_type == AgentType.Messages:
+                        total_response = llm_result['content']
+                    else:
+                        total_response = llm_result
                 else:
-                    total_response = llm_result
-            else:
-                err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
-                    response.request_id, response.status_code, response.code,
-                    response.message)
-                print(err_msg)
-                raise RuntimeError('DashScope ' + err_msg)
+                    err_msg = 'Error Request id: %s, Code: %d, status: %s, message: %s' % (
+                        response.request_id, response.status_code,
+                        response.code, response.message)
+                    print(err_msg)
+                    error_message_list.append(err_msg)
+                    if 400 <= response.status_code < 500:
+                        raise RuntimeError(err_msg)
+                    elif response.status_code == 500 and (
+                            'input length' in response.message
+                            or 'inappropriate' in response.message):
+                        raise RuntimeError(err_msg)
+                    else:
+                        time.sleep(i * 2 + 1)
+            if len(error_message_list) <= i:
+                break
+        if len(error_message_list) >= 3:
+            total_error = 'DashScope: \n' + '\n'.join(error_message_list)
+            raise RuntimeError(total_error)
