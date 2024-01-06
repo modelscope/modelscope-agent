@@ -38,6 +38,8 @@ def init_user_chatbot_agent(uuid_str=''):
     builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list = parse_configuration(
         uuid_str)
     # set top_p and stop_words for role play
+    if 'generate_cfg' not in model_cfg[builder_cfg.model]:
+        model_cfg[builder_cfg.model]['generate_cfg'] = dict()
     model_cfg[builder_cfg.model]['generate_cfg']['top_p'] = 0.5
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 

@@ -44,5 +44,5 @@ def test_gpt():
     llm = LLMFactory.build_llm(model_id, model_cfg)
     agent = AgentExecutor(llm)
 
-    from modelscope_agent.prompt import MrklPromptGenerator
-    assert isinstance(agent.prompt_generator, MrklPromptGenerator)
+    from modelscope_agent.prompt import MessagesGenerator
+    assert isinstance(agent.prompt_generator, MessagesGenerator)

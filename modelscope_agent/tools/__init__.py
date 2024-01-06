@@ -21,15 +21,15 @@ from .web_search import WebSearch
 from .wordart_tool import WordArtTexture
 
 TOOL_INFO_LIST = {
-    'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
-    'modelscope_text-translation-en2zh': 'TranslationEn2ZhTool',
-    'modelscope_text-ie': 'TextInfoExtractTool',
-    'modelscope_text-ner': 'TextNerTool',
-    'modelscope_text-address': 'TextAddressTool',
+    'text-translation-zh2en': 'TranslationZh2EnTool',
+    'text-translation-en2zh': 'TranslationEn2ZhTool',
+    'text-ie': 'TextInfoExtractTool',
+    'text-ner': 'TextNerTool',
+    'text-address': 'TextAddressTool',
     'image_gen': 'TextToImageTool',
-    'modelscope_video-generation': 'TextToVideoTool',
-    'modelscope_image-chat': 'ImageChatTool',
-    'modelscope_speech-generation': 'TexttoSpeechTool',
+    'video-generation': 'TextToVideoTool',
+    'image-chat': 'ImageChatTool',
+    'speech-generation': 'TexttoSpeechTool',
     'amap_weather': 'AMAPWeather',
     'code_interpreter': 'CodeInterpreterJupyter',
     'wordart_texture_generation': 'WordArtTexture',

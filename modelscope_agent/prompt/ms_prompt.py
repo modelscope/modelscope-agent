@@ -32,4 +32,5 @@ class MSPromptGenerator(PromptGenerator):
             exec_template=exec_template,
             assistant_template=assistant_template,
             sep=sep,
-            length_constraint=length_constraint)
+            length_constraint=length_constraint,
+            **kwargs)

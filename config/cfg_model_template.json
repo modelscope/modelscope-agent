@@ -9,6 +9,10 @@
             "debug": false
         }
     },
+    "gpt-3.5-turbo": {
+        "type": "custom_llm",
+        "model": "gpt-3.5-turbo"
+    },
     "qwen_plus": {
         "type": "dashscope",
         "model": "qwen-plus",
@@ -18,6 +22,18 @@
             "top_k": 10,
             "seed": 123,
             "debug": false
+        }
+    },
+    "qwen-max-1201": {
+        "type": "dashscope",
+        "model": "qwen-max-1201",
+        "length_constraint": {
+            "knowledge": 4000,
+            "input": 6000
+        },
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8
         }
     },
     "custom_llm": {
