@@ -60,7 +60,10 @@ class DashScopeLLM(LLM):
                         error_message_list.append(err_msg)
                         if 400 <= response.status_code < 500:
                             return err_msg
-                            # break
+                        elif response.status_code == 500 and (
+                                'input length' in response.message
+                                or 'inappropriate' in response.message):
+                            raise RuntimeError(err_msg)
                         else:
                             time.sleep(i * 2 + 1)
                 else:
@@ -81,7 +84,10 @@ class DashScopeLLM(LLM):
                         error_message_list.append(err_msg)
                         if 400 <= response.status_code < 500:
                             return err_msg
-                            # break
+                        elif response.status_code == 500 and (
+                                'input length' in response.message
+                                or 'inappropriate' in response.message):
+                            raise RuntimeError(err_msg)
                         else:
                             time.sleep(i * 2 + 1)
             except Exception as e:
@@ -138,7 +144,6 @@ class DashScopeLLM(LLM):
                 error_message_list.append(error_msg)
                 time.sleep(i * 2 + 1)
                 continue
-            need_break = False
             for response in responses:
                 if response.status_code == HTTPStatus.OK:
                     if self.agent_type == AgentType.Messages:
@@ -163,14 +168,13 @@ class DashScopeLLM(LLM):
                     print(err_msg)
                     error_message_list.append(err_msg)
                     if 400 <= response.status_code < 500:
-                        yield err_msg
-                        need_break = True
-                        break
+                        raise RuntimeError(err_msg)
+                    elif response.status_code == 500 and (
+                            'input length' in response.message
+                            or 'inappropriate' in response.message):
+                        raise RuntimeError(err_msg)
                     else:
                         time.sleep(i * 2 + 1)
-                    # raise RuntimeError(err_msg)
-            if need_break:
-                break
             if len(error_message_list) <= i:
                 break
         if len(error_message_list) >= 3:
