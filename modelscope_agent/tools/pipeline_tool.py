@@ -1,40 +1,30 @@
-from modelscope.pipelines import pipeline
-from .tool import Tool
+from modelscope_agent.tools.base import BaseTool, register_tool
+import json
+import requests
+import os
 
-
-class ModelscopePipelineTool(Tool):
-
-    default_model: str = ''
-    task: str = ''
-    model_revision = None
+@register_tool('pipeline')
+class ModelscopePipelineTool(BaseTool):
+    API_URL = ""
+    API_KEY = ""
 
     def __init__(self, cfg):
-
+        """
+        初始化一个ModelscopePipelineTool类
+        Initialize a ModelscopePipelineTool class.
+        参数：
+        cfg (Dict[str, object]): 配置字典，包含了初始化对象所需要的参数
+        """
         super().__init__(cfg)
-        self.model = self.cfg.get('model', None) or self.default_model
-        self.model_revision = self.cfg.get('model_revision',
-                                           None) or self.model_revision
+        self.API_URL = self.cfg.get(self.name, {}).get('url',None) or self.API_URL
+        self.API_KEY = os.getenv('MODELSCOPE_API_KEY', None) or self.API_KEY
 
-        self.pipeline_params = self.cfg.get('pipeline_params', {})
-        self.pipeline = None
-        self.is_initialized = False
+    
+    def call(self, params: str, **kwargs) -> str:
+        params = self._verify_args(params)
+        data = json.dumps(params)
+        headers = {"Authorization": f"Bearer {self.API_KEY}"}
+        response = requests.request("POST", self.API_URL, headers=headers,data=data)
+        result = json.loads(response.content.decode("utf-8"))
+        return result
 
-    def setup(self):
-
-        # only initialize when this tool is really called to save memory
-        if not self.is_initialized:
-            self.pipeline = pipeline(
-                task=self.task,
-                model=self.model,
-                model_revision=self.model_revision,
-                **self.pipeline_params)
-        self.is_initialized = True
-
-    def _local_call(self, *args, **kwargs):
-
-        self.setup()
-
-        parsed_args, parsed_kwargs = self._local_parse_input(*args, **kwargs)
-        origin_result = self.pipeline(*parsed_args, **parsed_kwargs)
-        final_result = self._parse_output(origin_result, remote=False)
-        return final_result
