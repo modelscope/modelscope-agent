@@ -20,4 +20,4 @@ class TexttoSpeechTool(ModelscopePipelineTool):
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)
         audio = result['Data']['output_wav']
-        return {'result': AudioWrapper(audio)}
+        return str(AudioWrapper(audio))
