@@ -1,7 +1,9 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
+import json
 from modelscope_agent import Agent
+from modelscope_agent.llm import BaseChatModel
 
 PROMPT_TEMPLATE_EN = """You are now playing the role of an AI assistant (QwenBuilder) for creating an AI character (AI-Agent).
 You need to have a conversation with the user to clarify their requirements for the AI-Agent. Based on existing \
@@ -64,8 +66,35 @@ PROMPT_TEMPLATE = {
     'en': PROMPT_TEMPLATE_EN,
 }
 
+ANSWER = 'Answer: '
+CONFIG = 'Config: '
+RICH_CONFIG = 'RichConfig: '
+ASSISTANT_TEMPLATE = """Answer: {answer}
+Config: {config}
+RichConfig: {rich_config}"""
+
 
 class AgentBuilder(Agent):
+
+    def __init__(self,
+                 function_list: Optional[List[Union[str, Dict]]] = None,
+                 llm: Optional[Union[Dict, BaseChatModel]] = None,
+                 storage_path: Optional[str] = None,
+                 name: Optional[str] = None,
+                 description: Optional[str] = None,
+                 instruction: Union[str, dict] = None,
+                 **kwargs):
+        super().__init__(
+            function_list=function_list,
+            llm=llm,
+            storage_path=storage_path,
+            name=name,
+            description=description,
+            instruction=instruction,
+            **kwargs)
+
+        self.last_assistant_structured_response = {}
+        self.messages = []
 
     def _run(self,
              user_request,
@@ -77,23 +106,63 @@ class AgentBuilder(Agent):
         messages = [{'role': 'system', 'content': self.system_prompt}]
 
         if history:
-            for x in history:
-                messages.append({
-                    'role': 'user',
-                    'content': x[0],
-                })
-                messages.append({
-                    'role': 'assistant',
-                    'content': x[1],
-                })
+            assert history[-1][
+                'role'] != 'user', 'The history should not include the latest user query.'
+            messages.extend(history)
 
         # concat the new messages
         messages.append({'role': 'user', 'content': user_request})
 
         return self._call_llm(messages=messages)
 
-    def parse_config(self, content: str) -> dict:
+    def parse_answer(self, llm_result_prefix: str, llm_result: str):
         """
-        parse config from the generated answer
+        parser answer from streaming output
         """
-        pass
+        finish = False
+        answer_prompt = ANSWER
+
+        if len(llm_result) >= len(answer_prompt):
+            start_pos = llm_result.find(answer_prompt)
+            end_pos = llm_result.find(f'\n{CONFIG}')
+            if start_pos >= 0:
+                if end_pos > start_pos:
+                    result = llm_result[start_pos + len(answer_prompt):end_pos]
+                    finish = True
+                else:
+                    result = llm_result[start_pos + len(answer_prompt):]
+            else:
+                result = llm_result
+        else:
+            result = ''
+
+        new_result = result[len(llm_result_prefix):]
+        llm_result_prefix = result
+        return new_result, finish, llm_result_prefix
+
+    def update_config_to_history(self, config: Dict):
+        """
+        update builder config to history when user modify configuration
+
+        Args:
+            config: str, read from builder config file
+        """
+        if self.messages and self.messages[-1]['role'] == 'assistant':
+
+            answer = self.last_assistant_structured_response['answer_str']
+            simple_config = self.last_assistant_structured_response[
+                'config_str']
+
+            rich_config_dict = {
+                k: config[k]
+                for k in ['name', 'description', 'prompt_recommend']
+            }
+            rich_config_dict[
+                'logo_prompt'] = self.last_assistant_structured_response[
+                    'rich_config_dict']['logo_prompt']
+            rich_config_dict['instructions'] = config['instruction'].split('；')
+
+            rich_config = json.dumps(rich_config_dict, ensure_ascii=False)
+            new_content = ASSISTANT_TEMPLATE.format(
+                answer=answer, config=simple_config, rich_config=rich_config)
+            self.messages[-1]['content'] = new_content

@@ -7,7 +7,9 @@ import traceback
 import gradio as gr
 import json
 import yaml
-from builder_core import beauty_output, init_builder_chatbot_agent
+from apps.agentfabric.builder_core import (beauty_output,
+                                           gen_response_and_process,
+                                           init_builder_chatbot_agent)
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
@@ -459,8 +461,9 @@ with demo:
             create_chat_input: gr.Textbox.update(value=''),
         }
         response = ''
-        for frame in builder_agent.stream_run(
-                input, print_info=True, uuid_str=uuid_str):
+        for frame in gen_response_and_process(
+                builder_agent, query=input, print_info=True,
+                uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
