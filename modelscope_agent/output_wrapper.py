@@ -119,7 +119,7 @@ class AudioWrapper(OutputWrapper):
             with open(self._path, 'wb') as f:
                 f.write(self._raw_data)
 
-        self._repr = f'<audio id=audio controls= preload=none> <source id=wav src={self._path}> </audio>'
+        self._repr = f'<audio id=audio controls= preload=none> <source id=wav src="{self._path}"> </audio>'
 
 
 class VideoWrapper(OutputWrapper):
@@ -178,7 +178,7 @@ def display(llm_result: Union[str, dict], exec_result: Dict, idx: int,
         exec_result (Dict): exec result
         idx (int): current round
     """
-    from IPython.display import display, Pretty, Image, Audio, JSON
+    from IPython.display import JSON, Audio, Image, Pretty, display
     idx_info = '*' * 50 + f'round {idx}' + '*' * 50
     display(Pretty(idx_info))
 

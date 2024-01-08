@@ -141,10 +141,10 @@ with demo:
             chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-            gr.on([user_chatbot_input.submit],
-                  fn=send_message,
-                  inputs=[user_chatbot, user_chatbot_input, state],
-                  outputs=[user_chatbot, user_chatbot_input])
+    gr.on([user_chatbot_input.submit],
+          fn=send_message,
+          inputs=[user_chatbot, user_chatbot_input, state],
+          outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
