@@ -1,5 +1,5 @@
-# from modelscope_agent.output_wrapper import AudioWrapper
 from .pipeline_tool import ModelscopePipelineTool
+from modelscope_agent.output_wrapper import AudioWrapper
 
 class TexttoSpeechTool(ModelscopePipelineTool):
     default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
@@ -17,15 +17,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         'type': 'string'
     }]
 
-    def _remote_parse_input(self, *args, **kwargs):
-        if 'gender' not in kwargs:
-            kwargs['gender'] = 'man'
-        voice = 'zhizhe_emo' if kwargs['gender'] == 'man' or kwargs[
-            'gender'] == 'male' else 'zhiyan_emo'
-        kwargs['parameters'] = {'voice': voice}
-        kwargs.pop('gender')
-        return kwargs
-    
-    def _remote_parse_output(self, origin_result, remote=True):
-        audio = origin_result['Data']['output_wav']
-        return audio
+    def call(self, params: str, **kwargs) -> str:
+        result = super().call(params, **kwargs)
+        audio = result['Data']['output_wav']
+        return {'result': AudioWrapper(audio)}

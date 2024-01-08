@@ -22,11 +22,9 @@ class ModelscopePipelineTool(BaseTool):
     
     def call(self, params: str, **kwargs) -> str:
         params = self._verify_args(params)
-        parsed_kwargs = self._remote_parse_input(**params)
-        data = json.dumps(parsed_kwargs)
+        data = json.dumps(params)
         headers = {"Authorization": f"Bearer {self.API_KEY}"}
         response = requests.request("POST", self.API_URL, headers=headers,data=data)
-        origin_result = json.loads(response.content.decode("utf-8"))
-        final_result = self._remote_parse_output(origin_result, remote=False)
-        return final_result
+        result = json.loads(response.content.decode("utf-8"))
+        return result
 
