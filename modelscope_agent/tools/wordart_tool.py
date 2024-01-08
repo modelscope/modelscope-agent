@@ -19,7 +19,7 @@ class WordArtTexture(Tool):
         'description': 'text that the user wants to convert to WordArt',
         'required': True
     }, {
-        'name': 'input.prompt',
+        'name': 'input.prompts',
         'description':
         'Users’ style requirements for word art may be requirements in terms of shape, color, entity, etc.',
         'required': True

@@ -34,7 +34,7 @@ class ActionParserFactory:
             language = kwargs.pop('language', 'en')
             action_parser = cls._get_model_default_type(model, language, uuid)
             if action_parser:
-                return cls._string_to_obj(action_parser, **kwargs)
+                return action_parser(**kwargs)
 
         return cls._get_action_parser_by_agent_type(agent_type, **kwargs)
 

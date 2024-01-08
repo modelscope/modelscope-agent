@@ -79,6 +79,22 @@ def call_wanx(prompt, save_path, uuid_str):
             })
 
 
+def logo_generate_remote_call(*args, **kwargs):
+    user_requirement = kwargs['user_requirement']
+    uuid_str = kwargs.get('uuid_str', '')
+    builder_cfg_file = get_user_cfg_file(uuid_str)
+    builder_cfg = Config.from_file(builder_cfg_file)
+
+    avatar_prompt = LOGO_INST.format(
+        description=builder_cfg.description, user_requirement=user_requirement)
+    call_wanx(
+        prompt=avatar_prompt,
+        save_path=get_logo_path(uuid_str=uuid_str),
+        uuid_str=uuid_str)
+    builder_cfg.avatar = LOGO_NAME
+    return {'result': builder_cfg}
+
+
 class LogoGeneratorTool(Tool):
     description = 'logo_designer是一个AI绘制logo的服务，输入用户对 CustomGPT 的要求，会生成 CustomGPT 的logo。'
     name = 'logo_designer'
@@ -90,22 +106,6 @@ class LogoGeneratorTool(Tool):
             'type': 'string'
         },
     }]
-
-    def _remote_call(self, *args, **kwargs):
-        user_requirement = kwargs['user_requirement']
-        uuid_str = kwargs.get('uuid_str', '')
-        builder_cfg_file = get_user_cfg_file(uuid_str)
-        builder_cfg = Config.from_file(builder_cfg_file)
-
-        avatar_prompt = LOGO_INST.format(
-            description=builder_cfg.description,
-            user_requirement=user_requirement)
-        call_wanx(
-            prompt=avatar_prompt,
-            save_path=get_logo_path(uuid_str=uuid_str),
-            uuid_str=uuid_str)
-        builder_cfg.avatar = LOGO_NAME
-        return {'result': builder_cfg}
 
 
 def config_conversion(generated_config: dict, save=False, uuid_str=''):

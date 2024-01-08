@@ -18,7 +18,7 @@ import os
 from modelscope.utils.config import Config
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.prompt import MSPromptGenerator
+from modelscope_agent.prompts import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
@@ -26,12 +26,11 @@ model_cfg = Config.from_file(model_cfg_file)
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
-
 # instantiation LLM
 model_name = 'modelscope-agent-qwen-7b'
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
-# prompt generator
+# prompts generator
 prompt_generator = MSPromptGenerator()
 
 # instantiation agent
@@ -83,14 +82,14 @@ class MyPromptGenerator(PromptGenerato):
 
     def init_prompt(self, task, tool_list, available_tool_list):
         """
-        in this function, specify how to initialize your prompt.
+        in this function, specify how to initialize your prompts.
         """
         ...
         return task
 
     def generate(self, llm_result, exec_result):
         """
-        the agent may need to interact with llm multiple times. This function generate next round prompt based on previous llm_result and exec_result and update history
+        the agent may need to interact with llm multiple times. This function generate next round prompts based on previous llm_result and exec_result and update history
         """
         ...
         self.prompt += f'{llm_result}{exec_result}'

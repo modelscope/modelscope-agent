@@ -7,7 +7,7 @@ from .pipeline_tool import ModelscopePipelineTool
 class TextInfoExtractTool(ModelscopePipelineTool):
     default_model = 'damo/nlp_structbert_siamese-uie_chinese-base'
     description = '信息抽取服务，针对中文的文本，根据schema要抽取的内容，找出其中对应信息，并用json格式展示'
-    name = 'modelscope_text-ie'
+    name = 'text-ie'
     parameters: list = [{
         'name': 'input',
         'description': '用户输入的文本',

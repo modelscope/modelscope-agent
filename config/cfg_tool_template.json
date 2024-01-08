@@ -1,35 +1,35 @@
 {
-    "modelscope_text-address": {
+    "text-address": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base",
-        "use": true
+        "use": false
     },
-    "modelscope_text-ner": {
+    "text-ner": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee",
-        "use": true
+        "use": false
     },
-    "modelscope_text-ie": {
+    "text-ie": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_structbert_siamese-uie_chinese-base",
-        "use": true
+        "use": false
     },
-    "modelscope_speech-generation": {
+    "speech-generation": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k",
         "use": true
     },
-    "modelscope_video-generation": {
+    "video-generation": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis",
         "use": true
     },
-    "modelscope_image-chat": {
+    "image-chat": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/multi-modal_mplug_owl_multimodal-dialogue_7b",
-        "use": true
+        "use": false
     },
-    "modelscope_text-translation-en2zh": {
+    "text-translation-en2zh": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_en2zh",
-        "use": true
+        "use": false
     },
-    "modelscope_text-translation-zh2en": {
+    "text-translation-zh2en": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en",
-        "use": true
+        "use": false
     },
     "image_gen": {
         "url": "https://api-inference.modelscope.cn/api-inference/v1/models/AI-ModelScope/stable-diffusion-xl-base-1.0",
@@ -37,6 +37,13 @@
         "pipeline_params": {
             "use_safetensors": true
         }
+    },
+    "code_interpreter": {
+        "name": "Code Interpreter",
+        "is_active": true,
+        "use": false,
+        "is_remote_tool": false,
+        "max_output": 2000
     },
     "amap_weather": {
         "use": false,

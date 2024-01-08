@@ -62,10 +62,10 @@ To use modelscope-agent, all you need is to instantiate an `AgentExecutor` objec
 
 ```Python
 import os
+
 from modelscope.utils.config import Config
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.prompt import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
@@ -73,26 +73,30 @@ model_cfg = Config.from_file(model_cfg_file)
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
-
 # instantiation LLM
-model_name = 'modelscope-agent-7b'
+model_name = 'qwen-72b'
+
+print(
+  'To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
+os.environ['DASHSCOPE_API_KEY'] = input()
+
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
-# prompt generator
-prompt_generator = MSPromptGenerator()
-
 # instantiation agent
-agent = AgentExecutor(llm, tool_cfg, prompt_generator=prompt_generator)
 
+agent = AgentExecutor(llm, tool_cfg)
 ```
 
 - Single-step & Multi-step tool-use
 
 ```Python
 # Single-step tool-use
-agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
+agent.run("I want to see cute kittens", remote=True)
 
 # Multi-step tool-use
+print('The built-in voice generation and video generation capabilities are deployed in mdoelscope. You need to enter the ModelScope Token, which can be obtained from here: https://modelscope.cn/my/myaccesstoken')
+os.environ['MODELSCOPE_API_TOKEN'] = input()
+
 agent.reset()
 agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声读出来，同时生成个视频看看', remote=True)
 ```
@@ -163,13 +167,13 @@ from modelscope_agent.agent import AgentExecutor
 
 model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-7b':{
-        'type': 'modelscope',
-        'model_id': 'damo/ModelScope-Agent-7B',
-        'model_revision': 'v1.0.0',
-        'use_raw_generation_config': True,
-        'custom_chat': True
-    }
+  'modelscope-agent-7b': {
+    'type': 'modelscope',
+    'model_id': 'damo/ModelScope-Agent-7B',
+    'model_revision': 'v1.0.0',
+    'use_raw_generation_config': True,
+    'custom_chat': True
+  }
 }
 
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
@@ -193,6 +197,7 @@ Also, you can custom your tools by inheriting base tool and define names, descri
 from modelscope_agent.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
 from modelscope_agent.output_wrapper import AudioWrapper
+
 
 class TexttoSpeechTool(ModelscopePipelineTool):
     default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
@@ -218,7 +223,6 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         return kwargs
 
     def _parse_output(self, origin_result, remote=True):
-
         audio = origin_result['output_wav']
         return {'result': AudioWrapper(audio)}
 ```
@@ -228,6 +232,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
 ```python
 from modelscope_agent.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
+
 
 class TextAddressTool(ModelscopePipelineTool):
     default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'

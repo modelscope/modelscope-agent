@@ -7,7 +7,9 @@ import traceback
 import gradio as gr
 import json
 import yaml
-from builder_core import beauty_output, init_builder_chatbot_agent
+from apps.agentfabric.builder_core import (beauty_output,
+                                           gen_response_and_process,
+                                           init_builder_chatbot_agent)
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
@@ -103,10 +105,9 @@ def process_configuration(uuid_str, bot_avatar, name, description,
         'prompt_recommend': [row[0] for row in suggestions_filtered],
         'knowledge': new_knowledge_files,
         'tools': {
-            capability: dict(
-                name=tool_cfg[capability]['name'],
-                is_active=tool_cfg[capability]['is_active'],
-                use=True if capability in capabilities_checkboxes else False)
+            capability: dict([(key, value if key != 'use' else
+                               (capability in capabilities_checkboxes))
+                              for key, value in tool_cfg[capability].items()])
             for capability in map(lambda item: item[1], capabilities)
         },
         'model': model,
@@ -460,8 +461,9 @@ with demo:
             create_chat_input: gr.Textbox.update(value=''),
         }
         response = ''
-        for frame in builder_agent.stream_run(
-                input, print_info=True, uuid_str=uuid_str):
+        for frame in gen_response_and_process(
+                builder_agent, query=input, print_info=True,
+                uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')

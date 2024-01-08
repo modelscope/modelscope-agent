@@ -5,7 +5,7 @@ from .pipeline_tool import ModelscopePipelineTool
 class ImageChatTool(ModelscopePipelineTool):
     default_model = 'damo/multi-modal_mplug_owl_multimodal-dialogue_7b'
     description = '图文对话和图像描述服务，针对输入的图片和用户的文本输入，给出文本回复'
-    name = 'modelscope_image-chat'
+    name = 'image-chat'
     parameters: list = [{
         'name': 'image',
         'description': '用户输入的图片',

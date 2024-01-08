@@ -57,7 +57,8 @@ class MrklPromptGenerator(PromptGenerator):
             assistant_template=assistant_template,
             sep=sep,
             llm=llm,
-            length_constraint=length_constraint)
+            length_constraint=length_constraint,
+            **kwargs)
 
     def init_prompt(self, task, tool_list, knowledge_list, **kwargs):
         if len(self.history) == 0:
@@ -107,7 +108,7 @@ class MrklPromptGenerator(PromptGenerator):
 
     def _generate(self, llm_result, exec_result: str):
         """
-        generate next round prompt based on previous llm_result and exec_result and update history
+        generate next round prompts based on previous llm_result and exec_result and update history
         """
         if len(llm_result) != 0:
             self.history[-1]['content'] += f'{llm_result}'
