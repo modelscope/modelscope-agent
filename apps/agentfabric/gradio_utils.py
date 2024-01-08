@@ -50,7 +50,7 @@ def format_cover_html(configuration, bot_avatar_path):
     return f"""
 <div class="bot_cover">
     <div class="bot_avatar">
-        <img src={image_src} />
+        <img src="{image_src}" />
     </div>
     <div class="bot_name">{configuration.get("name", "")}</div>
     <div class="bot_desp">{configuration.get("description", "")}</div>

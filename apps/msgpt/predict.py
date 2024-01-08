@@ -71,6 +71,6 @@ def upload_image(file):
 
     return [
         gr.HTML.update(
-            f"<div class=\"uploaded-image-box\"><img src={gr_file_path}></img><div>",
+            f"<div class=\"uploaded-image-box\"><img src=\"{gr_file_path}\"></img><div>",
             visible=True), gr_file_path
     ]

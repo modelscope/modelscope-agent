@@ -198,7 +198,7 @@ class ChatBot(ChatBotBase):
                 return final_result
 
             match_audio = re.search(
-                r'<audio id=audio controls= preload=none> <source id=wav src=(.*?)> <\/audio>',
+                r'<audio id=audio controls= preload=none> <source id=wav src="(.*?)"> <\/audio>',
                 exec_result)
             if match_audio:
                 audio_path = match_audio.group(1)
