@@ -44,6 +44,11 @@
     "is_active": true,
     "use": false
   },
+  "phantom_image_enhancement": {
+    "name": "追影-放大镜",
+    "is_active": true,
+    "use": false
+  },
   "text-address": {
     "name": "地址解析",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base",

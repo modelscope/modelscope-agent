@@ -3,6 +3,7 @@ from .code_interperter import CodeInterpreter
 from .code_interpreter_jupyter import CodeInterpreterJupyter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
+from .phantom_tool import Phantom
 from .pipeline_tool import ModelscopePipelineTool
 from .plugin_tool import LangchainTool
 from .qwen_vl import QWenVL
@@ -37,4 +38,5 @@ TOOL_INFO_LIST = {
     'web_browser': 'WebBrowser',
     'qwen_vl': 'QWenVL',
     'style_repaint': 'StyleRepaint',
+    'phantom_image_enhancement': 'Phantom',
 }
