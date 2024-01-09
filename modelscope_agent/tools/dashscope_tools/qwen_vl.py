@@ -1,53 +1,41 @@
 import os
-import time
 
-import json
-import requests
 from dashscope import MultiModalConversation
-from modelscope_agent.tools.tool import Tool, ToolSchema
-from pydantic import ValidationError
+from modelscope_agent.tools.base import BaseTool, register_tool
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
 
-class QWenVL(Tool):
+@register_tool('qwen_vl')
+class QWenVL(BaseTool):
     description = '调用qwen_vl api处理图片'
     name = 'qwen_vl'
     parameters: list = [{
         'name': 'image_file_path',
         'description': '用户上传的照片的相对路径',
-        'required': True
+        'required': True,
+        'type': 'string'
     }, {
         'name': 'text',
         'description': '用户针对上传图片的提问文本',
-        'required': True
+        'required': True,
+        'type': 'string'
     }]
 
-    def __init__(self, cfg={}):
-        self.cfg = cfg.get(self.name, {})
-        # remote call
-        self.token = self.cfg.get('token',
-                                  os.environ.get('DASHSCOPE_API_KEY', ''))
-        assert self.token != '', 'dashscope api token must be acquired'
-
+    def call(self, params: str, **kwargs) -> str:
+        # 检查环境变量中是否设置DASHSCOPE_API_KEY
         try:
-            all_param = {
-                'name': self.name,
-                'description': self.description,
-                'parameters': self.parameters
-            }
-            self.tool_schema = ToolSchema(**all_param)
-        except ValidationError:
-            raise ValueError(f'Error when parsing parameters of {self.name}')
-
-        self._str = self.tool_schema.model_dump_json()
-        self._function = self.parse_pydantic_model_to_openai_function(
-            all_param)
-
-    def __call__(self, *args, **kwargs):
-        remote_parsed_input = self._remote_parse_input(*args, **kwargs)
+            os.environ['DASHSCOPE_API_KEY']
+        except KeyError:
+            raise KeyError(
+                'API_KEY Error: DASHSCOPE_API_KEY environment variable is not set.'
+            )
+        params = self._verify_args(params)
+        if isinstance(params, str):
+            return 'Parameter Error'
+        remote_parsed_input = self._remote_parse_input(**params)
         """Sample of use local file.
         linux&mac file schema: file:///home/images/test.png
         windows file schema: file://D:/images/abc.png
@@ -58,7 +46,7 @@ class QWenVL(Tool):
         while retry_times:
             retry_times -= 1
             try:
-                if local_file_path.endswith(('.jpeg', '.png', '.jpg')):
+                if local_file_path.lower().endswith(('.jpeg', '.png', '.jpg')):
                     messages = [{
                         'role':
                         'system',
@@ -73,14 +61,14 @@ class QWenVL(Tool):
                                 'image': local_file_path
                             },
                             {
-                                'text': kwargs['text']
+                                'text': params['text']
                             },
                         ]
                     }]
                     response = MultiModalConversation.call(
                         model='qwen-vl-plus', messages=messages)
-                    final_result = self._parse_output(response)
-                    return final_result
+                    return response['output']['choices'][0]['message'][
+                        'content'][0]
                 else:
                     raise ValueError(
                         f'the file you upload: {local_file_path} is not an image file, \
