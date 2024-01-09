@@ -2,67 +2,53 @@ import os
 import time
 
 import json
-import pandas as pd
 import requests
-from modelscope_agent.tools.tool import Tool, ToolSchema
-from pydantic import ValidationError
+from modelscope_agent.tools.base import BaseTool, register_tool
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
 
 
-class WordArtTexture(Tool):
+@register_tool('wordart_texture_generation')
+class WordArtTexture(BaseTool):
     description = '生成艺术字纹理图片'
     name = 'wordart_texture_generation'
     parameters: list = [{
         'name': 'input.text.text_content',
         'description': 'text that the user wants to convert to WordArt',
-        'required': True
+        'required': True,
+        'type': 'string'
     }, {
-        'name': 'input.agents',
+        'name': 'input.prompt',
         'description':
         'Users’ style requirements for word art may be requirements in terms of shape, color, entity, etc.',
-        'required': True
+        'required': True,
+        'type': 'string'
     }, {
         'name': 'input.texture_style',
         'description':
         'Type of texture style;Default is "material";If not provided by the user, \
             defaults to "material".Another value is scene.',
-        'required': True
+        'required': True,
+        'type': 'string'
     }, {
         'name': 'input.text.output_image_ratio',
         'description':
         'The aspect ratio of the text input image; the default is "1:1", \
             the available ratios are: "1:1", "16:9", "9:16";',
-        'required': True
+        'required': True,
+        'type': 'string'
     }]
 
-    def __init__(self, cfg={}):
-        self.cfg = cfg.get(self.name, {})
-        # remote call
-        self.url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/wordart/texture'
-        self.token = self.cfg.get('token',
-                                  os.environ.get('DASHSCOPE_API_KEY', ''))
-        assert self.token != '', 'dashscope api token must be acquired with wordart'
-
-        try:
-            all_param = {
-                'name': self.name,
-                'description': self.description,
-                'parameters': self.parameters
-            }
-            self.tool_schema = ToolSchema(**all_param)
-        except ValidationError:
-            raise ValueError(f'Error when parsing parameters of {self.name}')
-
-        self._str = self.tool_schema.model_dump_json()
-        self._function = self.parse_pydantic_model_to_openai_function(
-            all_param)
-
-    def __call__(self, *args, **kwargs):
-        remote_parsed_input = json.dumps(
-            self._remote_parse_input(*args, **kwargs))
+    def call(self, params: str, **kwargs) -> str:
+        params = self._verify_args(params)
+        if isinstance(params, str):
+            return 'Parameter Error'
+        remote_parsed_input = json.dumps(self._remote_parse_input(**params))
         origin_result = None
+        self.token = kwargs.get('token',
+                                os.environ.get('DASHSCOPE_API_KEY', ''))
+        assert self.token != '', 'dashscope api token must be acquired with wordart'
         retry_times = MAX_RETRY_TIMES
         headers = {
             'Content-Type': 'application/json',
@@ -75,7 +61,8 @@ class WordArtTexture(Tool):
 
                 response = requests.request(
                     'POST',
-                    url=self.url,
+                    url=
+                    'https://dashscope.aliyuncs.com/api/v1/services/aigc/wordart/texture',
                     headers=headers,
                     data=remote_parsed_input)
 
@@ -83,8 +70,7 @@ class WordArtTexture(Tool):
                     response.raise_for_status()
                 origin_result = json.loads(response.content.decode('utf-8'))
 
-                self.final_result = self._parse_output(
-                    origin_result, remote=True)
+                self.final_result = origin_result
                 return self.get_wordart_result()
             except Timeout:
                 continue
@@ -108,7 +94,7 @@ class WordArtTexture(Tool):
                     temp_dict = temp_dict.setdefault(k, {})
                 temp_dict[keys[-1]] = value
             else:
-                # f the key does not contain ".", directly store the key-value pair into restored_dict
+                # if the key does not contain ".", directly store the key-value pair into restored_dict
                 restored_dict[key] = value
             kwargs = restored_dict
             kwargs['model'] = 'wordart-texture'
@@ -116,7 +102,7 @@ class WordArtTexture(Tool):
         return kwargs
 
     def get_result(self):
-        result_data = json.loads(json.dumps(self.final_result['result']))
+        result_data = json.loads(json.dumps(self.final_result))
         if 'task_id' in result_data['output']:
             task_id = result_data['output']['task_id']
         get_url = f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}'
@@ -131,9 +117,7 @@ class WordArtTexture(Tool):
                 if response.status_code != requests.codes.ok:
                     response.raise_for_status()
                 origin_result = json.loads(response.content.decode('utf-8'))
-
-                get_result = self._parse_output(origin_result, remote=True)
-                return get_result
+                return origin_result
             except Timeout:
                 continue
             except RequestException as e:
@@ -148,22 +132,23 @@ class WordArtTexture(Tool):
     def get_wordart_result(self):
         try:
             result = self.get_result()
-            print(result)
             while True:
-                result_data = result.get('result', {})
+                result_data = result
                 output = result_data.get('output', {})
                 task_status = output.get('task_status', '')
 
                 if task_status == 'SUCCEEDED':
                     print('任务已完成')
-                    return result
+                    # 取出result里url的部分，提高url图片展示稳定性
+                    output_url = result['output']['results'][0]['url']
+                    return output_url
 
                 elif task_status == 'FAILED':
-                    raise ('任务失败')
+                    raise Exception(output.get('message', '任务失败，请重试'))
                 else:
                     # 继续轮询，等待一段时间后再次调用
                     time.sleep(1)  # 等待 1 秒钟
                     result = self.get_result()
-
+                    print(f'Running:{result}')
         except Exception as e:
             print('get Remote Error:', str(e))
