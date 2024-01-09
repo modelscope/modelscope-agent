@@ -95,9 +95,20 @@ with demo:
         # 将发送的消息添加到聊天历史
         if 'user_agent' not in _state:
             init_user(_state)
-
+        # 将发送的消息添加到聊天历史
+        _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
-        append_files = list(map(lambda f: f.path, input.files))
+        append_files = []
+        for file in input.files:
+            file_name = os.path.basename(file.path)
+            # covert xxx.json to xxx_uuid_str.json
+            file_name = file_name.replace('.', f'_{_uuid_str}.')
+            file_path = os.path.join(get_ci_dir(), file_name)
+            if not os.path.exists(file_path):
+                # make sure file path's directory exists
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                shutil.copy(file.path, file_path)
+            append_files.append(file_path)
         chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             user_chatbot: chatbot,
@@ -141,12 +152,12 @@ with demo:
             chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-            gr.on([user_chatbot_input.submit],
-                  fn=send_message,
-                  inputs=[user_chatbot, user_chatbot_input, state],
-                  outputs=[user_chatbot, user_chatbot_input])
+    gr.on([user_chatbot_input.submit],
+          fn=send_message,
+          inputs=[user_chatbot, user_chatbot_input, state],
+          outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
-demo.queue(concurrency_count=10)
-demo.launch(show_error=True)
+demo.queue()
+demo.launch(show_error=True, max_threads=10)

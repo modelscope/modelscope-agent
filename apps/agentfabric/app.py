@@ -102,6 +102,7 @@ with demo:
                         create_chatbot = mgr.Chatbot(
                             show_label=False,
                             value=[[None, start_text]],
+                            flushing=False,
                             show_copy_button=True,
                             llm_thinking_presets=[
                                 qwen(
@@ -375,10 +376,9 @@ with demo:
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             user_chatbot:
-            mgr.Chatbot(
+            gr.update(
                 visible=False,
-                avatar_images=get_avatar_image(bot_avatar, uuid_str),
-                _force_update=True),
+                avatar_images=get_avatar_image(bot_avatar, uuid_str)),
             user_chat_bot_suggest:
             gr.Dataset(components=[preview_chat_input], samples=suggestion)
         }
@@ -443,7 +443,7 @@ with demo:
         bot_avatar, bot_avatar_path = save_avatar_image(bot_avatar, uuid_str)
         suggestions_filtered = [row for row in suggestions if row[0]]
         if len(suggestions_filtered) == 0:
-            suggestions_filtered == [['']]
+            suggestions_filtered = [['']]
         user_dir = get_user_dir(uuid_str)
         if knowledge_files is not None:
             new_knowledge_files = [
@@ -456,7 +456,6 @@ with demo:
                     shutil.copy(src_file.name, dst_file)
         else:
             new_knowledge_files = []
-
         builder_cfg = {
             'name': name,
             'avatar': bot_avatar,
@@ -511,16 +510,13 @@ with demo:
                 visible=True,
                 value=format_cover_html(builder_cfg, bot_avatar_path)),
             user_chatbot:
-            mgr.Chatbot(
+            gr.update(
                 visible=False,
-                avatar_images=get_avatar_image(bot_avatar, uuid_str),
-                _force_update=True,
-            ),
+                avatar_images=get_avatar_image(bot_avatar, uuid_str)),
+            suggestion_input: [item[:] for item in suggestions_filtered],
             user_chat_bot_suggest:
             gr.Dataset(
                 components=[preview_chat_input], samples=suggestions_filtered),
-            suggestion_input:
-            gr.DataFrame(value=suggestions_filtered)
         }
 
     # 配置 "Configure" 标签页的提交按钮功能
