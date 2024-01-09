@@ -544,6 +544,10 @@ with demo:
                 response += frame
                 chatbot[-1] = (input, response)
                 yield {user_chatbot: chatbot}
+            if len(history) == 0:
+                user_memory.update_history(
+                    Message(role='system', content=user_agent.system_prompt))
+
             user_memory.update_history([
                 Message(role='user', content=input),
                 Message(role='assistant', content=response),
