@@ -5,7 +5,6 @@ import json
 import requests
 from config_utils import DEFAULT_BUILDER_CONFIG_DIR, get_user_cfg_file
 from dashscope import ImageSynthesis
-from modelscope_agent.tools import Tool
 from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
@@ -95,7 +94,7 @@ def logo_generate_remote_call(*args, **kwargs):
     return {'result': builder_cfg}
 
 
-class LogoGeneratorTool(Tool):
+class LogoGeneratorTool:
     description = 'logo_designer是一个AI绘制logo的服务，输入用户对 CustomGPT 的要求，会生成 CustomGPT 的logo。'
     name = 'logo_designer'
     parameters: list = [{

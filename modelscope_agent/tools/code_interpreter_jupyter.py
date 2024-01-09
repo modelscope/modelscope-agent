@@ -20,8 +20,7 @@ import json
 import matplotlib
 import PIL.Image
 from jupyter_client import BlockingKernelClient
-
-from .tool import Tool
+from modelscope_agent.tools.base import BaseTool, register_tool
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
@@ -44,7 +43,8 @@ ALIB_FONT_FILE = str(
 _KERNEL_CLIENTS: Dict[int, BlockingKernelClient] = {}
 
 
-class CodeInterpreterJupyter(Tool):
+@register_tool('code_interpreter')
+class CodeInterpreterJupyter(BaseTool):
     """
         using jupyter kernel client to interpret python code,
         should not be used the other code interpreter tool at the same time

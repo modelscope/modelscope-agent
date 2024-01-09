@@ -1,6 +1,6 @@
 import pytest
 from langchain.tools import ShellTool
-from modelscope_agent.tools.plugin_tool import LangchainTool
+from modelscope_agent.tools.langchain_tool import LangchainTool
 
 
 def test_is_langchain_tool():
@@ -18,5 +18,6 @@ def test_run_langchin_tool():
     res = shell_tool.call(input)
     print(res)
     assert res == 'Hello World!\n'
+
 
 test_run_langchin_tool()

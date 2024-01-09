@@ -4,7 +4,7 @@ import re
 import json
 from config_utils import parse_configuration
 from help_tools import config_conversion, logo_generate_remote_call
-from modelscope_agent.prompts import AgentBuilder
+from modelscope_agent.agents import AgentBuilder
 from modelscope_agent.utils.logger import agent_logger as logger
 
 LOGO_TOOL_NAME = 'logo_designer'

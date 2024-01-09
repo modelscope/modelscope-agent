@@ -17,6 +17,7 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import ChatBot, format_cover_html, format_goto_publish_html
 from i18n import I18n
+from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
@@ -26,9 +27,10 @@ from user_core import init_user_chatbot_agent
 def init_user(uuid_str, state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent(uuid_str)
+        user_agent, user_memory = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
+        state['user_memory'] = user_memory
     except Exception as e:
         logger.error(
             uuid=uuid_str,
@@ -518,12 +520,13 @@ with demo:
     # 配置 "Preview" 的消息发送功能
     def preview_send_message(chatbot, input, _state, uuid_str):
         # 将发送的消息添加到聊天历史
-        _uuid_str = check_uuid(uuid_str)
+        # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
-        if 'new_file_paths' in _state:
-            new_file_paths = _state['new_file_paths']
-        else:
-            new_file_paths = []
+        user_memory = _state['user_memory']
+        # if 'new_file_paths' in _state:
+        #     new_file_paths = _state['new_file_paths']
+        # else:
+        #     new_file_paths = []
         _state['new_file_paths'] = []
 
         chatbot.append((input, ''))
@@ -532,30 +535,19 @@ with demo:
             user_chat_bot_cover: gr.HTML.update(visible=False),
             preview_chat_input: gr.Textbox.update(value='')
         }
+        history = user_memory.get_history()
 
         response = ''
         try:
-            for frame in user_agent.stream_run(
-                    input,
-                    print_info=True,
-                    remote=False,
-                    append_files=new_file_paths,
-                    uuid=_uuid_str):
-                llm_result = frame.get('llm_text', '')
-                exec_result = frame.get('exec_result', '')
-                if len(exec_result) != 0:
-                    # action_exec_result
-                    if isinstance(exec_result, dict):
-                        exec_result = str(exec_result['result'])
-                    frame_text = f'<result>{exec_result}</result>'
-                else:
-                    # llm result
-                    frame_text = llm_result
-
+            for frame in user_agent.run(input, history=history):
                 # important! do not change this
-                response += frame_text
+                response += frame
                 chatbot[-1] = (input, response)
                 yield {user_chatbot: chatbot}
+            user_memory.update_history([
+                Message(role='user', content=input),
+                Message(role='assistant', content=response),
+            ])
         except Exception as e:
             if 'dashscope.common.error.AuthenticationError' in str(e):
                 msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \

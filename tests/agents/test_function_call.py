@@ -1,4 +1,4 @@
-from modelscope_agent.prompts.function_calling import FunctionCalling
+from modelscope_agent.agents.function_calling import FunctionCalling
 
 llm_config = {'model': 'qwen-max', 'model_server': 'openai'}
 

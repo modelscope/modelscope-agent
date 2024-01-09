@@ -1,4 +1,4 @@
-from modelscope_agent.prompts.role_play import RolePlay  # NOQA
+from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
 role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
 

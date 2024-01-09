@@ -26,7 +26,7 @@ i18n = {
     'form_model': ['模型', 'Model'],
     'form_agent_language': ['Agent 语言', 'Agent Language'],
     'form_prompt_suggestion':
-    ['推荐提示词，双击行可修改', 'prompts suggestion，double click to modify'],
+    ['推荐提示词，双击行可修改', 'agents suggestion，double click to modify'],
     'form_knowledge': ['知识库', 'Knowledge Base'],
     'form_capabilities': ['内置能力', 'Capabilities'],
     'form_update_button': ['更新配置', 'Update Configuration'],

@@ -1,4 +1,4 @@
-from modelscope_agent.prompts.agent_builder import AgentBuilder
+from modelscope_agent.agents.agent_builder import AgentBuilder
 
 llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 

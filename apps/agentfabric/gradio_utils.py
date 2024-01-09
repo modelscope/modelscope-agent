@@ -3,15 +3,39 @@ import base64
 import html
 import os
 import re
+from typing import Dict, Tuple
 from urllib import parse
 
 import json
 import markdown
 from gradio.components import Chatbot as ChatBotBase
-from modelscope_agent.action_parser import MRKLActionParser
-from PIL import Image
 
 ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
+
+
+def parse_action_response(response: str) -> Tuple[str, Dict]:
+    """parse response of llm to get tool name and parameters
+
+    Args:
+        response (str): llm response, it should conform to some predefined format
+
+    Returns:
+        tuple[str, dict]: tuple of tool name and parameters
+    """
+
+    if 'Action' not in response or 'Action Input:' not in response:
+        return None, None
+    action, action_para = '', ''
+
+    # use regular expression to get result from MRKL format
+    re_pattern1 = re.compile(pattern=r'Action:([\s\S]+)Action Input:([\s\S]+)')
+    res = re_pattern1.search(response)
+    action = res.group(1).strip()
+    action_para = res.group(2)
+
+    parameters = json.loads(action_para.replace('\n', ''))
+
+    return action, parameters
 
 
 # 图片本地路径转换为 base64 格式
@@ -158,8 +182,7 @@ class ChatBot(ChatBotBase):
                     r'Action:([\s\S]+)Action Input:([\s\S]+)<\|startofexec\|>')
                 res = re_pattern_action.search(message)
                 if res is None:
-                    action, action_parameters = MRKLActionParser(
-                    ).parse_response(message)
+                    action, action_parameters = parse_action_response(message)
                 else:
                     action = res.group(1).strip()
                     action_parameters = res.group(2)
