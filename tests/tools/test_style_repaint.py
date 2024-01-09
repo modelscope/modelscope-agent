@@ -1,9 +1,4 @@
-import os
-
-from modelscope_agent.agent import Agent
-from modelscope_agent.tools.style_repaint import StyleRepaint
-
-print(os.getcwd())
+from modelscope_agent.tools import StyleRepaint
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 

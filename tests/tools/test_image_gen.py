@@ -1,5 +1,5 @@
 from modelscope_agent.agent import Agent
-from modelscope_agent.tools.image_generation import TextToImageTool
+from modelscope_agent.tools import TextToImageTool
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
