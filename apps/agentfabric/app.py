@@ -41,8 +41,9 @@ def init_user(uuid_str, state):
 
 def init_builder(uuid_str, state):
     try:
-        builder_agent = init_builder_chatbot_agent(uuid_str)
+        builder_agent, builder_memory = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
+        state['builder_memory'] = builder_memory
     except Exception as e:
         logger.error(
             uuid=uuid_str,
@@ -457,6 +458,8 @@ with demo:
         uuid_str = check_uuid(uuid_str)
         # 将发送的消息添加到聊天历史
         builder_agent = _state['builder_agent']
+        builder_memory = _state['builder_memory']
+
         chatbot.append((input, ''))
         yield {
             create_chatbot: chatbot,
@@ -464,7 +467,10 @@ with demo:
         }
         response = ''
         for frame in gen_response_and_process(
-                builder_agent, query=input, print_info=True,
+                builder_agent,
+                query=input,
+                memory=builder_memory,
+                print_info=True,
                 uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')

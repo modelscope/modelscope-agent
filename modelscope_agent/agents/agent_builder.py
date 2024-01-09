@@ -108,6 +108,8 @@ class AgentBuilder(Agent):
         if history:
             assert history[-1][
                 'role'] != 'user', 'The history should not include the latest user query.'
+            if history[0]['role'] == 'system':
+                history = history[1:]
             messages.extend(history)
 
         # concat the new messages

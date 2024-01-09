@@ -307,15 +307,3 @@ class RolePlay(Agent):
             prompt += config['name']
 
         return prompt
-
-    def parser_observation(self, observation: str) -> Dict:
-        """
-        parse observation from streaming output
-        """
-        observation = observation.replace('\n', '')
-        observation = observation.replace('<result>', '')
-        observation = observation.replace('</result>', '')
-        observation = observation.replace('<s>', '')
-        observation = observation.replace('</s>', '')
-
-        return observation

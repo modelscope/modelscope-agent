@@ -1,10 +1,13 @@
 # flake8: noqa E501
+import os
 import re
 
 import json
-from config_utils import parse_configuration
+from config_utils import DEFAULT_UUID_HISTORY, parse_configuration
 from help_tools import config_conversion, logo_generate_remote_call
 from modelscope_agent.agents import AgentBuilder
+from modelscope_agent.memory import FileStorageMemory
+from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 
 LOGO_TOOL_NAME = 'logo_designer'
@@ -15,7 +18,7 @@ UPDATING_LOGO_STEP = '🚀Updating Logo...'
 LOGO_UPDATED_STEP = '✅Logo Updated!'
 
 
-def init_builder_chatbot_agent(uuid_str: str):
+def init_builder_chatbot_agent(uuid_str: str, session='default'):
     # read config
     # Todo: how to load the config?
     builder_cfg, model_cfg, _, _, _, _ = parse_configuration(uuid_str)
@@ -28,18 +31,23 @@ def init_builder_chatbot_agent(uuid_str: str):
 
     agent = AgentBuilder(llm=llm_config)
 
-    return agent
+    current_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
+                                        session + '_builder.json')
+    memory = FileStorageMemory(path=current_history_path)
+
+    return agent, memory
 
 
 def gen_response_and_process(agent,
                              query: str,
+                             memory: FileStorageMemory,
                              uuid_str: str,
                              print_info: bool = False):
     """
     process the response of one QA for the agent
     this need be in an agent, but the response format is not Union[str, Iterator[str]]
     """
-    history = agent.messages
+    history = memory.get_history()
     llm_result = ''
     llm_result_prefix = ''
     try:
@@ -57,6 +65,14 @@ def gen_response_and_process(agent,
                 result.update({'step': UPDATING_CONFIG_STEP})
             yield result
 
+        # update memory
+        if len(history) == 0:
+            memory.update_history(
+                Message(role='system', content=agent.system_prompt))
+        memory.update_history([
+            Message(role='user', content=query),
+            Message(role='assistant', content=llm_result),
+        ])
         if print_info:
             logger.info(
                 uuid=uuid_str,
