@@ -21,12 +21,13 @@ class MemoryProxyAgent(FileStorageMemory, Agent):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  **kwargs):
-        super(FileStorageMemory, self).__init__(
+        FileStorageMemory.__init__(self, path=kwargs.get('memory_path', None))
+        Agent.__init__(
+            self,
             function_list=function_list,
             llm=llm,
             name=name,
-            description=description,
-            path=kwargs.get('memory_path', None))
+            description=description)
 
         self.db = DocumentStorage(storage_path)
 

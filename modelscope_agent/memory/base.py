@@ -9,6 +9,8 @@ from pydantic import ConfigDict
 
 class BaseMemory(AgentHolder):
 
+    model_config = ConfigDict(extra='allow')
+
     @abstractmethod
     def dump(self, data):
         pass

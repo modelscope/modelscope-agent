@@ -546,10 +546,9 @@ with demo:
         history = user_memory.get_history()
 
         # get long term memory knowledge, currently get one file
-        if len(new_file_paths) == 0:
-            uploaded_file = None
-        else:
-            uploaded_file = new_file_paths[0],
+        uploaded_file = None
+        if len(new_file_paths) > 0:
+            uploaded_file = new_file_paths[0]
         ref_doc = user_memory.run(query=input, url=uploaded_file, checked=True)
 
         response = ''

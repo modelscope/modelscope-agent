@@ -5,6 +5,7 @@ from .dashscope_tools.image_generation import TextToImageTool
 from .dashscope_tools.qwen_vl import QWenVL
 from .dashscope_tools.style_repaint import StyleRepaint
 from .dashscope_tools.wordart_tool import WordArtTexture
+from .doc_parser import DocParser
 from .langchain_proxy_tool import LangchainTool
 from .modelscope_tools.pipeline_tool import ModelscopePipelineTool
 from .modelscope_tools.text_to_speech_tool import TexttoSpeechTool

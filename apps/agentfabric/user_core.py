@@ -38,7 +38,7 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     memory_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
                                        session + '_user.json')
     memory = MemoryProxyAgent(
-        function_list=function_list,
+        function_list=['doc_parser'],
         llm=llm_config,
         storage_path=storage_path,
         memory_path=memory_history_path)
