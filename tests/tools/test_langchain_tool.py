@@ -1,6 +1,6 @@
 import pytest
 from langchain.tools import ShellTool
-from modelscope_agent.tools.langchain_tool import LangchainTool
+from modelscope_agent.tools.langchain_proxy_tool import LangchainTool
 
 
 def test_is_langchain_tool():

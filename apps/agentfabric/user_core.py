@@ -1,9 +1,10 @@
 import os.path
 from typing import List
 
-from config_utils import DEFAULT_UUID_HISTORY, parse_configuration
+from config_utils import (DEFAULT_UUID_HISTORY, get_user_dir,
+                          parse_configuration)
 from modelscope_agent.agents.role_play import RolePlay
-from modelscope_agent.memory import FileStorageMemory
+from modelscope_agent.memory import FileStorageMemory, MemoryProxyAgent
 from modelscope_agent.tools.base import TOOL_REGISTRY
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
 from modelscope_agent.utils.logger import agent_logger as logger
@@ -33,9 +34,18 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     agent = RolePlay(function_list=function_list, llm=llm_config)
 
     # build memory
-    current_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
-                                        session + '_user.json')
-    memory = FileStorageMemory(path=current_history_path)
+    storage_path = get_user_dir(uuid_str)
+    memory_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
+                                       session + '_user.json')
+    memory = MemoryProxyAgent(
+        function_list=function_list,
+        llm=llm_config,
+        storage_path=storage_path,
+        memory_path=memory_history_path)
+
+    # memory knowledge
+    for knowledge in builder_cfg.knowledge:
+        memory.run(None, knowledge)
 
     return agent, memory
 

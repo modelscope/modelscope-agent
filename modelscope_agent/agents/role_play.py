@@ -142,8 +142,15 @@ class RolePlay(Agent):
         self.system_prompt = ''
         self.query_prefix = ''
         self.query_prefix_dict = {'role': '', 'tool': '', 'knowledge': ''}
+        append_files = kwargs.get('append_files', [])
+
+        # code interpreter might be not work with ref_doc at the same time, comment on 2024-01-10
+        use_ref_doc = True
+        if len(append_files) > 0 and 'code_interpreter' in self.function_map:
+            use_ref_doc = False
+
         # concat knowledge
-        if ref_doc:
+        if ref_doc and use_ref_doc:
             self.system_prompt += KNOWLEDGE_TEMPLATE[lang].format(
                 ref_doc=ref_doc)
             self.query_prefix_dict[
@@ -174,7 +181,7 @@ class RolePlay(Agent):
         self.query_prefix += self.query_prefix_dict['tool']
         self.query_prefix += self.query_prefix_dict['knowledge']
         self.query_prefix += ')'
-        append_files = kwargs.get('append_files', [])
+
         if len(append_files) > 0:
             file_names = ','.join(
                 [os.path.basename(path) for path in append_files])

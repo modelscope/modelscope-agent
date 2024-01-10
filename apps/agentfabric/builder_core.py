@@ -105,14 +105,6 @@ def gen_response_and_process(agent,
         logger.error(uuid=uuid_str, error=str(e))
         yield {'error content=[{}]'.format(llm_result)}
         return
-    agent.messages.append({
-        'role': 'user',
-        'content': query,
-    })
-    agent.messages.append({
-        'role': 'assistant',
-        'content': llm_result,
-    })
 
     if 'logo_prompt' in answer:
         if not history or answer['logo_prompt'] not in history[-1]['content']:
