@@ -1,3 +1,5 @@
+from typing import Union
+import traceback
 from collections import defaultdict
 
 from modelscope.utils.constant import Tasks
@@ -11,22 +13,25 @@ class TextInfoExtractTool(ModelscopePipelineTool):
     parameters: list = [{
         'name': 'input',
         'description': '用户输入的文本',
-        'required': True
+        'required': True,
+        'type': 'string'
     }, {
         'name': 'schema',
         'description': '要抽取信息的json表示',
-        'required': True
+        'required': True,
+        'type': 'dict'
     }]
-    task = Tasks.siamese_uie
 
-    def _remote_parse_input(self, *args, **kwargs):
-        kwargs['parameters'] = {'schema': kwargs['schema']}
-        kwargs.pop('schema')
-        return kwargs
+    def call(self, params: str, **kwargs) -> str:
+        result = super().call(params, **kwargs)
+        InfoExtract = defaultdict(list)
+        for e in result['Data']['output']:
+            InfoExtract[e[0]['type']].append(e[0]['span'])
+        return str(dict(InfoExtract))
+    
+    def _verify_args(self, params: str) -> Union[str, dict]:
+        params = super()._verify_args(params)
+        params['parameters'] = {'schema': params['schema']}
+        params.pop('schema')
+        return params
 
-    def _parse_output(self, origin_result, *args, **kwargs):
-        final_result = defaultdict(list)
-        for e in origin_result['output']:
-            final_result[e[0]['type']].append(e[0]['span'])
-
-        return {'result': dict(final_result)}
