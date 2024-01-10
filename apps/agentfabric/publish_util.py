@@ -171,7 +171,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
                 'BING_SEARCH_V7_SUBSCRIPTION_KEY'] = 'Yor-BingSearch-KEY'
         elif t in ['speech-generation', 'video-generation'
                    ] and t_cfg['is_active'] and t_cfg['use']:
-            envs_required['MODELSCOPE_API_KEY'] = 'Your-MODELSCOPE-API-KEY'
+            envs_required['MODELSCOPE_API_TOKEN'] = 'Your-MODELSCOPE_API_TOKEN'
 
     return file_url, envs_required
 
