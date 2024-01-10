@@ -34,7 +34,7 @@ other options to incorporate (and compare) more LLMs via API, as well as via nat
 Simply clone the repo and install dependency.
 ```bash
 git clone https://github.com/modelscope/modelscope-agent.git
-cd modelscope-agent  && pip install -r requirements.txt && pip install -r demo/agentfabric/requirements.txt
+cd modelscope-agent  && pip install -r requirements.txt && pip install -r apps/agentfabric/requirements.txt
 ```
 
 ## Prerequisites
@@ -47,7 +47,7 @@ cd modelscope-agent  && pip install -r requirements.txt && pip install -r demo/a
 ```bash
 export PYTHONPATH=$PYTHONPATH:/path/to/your/modelscope-agent
 export DASHSCOPE_API_KEY=your_api_key
-cd modelscope-agent/demo/agentfabric
+cd modelscope-agent/apps/agentfabric
 python app.py
 ```
 

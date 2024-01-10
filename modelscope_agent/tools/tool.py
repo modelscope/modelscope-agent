@@ -6,8 +6,6 @@ import requests
 from pydantic import BaseModel, ValidationError
 from requests.exceptions import RequestException, Timeout
 
-MODELSCOPE_API_TOKEN = os.getenv('MODELSCOPE_API_TOKEN')
-
 MAX_RETRY_TIMES = 3
 
 
@@ -44,10 +42,6 @@ class Tool:
         # remote call
         self.url = self.cfg.get('url', '')
         self.token = self.cfg.get('token', '')
-        self.header = {
-            'Authorization': self.token or f'Bearer {MODELSCOPE_API_TOKEN}'
-        }
-
         try:
             all_para = {
                 'name': self.name,
@@ -76,6 +70,10 @@ class Tool:
         remote_parsed_input = json.dumps(
             self._remote_parse_input(*args, **kwargs))
 
+        MODELSCOPE_API_TOKEN = os.getenv('MODELSCOPE_API_TOKEN')
+        self.header = {
+            'Authorization': self.token or f'Bearer {MODELSCOPE_API_TOKEN}'
+        }
         origin_result = None
         retry_times = MAX_RETRY_TIMES
         while retry_times:

@@ -7,7 +7,7 @@ from .pipeline_tool import ModelscopePipelineTool
 class TextNerTool(ModelscopePipelineTool):
     default_model = 'damo/nlp_raner_named-entity-recognition_chinese-base-news'
     description = '命名实体识别服务，针对需要识别的中文文本，找出其中的实体，返回json格式结果'
-    name = 'modelscope_text-ner'
+    name = 'text-ner'
     parameters: list = [{
         'name': 'input',
         'description': '用户输入的文本',

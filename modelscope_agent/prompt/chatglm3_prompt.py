@@ -33,7 +33,8 @@ class ChatGLMPromptGenerator(PromptGenerator):
             exec_template=exec_template,
             assistant_template=assistant_template,
             sep=sep,
-            length_constraint=length_constraint)
+            length_constraint=length_constraint,
+            **kwargs)
 
     def get_tool_str(self, tool_list):
         tool_json = json.loads('['

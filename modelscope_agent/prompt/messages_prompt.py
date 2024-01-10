@@ -43,7 +43,8 @@ class MessagesGenerator(PromptGenerator):
             exec_template=exec_template,
             assistant_template=assistant_template,
             sep=sep,
-            length_constraint=length_constraint)
+            length_constraint=length_constraint,
+            **kwargs)
         self.custom_starter_messages = kwargs.get('custom_starter_messages',
                                                   None)
 

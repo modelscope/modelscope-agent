@@ -37,8 +37,7 @@ class PromptGeneratorFactory:
             prompt_generator = cls._get_model_default_type(
                 model, language, uuid)
             if prompt_generator:
-                return cls._string_to_obj(
-                    prompt_generator, llm=model, **kwargs)
+                return prompt_generator(llm=model, **kwargs)
 
         return cls._get_prompt_generator_by_agent_type(
             agent_type, llm=model, **kwargs)

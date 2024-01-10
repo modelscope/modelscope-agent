@@ -66,10 +66,10 @@ Notebook环境使用简单，您只需要按以下步骤操作（注意：目前
 
 ```Python
 import os
+
 from modelscope.utils.config import Config
 from modelscope_agent.llm import LLMFactory
 from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.prompt import MSPromptGenerator
 
 # get cfg from file, refer the example in config folder
 model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
@@ -78,23 +78,28 @@ tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
 tool_cfg = Config.from_file(tool_cfg_file)
 
 # instantiation LLM
-model_name = 'modelscope-agent-7b'
+model_name = 'qwen-72b'
+
+print('To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
+os.environ['DASHSCOPE_API_KEY'] = input()
+
 llm = LLMFactory.build_llm(model_name, model_cfg)
 
-# prompt generator
-prompt_generator = MSPromptGenerator()
-
 # instantiation agent
-agent = AgentExecutor(llm, tool_cfg, prompt_generator=prompt_generator)
+
+agent = AgentExecutor(llm, tool_cfg)
 ```
 
 - 单步 & 多步工具使用
 
 ```Python
 # Single-step tool-use
-agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
+agent.run("I want to see cute kittens", remote=True)
 
 # Multi-step tool-use
+print('The built-in voice generation and video generation capabilities are deployed in mdoelscope. You need to enter the ModelScope Token, which can be obtained from here: https://modelscope.cn/my/myaccesstoken')
+os.environ['MODELSCOPE_API_TOKEN'] = input()
+
 agent.reset()
 agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声读出来，同时生成个视频看看', remote=True)
 ```
