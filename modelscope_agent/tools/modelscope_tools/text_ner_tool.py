@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -22,8 +21,3 @@ class TextNerTool(ModelscopePipelineTool):
             ner[e['type']].append(e['span'])
         return str(dict(ner))
 
-    # def _parse_output(self, origin_result, *args, **kwargs):
-    #     final_result = defaultdict(list)
-    #     for e in origin_result['output']:
-    #         final_result[e['type']].append(e['span'])
-    #     return {'result': dict(final_result)}

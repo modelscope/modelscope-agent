@@ -1,4 +1,3 @@
-from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -20,8 +19,3 @@ class TextAddressTool(ModelscopePipelineTool):
             address[e['type']] = e['span']
         return address
 
-    # def _parse_output(self, origin_result, *args, **kwargs):
-    #     final_result = {}
-    #     for e in origin_result['output']:
-    #         final_result[e['type']] = e['span']
-    #     return {'result': final_result}

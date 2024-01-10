@@ -1,8 +1,6 @@
 from typing import Union
-import traceback
 from collections import defaultdict
 
-from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
