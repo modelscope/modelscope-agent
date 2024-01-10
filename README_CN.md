@@ -19,7 +19,7 @@
 - **开源LLMs作为核心组件**：支持在 ModelScope 社区的多个开源LLMs上进行模型训练。
 - **多样化且全面的API**：以统一的方式实现与模型API和常见的功能API的无缝集成。
 
-![图片](resource/modelscope-agent.png)
+![图片](resources/modelscope-agent.png)
 
 为了赋予LLMs工具使用能力，提出了一个全面的框架，涵盖了数据收集、工具检索、工具注册、存储管理、定制模型训练和实际应用的方方面面。
 
@@ -106,8 +106,8 @@ agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
-  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
 </div>
 
 - 多轮工具使用和知识问答
@@ -121,8 +121,8 @@ agent.run('给这个故事配一张图', remote=True)
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
-  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
 </div>
 
 ### 主要组件
@@ -292,7 +292,7 @@ ds = MsDataset.load('damo/MSAgent-Bench', split='train')
 one_ds = next(iter(ds))
 ```
 
-![image](resource/MSAgent-Bench.png)
+![image](resources/MSAgent-Bench.png)
 
 ### 训练微调
 
