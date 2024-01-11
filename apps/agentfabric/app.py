@@ -587,7 +587,7 @@ with demo:
                     history=history,
                     ref_doc=ref_doc,
                     append_files=append_files):
-                    # append_files=new_file_paths):
+                # append_files=new_file_paths):
                 # important! do not change this
                 response += frame
                 chatbot[-1] = (input, response)

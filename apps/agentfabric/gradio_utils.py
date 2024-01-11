@@ -126,4 +126,3 @@ def postprocess_messages(
             bot_message,
         ])
     return processed_messages
-
