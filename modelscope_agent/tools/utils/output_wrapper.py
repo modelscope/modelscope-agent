@@ -7,7 +7,6 @@ from typing import Dict, Union
 import json
 import numpy as np
 import requests
-# from modelscope_agent.agent_types import AgentType
 from moviepy.editor import VideoFileClip
 from PIL import Image
 from requests.exceptions import RequestException
@@ -166,11 +165,13 @@ def get_raw_output(exec_result: Dict):
 
 
 #
+#
+# #
 # def display(llm_result: Union[str, dict], exec_result: Dict, idx: int,
 #             agent_type: AgentType):
 #     """Display the result of each round in jupyter notebook.
 #     The multi-modal data will be extracted.
-
+#
 #     Args:
 #         llm_result (str): llm result either only content or a message
 #         exec_result (Dict): exec result
@@ -179,15 +180,15 @@ def get_raw_output(exec_result: Dict):
 #     from IPython.display import display, Pretty, Image, Audio, JSON
 #     idx_info = '*' * 50 + f'round {idx}' + '*' * 50
 #     display(Pretty(idx_info))
-
+#
 #     if isinstance(llm_result, dict):
 #         llm_result = llm_result.get('content', '')
-
+#
 #     if agent_type == AgentType.MS_AGENT:
 #         pattern = r'<\|startofthink\|>```JSON([\s\S]*)```<\|endofthink\|>'
 #     else:
 #         pattern = r'```JSON([\s\S]*)```'
-
+#
 #     match_action = re.search(pattern, llm_result)
 #     if match_action:
 #         result = match_action.group(1)
@@ -197,11 +198,11 @@ def get_raw_output(exec_result: Dict):
 #             llm_result = llm_result.replace(match_action.group(0), '')
 #         except Exception:
 #             pass
-
+#
 #     display(Pretty(llm_result))
-
+#
 #     exec_result = exec_result.get('result', '')
-
+#
 #     if isinstance(exec_result, ImageWrapper) or isinstance(
 #             exec_result, VideoWrapper):
 #         display(Image(exec_result.path))
@@ -213,5 +214,5 @@ def get_raw_output(exec_result: Dict):
 #         display(JSON(exec_result))
 #     else:
 #         display(Pretty(exec_result))
-
+#
 #     return
