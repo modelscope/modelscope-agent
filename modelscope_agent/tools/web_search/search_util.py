@@ -1,14 +1,19 @@
 import os
 from enum import Enum
 
+from pydantic import BaseModel, model_validator
 
-class SearchResult:
 
-    def __init__(self, title=None, link=None, sniper=None):
-        assert link or sniper
-        self.title = title
-        self.link = link
-        self.sniper = sniper
+class SearchResult(BaseModel):
+    title: str
+    link: str = None
+    sniper: str = None
+
+    @model_validator(mode='before')
+    def validate_values(self):
+        if self['link'] is None and self['sniper'] is None:
+            raise ValueError('Either link or sniper must be provided.')
+        return self
 
 
 class AuthenticationKey(Enum):

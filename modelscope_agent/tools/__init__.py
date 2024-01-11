@@ -1,5 +1,5 @@
 from .amap_weather import AMAPWeather
-from .base import TOOL_REGISTRY, BaseTool
+from .base import TOOL_REGISTRY, BaseTool, register_tool
 from .code_interpreter import CodeInterpreter
 from .dashscope_tools.image_generation import TextToImageTool
 from .dashscope_tools.qwen_vl import QWenVL
@@ -12,6 +12,8 @@ from .modelscope_tools.text_to_speech_tool import TexttoSpeechTool
 from .openapi_plugin import OpenAPIPluginTool
 from .similarity_search import SimilaritySearch
 from .storage_proxy_tool import Storage
+from .web_browser import WebBrowser
+from .web_search import WebSearch
 
 
 def call_tool(plugin_name: str, plugin_args: str) -> str:
@@ -21,4 +23,4 @@ def call_tool(plugin_name: str, plugin_args: str) -> str:
         raise NotImplementedError
 
 
-__all__ = ['BaseTool', 'TOOL_REGISTRY']
+__all__ = ['BaseTool', 'TOOL_REGISTRY', 'register_tool']
