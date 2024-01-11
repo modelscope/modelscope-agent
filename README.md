@@ -19,7 +19,7 @@
 - **opensourced LLMs as controllers**: support model training on multiple open-source LLMs of ModelScope Community
 - **Diversified and Comprehensive APIs**: enabling seamless integration with both model APIs and common APIs in a unified way.
 
-![image](resource/modelscope-agent.png)
+![image](resources/modelscope-agent.png)
 
 To equip the LLMs with tool-use abilities, a comprehensive framework has been proposed spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
 
@@ -102,8 +102,8 @@ agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
-  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
 </div>
 
 - Multi-turn tool-use and knowledge-qa
@@ -117,8 +117,8 @@ agent.run('给这个故事配一张图', remote=True)
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
-  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
 </div>
 
 
@@ -280,7 +280,7 @@ ds = MsDataset.load('damo/MSAgent-Bench', split='train')
 one_ds = next(iter(ds))
 ```
 
-![image](resource/MSAgent-Bench.png)
+![image](resources/MSAgent-Bench.png)
 
 ### Training
 

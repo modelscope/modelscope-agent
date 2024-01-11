@@ -1,2 +1,2 @@
 from .base import BaseMemory, FileStorageMemory
-from .memory_by_agent import MemoryByAgent
+from .memory_proxy_agent import MemoryProxyAgent

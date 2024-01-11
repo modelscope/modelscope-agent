@@ -4,9 +4,12 @@ from typing import Iterable, List, Union
 
 import json
 from modelscope_agent.schemas import AgentHolder, Message
+from pydantic import ConfigDict
 
 
 class BaseMemory(AgentHolder):
+
+    model_config = ConfigDict(extra='allow')
 
     @abstractmethod
     def dump(self, data):

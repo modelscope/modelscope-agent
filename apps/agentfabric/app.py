@@ -529,10 +529,10 @@ with demo:
         # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
         user_memory = _state['user_memory']
-        # if 'new_file_paths' in _state:
-        #     new_file_paths = _state['new_file_paths']
-        # else:
-        #     new_file_paths = []
+        if 'new_file_paths' in _state:
+            new_file_paths = _state['new_file_paths']
+        else:
+            new_file_paths = []
         _state['new_file_paths'] = []
 
         chatbot.append((input, ''))
@@ -541,11 +541,23 @@ with demo:
             user_chat_bot_cover: gr.HTML.update(visible=False),
             preview_chat_input: gr.Textbox.update(value='')
         }
+
+        # get short term memory history
         history = user_memory.get_history()
+
+        # get long term memory knowledge, currently get one file
+        uploaded_file = None
+        if len(new_file_paths) > 0:
+            uploaded_file = new_file_paths[0]
+        ref_doc = user_memory.run(query=input, url=uploaded_file, checked=True)
 
         response = ''
         try:
-            for frame in user_agent.run(input, history=history):
+            for frame in user_agent.run(
+                    input,
+                    history=history,
+                    ref_doc=ref_doc,
+                    append_files=new_file_paths):
                 # important! do not change this
                 response += frame
                 chatbot[-1] = (input, response)
