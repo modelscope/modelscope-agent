@@ -18,6 +18,7 @@ DEFAULT_MODEL_CONFIG_FILE = './config/model_config.json'
 DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
                                          '/tmp/ci_workspace')
+DEFAULT_UUID_HISTORY = os.path.join(DEFAULT_AGENT_DIR, 'history')
 
 
 def get_user_dir(uuid_str=''):

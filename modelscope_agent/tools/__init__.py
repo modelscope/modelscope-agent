@@ -1,40 +1,24 @@
 from .amap_weather import AMAPWeather
-from .code_interperter import CodeInterpreter
-from .code_interpreter_jupyter import CodeInterpreterJupyter
-from .hf_tool import HFTool
-from .image_chat_tool import ImageChatTool
-from .pipeline_tool import ModelscopePipelineTool
-from .plugin_tool import LangchainTool
-from .qwen_vl import QWenVL
-from .style_repaint import StyleRepaint
-from .text_address_tool import TextAddressTool
-from .text_ie_tool import TextInfoExtractTool
-from .text_ner_tool import TextNerTool
-from .text_to_image_tool import TextToImageTool
-from .text_to_speech_tool import TexttoSpeechTool
-from .text_to_video_tool import TextToVideoTool
-from .tool import Tool
-from .translation_en2zh_tool import TranslationEn2ZhTool
-from .translation_zh2en_tool import TranslationZh2EnTool
-from .web_browser import WebBrowser
-from .web_search import WebSearch
-from .wordart_tool import WordArtTexture
+from .base import TOOL_REGISTRY, BaseTool
+from .code_interpreter import CodeInterpreter
+from .dashscope_tools.image_generation import TextToImageTool
+from .dashscope_tools.qwen_vl import QWenVL
+from .dashscope_tools.style_repaint import StyleRepaint
+from .dashscope_tools.wordart_tool import WordArtTexture
+from .doc_parser import DocParser
+from .langchain_proxy_tool import LangchainTool
+from .modelscope_tools.pipeline_tool import ModelscopePipelineTool
+from .modelscope_tools.text_to_speech_tool import TexttoSpeechTool
+from .openapi_plugin import OpenAPIPluginTool
+from .similarity_search import SimilaritySearch
+from .storage_proxy_tool import Storage
 
-TOOL_INFO_LIST = {
-    'modelscope_text-translation-zh2en': 'TranslationZh2EnTool',
-    'modelscope_text-translation-en2zh': 'TranslationEn2ZhTool',
-    'modelscope_text-ie': 'TextInfoExtractTool',
-    'modelscope_text-ner': 'TextNerTool',
-    'modelscope_text-address': 'TextAddressTool',
-    'image_gen': 'TextToImageTool',
-    'modelscope_video-generation': 'TextToVideoTool',
-    'modelscope_image-chat': 'ImageChatTool',
-    'modelscope_speech-generation': 'TexttoSpeechTool',
-    'amap_weather': 'AMAPWeather',
-    'code_interpreter': 'CodeInterpreterJupyter',
-    'wordart_texture_generation': 'WordArtTexture',
-    'web_search': 'WebSearch',
-    'web_browser': 'WebBrowser',
-    'qwen_vl': 'QWenVL',
-    'style_repaint': 'StyleRepaint',
-}
+
+def call_tool(plugin_name: str, plugin_args: str) -> str:
+    if plugin_name in TOOL_REGISTRY:
+        return TOOL_REGISTRY[plugin_name].call(plugin_args)
+    else:
+        raise NotImplementedError
+
+
+__all__ = ['BaseTool', 'TOOL_REGISTRY']

@@ -8,7 +8,9 @@ import gradio as gr
 import json
 import modelscope_gradio_components as mgr
 import yaml
-from builder_core import beauty_output, init_builder_chatbot_agent
+from apps.agentfabric.builder_core import (beauty_output,
+                                           gen_response_and_process,
+                                           init_builder_chatbot_agent)
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_cfg_file, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
@@ -16,6 +18,7 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
+from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
@@ -27,9 +30,10 @@ from user_core import init_user_chatbot_agent
 def init_user(uuid_str, state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent(uuid_str)
+        user_agent, user_memory = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
+        state['user_memory'] = user_memory
     except Exception as e:
         logger.error(
             uuid=uuid_str,
@@ -40,8 +44,9 @@ def init_user(uuid_str, state):
 
 def init_builder(uuid_str, state):
     try:
-        builder_agent = init_builder_chatbot_agent(uuid_str)
+        builder_agent, builder_memory = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
+        state['builder_memory'] = builder_memory
     except Exception as e:
         logger.error(
             uuid=uuid_str,
@@ -387,14 +392,20 @@ with demo:
         uuid_str = check_uuid(uuid_str)
         # 将发送的消息添加到聊天历史
         builder_agent = _state['builder_agent']
-        chatbot.append([{'text': input.text, 'files': input.files}, None])
+        builder_memory = _state['builder_memory']
+
+        chatbot.append((input, ''))
         yield {
             create_chatbot: chatbot,
             create_chat_input: None,
         }
         response = ''
-        for frame in builder_agent.stream_run(
-                input.text, print_info=True, uuid_str=uuid_str):
+        for frame in gen_response_and_process(
+                builder_agent,
+                query=input,
+                memory=builder_memory,
+                print_info=True,
+                uuid_str=uuid_str):
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
@@ -536,8 +547,9 @@ with demo:
 
     # 配置 "Preview" 的消息发送功能
     def preview_send_message(chatbot, input, _state, uuid_str):
+        print(f'====> input:{input}, _state:{_state}')
         # 将发送的消息添加到聊天历史
-        _uuid_str = check_uuid(uuid_str)
+        # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
         append_files = []
         for file in input.files:
@@ -550,6 +562,7 @@ with demo:
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 shutil.copy(file.path, file_path)
             append_files.append(file_path)
+        user_memory = _state['user_memory']
 
         chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
@@ -558,29 +571,35 @@ with demo:
             preview_chat_input: None
         }
 
+        # get short term memory history
+        history = user_memory.get_history()
+
+        # get long term memory knowledge, currently get one file
+        uploaded_file = None
+        if len(append_files) > 0:
+            uploaded_file = append_files[0]
+        ref_doc = user_memory.run(query=input, url=uploaded_file, checked=True)
+
         response = ''
         try:
-            for frame in user_agent.stream_run(
+            for frame in user_agent.run(
                     input.text,
-                    print_info=True,
-                    remote=False,
-                    append_files=append_files,
-                    uuid=_uuid_str):
-                llm_result = frame.get('llm_text', '')
-                exec_result = frame.get('exec_result', '')
-                if len(exec_result) != 0:
-                    # action_exec_result
-                    if isinstance(exec_result, dict):
-                        exec_result = str(exec_result['result'])
-                    frame_text = f'<result>{exec_result}</result>'
-                else:
-                    # llm result
-                    frame_text = llm_result
-
+                    history=history,
+                    ref_doc=ref_doc,
+                    append_files=append_files):
+                    # append_files=new_file_paths):
                 # important! do not change this
-                response += frame_text
-                chatbot[-1][1] = response
+                response += frame
+                chatbot[-1] = (input, response)
                 yield {user_chatbot: chatbot}
+            if len(history) == 0:
+                user_memory.update_history(
+                    Message(role='system', content=user_agent.system_prompt))
+
+            user_memory.update_history([
+                Message(role='user', content=input),
+                Message(role='assistant', content=response),
+            ])
         except Exception as e:
             if 'dashscope.common.error.AuthenticationError' in str(e):
                 msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
