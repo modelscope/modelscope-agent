@@ -1,7 +1,11 @@
 from typing import Union
+
+from modelscope_agent.tools import register_tool
+
 from .pipeline_tool import ModelscopePipelineTool
 
 
+@register_tool('image-chat')
 class ImageChatTool(ModelscopePipelineTool):
     default_model = 'damo/multi-modal_mplug_owl_multimodal-dialogue_7b'
     description = '图文对话和图像描述服务，针对输入的图片和用户的文本输入，给出文本回复'
@@ -22,7 +26,7 @@ class ImageChatTool(ModelscopePipelineTool):
         result = super().call(params, **kwargs)
         image_chat = result['Data']['text']
         return image_chat
-    
+
     def _verify_args(self, params: str) -> Union[str, dict]:
         params = super()._verify_args(params)
         image = params.pop('image', '')
@@ -49,4 +53,3 @@ class ImageChatTool(ModelscopePipelineTool):
         }
         params = {'input': messages}
         return params
-

@@ -216,4 +216,3 @@ def get_raw_output(exec_result: Dict):
 #         display(Pretty(exec_result))
 #
 #     return
-
