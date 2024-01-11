@@ -394,7 +394,7 @@ with demo:
         builder_agent = _state['builder_agent']
         builder_memory = _state['builder_memory']
 
-        chatbot.append((input, ''))
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             create_chatbot: chatbot,
             create_chat_input: None,
@@ -402,7 +402,7 @@ with demo:
         response = ''
         for frame in gen_response_and_process(
                 builder_agent,
-                query=input,
+                query=input.text,
                 memory=builder_memory,
                 print_info=True,
                 uuid_str=uuid_str):
@@ -547,7 +547,6 @@ with demo:
 
     # 配置 "Preview" 的消息发送功能
     def preview_send_message(chatbot, input, _state, uuid_str):
-        print(f'====> input:{input}, _state:{_state}')
         # 将发送的消息添加到聊天历史
         # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
@@ -578,7 +577,7 @@ with demo:
         uploaded_file = None
         if len(append_files) > 0:
             uploaded_file = append_files[0]
-        ref_doc = user_memory.run(query=input, url=uploaded_file, checked=True)
+        ref_doc = user_memory.run(query=input.text, url=uploaded_file, checked=True)
 
         response = ''
         try:
@@ -590,14 +589,14 @@ with demo:
                 # append_files=new_file_paths):
                 # important! do not change this
                 response += frame
-                chatbot[-1] = (input, response)
+                chatbot[-1][1] = response
                 yield {user_chatbot: chatbot}
             if len(history) == 0:
                 user_memory.update_history(
                     Message(role='system', content=user_agent.system_prompt))
 
             user_memory.update_history([
-                Message(role='user', content=input),
+                Message(role='user', content=input.text),
                 Message(role='assistant', content=response),
             ])
         except Exception as e:
