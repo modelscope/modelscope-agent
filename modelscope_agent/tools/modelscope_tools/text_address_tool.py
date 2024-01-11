@@ -1,4 +1,3 @@
-from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -9,12 +8,14 @@ class TextAddressTool(ModelscopePipelineTool):
     parameters: list = [{
         'name': 'input',
         'description': '用户输入的地址信息',
-        'required': True
+        'required': True,
+        'type': 'string'
     }]
-    task = Tasks.token_classification
 
-    def _parse_output(self, origin_result, *args, **kwargs):
-        final_result = {}
-        for e in origin_result['output']:
-            final_result[e['type']] = e['span']
-        return {'result': final_result}
+    def call(self, params: str, **kwargs) -> str:
+        result = super().call(params, **kwargs)
+        address = {}
+        for e in result['Data']['output']:
+            address[e['type']] = e['span']
+        return address
+
