@@ -3,7 +3,7 @@ jieba
 json5
 jupyter>=1.0.0
 langchain
-modelscope[nlp]>=1.9.3
+modelscope>=1.9.3
 openai
 opencv-python
 Pillow
