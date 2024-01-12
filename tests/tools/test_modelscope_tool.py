@@ -12,10 +12,10 @@ def test_modelscope_speech_generation():
 
 
 def test_modelscope_video_generation():
-    from modelscope_agent.tools.modelscope_tools import TextToVideoTool
-    kwargs = """{'text': '一个正在打篮球的人'}"""
-    txt2video = TextToVideoTool(cfg)
-    res = txt2video.call(kwargs)
+    from modelscope_agent.tools import TextToVideoTool
+    params = "{'input': '一个正在打篮球的人'}"
+    video_gen = TextToVideoTool(cfg)
+    res = video_gen.call(params)
     print(res)
 
 
