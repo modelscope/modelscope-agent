@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 20
     environment: testci
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Cache Python dependencies
       uses: actions/cache@v3
