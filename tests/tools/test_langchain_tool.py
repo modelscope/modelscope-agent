@@ -4,7 +4,7 @@ from modelscope_agent.tools.langchain_proxy_tool import LangchainTool
 
 
 def test_is_langchain_tool():
-    # test this tool should only be initialized by langchain.tools.Basetool
+    # test this tool should only be initialized by langchain.tools.tool
     with pytest.raises(ValueError) as e:
         LangchainTool('mock_tool')
     exec_msg = e.value.args[0]
@@ -18,6 +18,3 @@ def test_run_langchin_tool():
     res = shell_tool.call(input)
     print(res)
     assert res == 'Hello World!\n'
-
-
-test_run_langchin_tool()
