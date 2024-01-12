@@ -5,15 +5,11 @@ cfg = Config.from_file('config/cfg_tool_template.json')
 
 def test_modelscope_speech_generation():
     from modelscope_agent.tools import TexttoSpeechTool
-    input = '北京今天天气怎样?'
-    kwargs = {'input': input, 'gender': 'man'}
+    params = "{'input': '北京今天天气怎样?', 'gender': 'man'}"
     txt2speech = TexttoSpeechTool(cfg)
-    res = txt2speech._remote_call(**kwargs)
+    res = txt2speech.call(params)
 
     print(res)
-
-
-test_modelscope_speech_generation()
 
 
 def test_modelscope_text_address():
@@ -38,10 +34,9 @@ def test_modelscope_text_ner():
 
 def test_modelscope_video_generation():
     from modelscope_agent.tools import TextToVideoTool
-    input = '一个正在打篮球的人'
-    kwargs = {'text': input}
+    params = "{'input': '一个正在打篮球的人'}"
     video_gen = TextToVideoTool(cfg)
-    res = video_gen._remote_call(**kwargs)
+    res = video_gen.call(params)
 
     print(res)
 

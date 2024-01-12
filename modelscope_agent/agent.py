@@ -88,7 +88,7 @@ class Agent(ABC):
 
         """
         tool_name = tool
-        tool_cfg = None
+        tool_cfg = {}
         if isinstance(tool, Dict):
             tool_name = tool['name']
             tool_cfg = tool
