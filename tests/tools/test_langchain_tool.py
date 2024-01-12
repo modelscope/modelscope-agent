@@ -1,5 +1,5 @@
 import pytest
-from langchain.tools import ShellTool
+from langchain_community.tools import ShellTool
 from modelscope_agent.tools.langchain_proxy_tool import LangchainTool
 
 
