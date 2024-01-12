@@ -12,9 +12,6 @@ def test_modelscope_speech_generation():
     print(res)
 
 
-test_modelscope_speech_generation()
-
-
 def test_modelscope_text_address():
     from modelscope_agent.tools import TextAddressTool
     input = '北京朝阳望京东金辉大厦'
@@ -37,10 +34,9 @@ def test_modelscope_text_ner():
 
 def test_modelscope_video_generation():
     from modelscope_agent.tools import TextToVideoTool
-    input = '一个正在打篮球的人'
-    kwargs = {'text': input}
+    params = "{'input': '一个正在打篮球的人'}"
     video_gen = TextToVideoTool(cfg)
-    res = video_gen._remote_call(**kwargs)
+    res = video_gen.call(params)
 
     print(res)
 

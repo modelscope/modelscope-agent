@@ -14,7 +14,7 @@ class TextToVideoTool(ModelscopePipelineTool):
 
     name = 'video-generation'
     parameters: list = [{
-        'name': 'text',
+        'name': 'input',
         'description': '用户输入的文本信息，仅支持英文文本描述',
         'required': True,
         'type': 'string'

@@ -8,6 +8,7 @@ import modelscope_gradio_components as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_agent.schemas import Message
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from user_core import init_user_chatbot_agent
@@ -99,6 +100,7 @@ with demo:
         # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
+        user_memory = _state['user_memory']
         append_files = []
         for file in input.files:
             file_name = os.path.basename(file.path)
@@ -116,32 +118,38 @@ with demo:
             user_chatbot_input: None,
         }
 
+        # get short term memory history
+        history = user_memory.get_history()
+
+        # get long term memory knowledge, currently get one file
+        uploaded_file = None
+        if len(append_files) > 0:
+            uploaded_file = append_files[0]
+        ref_doc = user_memory.run(query=input.text, url=uploaded_file, checked=True)
+
+
         response = ''
         try:
-            for frame in user_agent.stream_run(
+            for frame in user_agent.run(
                     input.text,
-                    print_info=True,
-                    remote=False,
+                    history=history,
+                    ref_doc=ref_doc,
                     append_files=append_files):
-                # is_final = frame.get("frame_is_final")
-                llm_result = frame.get('llm_text', '')
-                exec_result = frame.get('exec_result', '')
-                # llm_result = llm_result.split("<|user|>")[0].strip()
-                if len(exec_result) != 0:
-                    # action_exec_result
-                    if isinstance(exec_result, dict):
-                        exec_result = str(exec_result['result'])
-                    frame_text = f'<result>{exec_result}</result>'
-                else:
-                    # llm result
-                    frame_text = llm_result
 
                 # important! do not change this
-                response += frame_text
+                response += frame
                 chatbot[-1][1] = response
                 yield {
                     user_chatbot: chatbot,
                 }
+            if len(history) == 0:
+                user_memory.update_history(
+                    Message(role='system', content=user_agent.system_prompt))
+
+            user_memory.update_history([
+                Message(role='user', content=input.text),
+                Message(role='assistant', content=response),
+            ])
         except Exception as e:
             if 'dashscope.common.error.AuthenticationError' in str(e):
                 msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
