@@ -68,6 +68,4 @@ jobs:
         MODELSCOPE_API_TOKEN: ${{ secrets.MODELSCOPE_API_TOKEN }}
 
       shell: bash
-      run: |
-        set -e
-        bash .dev_scripts/dockerci.sh
+      run: bash .dev_scripts/dockerci.sh

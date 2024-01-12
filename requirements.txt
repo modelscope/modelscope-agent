@@ -10,6 +10,7 @@ opencv-python
 Pillow
 pydantic>=2.3.0
 pytest
+pytest-mock
 python-dotenv
 seaborn
 tiktoken
