@@ -18,6 +18,6 @@ def test_function_calling_method():
     assert isinstance(text, str)
     assert 'Action:' in text
     assert 'Action Input:' in text
-    assert 'Observation::' in text
+    assert 'Observation:' in text
     assert 'Thought:' in text
     assert 'Final Answer:' in text

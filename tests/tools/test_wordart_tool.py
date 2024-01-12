@@ -14,21 +14,3 @@ def test_word_art():
     res = wa.call(params)
     print(res)
     assert (res.startswith('http'))
-
-
-def test_word_art_role():
-    role_template = '你扮演一个美术老师，用尽可能丰富的描述调用工具生成艺术字图片。'
-
-    llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
-
-    # input tool args
-    function_list = [{'name': 'wordart_texture_generation'}]
-
-    bot = RolePlay(
-        function_list=function_list, llm=llm_config, instruction=role_template)
-
-    response = bot.run('文字内容：你好新年,风格：海洋，纹理风格：默认，宽高比：16:9')
-    text = ''
-    for chunk in response:
-        text += chunk
-    print(text)

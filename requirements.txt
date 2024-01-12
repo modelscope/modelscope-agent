@@ -6,8 +6,10 @@ langchain
 langchain-community
 langchain-experimental
 modelscope>=1.9.3
+moivepy
 openai
 opencv-python
+openpyxl
 Pillow
 pydantic>=2.3.0
 pytest

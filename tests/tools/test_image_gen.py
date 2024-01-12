@@ -6,7 +6,7 @@ def test_image_gen():
 
     t2i = TextToImageTool()
     res = t2i.call(params)
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN]('))
 
 
 def test_image_gen_wrong_resolution():
@@ -14,4 +14,4 @@ def test_image_gen_wrong_resolution():
 
     t2i = TextToImageTool()
     res = t2i.call(params)
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN]('))
