@@ -18,7 +18,7 @@ class TextToVideoTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
-    API_URL = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis'
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis'
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)

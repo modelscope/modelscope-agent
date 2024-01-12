@@ -20,7 +20,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
-    API_URL = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k'
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k'
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)
