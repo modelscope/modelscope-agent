@@ -1,3 +1,4 @@
+from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.tools.dashscope_tools import TextToImageTool
 
 
