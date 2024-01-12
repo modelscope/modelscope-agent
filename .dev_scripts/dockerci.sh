@@ -1,5 +1,4 @@
 #!/bin/bash
 
-pip install torch
-
+# pip install torch
 pytest
