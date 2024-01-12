@@ -15,7 +15,7 @@ class LangchainTool(BaseTool):
     }]
 
     def __init__(self, langchain_tool):
-        from langchain.tools import BaseTool
+        from langchain_community.tools import BaseTool
 
         if not isinstance(langchain_tool, BaseTool):
             raise ValueError('langchain_tool should be type of langchain tool')
