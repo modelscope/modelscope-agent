@@ -2,8 +2,6 @@ import os
 import sys
 from typing import Dict, Iterator, List, Optional
 
-from modelscope import (AutoModelForCausalLM, AutoTokenizer, GenerationConfig,
-                        snapshot_download)
 from .base import BaseChatModel, register_llm
 
 
@@ -21,6 +19,9 @@ class ModelScopeLLM(BaseChatModel):
             raise ImportError(
                 'Please install torch first: `pip install torch` or refer https://pytorch.org/ '
             )
+
+        from modelscope import (AutoModelForCausalLM, AutoTokenizer,
+                                GenerationConfig, snapshot_download)
 
         # Download model based on model version
         self.model_version = kwargs.get('model_version', None)
