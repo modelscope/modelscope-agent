@@ -2,6 +2,7 @@ dashscope
 jieba
 json5
 jupyter>=1.0.0
+langchain
 langchain-community
 modelscope>=1.9.3
 openai
