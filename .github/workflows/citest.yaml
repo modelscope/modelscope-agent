@@ -66,6 +66,7 @@ jobs:
         BING_SEARCH_V7_SUBSCRIPTION_KEY: ${{ secrets.BING_SEARCH_V7_SUBSCRIPTION_KEY }}
         DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
         MODELSCOPE_API_TOKEN: ${{ secrets.MODELSCOPE_API_TOKEN }}
+        TEST: ${{ vars.TEST }}
 
       shell: bash
       run: bash .dev_scripts/dockerci.sh

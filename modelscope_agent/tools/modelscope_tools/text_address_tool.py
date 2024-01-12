@@ -1,5 +1,6 @@
 from modelscope_agent.tools import register_tool
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -14,6 +15,8 @@ class TextAddressTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
+    task = Tasks.token_classification
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base'  # noqa E501
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)

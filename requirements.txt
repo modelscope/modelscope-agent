@@ -13,5 +13,6 @@ pytest
 pytest-mock
 python-dotenv
 seaborn
+sentencepiece
 tiktoken
 transformers>=4.33
