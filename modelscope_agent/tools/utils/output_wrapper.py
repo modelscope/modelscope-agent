@@ -116,7 +116,7 @@ class AudioWrapper(OutputWrapper):
             with open(self._path, 'wb') as f:
                 f.write(self._raw_data)
 
-        self._repr = f'<audio id=audio controls= preload=none> <source id=wav src="{self._path}"> </audio>'
+        self._repr = f'<audio id=audio preload=none> <source id=wav src="{self._path}"> </audio>'
 
 
 class VideoWrapper(OutputWrapper):

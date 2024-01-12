@@ -36,9 +36,10 @@ def check_uuid(uuid_str):
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent(uuid_str)
+        user_agent, user_memory = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
+        state['user_memory'] = user_memory
     except Exception as e:
         logger.error(
             uuid=uuid_str,

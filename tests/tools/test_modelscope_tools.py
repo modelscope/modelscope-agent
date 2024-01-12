@@ -5,10 +5,9 @@ cfg = Config.from_file('config/cfg_tool_template.json')
 
 def test_modelscope_speech_generation():
     from modelscope_agent.tools import TexttoSpeechTool
-    input = '北京今天天气怎样?'
-    kwargs = {'input': input, 'gender': 'man'}
+    params = "{'input': '北京今天天气怎样?', 'gender': 'man'}"
     txt2speech = TexttoSpeechTool(cfg)
-    res = txt2speech._remote_call(**kwargs)
+    res = txt2speech.call(params)
 
     print(res)
 

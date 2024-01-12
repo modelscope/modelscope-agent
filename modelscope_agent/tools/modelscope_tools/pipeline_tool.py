@@ -20,7 +20,7 @@ class ModelscopePipelineTool(BaseTool):
         super().__init__(cfg)
         self.API_URL = self.cfg.get(self.name, {}).get('url',
                                                        None) or self.API_URL
-        self.API_KEY = os.getenv('MODELSCOPE_API_KEY', None) or self.API_KEY
+        self.API_KEY = os.getenv('MODELSCOPE_API_TOKEN', None) or self.API_KEY
 
     def call(self, params: str, **kwargs) -> str:
         params = self._verify_args(params)
