@@ -127,7 +127,7 @@ class VideoWrapper(OutputWrapper):
             from moviepy.editor import VideoFileClip
         except Exception:
             raise ImportError(
-                'moviepy is required when output is video, please install it first'
+                'moviepy is required when output is video, please install it first by `pip install moviepy`'
             )
 
         super().__init__()
