@@ -6,7 +6,7 @@ langchain
 langchain-community
 langchain-experimental
 modelscope>=1.9.3
-moivepy
+moivepy==1.0.3
 openai
 opencv-python
 openpyxl
