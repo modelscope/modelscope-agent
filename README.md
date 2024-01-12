@@ -14,14 +14,14 @@
 
 ## Introduction
 
-**ModelScope-Agent**, a general and customizable agent framework for real-world applications, based on open-source LLMs as controllers. It provides a user-friendly system library that are:
-- **customizable and comprehensive framework**: customizable engine design to spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
-- **opensourced LLMs as controllers**: support model training on multiple open-source LLMs of ModelScope Community
-- **Diversified and Comprehensive APIs**: enabling seamless integration with both model APIs and common APIs in a unified way.
+Modelscope-Agent is a customizable and scalable Agent framework. A single agent has abilities such as role-playing, LLM calling, tool usage, planning, and memory.
+It mainly has the following characteristics:
 
-![image](resources/modelscope-agent.png)
+- **Simple Agent Implementation Process**: Simply specify the role instruction, LLM name, and tool name list to implement an Agent application. The framework automatically arranges workflows for tool usage, planning, and memory.
+- **Rich models and tools**: The framework is equipped with rich LLM interfaces, such as Dashscope and Modelscope model interfaces, OpenAI model interfaces, etc. Built in rich tools, such as **code interpreter**, **weather query**, **text to image**, **web browsing**, etc., make it easy to customize exclusive agents.
+- **Unified interface and high scalability**: The framework has clear tools and LLM registration mechanism, making it convenient for users to expand more diverse Agent applications.
+- **Low coupling**: Developers can easily use built-in tools, LLM, memory, and other components without the need to bind higher-level agents.
 
-To equip the LLMs with tool-use abilities, a comprehensive framework has been proposed spanning over tool-use data collection, tool retrieval, tool registration, memory control, customized model training, and evaluation for practical real-world applications.
 
 ## News
 * Nov 26, 2023: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric) now supports collaborative use in ModelScope's [Creation Space](https://modelscope.cn/studios/modelscope/AgentFabric/summary), allowing for the sharing of custom applications in the Creation Space. The update also includes the latest [GTE](https://modelscope.cn/models/damo/nlp_gte_sentence-embedding_chinese-base/summary) text embedding integration.
@@ -58,33 +58,28 @@ The ModelScope Notebook offers a free-tier that allows ModelScope user to run th
 
 ## Quickstart
 
-To use modelscope-agent, all you need is to instantiate an `AgentExecutor` object, and use `run()` to execute your task. For faster agent implementation, please refer to [demo_agent](demo/demo_qwen_agent.ipynb). Online demo is available on [ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary)
+To use modelscope-agent, all you need is to instantiate an `Agent` object, and use `run()` to execute your task. For faster agent implementation, please refer to [demo_agent](demo/demo_qwen_agent.ipynb). Online demo is available on [ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary)
 
 ```Python
-import os
+from modelscope_agent.agents import RolePlay
 
-from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
+# config
+role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
+llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+function_list = ['amap_weather', 'image_gen']
 
-# get cfg from file, refer the example in config folder
-model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
-model_cfg = Config.from_file(model_cfg_file)
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
-tool_cfg = Config.from_file(tool_cfg_file)
+# init agent
+bot = RolePlay(function_list=function_list, llm=llm_config, instruction=role_template)
 
-# instantiation LLM
-model_name = 'qwen-72b'
+# run agent
+response = bot.run('朝阳区天气怎样？')
 
-print(
-  'To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
-os.environ['DASHSCOPE_API_KEY'] = input()
+# result processing
+text = ''
+for chunk in response:
+    text += chunk
+print(text)
 
-llm = LLMFactory.build_llm(model_name, model_cfg)
-
-# instantiation agent
-
-agent = AgentExecutor(llm, tool_cfg)
 ```
 
 - Single-step & Multi-step tool-use
