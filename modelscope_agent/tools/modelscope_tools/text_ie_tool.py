@@ -1,5 +1,7 @@
 from collections import defaultdict
 from typing import Union
+import json
+from modelscope.utils.constant import Tasks
 
 from modelscope_agent.tools import register_tool
 
@@ -22,13 +24,21 @@ class TextInfoExtractTool(ModelscopePipelineTool):
         'required': True,
         'type': 'dict'
     }]
+    task = Tasks.siamese_uie
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_structbert_siamese-uie_chinese-base'
 
-    def call(self, params: str, **kwargs) -> str:
-        result = super().call(params, **kwargs)
-        InfoExtract = defaultdict(list)
-        for e in result['Data']['output']:
-            InfoExtract[e[0]['type']].append(e[0]['span'])
-        return str(dict(InfoExtract))
+    def _remote_call(self, params: str, **kwargs) -> str:
+        result = super()._remote_call(params, **kwargs)
+        InfoExtract = result['Data']['output']
+        return str(InfoExtract)
+    
+    def _local_call(self, params: dict, **kwargs) -> str:
+        params['schema'] = params['parameters']['schema']
+        params.pop('parameters')
+        result = super()._local_call(params, **kwargs)
+        result = json.loads(result)
+        InfoExtract = result['output']
+        return str(InfoExtract)
 
     def _verify_args(self, params: str) -> Union[str, dict]:
         params = super()._verify_args(params)

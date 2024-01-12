@@ -1,10 +1,9 @@
-from collections import defaultdict
-
 from modelscope_agent.tools import register_tool
 
 from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
+import json
 
 @register_tool('text-ner')
 class TextNerTool(ModelscopePipelineTool):
@@ -22,7 +21,11 @@ class TextNerTool(ModelscopePipelineTool):
 
     def _remote_call(self, params: str, **kwargs) -> str:
         result = super()._remote_call(params, **kwargs)
-        ner = defaultdict(list)
-        for e in result['Data']['output']:
-            ner[e['type']].append(e['span'])
-        return str(dict(ner))
+        ner = result['Data']['output']
+        return str(ner)
+
+    def _local_call(self, params: dict, **kwargs) -> str:
+        result = super()._local_call(params, **kwargs)
+        result = json.loads(result)
+        ner = result['output']
+        return str(ner)

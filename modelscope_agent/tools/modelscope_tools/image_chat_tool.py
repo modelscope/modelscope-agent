@@ -1,6 +1,8 @@
 from typing import Union
+import json
 
 from modelscope_agent.tools import register_tool
+from modelscope.utils.constant import Tasks
 
 from .pipeline_tool import ModelscopePipelineTool
 
@@ -21,11 +23,19 @@ class ImageChatTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
-
-    def call(self, params: str, **kwargs) -> str:
-        result = super().call(params, **kwargs)
-        image_chat = result['Data']['text']
-        return image_chat
+    task = Tasks.multimodal_dialogue
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/multi-modal_mplug_owl_multimodal-dialogue_7b'
+    
+    def _remote_call(self, params: str, **kwargs) -> str:
+        result = super()._remote_call(params, **kwargs)
+        ner = result['Data']['text']
+        return str(ner)
+    
+    def _local_call(self, params: dict, **kwargs) -> str:
+        result = super()._local_call(params, **kwargs)
+        result = json.loads(result)
+        ner = result['text']
+        return ner
 
     def _verify_args(self, params: str) -> Union[str, dict]:
         params = super()._verify_args(params)

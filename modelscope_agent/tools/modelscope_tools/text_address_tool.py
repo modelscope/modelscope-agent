@@ -1,6 +1,8 @@
 from modelscope_agent.tools import register_tool
+from modelscope.utils.constant import Tasks
 
 from .pipeline_tool import ModelscopePipelineTool
+import json
 
 
 @register_tool('text-address')
@@ -14,10 +16,16 @@ class TextAddressTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
-
-    def call(self, params: str, **kwargs) -> str:
-        result = super().call(params, **kwargs)
-        address = {}
-        for e in result['Data']['output']:
-            address[e['type']] = e['span']
-        return address
+    task = Tasks.token_classification
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base'
+    
+    def _remote_call(self, params: str, **kwargs) -> str:
+        result = super()._remote_call(params, **kwargs)
+        address = result['Data']['output']
+        return str(address)
+    
+    def _local_call(self, params: dict, **kwargs) -> str:
+        result = super()._local_call(params, **kwargs)
+        result = json.loads(result)
+        address = result['output']
+        return str(address)
