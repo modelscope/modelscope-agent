@@ -577,7 +577,8 @@ with demo:
         uploaded_file = None
         if len(append_files) > 0:
             uploaded_file = append_files[0]
-        ref_doc = user_memory.run(query=input.text, url=uploaded_file, checked=True)
+        ref_doc = user_memory.run(
+            query=input.text, url=uploaded_file, checked=True)
 
         response = ''
         try:

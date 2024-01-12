@@ -136,7 +136,7 @@ class VideoWrapper(OutputWrapper):
 
             try:
                 video = VideoFileClip(self._path)
-                
+
             except (ValueError, OSError):
                 raise FileNotFoundError(f'Invalid path: {video}')
         else:
@@ -144,8 +144,9 @@ class VideoWrapper(OutputWrapper):
                 'Current only support load from filepath when it is video')
 
         self._raw_data = video
-        
+
         self._repr = f'<video src="{self._path}"/>'
+
 
 def get_raw_output(exec_result: Dict):
     # get rwa data of exec_result

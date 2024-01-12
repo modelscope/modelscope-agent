@@ -30,10 +30,11 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     function_list = parse_tool_cfg(tool_cfg)
     function_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, function_list)
-    
+
     llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
-    instruction=builder_cfg.instruction
-    agent = RolePlay(function_list=function_list, llm=llm_config, instruction=instruction)
+    instruction = builder_cfg.instruction
+    agent = RolePlay(
+        function_list=function_list, llm=llm_config, instruction=instruction)
 
     # build memory
     storage_path = get_user_dir(uuid_str)

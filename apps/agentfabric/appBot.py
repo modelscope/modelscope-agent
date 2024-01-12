@@ -7,8 +7,8 @@ import gradio as gr
 import modelscope_gradio_components as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
-from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.schemas import Message
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
     qwen
 from user_core import init_user_chatbot_agent
@@ -125,8 +125,8 @@ with demo:
         uploaded_file = None
         if len(append_files) > 0:
             uploaded_file = append_files[0]
-        ref_doc = user_memory.run(query=input.text, url=uploaded_file, checked=True)
-
+        ref_doc = user_memory.run(
+            query=input.text, url=uploaded_file, checked=True)
 
         response = ''
         try:

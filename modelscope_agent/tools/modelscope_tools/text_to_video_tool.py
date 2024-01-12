@@ -7,6 +7,7 @@ from modelscope_agent.tools.utils.output_wrapper import VideoWrapper
 
 from .pipeline_tool import ModelscopePipelineTool
 
+
 @register_tool('video-generation')
 class TextToVideoTool(ModelscopePipelineTool):
     default_model = 'damo/text-to-video-synthesis'
@@ -29,4 +30,3 @@ class TextToVideoTool(ModelscopePipelineTool):
         print(f'result: {result}')
         video = result['Data']['output_video']
         return VideoWrapper(video)
-
