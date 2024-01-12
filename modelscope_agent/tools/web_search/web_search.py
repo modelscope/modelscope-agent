@@ -1,18 +1,18 @@
-import os
-
-from modelscope_agent.tools.tool import Tool, ToolSchema
-from pydantic import ValidationError
+import json
+from modelscope_agent.tools import BaseTool, register_tool
 
 from .search_util import AuthenticationKey, get_websearcher_cls
 
 
-class WebSearch(Tool):
+@register_tool('web_search')
+class WebSearch(BaseTool):
     description = 'surfacing relevant information from billions of web documents. Help ' \
                   'you find what you are looking for from the world-wide-web to comb ' \
                   'billions of webpages, images, videos, and news.'
     name = 'web_search'
     parameters: list = [{
         'name': 'query',
+        'type': 'string',
         'description':
         """The user's search query term. The term may not be empty.""",
         'required': True
@@ -30,6 +30,11 @@ class WebSearch(Tool):
         searcher = self.cfg.get('searcher', None)
 
         if not searcher:
+            available_searchers = list(available_searchers.values())
+            if len(available_searchers) == 0:
+                raise ValueError(
+                    f'At least one of web search api token should be set: {all_searchers}'
+                )
             self.searcher = available_searchers[0](**self.cfg)
         else:
             if isinstance(searcher,
@@ -46,39 +51,17 @@ class WebSearch(Tool):
                     f'The searcher {searcher} should be one of {all_searchers.keys()}'
                 )
 
-        try:
-            all_para = {
-                'name': self.name,
-                'description': self.description,
-                'parameters': self.parameters
-            }
-            self.tool_schema = ToolSchema(**all_para)
-        except ValidationError:
-            raise ValueError(f'Error when parsing parameters of {self.name}')
+    def call(self, params: str, **kwargs) -> str:
+        params = self._verify_args(params)
+        if isinstance(params, str):
+            return 'Parameter Error'
 
-        self.is_remote_tool = True
-        self._str = self.tool_schema.model_dump_json()
-        self._function = self.parse_pydantic_model_to_openai_function(all_para)
-
-    def _remote_call(self, *args, **kwargs):
-        query = self._handle_input_fallback(**kwargs)
-        if not query or not len(query):
-            raise ValueError(
-                'parameter `query` of tool web-search is None or Empty.')
-
-        res = self.searcher(query)
-        return {'result': [item.__dict__ for item in res]}
-
-    def _handle_input_fallback(self, **kwargs):
-        query = kwargs.get('query', None)
-        fallback = kwargs.get('fallback', None)
-        if query and isinstance(query, str) and len(query):
-            return query
-        else:
-            return fallback
+        res = self.searcher(query=params['query'], **kwargs)
+        return json.dumps(res, ensure_ascii=False)
 
 
 if __name__ == '__main__':
     tool = WebSearch()
-    res = tool(query='2024年 元旦 哈尔滨天气')
+    input_params = """{'query'='2024年 元旦 哈尔滨天气'}"""
+    res = tool(input_params)
     print(res)

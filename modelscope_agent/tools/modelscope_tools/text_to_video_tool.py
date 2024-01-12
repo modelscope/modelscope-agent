@@ -1,8 +1,6 @@
-import os
-import tempfile
-import uuid
+from typing import Union
 
-from modelscope_agent.tools.base import register_tool
+from modelscope_agent.tools import register_tool
 from modelscope_agent.tools.utils.output_wrapper import VideoWrapper
 
 from .pipeline_tool import ModelscopePipelineTool
@@ -24,9 +22,5 @@ class TextToVideoTool(ModelscopePipelineTool):
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)
-        if result['Code'] != 200:
-            print('video_generation error: ', result)
-            return None
-        print(f'result: {result}')
         video = result['Data']['output_video']
         return VideoWrapper(video)

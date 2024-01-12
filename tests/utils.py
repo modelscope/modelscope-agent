@@ -1,5 +1,5 @@
-from agent_scope.llm import BaseChatModel
-from agent_scope.tools import Tool
+from modelscope_agent.llm import BaseChatModel
+from modelscope_agent.tools import BaseTool
 
 
 class MockLLM(BaseChatModel):
@@ -19,7 +19,7 @@ class MockLLM(BaseChatModel):
         yield 'mock llm response'
 
 
-class MockTool(Tool):
+class MockTool(BaseTool):
 
     def __init__(self, name, func, description, parameters=[]):
         self.name = name

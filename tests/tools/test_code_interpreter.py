@@ -2,7 +2,7 @@ import re
 
 from modelscope_agent.agent import AgentExecutor
 from modelscope_agent.tools import CodeInterpreter
-from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
+from tests.utils import MockLLM, MockTool
 
 
 def test_code_interpreter_jupyter_image():
