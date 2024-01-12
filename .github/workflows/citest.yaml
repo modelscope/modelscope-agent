@@ -40,7 +40,8 @@ jobs:
   unittest:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    environment: testci
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v3
 
