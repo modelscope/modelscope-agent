@@ -2,12 +2,10 @@ import os
 import re
 import tempfile
 import uuid
-from typing import Dict, Union
+from typing import Dict
 
-import json
 import numpy as np
 import requests
-from moviepy.editor import VideoFileClip
 from PIL import Image
 from requests.exceptions import RequestException
 
@@ -125,6 +123,12 @@ class VideoWrapper(OutputWrapper):
     """
 
     def __init__(self, video) -> None:
+        try:
+            from moviepy.editor import VideoFileClip
+        except Exception:
+            raise ImportError(
+                'moviepy is required when output is video, please install it first'
+            )
 
         super().__init__()
         if isinstance(video, str):
@@ -164,9 +168,6 @@ def get_raw_output(exec_result: Dict):
     return res
 
 
-#
-#
-# #
 # def display(llm_result: Union[str, dict], exec_result: Dict, idx: int,
 #             agent_type: AgentType):
 #     """Display the result of each round in jupyter notebook.

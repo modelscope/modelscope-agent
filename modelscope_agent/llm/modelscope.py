@@ -4,9 +4,9 @@ from typing import Dict, Iterator, List, Optional
 
 import torch
 from swift import Swift
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from modelscope import GenerationConfig, snapshot_download
+from modelscope import (AutoModelForCausalLM, AutoTokenizer, GenerationConfig,
+                        snapshot_download)
 from .base import BaseChatModel, register_llm
 
 
