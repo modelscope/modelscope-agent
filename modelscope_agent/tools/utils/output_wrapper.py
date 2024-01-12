@@ -114,7 +114,7 @@ class AudioWrapper(OutputWrapper):
             with open(self._path, 'wb') as f:
                 f.write(self._raw_data)
 
-        self._repr = f'<audio id=audio controls= preload=none> <source id=wav src={self._path}> </audio>'
+        self._repr = f'<audio src="{self._path}"/>'
 
 
 class VideoWrapper(OutputWrapper):
@@ -140,12 +140,7 @@ class VideoWrapper(OutputWrapper):
 
             try:
                 video = VideoFileClip(self._path)
-                # currently, we should save video as gif, not mp4
-                if not self._path.endswith('gif'):
-                    directory = tempfile.mkdtemp(dir=self.root_path)
-                    self._path = os.path.join(directory,
-                                              str(uuid.uuid4()) + '.gif')
-                    video.write_gif(self._path)
+
             except (ValueError, OSError):
                 raise FileNotFoundError(f'Invalid path: {video}')
         else:
@@ -153,7 +148,8 @@ class VideoWrapper(OutputWrapper):
                 'Current only support load from filepath when it is video')
 
         self._raw_data = video
-        self._repr = f'![IMAGEGEN]({self._path})'
+
+        self._repr = f'<video src="{self._path}"/>'
 
 
 def get_raw_output(exec_result: Dict):
