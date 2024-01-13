@@ -24,9 +24,9 @@
             "debug": false
         }
     },
-    "qwen-max": {
+    "qwen-max-1201": {
         "type": "dashscope",
-        "model": "qwen-max",
+        "model": "qwen-max-1201",
         "length_constraint": {
             "knowledge": 4000,
             "input": 6000
