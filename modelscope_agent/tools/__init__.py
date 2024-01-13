@@ -2,6 +2,7 @@ from .amap_weather import AMAPWeather
 from .base import TOOL_REGISTRY, BaseTool, register_tool
 from .code_interpreter import CodeInterpreter
 from .dashscope_tools.image_generation import TextToImageTool
+from .dashscope_tools.phantom_tool import Phantom
 from .dashscope_tools.qwen_vl import QWenVL
 from .dashscope_tools.style_repaint import StyleRepaint
 from .dashscope_tools.wordart_tool import WordArtTexture

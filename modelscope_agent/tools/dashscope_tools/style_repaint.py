@@ -58,7 +58,6 @@ class StyleRepaint(BaseTool):
         self.token = kwargs.get('token',
                                 os.environ.get('DASHSCOPE_API_KEY', ''))
         assert self.token != '', 'dashscope api token must be acquired'
-        origin_result = None
         retry_times = MAX_RETRY_TIMES
         headers = {
             'Content-Type': 'application/json',
@@ -123,12 +122,11 @@ class StyleRepaint(BaseTool):
         return kwargs
 
     def get_result(self):
-        result_data = json.loads(json.dumps(self.final_result))
-        if 'task_id' in result_data['output']:
-            task_id = result_data['output']['task_id']
+        if 'task_id' in self.final_result['output']:
+            task_id = self.final_result['output']['task_id']
         get_url = f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}'
         get_header = {'Authorization': f'Bearer {self.token}'}
-        origin_result = None
+
         retry_times = MAX_RETRY_TIMES
         while retry_times:
             retry_times -= 1
