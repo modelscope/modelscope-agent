@@ -1,20 +1,23 @@
 from modelscope_agent.agents.function_calling import FunctionCalling
 
-llm_config = {'model': 'qwen-max', 'model_server': 'openai'}
 
-llm_config['api_base'] = input()
+def test_function_calling_method():
+    llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 
-# input tool name
-# function_list = ['amap_weather']
+    # input tool name
+    function_list = ['image_gen']
 
-# input tool args
-function_list = [{'name': 'amap_weather'}]
+    bot = FunctionCalling(function_list=function_list, llm=llm_config)
 
-bot = FunctionCalling(function_list=function_list, llm=llm_config)
+    response = bot.run('画一只猫')
 
-response = bot.run('朝阳区天气怎样？')
-
-text = ''
-for chunk in response:
-    text += chunk
-print(text)
+    text = ''
+    for chunk in response:
+        text += chunk
+    print(text)
+    assert isinstance(text, str)
+    assert 'Action:' in text
+    assert 'Action Input:' in text
+    assert 'Observation:' in text
+    assert 'Thought:' in text
+    assert 'Final Answer:' in text

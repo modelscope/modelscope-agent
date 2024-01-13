@@ -27,19 +27,19 @@ def deal(text):
 
 def parse_doc(path):
     if '.pdf' in path.lower():
-        from langchain.document_loaders import PDFMinerLoader
+        from langchain_community.document_loaders import PDFMinerLoader
         loader = PDFMinerLoader(path)
         pages = loader.load_and_split()
     elif '.docx' in path.lower():
-        from langchain.document_loaders import Docx2txtLoader
+        from langchain_community.document_loaders import Docx2txtLoader
         loader = Docx2txtLoader(path)
         pages = loader.load_and_split()
     elif '.pptx' in path.lower():
-        from langchain.document_loaders import UnstructuredPowerPointLoader
+        from langchain_community.document_loaders import UnstructuredPowerPointLoader
         loader = UnstructuredPowerPointLoader(path)
         pages = loader.load_and_split()
     else:
-        from langchain.document_loaders import UnstructuredFileLoader
+        from langchain_community.document_loaders import UnstructuredFileLoader
         loader = UnstructuredFileLoader(path)
         pages = loader.load_and_split()
 
@@ -64,7 +64,7 @@ def pre_process_html(s):
 
 
 def parse_html_bs(path):
-    from langchain.document_loaders import BSHTMLLoader
+    from langchain_community.document_loaders import BSHTMLLoader
 
     loader = BSHTMLLoader(path, open_encoding='utf-8')
     pages = loader.load_and_split()

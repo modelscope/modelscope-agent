@@ -5,7 +5,7 @@ from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
 def test_style_repaint():
     # 图片默认上传到ci_workspace
-    params = """{'input.image_path': './WechatIMG139.jpg', 'input.style_index': 0}"""
+    params = """{'input.image_path': 'luoli15.jpg', 'input.style_index': 0}"""
 
     style_repaint = StyleRepaint()
     res = style_repaint.call(params)
@@ -18,13 +18,14 @@ def test_style_repaint_role():
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 
     # input tool args
-    function_list = [{'name': 'style_repaint'}]
+    function_list = ['style_repaint']
 
     bot = RolePlay(
         function_list=function_list, llm=llm_config, instruction=role_template)
 
-    response = bot.run('[上传文件WechatIMG139.jpg],我想要清雅国风')
+    response = bot.run('[上传文件luoli15.jpg],我想要清雅国风')
     text = ''
     for chunk in response:
         text += chunk
     print(text)
+    assert isinstance(text, str)

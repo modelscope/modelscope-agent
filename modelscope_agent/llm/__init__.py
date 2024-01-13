@@ -2,10 +2,8 @@ import re
 
 from .base import LLM_REGISTRY, BaseChatModel
 from .custom import CustomLLM
-from .dashscope import DashScopeLLM
-from .dashscope_qwen import QwenChatAtDS
-from .modelscope import ModelScopeLLM
-from .modelscope_chatglm import ModelScopeChatGLM
+from .dashscope import DashScopeLLM, QwenChatAtDS
+from .modelscope import ModelScopeChatGLM, ModelScopeLLM
 from .openai import OpenAi
 
 

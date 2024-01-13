@@ -1,7 +1,5 @@
-from modelscope_agent.agent import Agent
-from modelscope_agent.tools import TextToImageTool
-
-from modelscope_agent.agents.role_play import RolePlay  # NOQA
+from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.tools.dashscope_tools import TextToImageTool
 
 
 def test_image_gen():
@@ -9,7 +7,7 @@ def test_image_gen():
 
     t2i = TextToImageTool()
     res = t2i.call(params)
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN]('))
 
 
 def test_image_gen_wrong_resolution():
@@ -17,7 +15,7 @@ def test_image_gen_wrong_resolution():
 
     t2i = TextToImageTool()
     res = t2i.call(params)
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN]('))
 
 
 def test_image_gen_role():
@@ -26,14 +24,15 @@ def test_image_gen_role():
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 
     # input tool args
-    function_list = [{'name': 'image_gen'}]
+    function_list = ['image_gen']
 
     bot = RolePlay(
         function_list=function_list, llm=llm_config, instruction=role_template)
 
-    response = bot.run('朝阳区天气怎样？')
+    response = bot.run('画一张猫的图像')
 
     text = ''
     for chunk in response:
         text += chunk
     print(text)
+    assert isinstance(text, str)

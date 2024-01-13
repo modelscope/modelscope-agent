@@ -3,6 +3,7 @@ from typing import Union
 
 from modelscope_agent.tools import register_tool
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -22,6 +23,8 @@ class TextInfoExtractTool(ModelscopePipelineTool):
         'required': True,
         'type': 'dict'
     }]
+    task = Tasks.siamese_uie
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_structbert_siamese-uie_chinese-base'
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)

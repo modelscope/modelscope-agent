@@ -86,12 +86,20 @@ class Agent(ABC):
         """
         Instantiate the global tool for the agent
 
+        Args:
+            tool: the tool should be either in a string format with name as value
+            and in a dict format, example
+            (1) When str: amap_weather
+            (2) When dict: {'amap_weather': {'token': 'xxx'}}
+
+        Returns:
+
         """
         tool_name = tool
         tool_cfg = {}
         if isinstance(tool, Dict):
-            tool_name = tool['name']
-            tool_cfg = tool
+            tool_name = next(iter(tool))
+            tool_cfg = tool[tool_name]
         if tool_name not in TOOL_REGISTRY:
             raise NotImplementedError
         if tool not in self.function_list:

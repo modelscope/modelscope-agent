@@ -2,6 +2,7 @@ from typing import Union
 
 from modelscope_agent.tools import register_tool
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -21,6 +22,8 @@ class ImageChatTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
+    task = Tasks.multimodal_dialogue
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/multi-modal_mplug_owl_multimodal-dialogue_7b'  # noqa E501
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)

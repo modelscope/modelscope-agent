@@ -2,11 +2,6 @@ import os
 import sys
 from typing import Dict, Iterator, List, Optional
 
-import torch
-from swift import Swift
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-from modelscope import GenerationConfig, snapshot_download
 from .base import BaseChatModel, register_llm
 
 
@@ -18,6 +13,15 @@ class ModelScopeLLM(BaseChatModel):
 
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
+        try:
+            import torch
+        except ImportError:
+            raise ImportError(
+                'Please install torch first: `pip install torch` or refer https://pytorch.org/ '
+            )
+
+        from modelscope import (AutoModelForCausalLM, AutoTokenizer,
+                                GenerationConfig, snapshot_download)
 
         # Download model based on model version
         self.model_version = kwargs.get('model_version', None)
@@ -59,6 +63,11 @@ class ModelScopeLLM(BaseChatModel):
             self.model_dir, trust_remote_code=True)
 
         if self.use_lora:
+            try:
+                from swift import Swift
+            except ImportError:
+                raise ImportError(
+                    'Please install swift first: `pip install ms-swift`')
             self.load_from_lora()
 
         if self.use_raw_generation_config:
@@ -110,5 +119,32 @@ class ModelScopeLLM(BaseChatModel):
 
         result = result[0].tolist()[input_len:]
         response = self.tokenizer.decode(result)
+
+        return response
+
+
+@register_llm('modelscope_chatglm')
+class ModelScopeChatGLM(ModelScopeLLM):
+
+    def _inference(self, prompt: str) -> str:
+        device = self.model.device
+        input_ids = self.tokenizer(
+            prompt, return_tensors='pt').input_ids.to(device)
+        input_len = input_ids.shape[1]
+
+        eos_token_id = [
+            self.tokenizer.eos_token_id,
+            self.tokenizer.get_command('<|user|>'),
+            self.tokenizer.get_command('<|observation|>')
+        ]
+        result = self.model.generate(
+            input_ids=input_ids,
+            generation_config=self.generation_cfg,
+            eos_token_id=eos_token_id)
+
+        result = result[0].tolist()[input_len:]
+        response = self.tokenizer.decode(result)
+        # 遇到生成'<', '|', 'user', '|', '>'的case
+        response = response.split('<|user|>')[0].split('<|observation|>')[0]
 
         return response

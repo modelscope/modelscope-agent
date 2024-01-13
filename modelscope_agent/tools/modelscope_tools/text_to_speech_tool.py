@@ -1,6 +1,7 @@
 from modelscope_agent.tools import register_tool
 from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -20,6 +21,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
+    task = Tasks.text_to_speech
     url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/speech_sambert-hifigan_tts_zh-cn_16k'
 
     def call(self, params: str, **kwargs) -> str:
@@ -28,4 +30,4 @@ class TexttoSpeechTool(ModelscopePipelineTool):
             print('speech_generation error: ', result)
             return None
         audio = result['Data']['output_wav']
-        return AudioWrapper(audio)
+        return str(AudioWrapper(audio))

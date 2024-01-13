@@ -1,7 +1,8 @@
 import httpx
-from langchain.document_loaders import AsyncChromiumLoader, AsyncHtmlLoader
-from langchain.document_transformers import BeautifulSoupTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import (AsyncChromiumLoader,
+                                                  AsyncHtmlLoader)
+from langchain_community.document_transformers import BeautifulSoupTransformer
 from modelscope_agent.tools import BaseTool, register_tool
 
 

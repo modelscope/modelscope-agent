@@ -1,5 +1,6 @@
 from modelscope_agent.tools import register_tool
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -14,6 +15,8 @@ class TranslationEn2ZhTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }]
+    task = Tasks.translation
+    url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_en2zh'
 
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)

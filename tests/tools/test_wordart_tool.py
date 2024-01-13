@@ -22,7 +22,7 @@ def test_word_art_role():
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 
     # input tool args
-    function_list = [{'name': 'wordart_texture_generation'}]
+    function_list = ['wordart_texture_generation']
 
     bot = RolePlay(
         function_list=function_list, llm=llm_config, instruction=role_template)
@@ -32,3 +32,4 @@ def test_word_art_role():
     for chunk in response:
         text += chunk
     print(text)
+    assert isinstance(text, str)
