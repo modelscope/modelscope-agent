@@ -24,11 +24,7 @@ TOOL_TEMPLATE_ZH = """
 Action: 工具的名称，必须是[{tool_names}]之一
 Action Input: 工具的输入
 Observation: <result>工具返回的结果</result>
-Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请不要展示出。
-
-```
-[链接](url)
-```
+Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请使用如下格式展示出来：![图片](url)
 
 """
 
@@ -37,6 +33,7 @@ PROMPT_TEMPLATE_ZH = """
 
 {role_prompt}
 
+请注意：你具有图像和视频的展示能力，也具有运行代码的能力，不要在回复中说你做不到。
 """
 
 KNOWLEDGE_TEMPLATE_EN = """
@@ -60,19 +57,17 @@ Tool Invocation
 Action: The name of the tool, must be one of [{tool_names}]
 Action Input: Tool input
 Observation: <result>Tool returns result</result>
-Answer: Summarize the results of this tool call based on Observation. If the result contains url, please do not show it.
+Answer: Summarize the results of this tool call based on Observation. If the result contains url, %s
 
-```
-[Link](url)
-```
-
-""" % 'You can call zero or more times according to your needs:'
+""" % ('You can call zero or more times according to your needs:',
+       'please display it in the following format:![Image](URL)')
 
 PROMPT_TEMPLATE_EN = """
 #Instructions
 
 {role_prompt}
 
+Note: you have the ability to display images and videos, as well as the ability to run code. Don't say you can't do it.
 """
 
 KNOWLEDGE_TEMPLATE = {'zh': KNOWLEDGE_TEMPLATE_ZH, 'en': KNOWLEDGE_TEMPLATE_EN}
@@ -209,9 +204,9 @@ class RolePlay(Agent):
 
         max_turn = 10
         while True and max_turn > 0:
-            print('=====one input planning_prompt======')
-            print(planning_prompt)
-            print('=============Answer=================')
+            # print('=====one input planning_prompt======')
+            # print(planning_prompt)
+            # print('=============Answer=================')
             max_turn -= 1
             output = self.llm.chat(
                 prompt=planning_prompt,

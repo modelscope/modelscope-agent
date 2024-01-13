@@ -4,9 +4,13 @@ import shutil
 import traceback
 
 import gradio as gr
+import modelscope_gradio_components as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
-from gradio_utils import ChatBot, format_cover_html
+from gradio_utils import format_cover_html
+from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
+    qwen
 from user_core import init_user_chatbot_agent
 
 uuid_str = 'local_user'
@@ -33,9 +37,10 @@ def check_uuid(uuid_str):
 def init_user(state):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent = init_user_chatbot_agent(uuid_str)
+        user_agent, user_memory = init_user_chatbot_agent(uuid_str)
         user_agent.seed = seed
         state['user_agent'] = user_agent
+        state['user_memory'] = user_memory
     except Exception as e:
         logger.error(
             uuid=uuid_str,
@@ -57,27 +62,28 @@ with demo:
         with gr.Column(scale=4):
             with gr.Column():
                 # Preview
-                user_chatbot = ChatBot(
+                user_chatbot = mgr.Chatbot(
                     value=[[None, '尝试问我一点什么吧～']],
                     elem_id='user_chatbot',
                     elem_classes=['markdown-body'],
                     avatar_images=avatar_pairs,
                     height=600,
                     latex_delimiters=[],
-                    show_label=False)
+                    show_label=False,
+                    show_copy_button=True,
+                    llm_thinking_presets=[
+                        qwen(
+                            action_input_title='调用 <Action>',
+                            action_output_title='完成调用')
+                    ])
             with gr.Row():
-                with gr.Column(scale=12):
-                    preview_chat_input = gr.Textbox(
-                        show_label=False,
-                        container=False,
-                        placeholder='跟我聊聊吧～')
-                with gr.Column(min_width=70, scale=1):
-                    upload_button = gr.UploadButton(
-                        '上传',
-                        file_types=['file', 'image', 'audio', 'video', 'text'],
-                        file_count='multiple')
-                with gr.Column(min_width=70, scale=1):
-                    preview_send_button = gr.Button('发送', variant='primary')
+                user_chatbot_input = mgr.MultimodalInput(
+                    interactive=True,
+                    placeholder='跟我聊聊吧～',
+                    upload_button_props=dict(
+                        file_count='multiple',
+                        file_types=['file', 'image', 'audio', 'video',
+                                    'text']))
 
         with gr.Column(scale=1):
             user_chat_bot_cover = gr.HTML(
@@ -85,87 +91,65 @@ with demo:
             user_chat_bot_suggest = gr.Examples(
                 label='Prompt Suggestions',
                 examples=suggests,
-                inputs=[preview_chat_input])
+                inputs=[user_chatbot_input])
 
-    def upload_file(chatbot, upload_button, _state):
+    def send_message(chatbot, input, _state):
+        # 将发送的消息添加到聊天历史
+        if 'user_agent' not in _state:
+            init_user(_state)
+        # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
-        new_file_paths = []
-        if 'file_paths' in _state:
-            file_paths = _state['file_paths']
-        else:
-            file_paths = []
-        for file in upload_button:
-            file_name = os.path.basename(file.name)
+        user_agent = _state['user_agent']
+        user_memory = _state['user_memory']
+        append_files = []
+        for file in input.files:
+            file_name = os.path.basename(file.path)
             # covert xxx.json to xxx_uuid_str.json
             file_name = file_name.replace('.', f'_{_uuid_str}.')
             file_path = os.path.join(get_ci_dir(), file_name)
             if not os.path.exists(file_path):
                 # make sure file path's directory exists
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                shutil.copy(file.name, file_path)
-                file_paths.append(file_path)
-            new_file_paths.append(file_path)
-            if file_name.endswith(('.jpeg', '.png', '.jpg')):
-                chatbot += [((file_path, ), None)]
-
-            else:
-                chatbot.append((None, f'上传文件{file_name}，成功'))
-        yield {
-            user_chatbot: gr.Chatbot.update(visible=True, value=chatbot),
-            preview_chat_input: gr.Textbox.update(value='')
-        }
-
-        _state['file_paths'] = file_paths
-        _state['new_file_paths'] = new_file_paths
-
-    upload_button.upload(
-        upload_file,
-        inputs=[user_chatbot, upload_button, state],
-        outputs=[user_chatbot, preview_chat_input])
-
-    def send_message(chatbot, input, _state):
-        # 将发送的消息添加到聊天历史
-        if 'user_agent' not in _state:
-            init_user(_state)
-
-        user_agent = _state['user_agent']
-        if 'new_file_paths' in _state:
-            new_file_paths = _state['new_file_paths']
-        else:
-            new_file_paths = []
-        _state['new_file_paths'] = []
-        chatbot.append((input, ''))
+                shutil.copy(file.path, file_path)
+            append_files.append(file_path)
+        chatbot.append([{'text': input.text, 'files': input.files}, None])
         yield {
             user_chatbot: chatbot,
-            preview_chat_input: gr.Textbox.update(value=''),
+            user_chatbot_input: None,
         }
+
+        # get short term memory history
+        history = user_memory.get_history()
+
+        # get long term memory knowledge, currently get one file
+        uploaded_file = None
+        if len(append_files) > 0:
+            uploaded_file = append_files[0]
+        ref_doc = user_memory.run(
+            query=input.text, url=uploaded_file, checked=True)
 
         response = ''
         try:
-            for frame in user_agent.stream_run(
-                    input,
-                    print_info=True,
-                    remote=False,
-                    append_files=new_file_paths):
-                # is_final = frame.get("frame_is_final")
-                llm_result = frame.get('llm_text', '')
-                exec_result = frame.get('exec_result', '')
-                # llm_result = llm_result.split("<|user|>")[0].strip()
-                if len(exec_result) != 0:
-                    # action_exec_result
-                    if isinstance(exec_result, dict):
-                        exec_result = str(exec_result['result'])
-                    frame_text = f'<result>{exec_result}</result>'
-                else:
-                    # llm result
-                    frame_text = llm_result
+            for frame in user_agent.run(
+                    input.text,
+                    history=history,
+                    ref_doc=ref_doc,
+                    append_files=append_files):
 
                 # important! do not change this
-                response += frame_text
-                chatbot[-1] = (input, response)
+                response += frame
+                chatbot[-1][1] = response
                 yield {
                     user_chatbot: chatbot,
                 }
+            if len(history) == 0:
+                user_memory.update_history(
+                    Message(role='system', content=user_agent.system_prompt))
+
+            user_memory.update_history([
+                Message(role='user', content=input.text),
+                Message(role='assistant', content=response),
+            ])
         except Exception as e:
             if 'dashscope.common.error.AuthenticationError' in str(e):
                 msg = 'DASHSCOPE_API_KEY should be set via environment variable. You can acquire this in ' \
@@ -174,15 +158,15 @@ with demo:
                 msg = 'Too many people are calling, please try again later.'
             else:
                 msg = str(e)
-            chatbot[-1] = (input, msg)
+            chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 
-    preview_send_button.click(
-        send_message,
-        inputs=[user_chatbot, preview_chat_input, state],
-        outputs=[user_chatbot, preview_chat_input])
+    gr.on([user_chatbot_input.submit],
+          fn=send_message,
+          inputs=[user_chatbot, user_chatbot_input, state],
+          outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])
 
-demo.queue(concurrency_count=10)
-demo.launch(show_error=True)
+demo.queue()
+demo.launch(show_error=True, max_threads=10)

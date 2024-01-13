@@ -11,14 +11,16 @@ import json
 @register_tool('video-generation')
 class TextToVideoTool(ModelscopePipelineTool):
     default_model = 'damo/text-to-video-synthesis'
-    description = '视频生成服务，针对英文文本输入，生成一段描述视频；如果是中文输入同时依赖插件modelscope_text-translation-zh2en翻译成英文'
+    description = '视频生成服务，针对英文文本输入，生成一段描述视频'
+
     name = 'video-generation'
     parameters: list = [{
-        'name': 'text',
-        'description': '用户输入的文本信息',
+        'name': 'input',
+        'description': '用户输入的文本信息，仅支持英文文本描述',
         'required': True,
         'type': 'string'
     }]
+
     task = Tasks.text_to_video_synthesis
     url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis'
  

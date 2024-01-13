@@ -23,6 +23,7 @@ class ModelscopePipelineTool(BaseTool):
             cfg: (Dict[str, object]) 配置字典，包含了初始化对象所需要的参数
         """
         super().__init__(cfg)
+
         self.api_url = self.cfg.get('url', self.url)
         self.api_token = os.getenv('MODELSCOPE_API_TOKEN', None)
         assert self.api_token is not None, 'api_token is not set'
