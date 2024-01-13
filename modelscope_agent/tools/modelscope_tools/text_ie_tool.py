@@ -1,10 +1,10 @@
 from collections import defaultdict
 from typing import Union
-import json
-from modelscope.utils.constant import Tasks
 
+import json
 from modelscope_agent.tools import register_tool
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -31,7 +31,7 @@ class TextInfoExtractTool(ModelscopePipelineTool):
         result = super()._remote_call(params, **kwargs)
         InfoExtract = result['Data']['output']
         return str(InfoExtract)
-    
+
     def _local_call(self, params: dict, **kwargs) -> str:
         params['schema'] = params['parameters']['schema']
         params.pop('parameters')

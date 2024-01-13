@@ -1,8 +1,10 @@
-from modelscope.utils.config import Config
-from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
-from modelscope_agent.tools.utils.output_wrapper import VideoWrapper
-import os
 import difflib
+import os
+
+from modelscope_agent.tools.utils.output_wrapper import (AudioWrapper,
+                                                         VideoWrapper)
+
+from modelscope.utils.config import Config
 
 cfg = Config.from_file('config/cfg_tool_template.json')
 
@@ -12,8 +14,9 @@ def test_modelscope_speech_generation_remote():
     kwargs = """{'input': '北京今天天气怎样?', 'voice': 'zhizhe_emo'}"""
     txt2speech = TexttoSpeechTool()
     res = txt2speech.call(kwargs)
-    assert isinstance(res, AudioWrapper), "结果不是AudioWrapper类型"
+    assert isinstance(res, AudioWrapper), '结果不是AudioWrapper类型'
     print(res)
+
 
 def test_modelscope_speech_generation_local():
     from modelscope_agent.tools.modelscope_tools import TexttoSpeechTool
@@ -33,8 +36,9 @@ def test_modelscope_video_generation_remote():
     kwargs = """{'text': 'A person who is playing basketball'}"""
     txt2video = TextToVideoTool()
     res = txt2video.call(kwargs)
-    assert isinstance(res, VideoWrapper), "结果不是VideoWrapper类型"
+    assert isinstance(res, VideoWrapper), '结果不是VideoWrapper类型'
     print(res)
+
 
 def test_modelscope_video_generation_local():
     from modelscope_agent.tools.modelscope_tools import TextToVideoTool
@@ -46,7 +50,7 @@ def test_modelscope_video_generation_local():
     }
     txt2video = TextToVideoTool(cfg)
     res = txt2video.call(kwargs)
-    assert (res.startswith("b"))
+    assert (res.startswith('b'))
 
 
 def test_modelscope_text_address_remote():
@@ -56,6 +60,7 @@ def test_modelscope_text_address_remote():
     res = txt_addr.call(kwargs)
     assert (res.startswith("[{'end'"))
     print(res)
+
 
 def test_modelscope_text_address_local():
     from modelscope_agent.tools.modelscope_tools import TextAddressTool
@@ -102,6 +107,7 @@ def test_modelscope_text_ie_remote():
     assert (res.startswith("[[{'offset'"))
     print(res)
 
+
 def test_modelscope_text_ie_local():
     from modelscope_agent.tools.modelscope_tools import TextInfoExtractTool
     kwargs = """{'input': '很满意，音质很好，发货速度快，值得购买', 'schema': {'属性词': {'情感词': null}}}"""
@@ -122,12 +128,13 @@ def test_modelscope_en2zh_remote():
     zh_txt = TranslationEn2ZhTool()
     res = zh_txt.call(kwargs)
 
-    example = "长期以来 ， 自主代理一直是学术界和工业界的重要研究重点。"
+    example = '长期以来 ， 自主代理一直是学术界和工业界的重要研究重点。'
     similarity = difflib.SequenceMatcher(None, res, example).ratio()
     similarity_threshold = 0.8
-    assert similarity >= similarity_threshold, f"相似度为 {similarity:.2%}，未达到期望的相似度要求。"
+    assert similarity >= similarity_threshold, f'相似度为 {similarity:.2%}，未达到期望的相似度要求。'
 
     print(res)
+
 
 def test_modelscope_en2zh_local():
     from modelscope_agent.tools.modelscope_tools import TranslationEn2ZhTool
@@ -140,10 +147,10 @@ def test_modelscope_en2zh_local():
     zh_txt = TranslationEn2ZhTool(cfg)
     res = zh_txt.call(kwargs)
 
-    example = "长期以来 ， 自主代理一直是学术界和工业界的重要研究重点。"
+    example = '长期以来 ， 自主代理一直是学术界和工业界的重要研究重点。'
     similarity = difflib.SequenceMatcher(None, res, example).ratio()
     similarity_threshold = 0.8
-    assert similarity >= similarity_threshold, f"相似度为 {similarity:.2%}，未达到期望的相似度要求。"
+    assert similarity >= similarity_threshold, f'相似度为 {similarity:.2%}，未达到期望的相似度要求。'
 
     print(res)
 
@@ -157,9 +164,10 @@ def test_modelscope_zh2en_remote():
     example = "What's the weather like in Beijing today?"
     similarity = difflib.SequenceMatcher(None, res, example).ratio()
     similarity_threshold = 0.8
-    assert similarity >= similarity_threshold, f"相似度为 {similarity:.2%}，未达到期望的相似度要求。"
+    assert similarity >= similarity_threshold, f'相似度为 {similarity:.2%}，未达到期望的相似度要求。'
 
     print(res)
+
 
 def test_modelscope_zh2en_local():
     from modelscope_agent.tools.modelscope_tools import TranslationZh2EnTool
@@ -175,7 +183,7 @@ def test_modelscope_zh2en_local():
     example = "What's the weather like in Beijing today?"
     similarity = difflib.SequenceMatcher(None, res, example).ratio()
     similarity_threshold = 0.8
-    assert similarity >= similarity_threshold, f"相似度为 {similarity:.2%}，未达到期望的相似度要求。"
+    assert similarity >= similarity_threshold, f'相似度为 {similarity:.2%}，未达到期望的相似度要求。'
 
     print(res)
 
@@ -186,12 +194,13 @@ def test_modelscope_image_chat_remote():
     image_chat = ImageChatTool()
     res = image_chat.call(kwargs)
 
-    example = "The man has a very angry facial expression, with his mouth wide open and his eyes wide"
+    example = 'The man has a very angry facial expression, with his mouth wide open and his eyes wide'
     similarity = difflib.SequenceMatcher(None, res, example).ratio()
     similarity_threshold = 0.8
-    assert similarity >= similarity_threshold, f"相似度为 {similarity:.2%}，未达到期望的相似度要求。"
+    assert similarity >= similarity_threshold, f'相似度为 {similarity:.2%}，未达到期望的相似度要求。'
 
     print(res)
+
 
 def test_modelscope_image_chat_local():
     from modelscope_agent.tools.modelscope_tools import ImageChatTool
@@ -204,10 +213,10 @@ def test_modelscope_image_chat_local():
     image_chat = ImageChatTool(cfg)
     res = image_chat.call(kwargs)
 
-    example = "The man has a very angry facial expression, with his mouth wide open and his eyes wide"
+    example = 'The man has a very angry facial expression, with his mouth wide open and his eyes wide'
     similarity = difflib.SequenceMatcher(None, res, example).ratio()
     similarity_threshold = 0.8
-    assert similarity >= similarity_threshold, f"相似度为 {similarity:.2%}，未达到期望的相似度要求。"
+    assert similarity >= similarity_threshold, f'相似度为 {similarity:.2%}，未达到期望的相似度要求。'
 
     print(res)
 

@@ -1,7 +1,7 @@
-from modelscope_agent.tools import register_tool
-from modelscope.utils.constant import Tasks
 import json
+from modelscope_agent.tools import register_tool
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
 
@@ -23,7 +23,7 @@ class TranslationZh2EnTool(ModelscopePipelineTool):
         result = super()._remote_call(params, **kwargs)
         en = result['Data']['translation']
         return en
-    
+
     def _local_call(self, params: dict, **kwargs) -> str:
         result = super()._local_call(params, **kwargs)
         result = json.loads(result)

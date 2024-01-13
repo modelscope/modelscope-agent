@@ -1,9 +1,9 @@
+import json
 from modelscope_agent.tools import register_tool
 
 from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
 
-import json
 
 @register_tool('text-ner')
 class TextNerTool(ModelscopePipelineTool):

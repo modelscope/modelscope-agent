@@ -1,11 +1,11 @@
 from typing import Union
 
+import json
 from modelscope_agent.tools import register_tool
 from modelscope_agent.tools.utils.output_wrapper import VideoWrapper
-from modelscope.utils.constant import Tasks
 
+from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool
-import json
 
 
 @register_tool('video-generation')
@@ -23,12 +23,12 @@ class TextToVideoTool(ModelscopePipelineTool):
 
     task = Tasks.text_to_video_synthesis
     url = 'https://api-inference.modelscope.cn/api-inference/v1/models/damo/text-to-video-synthesis'
- 
+
     def _remote_call(self, params: str, **kwargs) -> str:
         result = super()._remote_call(params, **kwargs)
         video = result['Data']['output_video']
         return VideoWrapper(video)
-    
+
     def _local_call(self, params: dict, **kwargs) -> str:
         result = super()._local_call(params, **kwargs)
         result = json.loads(result)
