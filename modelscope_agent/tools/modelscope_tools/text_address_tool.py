@@ -1,3 +1,4 @@
+import json
 from modelscope_agent.tools import register_tool
 
 from modelscope.utils.constant import Tasks
@@ -23,4 +24,4 @@ class TextAddressTool(ModelscopePipelineTool):
         address = {}
         for e in result['Data']['output']:
             address[e['type']] = e['span']
-        return address
+        return json.dumps(address, ensure_ascii=False)
