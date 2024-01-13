@@ -4,7 +4,7 @@ from modelscope_agent.tools import Phantom
 
 
 def test_phantom():
-    image_url = 'luoli15.png'
+    image_url = 'luoli15.jpg'
     kwargs = {'input.image_path': image_url, 'parameters.upscale': 2}
     phantom = Phantom()
     res = phantom.call(json.dumps(kwargs))

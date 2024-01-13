@@ -23,7 +23,7 @@ class Phantom(StyleRepaint):
     """
 
     description = '追影-放大镜'  # 对这个tool的功能描述
-    name = 'phantom_image_enhancement'  # tool name
+    name = 'image_enhancement'  # tool name
     parameters: list = [{
         'name': 'input.image_path',
         'type': 'string',
