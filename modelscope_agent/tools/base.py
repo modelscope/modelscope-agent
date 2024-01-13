@@ -23,10 +23,7 @@ class BaseTool(ABC):
     parameters: List[Dict]
 
     def __init__(self, cfg: Optional[Dict] = {}):
-        """
-        :param schema: Format of tools, default to oai format, in case there is a need for other formats
-        """
-        self.cfg = cfg.get(self.name, {})
+        self.cfg = cfg or {}
 
         self.schema = self.cfg.get('schema', 'oai')
         self.function = self._build_function()
