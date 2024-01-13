@@ -1,5 +1,4 @@
-from typing import Union
-
+import json
 from modelscope_agent.tools import register_tool
 from modelscope_agent.tools.utils.output_wrapper import VideoWrapper
 
@@ -26,3 +25,8 @@ class TextToVideoTool(ModelscopePipelineTool):
         result = super().call(params, **kwargs)
         video = result['Data']['output_video']
         return str(VideoWrapper(video))
+
+    def _remote_call(self, params: dict, **kwargs):
+        text = params['input']
+        params['input'] = {'text': text}
+        return super()._remote_call(params, **kwargs)
