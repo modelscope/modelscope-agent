@@ -3,6 +3,7 @@ from http import HTTPStatus
 from typing import Dict, Iterator, List, Optional
 
 import dashscope
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .base import BaseChatModel, register_llm
 
@@ -55,19 +56,23 @@ class DashScopeLLM(BaseChatModel):
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
         stop = stop or []
-        top_p = kwargs.get('top_p', 0.8)
-
-        response = dashscope.Generation.call(
-            self.model,
-            messages=messages,  # noqa
-            stop_words=[{
+        generation_input = {
+            'model': self.model,
+            'messages': messages,  # noqa
+            'stop_words': [{
                 'stop_str': word,
                 'mode': 'exclude'
             } for word in stop],
-            top_p=top_p,
-            result_format='message',
-            stream=True,
-        )
+            'top_p': kwargs.get('top_p', 0.8),
+            'result_format': 'message',
+            'stream': True,
+        }
+
+        logger.query_info(
+            uuid=kwargs.get('uuid_str', ''),
+            details=generation_input,
+            message='call dashscope gneration api')
+        response = dashscope.Generation.call(**generation_input)
         return stream_output(response)
 
     def _chat_no_stream(self,

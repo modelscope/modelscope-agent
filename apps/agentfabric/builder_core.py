@@ -29,7 +29,7 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
     llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
     # function_list = ['image_gen']  # use image_gen to draw logo?
 
-    agent = AgentBuilder(llm=llm_config)
+    agent = AgentBuilder(llm=llm_config, uuid_str=uuid_str)
 
     current_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
                                         session + '_builder.json')
@@ -51,7 +51,7 @@ def gen_response_and_process(agent,
     llm_result = ''
     llm_result_prefix = ''
     try:
-        response = agent.run(query, history=history)
+        response = agent.run(query, history=history, uuid_str=uuid_str)
         for s in response:
             llm_result += s
             answer, finish, llm_result_prefix = agent.parse_answer(
