@@ -91,6 +91,24 @@ class TextFormatter(logging.Formatter):
 
 
 class AgentLogger:
+    r"""
+    The AgentLogger class has two modes of operation: one is for global logging,
+    which allows the use of functions such as info; the other is for query-level
+    logging, which requires the use of a UUID in conjunction with functions like
+    query_info.
+
+    Examples:
+    ```python
+    >>> agent_logger = AgentLogger()
+    >>> agent_logger.info('simple log')
+
+    >>> agent_logger.query_info(
+    >>>     uuid=uuid_str,
+    >>>     details={
+    >>>         'info': 'complex log'
+    >>>     }
+    >>> )
+    """
 
     def __init__(self):
         self.logger = logging.getLogger(LOG_NAME)
