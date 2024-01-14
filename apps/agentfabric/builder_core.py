@@ -24,7 +24,7 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
     builder_cfg, model_cfg, _, _, _, _ = parse_configuration(uuid_str)
 
     # init agent
-    logger.info(
+    logger.query_info(
         uuid=uuid_str, message=f'using builder model {builder_cfg.model}')
     llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
     # function_list = ['image_gen']  # use image_gen to draw logo?
@@ -74,10 +74,10 @@ def gen_response_and_process(agent,
             Message(role='assistant', content=llm_result),
         ])
         if print_info:
-            logger.info(
+            logger.query_info(
                 uuid=uuid_str,
                 message=f'LLM output in round 0',
-                content={'llm_result': llm_result})
+                details={'llm_result': llm_result})
     except Exception as e:
         yield {'error': 'llm result is not valid'}
 
@@ -95,14 +95,14 @@ def gen_response_and_process(agent,
         try:
             answer = json.loads(rich_config)
         except Exception:
-            logger.error(uuid=uuid_str, error='parse RichConfig error')
+            logger.query_error(uuid=uuid_str, error='parse RichConfig error')
             return
         agent.last_assistant_structured_response['rich_config_dict'] = answer
         builder_cfg = config_conversion(answer, uuid_str=uuid_str)
         yield {'exec_result': {'result': builder_cfg}}
         yield {'step': CONFIG_UPDATED_STEP}
     except ValueError as e:
-        logger.error(uuid=uuid_str, error=str(e))
+        logger.query_error(uuid=uuid_str, error=str(e))
         yield {'error content=[{}]'.format(llm_result)}
         return
 

@@ -35,10 +35,10 @@ def init_user(uuid_str, state):
         state['user_agent'] = user_agent
         state['user_memory'] = user_memory
     except Exception as e:
-        logger.error(
+        logger.query_error(
             uuid=uuid_str,
             error=str(e),
-            content={'error_traceback': traceback.format_exc()})
+            details={'error_traceback': traceback.format_exc()})
     return state
 
 
@@ -48,10 +48,10 @@ def init_builder(uuid_str, state):
         state['builder_agent'] = builder_agent
         state['builder_memory'] = builder_memory
     except Exception as e:
-        logger.error(
+        logger.query_error(
             uuid=uuid_str,
             error=str(e),
-            content={'error_traceback': traceback.format_exc()})
+            details={'error_traceback': traceback.format_exc()})
     return state
 
 
@@ -61,10 +61,10 @@ def update_builder(uuid_str, state):
         builder_agent = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
     except Exception as e:
-        logger.error(
+        logger.query_error(
             uuid=uuid_str,
             error=str(e),
-            content={'error_traceback': traceback.format_exc()})
+            details={'error_traceback': traceback.format_exc()})
 
     return state
 
@@ -293,10 +293,10 @@ with demo:
 
     # 初始化表单
     def init_ui_config(uuid_str, _state, builder_cfg, model_cfg, tool_cfg):
-        logger.info(
+        logger.query_info(
             uuid=uuid_str,
             message='builder_cfg',
-            content={'builder_cfg': str(builder_cfg)})
+            details={'builder_cfg': str(builder_cfg)})
         # available models
         models = list(model_cfg.keys())
         capabilities = [(tool_cfg[tool_key]['name'], tool_key)
@@ -409,8 +409,8 @@ with demo:
             llm_result = frame.get('llm_text', '')
             exec_result = frame.get('exec_result', '')
             step_result = frame.get('step', '')
-            logger.info(
-                uuid=uuid_str, message='frame', content={'frame': str(frame)})
+            logger.query_info(
+                uuid=uuid_str, message='frame', details={'frame': str(frame)})
             if len(exec_result) != 0:
                 if isinstance(exec_result, dict):
                     exec_result = exec_result['result']
@@ -507,10 +507,10 @@ with demo:
             if is_valid_plugin_configuration(openapi_plugin_cfg):
                 save_plugin_configuration(openapi_plugin_cfg, uuid_str)
         except Exception as e:
-            logger.error(
+            logger.query_error(
                 uuid=uuid_str,
                 error=str(e),
-                content={'error_traceback': traceback.format_exc()})
+                details={'error_traceback': traceback.format_exc()})
 
         save_builder_configuration(builder_cfg, uuid_str)
         update_builder(uuid_str, state)

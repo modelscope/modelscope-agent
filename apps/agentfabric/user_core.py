@@ -21,10 +21,10 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
     # build model
-    logger.info(
+    logger.query_info(
         uuid=uuid_str,
         message=f'using model {builder_cfg.model}',
-        content={'model_config': model_cfg[builder_cfg.model]})
+        details={'model_config': model_cfg[builder_cfg.model]})
 
     # update function_list
     function_list = parse_tool_cfg(tool_cfg)

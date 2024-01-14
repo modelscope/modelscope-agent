@@ -1,7 +1,7 @@
 import hashlib
 import os
 
-from modelscope_agent.log import logger
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import (print_traceback, read_text_from_file,
                                           save_text_to_file)
 

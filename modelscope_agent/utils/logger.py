@@ -42,7 +42,7 @@ class JsonFormatter(logging.Formatter):
             # Extract additional fields if they are in the 'extra' dict
             'uuid': getattr(record, 'uuid', None),
             'request_id': getattr(record, 'request_id', None),
-            'content': getattr(record, 'content', None),
+            'details': getattr(record, 'details', None),
             'error': getattr(record, 'error', None),
             'step': getattr(record, 'step', None)
         }
@@ -66,7 +66,7 @@ class TextFormatter(logging.Formatter):
         # Collect additional fields if they are in the 'extra' dict
         uuid = getattr(record, 'uuid', '-')
         request_id = getattr(record, 'request_id', '-')
-        content = getattr(record, 'content', '-')
+        details = getattr(record, 'details', '-')
         step = getattr(record, 'step', '-')
         error = getattr(record, 'error', '-')
 
@@ -77,8 +77,8 @@ class TextFormatter(logging.Formatter):
             log_message += f' | uuid: {uuid}'
         if request_id != '-':
             log_message += f' | request_id: {request_id}'
-        if content != '-':
-            log_message += f' | content: {content}'
+        if details != '-':
+            log_message += f' | details: {details}'
         if step != '-':
             log_message += f' | step: {step}'
         if error != '-':
@@ -150,64 +150,71 @@ class AgentLogger:
         self.logger.addHandler(info_file_handler)
         self.logger.addHandler(error_file_handler)
 
-    def info(self,
-             uuid: str = 'default_user',
-             request_id: str = 'default_request_id',
-             content: Dict = None,
-             step: str = '',
-             message: str = '',
-             error: str = ''):
-        if content is None:
-            content = {}
+    def info(self, message: str, *args):
+        self.logger.info(message, *args)
+
+    def query_info(self,
+                   uuid: str = 'default_user',
+                   request_id: str = 'default_request_id',
+                   details: Dict = None,
+                   step: str = '',
+                   message: str = ''):
+        if details is None:
+            details = {}
 
         self.logger.info(
             message,
             extra={
                 'uuid': uuid,
                 'request_id': request_id,
-                'content': content,
+                'details': details,
                 'step': step,
-                'error': error
+                'error': ''
             })
 
-    def error(self,
-              uuid: str = 'default_user',
-              request_id: str = 'default_request_id',
-              content: Dict = None,
-              step: str = '',
-              message: str = '',
-              error: str = ''):
-        if content is None:
-            content = {}
+    def error(self, message: str = '', *args):
+        self.logger.error(message, *args)
+
+    def query_error(self,
+                    uuid: str = 'default_user',
+                    request_id: str = 'default_request_id',
+                    details: Dict = None,
+                    step: str = '',
+                    message: str = '',
+                    error: str = ''):
+        if details is None:
+            details = {}
 
         self.logger.error(
             message,
             extra={
                 'uuid': uuid,
                 'request_id': request_id,
-                'content': content,
+                'details': details,
                 'step': step,
                 'error': error
             })
 
-    def warning(self,
-                uuid: str = 'default_user',
-                request_id: str = 'default_request_id',
-                content: Dict = None,
-                step: str = '',
-                message: str = '',
-                error: str = ''):
-        if content is None:
-            content = {}
+    def warning(self, message: str = '', *args):
+        self.logger.warning(message, *args)
+
+    def query_warning(self,
+                      uuid: str = 'default_user',
+                      request_id: str = 'default_request_id',
+                      details: Dict = None,
+                      step: str = '',
+                      message: str = ''):
+        if details is None:
+            details = {}
 
         self.logger.warning(
             message,
             extra={
                 'uuid': uuid,
                 'request_id': request_id,
-                'content': content,
+                'details': details,
                 'step': step,
-                'error': error
+                'error': ''
             })
 
 

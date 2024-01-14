@@ -3,7 +3,7 @@ from typing import Dict, Iterator, List, Optional
 from modelscope_agent import Agent
 from modelscope_agent.agents.react import ReAct
 from modelscope_agent.agents.react_chat import ReActChat
-from modelscope_agent.log import logger
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 class FunctionCalling(Agent):
