@@ -586,7 +586,8 @@ with demo:
                     input.text,
                     history=history,
                     ref_doc=ref_doc,
-                    append_files=append_files):
+                    append_files=append_files,
+                    uuid_str=uuid_str):
                 # append_files=new_file_paths):
                 # important! do not change this
                 response += frame

@@ -1,6 +1,7 @@
 # flake8: noqa E501
 import os
 import re
+from http import HTTPStatus
 
 import json
 from config_utils import DEFAULT_UUID_HISTORY, parse_configuration

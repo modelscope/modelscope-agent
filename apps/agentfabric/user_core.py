@@ -34,7 +34,10 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
     instruction = builder_cfg.instruction
     agent = RolePlay(
-        function_list=function_list, llm=llm_config, instruction=instruction)
+        function_list=function_list,
+        llm=llm_config,
+        instruction=instruction,
+        uuid_str=uuid_str)
 
     # build memory
     storage_path = get_user_dir(uuid_str)

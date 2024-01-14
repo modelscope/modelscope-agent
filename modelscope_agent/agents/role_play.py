@@ -212,7 +212,7 @@ class RolePlay(Agent):
                 prompt=planning_prompt,
                 stream=True,
                 stop=['Observation:', 'Observation:\n'],
-            )
+                **kwargs)
 
             llm_result = ''
             for s in output:

@@ -8,13 +8,20 @@ from modelscope_agent.utils.logger import agent_logger as logger
 from .base import BaseChatModel, register_llm
 
 
-def stream_output(response):
+def stream_output(response, **kwargs):
     last_len = 0
     delay_len = 5
     in_delay = False
     text = ''
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
+            logger.query_info(
+                uuid=kwargs.get('uuid_str', ''),
+                details={
+                    'dashscope.request_id': trunk.request_id,
+                    'dashscope.output': trunk.output
+                },
+                message='call dashscope generation api success')
             text = trunk.output.choices[0].message.content
             if (len(text) - last_len) <= delay_len:
                 in_delay = True
@@ -26,6 +33,15 @@ def stream_output(response):
                 yield now_rsp
                 last_len = len(real_text)
         else:
+            logger.query_error(
+                uuid=kwargs.get('uuid_str', ''),
+                details={
+                    'dashscope.request_id': trunk.request_id,
+                    'dashscope.status_code': trunk.status_code,
+                    'dashscope.code': trunk.code,
+                    'dashscope.message': trunk.message
+                },
+                message='call dashscope generation api error')
             err = '\nError code: %s. Error message: %s' % (trunk.code,
                                                            trunk.message)
             if trunk.code == 'DataInspectionFailed':
@@ -71,9 +87,9 @@ class DashScopeLLM(BaseChatModel):
         logger.query_info(
             uuid=kwargs.get('uuid_str', ''),
             details=generation_input,
-            message='call dashscope gneration api')
+            message='call dashscope generation api')
         response = dashscope.Generation.call(**generation_input)
-        return stream_output(response)
+        return stream_output(response, **kwargs)
 
     def _chat_no_stream(self,
                         messages: List[Dict],
