@@ -32,7 +32,11 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
         plugin_cfg, function_list)
 
     llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
-    instruction = builder_cfg.instruction
+    instruction = {
+        'name': builder_cfg.name,
+        'description': builder_cfg.description,
+        'instruction': builder_cfg.description
+    }
     agent = RolePlay(
         function_list=function_list,
         llm=llm_config,
