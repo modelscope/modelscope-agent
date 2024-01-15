@@ -1,19 +1,22 @@
 import os
-import pandas as pd
+import time
+
 import json
+import pandas as pd
 import requests
-from modelscope_agent.tools.localfile2url_utils.localfile2url import get_upload_url
+from modelscope_agent.tools.localfile2url_utils.localfile2url import \
+    get_upload_url
 from modelscope_agent.tools.tool import Tool, ToolSchema
 from pydantic import ValidationError
 from requests.exceptions import RequestException, Timeout
-import time
 
 MAX_RETRY_TIMES = 3
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
-class Phantom(Tool):# 继承基础类Tool，新建一个继承类
-    description = '追影-放大镜'# 对这个tool的功能描述
-    name = 'phantom_image_enhancement'#tool name
+
+class Phantom(Tool):  # 继承基础类Tool，新建一个继承类
+    description = '追影-放大镜'  # 对这个tool的功能描述
+    name = 'phantom_image_enhancement'  #tool name
     """
     parameters是需要传入api tool的参数，通过api详情获取需要哪些必要入参
     其中每一个参数都是一个字典，包含name，description，required三个字段
@@ -23,20 +26,20 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
         'name': 'input.image_path',
         'description': '输入的待增强图片的本地相对路径',
         'required': True
-    },
-    {
+    }, {
         'name': 'parameters.upscale',
         'description': '选择需要超分的倍率，可选择1、2、3、4',
         'required': False
     }]
 
     def __init__(self, cfg={}):
-        self.cfg = cfg.get(self.name, {})# cfg注册见下一条说明，这里是通过name找到对应的cfg
+        self.cfg = cfg.get(self.name, {})  # cfg注册见下一条说明，这里是通过name找到对应的cfg
         # api url
         self.url = 'https://dashscope.aliyuncs.com/api/v1/services/enhance/image-enhancement/generation'
         # api token，可以选择注册在下面的cfg里，也可以选择将'API_TOKEN'导入环境变量
-        self.token = self.cfg.get('token', os.environ.get('DASHSCOPE_API_KEY', ''))
-        assert self.token != '', 'dashscope api token must be acquired' 
+        self.token = self.cfg.get('token',
+                                  os.environ.get('DASHSCOPE_API_KEY', ''))
+        assert self.token != '', 'dashscope api token must be acquired'
         # 验证，转换参数格式，保持即可
         try:
             all_param = {
@@ -51,12 +54,12 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
         self._str = self.tool_schema.model_dump_json()
         self._function = self.parse_pydantic_model_to_openai_function(
             all_param)
-    
-    # 调用api操作函数，kwargs里是llm根据上面的parameters说明得到的对应参数  
+
+    # 调用api操作函数，kwargs里是llm根据上面的parameters说明得到的对应参数
     def __call__(self, *args, **kwargs):
         # 对入参格式调整和补充，比如解开嵌套的'.'连接的参数，还有导入你默认的一些参数，
         # 比如model，参考下面的_remote_parse_input函数。
-        
+
         remote_parsed_input = json.dumps(
             self._remote_parse_input(*args, **kwargs))
         origin_result = None
@@ -76,14 +79,11 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
             try:
                 # requests请求
                 response = requests.post(
-                    url=self.url,
-                    headers=headers,
-                    data=remote_parsed_input)
+                    url=self.url, headers=headers, data=remote_parsed_input)
 
                 if response.status_code != requests.codes.ok:
                     response.raise_for_status()
-                origin_result = json.loads(
-                    response.content.decode('utf-8'))
+                origin_result = json.loads(response.content.decode('utf-8'))
                 # self._parse_output是基础类Tool对output结果的一个格式调整，你可                  # 以在这里按需调整返回格式
                 self.final_result = self._parse_output(
                     origin_result, remote=True)
@@ -95,11 +95,11 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
                 raise ValueError(
                     f'Remote call failed with error code: {e.response.status_code},\
                     error message: {e.response.content.decode("utf-8")}')
-        
+
         raise ValueError(
             'Remote call max retry times exceeded! Please try to use local call.'
         )
-        
+
     def _remote_parse_input(self, *args, **kwargs):
         restored_dict = {}
         for key, value in kwargs.items():
@@ -114,9 +114,10 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
                 # f the key does not contain ".", directly store the key-value pair into restored_dict
                 restored_dict[key] = value
         kwargs = restored_dict
-        
+
         image_path = kwargs['input'].pop('image_path', None)
-        if image_path and image_path.endswith(('.jpeg', '.png', '.jpg', '.bmp')):
+        if image_path and image_path.endswith(
+            ('.jpeg', '.png', '.jpg', '.bmp')):
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
             image_path = f'file://{os.path.join(WORK_DIR, image_path)}'
@@ -127,35 +128,30 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
             kwargs['input']['image_url'] = image_url
         else:
             raise ValueError('请先上传一张正确格式的图片')
-        
+
         kwargs['model'] = 'wanx-image-enhancement-v1'
         print('传给tool的参数:', kwargs)
         return kwargs
-    
+
     def get_result(self):
         result_data = json.loads(json.dumps(self.final_result['result']))
         if 'task_id' in result_data['output']:
             task_id = result_data['output']['task_id']
         get_url = f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}'
         get_header = {'Authorization': f'Bearer {self.token}'}
-        
+
         origin_result = None
         retry_times = MAX_RETRY_TIMES
         while retry_times:
             retry_times -= 1
             try:
                 response = requests.request(
-                        'GET',
-                        url=get_url,
-                        headers=get_header
-                        )
+                    'GET', url=get_url, headers=get_header)
                 if response.status_code != requests.codes.ok:
                     response.raise_for_status()
-                origin_result = json.loads(
-                    response.content.decode('utf-8'))
+                origin_result = json.loads(response.content.decode('utf-8'))
 
-                get_result = self._parse_output(
-                    origin_result, remote=True)
+                get_result = self._parse_output(origin_result, remote=True)
                 return get_result
             except Timeout:
                 continue
@@ -163,11 +159,11 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
                 raise ValueError(
                     f'Remote call failed with error code: {e.response.status_code},\
                     error message: {e.response.content.decode("utf-8")}')
-        
+
         raise ValueError(
             'Remote call max retry times exceeded! Please try to use local call.'
         )
-    
+
     def get_phantom_result(self):
         try:
             result = self.get_result()
@@ -186,13 +182,14 @@ class Phantom(Tool):# 继承基础类Tool，新建一个继承类
                     # output_url = self._parse_output(result['result']['output']['result_url'])
                     output_url = {}
                     output_url['result'] = {}
-                    output_url['result']['url'] = result['result']['output']['result_url']
+                    output_url['result']['url'] = result['result']['output'][
+                        'result_url']
                     # print(output_url)
                     print(output_url)
                     return output_url
-                
+
                 elif task_status in ['FAILED', 'ERROR']:
-                    raise("任务失败")
+                    raise ('任务失败')
 
                 # 继续轮询，等待一段时间后再次调用
                 time.sleep(1)  # 等待 1 秒钟

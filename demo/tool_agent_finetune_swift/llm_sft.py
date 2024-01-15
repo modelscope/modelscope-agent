@@ -8,10 +8,10 @@ import torch
 import torch.distributed as dist
 from swift import (HubStrategy, LoraConfig, Seq2SeqTrainer,
                    Seq2SeqTrainingArguments, Swift, get_logger)
-from swift.utils import (add_version_to_work_dir, is_master, parse_args,
-                         get_model_info, seed_everything)
 from swift.llm.utils import data_collate_fn, print_example, stat_dataset
 from swift.llm.utils.model import fix_gradient_checkpointing_warning
+from swift.utils import (add_version_to_work_dir, get_model_info, is_master,
+                         parse_args, seed_everything)
 from transformers import BitsAndBytesConfig
 from utils import (DEFAULT_PROMPT, MODEL_MAPPING, broadcast_string,
                    find_all_linear_for_lora, get_dist_setting,
@@ -192,7 +192,7 @@ def llm_sft(args: SftArguments) -> None:
         else:
             model = Swift.from_pretrained(
                 model, args.resume_from_ckpt, is_trainable=True)
-    
+
     # fix bug: Attempting to unscale FP16 gradients.
     #   peft: https://github.com/huggingface/peft/issues/1249
     #   modules_to_save + fp16
