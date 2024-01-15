@@ -186,6 +186,8 @@ class CodeInterpreter(BaseTool):
         kc.execute(code)
         result = ''
         image_idx = 0
+        # video ready *.mp4
+        re_pattern = re.compile(pattern=r'([\s\S]+)video ready ([\s\S]+).mp4')
         while True:
             text = ''
             image = ''
@@ -220,8 +222,13 @@ class CodeInterpreter(BaseTool):
                     else:
                         text = msg['content']['data'].get('text/plain', '')
                 elif msg_type == 'stream':
+                    res = re_pattern.search(msg['content']['text'])
+                    repr = ''
+                    if res:
+                        path = os.path.join(WORK_DIR, res.group(2) + '.mp4')
+                        repr = f'<audio src="{path}"/>'
                     msg_type = msg['content']['name']  # stdout, stderr
-                    text = msg['content']['text']
+                    text = msg['content']['text'] + repr
                 elif msg_type == 'error':
                     text = self._escape_ansi('\n'.join(
                         msg['content']['traceback']))
