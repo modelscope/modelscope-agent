@@ -7,12 +7,12 @@ from urllib.parse import unquote, urlparse
 
 import json
 import json5
-from modelscope_agent.log import logger
 from modelscope_agent.schemas import Document
 from modelscope_agent.storage import BaseStorage, DocumentStorage
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.tools.similarity_search import (RefMaterialInput,
                                                       RefMaterialInputItem)
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.parse_doc import (count_tokens, parse_doc,
                                               parse_html_bs)
 from modelscope_agent.utils.utils import print_traceback, save_text_to_file

@@ -3,17 +3,25 @@ from http import HTTPStatus
 from typing import Dict, Iterator, List, Optional
 
 import dashscope
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .base import BaseChatModel, register_llm
 
 
-def stream_output(response):
+def stream_output(response, **kwargs):
     last_len = 0
     delay_len = 5
     in_delay = False
     text = ''
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
+            logger.query_info(
+                uuid=kwargs.get('uuid_str', ''),
+                details={
+                    'dashscope.request_id': trunk.request_id,
+                    'dashscope.output': trunk.output
+                },
+                message='call dashscope generation api success')
             text = trunk.output.choices[0].message.content
             if (len(text) - last_len) <= delay_len:
                 in_delay = True
@@ -25,6 +33,15 @@ def stream_output(response):
                 yield now_rsp
                 last_len = len(real_text)
         else:
+            logger.query_error(
+                uuid=kwargs.get('uuid_str', ''),
+                details={
+                    'dashscope.request_id': trunk.request_id,
+                    'dashscope.status_code': trunk.status_code,
+                    'dashscope.code': trunk.code,
+                    'dashscope.message': trunk.message
+                },
+                message='call dashscope generation api error')
             err = '\nError code: %s. Error message: %s' % (trunk.code,
                                                            trunk.message)
             if trunk.code == 'DataInspectionFailed':
@@ -55,20 +72,24 @@ class DashScopeLLM(BaseChatModel):
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
         stop = stop or []
-        top_p = kwargs.get('top_p', 0.8)
-
-        response = dashscope.Generation.call(
-            self.model,
-            messages=messages,  # noqa
-            stop_words=[{
+        generation_input = {
+            'model': self.model,
+            'messages': messages,  # noqa
+            'stop_words': [{
                 'stop_str': word,
                 'mode': 'exclude'
             } for word in stop],
-            top_p=top_p,
-            result_format='message',
-            stream=True,
-        )
-        return stream_output(response)
+            'top_p': kwargs.get('top_p', 0.8),
+            'result_format': 'message',
+            'stream': True,
+        }
+
+        logger.query_info(
+            uuid=kwargs.get('uuid_str', ''),
+            details=generation_input,
+            message='call dashscope generation api')
+        response = dashscope.Generation.call(**generation_input)
+        return stream_output(response, **kwargs)
 
     def _chat_no_stream(self,
                         messages: List[Dict],

@@ -50,6 +50,7 @@ class Agent(ABC):
         self.name = name
         self.description = description
         self.instruction = instruction
+        self.uuid_str = kwargs.get('uuid_str', None)
 
     def run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
         if 'lang' not in kwargs:
@@ -57,6 +58,8 @@ class Agent(ABC):
                 kwargs['lang'] = 'zh'
             else:
                 kwargs['lang'] = 'en'
+        if 'uuid_str' not in kwargs and self.uuid_str is not None:
+            kwargs['uuid_str'] = self.uuid_str
         return self._run(*args, **kwargs)
 
     @abstractmethod

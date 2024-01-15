@@ -115,7 +115,7 @@ class AgentBuilder(Agent):
         # concat the new messages
         messages.append({'role': 'user', 'content': user_request})
 
-        return self._call_llm(messages=messages)
+        return self._call_llm(messages=messages, **kwargs)
 
     def parse_answer(self, llm_result_prefix: str, llm_result: str):
         """

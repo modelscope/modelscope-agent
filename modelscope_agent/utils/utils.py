@@ -12,7 +12,7 @@ import json5
 from dashscope.common.error import InvalidInput, UploadFileException
 from dashscope.utils.oss_utils import OssUtils
 from jieba import analyse
-from modelscope_agent.log import logger
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 def get_local_ip():
