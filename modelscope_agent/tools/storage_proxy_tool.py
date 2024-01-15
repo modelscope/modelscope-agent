@@ -1,10 +1,8 @@
 import hashlib
-import os
 from typing import Dict, Optional
 
+from modelscope_agent.storage import DocumentStorage
 from modelscope_agent.tools.base import BaseTool, register_tool
-
-from .storage.file_storage import DocumentStorage
 
 
 def hash_sha256(key):
@@ -29,7 +27,7 @@ class Storage(BaseTool):
         'name': 'operate',
         'type': 'string',
         'description':
-        '数据操作类型，可选项为["put", "get", "delete", "scan"]之一，分别为存数据、取数据、删除数据、遍历数据',
+        '数据操作类型，可选项为["add", "search", "delete", "scan"]之一，分别为存数据、取数据、删除数据、遍历数据',
         'required': True
     }, {
         'name': 'key',
@@ -71,10 +69,10 @@ class Storage(BaseTool):
         datastore = datastore_cls(path)
 
         operate = params['operate']
-        if operate == 'put':
-            return datastore.put(params['key'], params['value'])
-        elif operate == 'get':
-            return datastore.get(params['key'])
+        if operate == 'add':
+            return datastore.add(params['key'], params['value'])
+        elif operate == 'search':
+            return datastore.search(params['key'])
         elif operate == 'delete':
             return datastore.delete(params['key'])
         else:

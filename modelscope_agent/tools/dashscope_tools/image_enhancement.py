@@ -15,7 +15,7 @@ WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
 
 @register_tool('image_enhancement')
-class Phantom(StyleRepaint):
+class ImageEnhancement(StyleRepaint):
     """
         parameters是需要传入api tool的参数，通过api详情获取需要哪些必要入参
         其中每一个参数都是一个字典，包含name，description，required三个字段

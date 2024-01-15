@@ -1,4 +1,5 @@
 dashscope
+faiss-cpu
 jieba
 json5
 jupyter>=1.0.0

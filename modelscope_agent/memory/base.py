@@ -1,34 +1,52 @@
 import os
-from abc import abstractmethod
-from typing import Iterable, List, Union
+from typing import Dict, Iterable, List, Union
 
 import json
 from modelscope_agent.schemas import AgentHolder, Message
 from pydantic import ConfigDict
 
 
-class BaseMemory(AgentHolder):
-
+class Memory(AgentHolder):
+    path: str
     model_config = ConfigDict(extra='allow')
 
-    @abstractmethod
-    def dump(self, data):
-        pass
+    def save_memory(self, history: List[Message]):
+        """
+        save history memory to path
+        Args:
+            history: List of Message
 
-    @abstractmethod
-    def read(self):
-        pass
+        Returns: None
 
-    def serialize(self, data: dict):
-        self.dump(data)
+        """
+        directory = os.path.dirname(self.path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
-    def deserialize(self):
-        data = self.read()
-        if data:
-            print('Data deserialized.')
-            return data
-        else:
-            print('Unable to deserialize data.')
+        with open(self.path, 'w', encoding='utf-8') as file:
+            # 使用 Pydantic 的 dict() 方法将模型列表转换为字典列表
+            messages_dict_list = [message.model_dump() for message in history]
+            # 使用 json.dump 将字典列表写入文件
+            json.dump(messages_dict_list, file, ensure_ascii=False, indent=2)
+
+    def load_memory(self) -> List[Message]:
+        """
+        Load memory from path
+        Returns: list of Message
+
+        """
+        try:
+            with open(self.path, 'r', encoding='utf-8') as file:
+                # 使用 json.load 读取文件中的字典列表
+                messages_dict_list = json.load(file)
+                # 使用 Pydantic 的 parse_obj_list 方法将字典列表转换为模型列表
+                messages_list = [
+                    Message.model_validate(message_dict)
+                    for message_dict in messages_dict_list
+                ]
+                return messages_list
+        except FileNotFoundError:
+            print('File not found.')
             return None
 
     def get_history(self) -> List[Message]:
@@ -45,24 +63,3 @@ class BaseMemory(AgentHolder):
 
     def clear_history(self):
         self.history = []
-
-
-class FileStorageMemory(BaseMemory):
-    path: str
-
-    def dump(self, data):
-        directory = os.path.dirname(self.path)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        with open(self.path, 'w') as f:
-            json.dump(data, f)
-
-    def read(self):
-        try:
-            with open(self.path, 'r') as f:
-                data = json.load(f)
-            return data
-        except FileNotFoundError:
-            print('File not found.')
-            return None

@@ -569,10 +569,10 @@ with demo:
             preview_chat_input: None
         }
 
-        # get short term memory history
+        # get chat history from memory
         history = user_memory.get_history()
 
-        # get long term memory knowledge, currently get one file
+        # get knowledge from memory, currently get one file
         uploaded_file = None
         if len(append_files) > 0:
             uploaded_file = append_files[0]
