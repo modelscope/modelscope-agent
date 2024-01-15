@@ -41,10 +41,8 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     storage_path = get_user_dir(uuid_str)
     memory_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
                                        session + '_user.json')
-    memory_agent_name = uuid_str + '_' + session
+    memory_agent_name = uuid_str + '_' + session + '_memory'
     memory = MemoryWithRetrievalKnowledge(
-        function_list=['doc_parser'],
-        llm=llm_config,
         storage_path=storage_path,
         name=memory_agent_name,
         memory_path=memory_history_path,

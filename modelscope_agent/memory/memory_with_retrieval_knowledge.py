@@ -1,7 +1,6 @@
 from typing import Dict, Iterator, List, Optional, Union
 
 import json
-import json5
 from modelscope_agent.agent import Agent
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.storage import KnowledgeVector
@@ -36,7 +35,10 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
              **kwargs) -> Union[str, Iterator[str]]:
         # no need for llm in this agent yet, all the operation could be handled by simple logic
         if url:
-            url = json.loads(url)
+            try:
+                url = json.loads(url)
+            except json.JSONDecodeError:
+                pass
 
             # add file to index
             self.store_knowledge.add(url)
