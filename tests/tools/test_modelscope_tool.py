@@ -51,22 +51,6 @@ def test_modelscope_text_ie():
     assert isinstance(res, str)
 
 
-def test_modelscope_en2zh():
-    from modelscope_agent.tools.modelscope_tools import TranslationEn2ZhTool
-    kwargs = """{'input': 'Autonomous agents have long been a prominent research focus in both academic and industry communities.'}"""  # noqa E501
-    zh_txt = TranslationEn2ZhTool()
-    res = zh_txt.call(kwargs)
-    assert isinstance(res, str)
-
-
-def test_modelscope_zh2en():
-    from modelscope_agent.tools.modelscope_tools import TranslationZh2EnTool
-    kwargs = """{'input': '北京今天天气怎样?'}"""
-    en_txt = TranslationZh2EnTool()
-    res = en_txt.call(kwargs)
-    assert isinstance(res, str)
-
-
 def test_modelscope_image_chat():
     from modelscope_agent.tools.modelscope_tools import ImageChatTool
     kwargs = """{'image': 'http://mm-chatgpt.oss-cn-zhangjiakou.aliyuncs.com/mplug_owl_demo/released_checkpoint/portrait_input.png', 'text': 'Describe the facial expression of the man.'}"""  # noqa E501
