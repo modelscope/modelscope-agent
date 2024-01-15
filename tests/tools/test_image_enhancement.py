@@ -1,12 +1,12 @@
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 import json
-from modelscope_agent.tools import Phantom
+from modelscope_agent.tools.dashscope_tools import ImageEnhancement
 
 
 def test_phantom():
     image_url = 'luoli15.jpg'
     kwargs = {'input.image_path': image_url, 'parameters.upscale': 2}
-    phantom = Phantom()
+    phantom = ImageEnhancement()
     res = phantom.call(json.dumps(kwargs))
     assert (res.startswith('http'))
 
