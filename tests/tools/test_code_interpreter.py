@@ -31,7 +31,7 @@ def test_code_interpreter_jupyter_text():
 
 def test_code_interpreter_video():
     # test code interpreter
-    input = """from moviepy.editor import ImageClip, concatenate_videoclips\n\n# 读取图片\nimage = ImageClip("2C979110-E432-4CC4-8363-8EA4932E6043_.png")\n\n# 创建一个持续5秒的循环动画\nanimation = image.set_duration(5).rotate(angle=360)\n\n# 将动画保存为mp4文件\nanimation.write_videofile("rotating_image.mp4", fps=24)\n\n"""  # noqa E501
+    input = """from moviepy.editor import ImageClip, concatenate_videoclips\n\n# 读取图片\nimage = ImageClip("luoli15.jpg")\n\n# 创建一个持续5秒的循环动画\nanimation = image.set_duration(5).rotate(angle=360)\n\n# 将动画保存为mp4文件\nanimation.write_videofile("rotating_image.mp4", fps=24)\n\n"""  # noqa E501
 
     kwargs = {'code': input}
     code_interpreter = CodeInterpreter()
