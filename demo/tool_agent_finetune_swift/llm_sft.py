@@ -9,8 +9,9 @@ import torch.distributed as dist
 from swift import (HubStrategy, LoraConfig, Seq2SeqTrainer,
                    Seq2SeqTrainingArguments, Swift, get_logger)
 from swift.utils import (add_version_to_work_dir, is_master, parse_args,
-                         print_model_info, seed_everything)
-from swift.utils.llm_utils import data_collate_fn, print_example, stat_dataset
+                         get_model_info, seed_everything)
+from swift.llm.utils import data_collate_fn, print_example, stat_dataset
+from swift.llm.utils.model import fix_gradient_checkpointing_warning
 from transformers import BitsAndBytesConfig
 from utils import (DEFAULT_PROMPT, MODEL_MAPPING, broadcast_string,
                    find_all_linear_for_lora, get_dist_setting,
@@ -149,6 +150,7 @@ def llm_sft(args: SftArguments) -> None:
     logger.info(
         f'rank: {rank}, local_rank: {local_rank}, world_size: {world_size}')
     seed_everything(args.seed)
+    fix_gradient_checkpointing_warning()
 
     # ### Loading Model and Tokenizer
     kwargs = {'low_cpu_mem_usage': True}
@@ -190,6 +192,18 @@ def llm_sft(args: SftArguments) -> None:
         else:
             model = Swift.from_pretrained(
                 model, args.resume_from_ckpt, is_trainable=True)
+    
+    # fix bug: Attempting to unscale FP16 gradients.
+    #   peft: https://github.com/huggingface/peft/issues/1249
+    #   modules_to_save + fp16
+        is_logging = False
+        for p in model.parameters():
+            if p.requires_grad and p.dtype == torch.float16:
+                if not is_logging:
+                    logger.info(
+                        'Convert trainable parameters from fp16 to fp32.')
+                    is_logging = True
+                p.data = p.data.to(dtype=torch.float32)
 
     # # for fsdp
     # if args.fp16:
@@ -198,7 +212,7 @@ def llm_sft(args: SftArguments) -> None:
     #     model = model.bfloat16()
 
     show_layers(model)
-    print_model_info(model)
+    get_model_info(model)
 
     # ### Loading Dataset
     dataset = get_ms_tool_dataset(args.dataset)
