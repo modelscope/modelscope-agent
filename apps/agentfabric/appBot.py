@@ -42,10 +42,10 @@ def init_user(state):
         state['user_agent'] = user_agent
         state['user_memory'] = user_memory
     except Exception as e:
-        logger.error(
+        logger.query_error(
             uuid=uuid_str,
             error=str(e),
-            content={'error_traceback': traceback.format_exc()})
+            details={'error_traceback': traceback.format_exc()})
         raise Exception(e)
     return state
 

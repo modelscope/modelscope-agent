@@ -162,7 +162,7 @@ def parse_configuration(uuid_str=''):
             for name, config in config_dict.items():
                 available_plugin_list.append(name)
         except Exception as e:
-            logger.error(
+            logger.query_error(
                 uuid=uuid_str,
                 error=str(e),
                 content={

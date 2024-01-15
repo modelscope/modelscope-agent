@@ -68,7 +68,7 @@ def call_wanx(prompt, save_path, uuid_str):
             with open(save_path, 'wb+') as f:
                 f.write(requests.get(result.url).content)
     else:
-        logger.error(
+        logger.query_error(
             uuid=uuid_str,
             error='wanx error',
             content={
