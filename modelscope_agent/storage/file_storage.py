@@ -26,9 +26,9 @@ class DocumentStorage(BaseStorage):
         for file in os.listdir(path):
             self.data[file] = None
 
-    def put(self, key: str, value: str):
+    def add(self, key: str, value: str):
         """
-        save one key value pair
+        add one key to db
         :param key: str
         :param value: str
 
@@ -43,9 +43,9 @@ class DocumentStorage(BaseStorage):
         else:
             print_traceback()
 
-    def get(self, key: str, re_load: bool = True):
+    def search(self, key: str, re_load: bool = True):
         """
-        get one value by key
+        search one value by key
         :param key: str
         :return: value: str
         """

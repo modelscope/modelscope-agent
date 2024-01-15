@@ -5,14 +5,14 @@ import json5
 from modelscope_agent.agent import Agent
 from modelscope_agent.agents.gen_keyword import GenKeyword
 from modelscope_agent.llm.base import BaseChatModel
+from modelscope_agent.storage import DocumentStorage
 from modelscope_agent.tools.similarity_search import (RefMaterialInput,
                                                       SimilaritySearch)
-from modelscope_agent.tools.storage import DocumentStorage
 
-from .base import FileStorageMemory
+from .base import Memory
 
 
-class MemoryProxyAgent(FileStorageMemory, Agent):
+class MemoryWithFileKnowledge(Memory, Agent):
 
     def __init__(self,
                  function_list: Optional[List[Union[str, Dict]]] = None,
@@ -21,7 +21,7 @@ class MemoryProxyAgent(FileStorageMemory, Agent):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  **kwargs):
-        FileStorageMemory.__init__(self, path=kwargs.get('memory_path', None))
+        Memory.__init__(self, path=kwargs.get('memory_path', None))
         Agent.__init__(
             self,
             function_list=function_list,

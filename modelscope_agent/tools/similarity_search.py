@@ -41,9 +41,9 @@ class RefMaterialInput(BaseModel):
         return {'url': self.url, 'text': [x.to_dict() for x in self.text]}
 
 
-@register_tool('retrieval')
+@register_tool('similarity_search')
 class SimilaritySearch(BaseTool):
-    name = 'retrieval'
+    name = 'similarity_search'
     description = '从文档中检索和问题相关的部分，从而辅助回答问题'
     parameters = [{
         'name': 'query',

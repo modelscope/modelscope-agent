@@ -38,6 +38,10 @@ def parse_doc(path):
         from langchain_community.document_loaders import UnstructuredPowerPointLoader
         loader = UnstructuredPowerPointLoader(path)
         pages = loader.load_and_split()
+    elif '.txt' in path.lower():
+        from langchain_community.document_loaders import TextLoader
+        loader = TextLoader(path, autodetect_encoding=True)
+        pages = loader.load_and_split()
     else:
         from langchain_community.document_loaders import UnstructuredFileLoader
         loader = UnstructuredFileLoader(path)
