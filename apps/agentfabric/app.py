@@ -7,9 +7,8 @@ import gradio as gr
 import json
 import modelscope_gradio_components as mgr
 import yaml
-from apps.agentfabric.builder_core import (beauty_output,
-                                           gen_response_and_process,
-                                           init_builder_chatbot_agent)
+from builder_core import (beauty_output, gen_response_and_process,
+                          init_builder_chatbot_agent)
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           get_ci_dir, get_user_dir,
                           is_valid_plugin_configuration, parse_configuration,
@@ -569,10 +568,10 @@ with demo:
             preview_chat_input: None
         }
 
-        # get short term memory history
+        # get chat history from memory
         history = user_memory.get_history()
 
-        # get long term memory knowledge, currently get one file
+        # get knowledge from memory, currently get one file
         uploaded_file = None
         if len(append_files) > 0:
             uploaded_file = append_files[0]

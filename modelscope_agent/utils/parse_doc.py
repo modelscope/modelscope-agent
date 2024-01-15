@@ -38,6 +38,17 @@ def parse_doc(path):
         from langchain_community.document_loaders import UnstructuredPowerPointLoader
         loader = UnstructuredPowerPointLoader(path)
         pages = loader.load_and_split()
+    elif '.txt' in path.lower():
+        from langchain_community.document_loaders import TextLoader
+        from langchain.text_splitter import CharacterTextSplitter
+        # split the knowledge into chunk size 1000
+        text_splitter = CharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+        )
+        loader = TextLoader(path, autodetect_encoding=True)
+        pages = loader.load_and_split(text_splitter)
     else:
         from langchain_community.document_loaders import UnstructuredFileLoader
         loader = UnstructuredFileLoader(path)

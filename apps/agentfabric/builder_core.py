@@ -7,7 +7,7 @@ import json
 from config_utils import DEFAULT_UUID_HISTORY, parse_configuration
 from help_tools import config_conversion, logo_generate_remote_call
 from modelscope_agent.agents import AgentBuilder
-from modelscope_agent.memory import FileStorageMemory
+from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 
@@ -34,14 +34,14 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
 
     current_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
                                         session + '_builder.json')
-    memory = FileStorageMemory(path=current_history_path)
+    memory = MemoryWithRetrievalKnowledge(path=current_history_path)
 
     return agent, memory
 
 
 def gen_response_and_process(agent,
                              query: str,
-                             memory: FileStorageMemory,
+                             memory: MemoryWithRetrievalKnowledge,
                              uuid_str: str,
                              print_info: bool = False):
     """

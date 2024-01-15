@@ -2,20 +2,20 @@ import copy
 import datetime
 import os
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 from urllib.parse import unquote, urlparse
 
 import json
 import json5
 from modelscope_agent.schemas import Document
+from modelscope_agent.storage import BaseStorage, DocumentStorage
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.tools.similarity_search import (RefMaterialInput,
                                                       RefMaterialInputItem)
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_agent.utils.parse_doc import (count_tokens, parse_doc,
+                                              parse_html_bs)
 from modelscope_agent.utils.utils import print_traceback, save_text_to_file
-
-from .storage import BaseStorage, DocumentStorage
-from .utils.parse_doc import count_tokens, parse_doc, parse_html_bs
 
 
 def sanitize_chrome_file_path(file_path: str) -> str:
@@ -44,10 +44,13 @@ def sanitize_chrome_file_path(file_path: str) -> str:
     return file_path
 
 
-def process_file(url: str, content: str, source: str, db: BaseStorage = None):
+def process_file(url: str,
+                 content: str = None,
+                 source: str = None,
+                 db: BaseStorage = None):
     logger.info('Starting cache pages...')
     url = url
-    if url.split('.')[-1].lower() in ['pdf', 'docx', 'pptx']:
+    if url.split('.')[-1].lower() in ['pdf', 'docx', 'pptx', 'txt']:
         date1 = datetime.datetime.now()
 
         # generate one processing record
@@ -104,9 +107,9 @@ def process_file(url: str, content: str, source: str, db: BaseStorage = None):
         checked=True,
         session=[]).model_dump()
     new_record_str = json.dumps(new_record, ensure_ascii=False)
-    db.put(url, new_record_str)
+    db.add(url, new_record_str)
 
-    meta_info = db.get('meta_info')
+    meta_info = db.search('meta_info')
     if meta_info == 'Not Exist':
         meta_info = {}
     else:
@@ -124,7 +127,7 @@ def process_file(url: str, content: str, source: str, db: BaseStorage = None):
         'title': title,
         'checked': True,
     }
-    db.put('meta_info', json.dumps(meta_info, ensure_ascii=False))
+    db.add('meta_info', json.dumps(meta_info, ensure_ascii=False))
 
     return new_record_str
 
@@ -210,19 +213,18 @@ class DocParser(BaseTool):
 
         record = None
         if 'url' in params:
-            record = db.get(params['url'])
+            record = db.search(params['url'])
             # need to parse and save doc
-            if 'content' in kwargs:
+            if record == 'Not Exist':
+                content = kwargs.get('content', None)
+                source = kwargs.get('type', '')
                 record = process_file(
-                    url=params['url'],
-                    content=kwargs['content'],
-                    source=kwargs['type'],
-                    db=db)
+                    url=params['url'], content=content, source=source, db=db)
 
         checked = kwargs.get('checked', False)
 
         # if checked is True, read data by condition, should contain the new record and old record
-        if record is not None and not checked:
+        if record != 'Not Exist' and not checked:
             records = [json5.loads(record)]
         else:
             # load records by conditions
@@ -230,7 +232,7 @@ class DocParser(BaseTool):
             if raw:
                 return json.dumps(records, ensure_ascii=False)
             records = [
-                json5.loads(db.get(record['url'])) for record in records
+                json5.loads(db.search(record['url'])) for record in records
             ]
 
         formatted_records = format_records(records)
