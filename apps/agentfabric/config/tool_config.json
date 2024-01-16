@@ -88,7 +88,7 @@
       "name": "中译英",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en",
       "use": false,
-      "is_active": true,
+      "is_active": false,
       "is_remote_tool": true
   }
 }
