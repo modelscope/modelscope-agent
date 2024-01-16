@@ -15,13 +15,15 @@ def stream_output(response, **kwargs):
     text = ''
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
-            logger.query_info(
-                uuid=kwargs.get('uuid_str', ''),
-                details={
-                    'dashscope.request_id': trunk.request_id,
-                    'dashscope.output': trunk.output
-                },
-                message='call dashscope generation api success')
+            # logger at the first for the request_id, and the last time for whole output
+            if not text or trunk.output.choices[0].finish_reason != 'null':
+                logger.query_info(
+                    uuid=kwargs.get('uuid_str', ''),
+                    details={
+                        'dashscope.request_id': trunk.request_id,
+                        'dashscope.output': trunk.output
+                    },
+                    message='call dashscope generation api success')
             text = trunk.output.choices[0].message.content
             if (len(text) - last_len) <= delay_len:
                 in_delay = True
