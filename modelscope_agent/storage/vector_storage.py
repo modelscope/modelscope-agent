@@ -65,7 +65,7 @@ class VectorStorage(BaseStorage):
         return index_file, store_file
 
     def load(self) -> Union[VectorStore, None]:
-        if not os.path.exists(self.storage_path):
+        if not self.storage_path or not os.path.exists(self.storage_path):
             return None
         index_file, store_file = self._get_index_and_store_name(
             index_ext=self.index_ext)
@@ -77,7 +77,8 @@ class VectorStorage(BaseStorage):
                                       self.index_name)
 
     def save(self):
-        self.vs.save_local(self.storage_path, self.index_name)
+        if self.vs:
+            self.vs.save_local(self.storage_path, self.index_name)
 
 
 class KnowledgeVector(VectorStorage):

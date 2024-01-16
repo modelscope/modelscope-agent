@@ -17,7 +17,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  **kwargs):
-        Memory.__init__(self, path=kwargs.get('memory_path', None))
+        Memory.__init__(self, path=kwargs.get('memory_path', ''))
         Agent.__init__(
             self,
             function_list=function_list,
