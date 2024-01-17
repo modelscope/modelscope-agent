@@ -89,18 +89,20 @@ class KnowledgeVector(VectorStorage):
         if isinstance(file_path, str) and os.path.isfile(file_path):
             all_files.append(file_path)
         elif isinstance(file_path, list):
-            all_files = file_path
+            for f in file_path:
+                if os.path.isfile(f):
+                    all_files.append(f)
         elif os.path.isdir(file_path):
             for root, dirs, files in os.walk(file_path):
                 for f in files:
-                    if f.split('.')[-1].lower() in SUPPORTED_KNOWLEDGE_TYPE:
-                        all_files.append(os.path.join(root, f))
+                    all_files.append(os.path.join(root, f))
         else:
             raise ValueError('file_path must be a file or a directory')
 
         docs = []
         for f in all_files:
-            docs.extend(parse_doc(f))
+            if f.split('.')[-1].lower() in SUPPORTED_KNOWLEDGE_TYPE:
+                docs.extend(parse_doc(f))
         return docs
 
     # should load and save

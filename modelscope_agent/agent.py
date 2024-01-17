@@ -5,6 +5,7 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools import TOOL_REGISTRY
 from modelscope_agent.utils.utils import has_chinese_chars
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 class Agent(ABC):
@@ -42,8 +43,17 @@ class Agent(ABC):
         self.function_list = []
         self.function_map = {}
         if function_list:
+            not_implemented = []
             for function in function_list:
-                self._register_tool(function)
+                try:
+                    self._register_tool(function)
+                except Exception:
+                    not_implemented.append(function)
+            if not_implemented:
+                logger.query_warning(
+                    uuid=kwargs.get('uuid_str', 'local_user'),
+                    details=str(not_implemented),
+                    message=f'Not implemented tool(s): {not_implemented}.')
 
         self.storage_path = storage_path
         self.mem = None
