@@ -43,17 +43,15 @@ class Agent(ABC):
         self.function_list = []
         self.function_map = {}
         if function_list:
-            not_implemented = []
             for function in function_list:
+                self._register_tool(function)
                 try:
                     self._register_tool(function)
-                except Exception:
-                    not_implemented.append(function)
-            if not_implemented:
-                logger.query_warning(
-                    uuid=kwargs.get('uuid_str', 'local_user'),
-                    details=str(not_implemented),
-                    message=f'Not implemented tool(s): {not_implemented}.')
+                except Exception as e:
+                    logger.query_warning(
+                        uuid=kwargs.get('uuid_str', 'local_user'),
+                        details=str(e),
+                        message=f'tool {function} is not available')
 
         self.storage_path = storage_path
         self.mem = None
