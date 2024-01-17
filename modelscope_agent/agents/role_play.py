@@ -208,16 +208,28 @@ class RolePlay(Agent):
             # print(planning_prompt)
             # print('=============Answer=================')
             max_turn -= 1
-            output = self.llm.chat(
-                prompt=planning_prompt,
-                stream=True,
-                stop=['Observation:', 'Observation:\n'],
-                messages=messages,
-                **kwargs)
+            if self.llm.support_function_calling():
+                output = self.llm.chat_with_functions(
+                    messages=messages,
+                    functions=[
+                        func.function for func in self.function_map.values()
+                    ],
+                )
+            else:
+                output = self.llm.chat(
+                    prompt=planning_prompt,
+                    stream=True,
+                    stop=['Observation:', 'Observation:\n'],
+                    messages=messages,
+                    **kwargs)
 
             llm_result = ''
             for s in output:
-                llm_result += s
+                if isinstance(s, dict):
+                    llm_result = s
+                    break
+                else:
+                    llm_result += s
                 yield s
 
             use_tool, action, action_input, output = self._detect_tool(

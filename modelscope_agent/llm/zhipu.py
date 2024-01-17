@@ -1,4 +1,8 @@
+import os
+from typing import Dict, Iterator, List, Optional
+
 from zhipuai import ZhipuAI
+
 from .base import BaseChatModel, register_llm
 
 
@@ -9,14 +13,28 @@ class ZhipuLLM(BaseChatModel):
 
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
+        self._support_fn_call = True
         api_key = kwargs.get('api_key', os.getenv('ZHIPU_API_KEY', '')).strip()
         assert api_key, 'ZHIPU_API_KEY is required.'
         self.client = ZhipuAI(api_key=api_key)
 
 
 def stream_output(response, **kwargs):
+    func_call = {
+        'name': None,
+        'arguments': '',
+    }
     for chunk in response:
-        yield chunk.choices[0].delta
+        delta = chunk.choices[0].delta
+        if 'tool_calls' in delta:
+            if 'name' in delta.function_call:
+                func_call['name'] = delta.function_call['name']
+            if 'arguments' in delta.function_call:
+                func_call['arguments'] += delta.function_call['arguments']
+        if chunk.choices[0].finish_reason == 'tool_calls':
+            yield func_call
+        else:
+            yield delta.content
 
 
 @register_llm('glm-4')
@@ -24,68 +42,18 @@ class GLM4(ZhipuLLM):
     """
     qwen_model from dashscope
     """
-    def _chat_stream(self,
-                     messages: List[Dict],
-                     stop: Optional[List[str]] = None,
-                     **kwargs) -> Iterator[str]:
-        stop = stop or []
-        response = self.client.chat.completions.create(
-            model="glm-4",
+
+    def chat_with_functions_stream(self,
+                                   messages: List[Dict],
+                                   functions: Optional[List[Dict]] = None,
+                                   tool_choice='none',
+                                   **kwargs) -> Iterator[str]:
+        if len(functions) > 0:
+            tool_choice = 'auto'
+        response = self.client.chat.asyncCompletions.create(
+            model='glm-4',
             messages=messages,
-            stream=True,
+            tools=functions,
+            tool_choice=tool_choice,
         )
         return stream_output(response, **kwargs)
-
-    def chat_with_raw_prompt(self,
-                             prompt: str,
-                             stop: Optional[List[str]] = None,
-                             **kwargs) -> str:
-        if prompt == '':
-            return ''
-        stop = stop or []
-        top_p = kwargs.get('top_p', 0.8)
-
-        response = dashscope.Generation.call(
-            self.model,
-            prompt=prompt,  # noqa
-            stop_words=[{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
-            top_p=top_p,
-            result_format='message',
-            stream=False,
-            use_raw_prompt=True,
-        )
-        if response.status_code == HTTPStatus.OK:
-            # with open('debug.json', 'w', encoding='utf-8') as writer:
-            #     writer.write(json.dumps(response, ensure_ascii=False))
-            return response.output.choices[0].message.content
-        else:
-            err = 'Error code: %s, error message: %s' % (
-                response.code,
-                response.message,
-            )
-            return err
-
-    def build_raw_prompt(self, messages):
-        im_start = '<|im_start|>'
-        im_end = '<|im_end|>'
-        if messages[0]['role'] == 'system':
-            sys = messages[0]['content']
-            prompt = f'{im_start}system\n{sys}{im_end}'
-        else:
-            prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
-
-        for message in messages:
-            if message['role'] == 'user':
-                query = message['content'].lstrip('\n').rstrip()
-                prompt += f'\n{im_start}user\n{query}{im_end}'
-            elif message['role'] == 'assistant':
-                response = message['content'].lstrip('\n').rstrip()
-                prompt += f'\n{im_start}assistant\n{response}{im_end}'
-
-        # add one empty reply for the last round of assistant
-        assert prompt.endswith(f'\n{im_start}assistant\n{im_end}')
-        prompt = prompt[:-len(f'{im_end}')]
-        return prompt
