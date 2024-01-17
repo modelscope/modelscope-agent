@@ -36,7 +36,7 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     instruction = {
         'name': builder_cfg.name,
         'description': builder_cfg.description,
-        'instruction': builder_cfg.description
+        'instruction': builder_cfg.instruction
     }
     agent = RolePlay(
         function_list=function_list,
