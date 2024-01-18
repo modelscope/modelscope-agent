@@ -6,6 +6,26 @@ from zhipuai import ZhipuAI
 from .base import BaseChatModel, register_llm
 
 
+def stream_output(response, **kwargs):
+    func_call = {
+        'name': None,
+        'arguments': '',
+    }
+    for chunk in response:
+        delta = chunk.choices[0].delta
+        if delta.tool_calls:
+            # TODO : multi tool_calls
+            tool_call = delta.tool_calls[0]
+            print(f'tool_call: {tool_call}')
+            func_call['name'] = tool_call.function.name
+            func_call['arguments'] += tool_call.function.arguments
+        if chunk.choices[0].finish_reason == 'tool_calls':
+            yield {'function_call': func_call}
+        else:
+            yield delta.content
+
+
+@register_llm('zhipu')
 class ZhipuLLM(BaseChatModel):
     """
     Universal LLM model interface on zhipu
@@ -18,42 +38,56 @@ class ZhipuLLM(BaseChatModel):
         assert api_key, 'ZHIPU_API_KEY is required.'
         self.client = ZhipuAI(api_key=api_key)
 
+    def _chat_stream(self,
+                     messages: List[Dict],
+                     functions: Optional[List[Dict]] = None,
+                     tool_choice='auto',
+                     **kwargs) -> Iterator[str]:
+        if not functions or not len(functions):
+            tool_choice = 'none'
+        print(f'====> stream messages: {messages}')
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            tools=functions,
+            tool_choice=tool_choice,
+            stream=True,
+        )
+        return stream_output(response, **kwargs)
 
-def stream_output(response, **kwargs):
-    func_call = {
-        'name': None,
-        'arguments': '',
-    }
-    for chunk in response:
-        delta = chunk.choices[0].delta
-        if 'tool_calls' in delta:
-            if 'name' in delta.function_call:
-                func_call['name'] = delta.function_call['name']
-            if 'arguments' in delta.function_call:
-                func_call['arguments'] += delta.function_call['arguments']
-        if chunk.choices[0].finish_reason == 'tool_calls':
-            yield func_call
+    def _chat_no_stream(self,
+                        messages: List[Dict],
+                        functions: Optional[List[Dict]] = None,
+                        tool_choice='auto',
+                        **kwargs) -> str:
+        if not functions or not len(functions):
+            tool_choice = 'none'
+        print(f'====> no stream messages: {messages}')
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            tools=functions,
+            tool_choice=tool_choice,
+        )
+        return response.choices[0].message
+
+    def chat_with_functions(self,
+                            messages: List[Dict],
+                            functions: Optional[List[Dict]] = None,
+                            stream: bool = True,
+                            **kwargs) -> Dict:
+        functions = [{
+            'type': 'function',
+            'function': item
+        } for item in functions]
+        if stream:
+            return self._chat_stream(messages, functions, **kwargs)
         else:
-            yield delta.content
+            return self._chat_no_stream(messages, functions, **kwargs)
 
 
 @register_llm('glm-4')
 class GLM4(ZhipuLLM):
     """
-    qwen_model from dashscope
+    glm-4 from zhipu
     """
-
-    def chat_with_functions_stream(self,
-                                   messages: List[Dict],
-                                   functions: Optional[List[Dict]] = None,
-                                   tool_choice='none',
-                                   **kwargs) -> Iterator[str]:
-        if len(functions) > 0:
-            tool_choice = 'auto'
-        response = self.client.chat.asyncCompletions.create(
-            model='glm-4',
-            messages=messages,
-            tools=functions,
-            tool_choice=tool_choice,
-        )
-        return stream_output(response, **kwargs)
