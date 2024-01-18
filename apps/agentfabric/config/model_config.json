@@ -15,6 +15,10 @@
             "top_p": 0.8
         }
     },
+    "glm-4": {
+        "type": "zhipu",
+        "model": "glm-4"
+    },
     "qwen-max-1201": {
         "type": "dashscope",
         "model": "qwen-max-1201",
