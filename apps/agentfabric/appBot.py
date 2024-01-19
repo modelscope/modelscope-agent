@@ -15,6 +15,7 @@ from user_core import init_user_chatbot_agent
 uuid_str = 'local_user'
 builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
     uuid_str)
+prologue = builder_cfg.get('prologue', '尝试问我一点什么吧～')
 suggests = builder_cfg.get('prompt_recommend', [])
 avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)
 
@@ -61,7 +62,7 @@ with demo:
             with gr.Column():
                 # Preview
                 user_chatbot = mgr.Chatbot(
-                    value=[[None, '尝试问我一点什么吧～']],
+                    value=[[None, prologue]],
                     elem_id='user_chatbot',
                     elem_classes=['markdown-body'],
                     avatar_images=avatar_pairs,

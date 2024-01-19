@@ -152,6 +152,10 @@ with demo:
                             label=i18n.get('form_agent_language'),
                             choices=['zh', 'en'],
                             value='zh')
+                        prologue_input = gr.Textbox(
+                            label=i18n.get('form_prologue'),
+                            placeholder=i18n.get('form_prologue_placeholder'),
+                            lines=2)
                         suggestion_input = gr.Dataframe(
                             show_label=False,
                             value=[['']],
@@ -167,6 +171,12 @@ with demo:
                             'knowledge限制，则在被召回时有可能会被截断。*')
                         knowledge_input = gr.File(
                             label=i18n.get('form_knowledge'),
+                            file_count='multiple',
+                            file_types=[
+                                'text', '.json', '.csv', '.pdf', '.md'
+                            ])
+                        knowledge_upload_button = gr.UploadButton(
+                            i18n.get('form_knowledge_upload_button'),
                             file_count='multiple',
                             file_types=[
                                 'text', '.json', '.csv', '.pdf', '.md'
@@ -276,6 +286,7 @@ with demo:
         instructions_input,
         model_selector,
         agent_language_selector,
+        prologue_input,
         suggestion_input,
         knowledge_input,
         capabilities_checkboxes,
@@ -319,6 +330,8 @@ with demo:
                 value=builder_cfg.get('model', models[0]), choices=models),
             agent_language_selector:
             builder_cfg.get('language') or 'zh',
+            prologue_input:
+            builder_cfg.get('prologue') or '',
             suggestion_input:
             [[str] for str in suggests] if len(suggests) > 0 else [['']],
             knowledge_input:
@@ -357,6 +370,16 @@ with demo:
         on_congifure_tab_select,
         inputs=[state, uuid_str],
         outputs=configure_updated_outputs)
+
+    # 上传文件到知识库的按钮
+    def on_append_file_to_knowledge(files, knowledge_input):
+        file_paths = [file.name for file in files]
+        return (knowledge_input or []) + file_paths
+
+    knowledge_upload_button.upload(
+        on_append_file_to_knowledge,
+        inputs=[knowledge_upload_button, knowledge_input],
+        outputs=[knowledge_input])
 
     # 配置 "Create" 标签页的消息发送功能
     def format_message_with_builder_cfg(_state, chatbot, builder_cfg,
@@ -432,11 +455,12 @@ with demo:
         ])
 
     def process_configuration(uuid_str, bot_avatar, name, description,
-                              instructions, model, agent_language, suggestions,
-                              knowledge_files, capabilities_checkboxes,
-                              openapi_schema, openapi_auth,
-                              openapi_auth_apikey, openapi_auth_apikey_type,
-                              openapi_privacy_policy, state):
+                              instructions, model, agent_language, prologue,
+                              suggestions, knowledge_files,
+                              capabilities_checkboxes, openapi_schema,
+                              openapi_auth, openapi_auth_apikey,
+                              openapi_auth_apikey_type, openapi_privacy_policy,
+                              state):
         uuid_str = check_uuid(uuid_str)
         tool_cfg = state['tool_cfg']
         capabilities = state['capabilities']
@@ -461,6 +485,7 @@ with demo:
             'avatar': bot_avatar,
             'description': description,
             'instruction': instructions,
+            'prologue': prologue,
             'prompt_recommend': [row[0] for row in suggestions_filtered],
             'knowledge': new_knowledge_files,
             'tools': {
@@ -525,9 +550,10 @@ with demo:
         inputs=[
             uuid_str, bot_avatar_comp, name_input, description_input,
             instructions_input, model_selector, agent_language_selector,
-            suggestion_input, knowledge_input, capabilities_checkboxes,
-            openapi_schema, openapi_auth_type, openapi_auth_apikey,
-            openapi_auth_apikey_type, openapi_privacy_policy, state
+            prologue_input, suggestion_input, knowledge_input,
+            capabilities_checkboxes, openapi_schema, openapi_auth_type,
+            openapi_auth_apikey, openapi_auth_apikey_type,
+            openapi_privacy_policy, state
         ],
         outputs=[
             user_chat_bot_cover, user_chatbot, user_chat_bot_suggest,
@@ -653,8 +679,12 @@ with demo:
             gr.Dropdown(label=i18n.get('form_model')),
             agent_language_selector:
             gr.Dropdown(label=i18n.get('form_agent_language')),
+            prologue_input:
+            gr.update(label=i18n.get('form_prologue')),
             knowledge_input:
             gr.File(label=i18n.get('form_knowledge')),
+            knowledge_upload_button:
+            gr.update(label=i18n.get('form_knowledge_upload_button')),
             capabilities_checkboxes:
             gr.CheckboxGroup(label=i18n.get('form_capabilities')),
             open_api_accordion:
@@ -700,7 +730,8 @@ with demo:
         outputs=configure_updated_outputs + [
             configure_button, create_chat_input, open_api_accordion,
             preview_header, preview_chat_input, publish_accordion, header,
-            publish_alert_md, build_hint_md, publish_hint_md
+            publish_alert_md, build_hint_md, publish_hint_md,
+            knowledge_upload_button
         ])
 
     def init_all(uuid_str, _state):

@@ -25,9 +25,14 @@ i18n = {
     ],
     'form_model': ['模型', 'Model'],
     'form_agent_language': ['Agent 语言', 'Agent Language'],
+    'form_prologue': ['开场白', 'Prologue'],
+    'form_prologue_placeholder':
+    ['为你的 agent 添加一个开场白', 'Add an opening line to your agent'],
     'form_prompt_suggestion':
     ['推荐提示词，双击行可修改', 'prompt suggestion，double click to modify'],
     'form_knowledge': ['知识库', 'Knowledge Base'],
+    'form_knowledge_upload_button':
+    ['添加文件到知识库', 'Add files to the knowledge base'],
     'form_capabilities': ['内置能力', 'Capabilities'],
     'form_update_button': ['更新配置', 'Update Configuration'],
     'open_api_accordion': ['OpenAPI 配置', 'OpenAPI Configuration'],
