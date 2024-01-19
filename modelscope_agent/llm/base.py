@@ -39,11 +39,9 @@ class BaseChatModel(ABC):
              stop: Optional[List[str]] = None,
              stream: bool = False,
              **kwargs) -> Union[str, Iterator[str]]:
-        if messages is None:
+        if self.support_raw_prompt():
             assert isinstance(prompt, str)
             messages = [{'role': 'user', 'content': prompt}]
-        else:
-            assert prompt is None, 'Do not pass prompt and messages at the same time.'
 
         assert len(messages) > 0, 'messages list must not be empty'
 

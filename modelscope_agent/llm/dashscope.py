@@ -160,6 +160,7 @@ class QwenChatAtDS(DashScopeLLM):
             return err
 
     def build_raw_prompt(self, messages):
+        messages.append({'role': 'assistant', 'content': ''})
         im_start = '<|im_start|>'
         im_end = '<|im_end|>'
         if messages[0]['role'] == 'system':
