@@ -60,7 +60,9 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
 
     # memory knowledge
     memory.run(
-        query=None, url=json.dumps(builder_cfg.knowledge, ensure_ascii=False))
+        query=None,
+        url=json.dumps(builder_cfg.knowledge, ensure_ascii=False),
+        uuid=uuid_str)
 
     return agent, memory
 
