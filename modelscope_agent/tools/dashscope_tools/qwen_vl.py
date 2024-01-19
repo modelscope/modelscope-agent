@@ -10,7 +10,7 @@ WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
 @register_tool('qwen_vl')
 class QWenVL(BaseTool):
-    description = '调用qwen_vl api处理图片'
+    description = '中英文图文对话，支持图片内容识别，支持图片里中英双语的长文本识别'
     name = 'qwen_vl'
     parameters: list = [{
         'name': 'image_file_path',

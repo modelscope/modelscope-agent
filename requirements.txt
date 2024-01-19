@@ -6,6 +6,7 @@ jupyter>=1.0.0
 langchain
 langchain-community
 langchain-experimental
+pdfminer.six
 modelscope>=1.9.3
 moviepy
 openai
