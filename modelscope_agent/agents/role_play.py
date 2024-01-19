@@ -245,7 +245,7 @@ class RolePlay(Agent):
                     yield f'Action: {action}\nAction Input: {action_input}'
                 observation = self._call_tool(action, action_input)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
-                        exec_result=observation)
+                    exec_result=observation)
                 yield format_observation
                 if self.llm.support_function_calling():
                     messages.append({'role': 'tool', 'content': observation})
