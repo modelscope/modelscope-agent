@@ -47,7 +47,7 @@ def stream_output(response, **kwargs):
             err = '\nError code: %s. Error message: %s' % (trunk.code,
                                                            trunk.message)
             if trunk.code == 'DataInspectionFailed':
-                err += '\n错误码: 数据检查失败。错误信息: 输入数据可能包含不适当的内容。'
+                err += '\n错误码: 数据检查失败。错误信息: 输入数据可能包含不适当的内容。由于该不适当内容会一直存在历史对话中，后续的对话大概率仍会触发此错误。建议刷新重置页面。'
             text = ''
             yield f'{err}'
     # with open('debug.json', 'w', encoding='utf-8') as writer:

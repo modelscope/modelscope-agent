@@ -11,6 +11,7 @@ moviepy
 openai
 opencv-python
 openpyxl
+pdfminer.six
 Pillow
 pydantic>=2.3.0
 pytest

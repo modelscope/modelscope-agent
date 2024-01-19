@@ -60,7 +60,7 @@
     "name": "命名实体识别",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee",
     "use": false,
-    "is_active": true,
+    "is_active": false,
     "is_remote_tool": true
   },
   "speech-generation": {
