@@ -241,15 +241,16 @@ class RolePlay(Agent):
             # yield output
             print(output)
             if use_tool:
+                if self.llm.support_function_calling():
+                    yield f'Action: {action}\nAction Input: {action_input}'
                 observation = self._call_tool(action, action_input)
-                yield observation
-                print(observation)
+                format_observation = DEFAULT_EXEC_TEMPLATE.format(
+                        exec_result=observation)
+                yield format_observation
                 if self.llm.support_function_calling():
                     messages.append({'role': 'tool', 'content': observation})
                 else:
-                    observation = DEFAULT_EXEC_TEMPLATE.format(
-                        exec_result=observation)
-                    planning_prompt += output + observation
+                    planning_prompt += output + format_observation
 
             else:
                 planning_prompt += output
