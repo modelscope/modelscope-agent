@@ -32,11 +32,14 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     function_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, function_list)
 
-    llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
+    llm_config = {
+        'model': builder_cfg.model,
+        'model_server': model_cfg[builder_cfg.model].type
+    }
     instruction = {
         'name': builder_cfg.name,
         'description': builder_cfg.description,
-        'instruction': builder_cfg.description
+        'instruction': builder_cfg.instruction
     }
     agent = RolePlay(
         function_list=function_list,
@@ -57,7 +60,9 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
 
     # memory knowledge
     memory.run(
-        query=None, url=json.dumps(builder_cfg.knowledge, ensure_ascii=False))
+        query=None,
+        url=json.dumps(builder_cfg.knowledge, ensure_ascii=False),
+        uuid=uuid_str)
 
     return agent, memory
 

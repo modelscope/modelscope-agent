@@ -4,6 +4,7 @@ from typing import Dict, Iterator, List, Optional, Union
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools import TOOL_REGISTRY
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
 
 
@@ -44,6 +45,13 @@ class Agent(ABC):
         if function_list:
             for function in function_list:
                 self._register_tool(function)
+                try:
+                    self._register_tool(function)
+                except Exception as e:
+                    logger.query_warning(
+                        uuid=kwargs.get('uuid_str', 'local_user'),
+                        details=str(e),
+                        message=f'tool {function} is not available')
 
         self.storage_path = storage_path
         self.mem = None
@@ -151,7 +159,7 @@ class Agent(ABC):
             func_call = message['function_call']
             func_name = func_call.get('name', '')
             func_args = func_call.get('arguments', '')
-        text = message['content']
+        text = message.get('content', '')
 
         return (func_name is not None), func_name, func_args, text
 
