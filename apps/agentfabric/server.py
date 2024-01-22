@@ -24,7 +24,7 @@ app.session_manager = SessionManager()
 
 @app.before_request
 def set_request_id():
-    request_id = request.headers.get('X-Modelscope-Request-ID', 'unknown')
+    request_id = request.headers.get('X-AgentFabric-Request-Id', 'unknown')
     request_id_var.set(request_id)
 
 
@@ -97,6 +97,7 @@ def builder_chat(uuid_str):
         final_res = json.dumps({
             'data': response,
             'is_final': True,
+            'request_id': request_id_var.get("")
         }, ensure_ascii=False)
         yield f'data: {final_res}\n\n'
 
@@ -108,7 +109,10 @@ def builder_chat(uuid_str):
 @app.route('/builder/chat/<uuid_str>', methods=['DELETE'])
 def delete_builder_chat(uuid_str):
     app.session_manager.clear_builder_bot(uuid_str)
-    return jsonify({'success': True})
+    return jsonify({
+        'success': True,
+        'request_id': request_id_var.get("")
+    })
 
 
 @app.route('/builder/chat/<uuid_str>', methods=['GET'])
@@ -116,7 +120,8 @@ def get_builder_chat_history(uuid_str):
     _, builder_memory = app.session_manager.get_builder_bot(uuid_str)
     return jsonify({
         'history': builder_memory.get_history(),
-        'success': True
+        'success': True,
+        'request_id': request_id_var.get("")
     })
 
 
@@ -154,6 +159,7 @@ def import_builder(uuid_str):
 
     return jsonify({
         'success': True,
+        'request_id': request_id_var.get("")
     })
 
 
@@ -171,7 +177,8 @@ def get_builder_config(uuid_str):
     logger.info(f"preview_config: {json.dumps(data, ensure_ascii=False)}")
     return jsonify({
         'success': True,
-        'data': data
+        'data': data,
+        'request_id': request_id_var.get("")
     })
 
 
@@ -192,7 +199,8 @@ def get_builder_file(uuid_str, file_name):
         return jsonify({
             'success': False,
             'status': 404,
-            'message': str(e)
+            'message': str(e),
+            'request_id': request_id_var.get("")
         }), 404
 
 
@@ -212,21 +220,25 @@ def save_builder_config(uuid_str):
 
     return jsonify({
         'success': True,
+        'request_id': request_id_var.get("")
     })
 
 
 # 获取用户发布包
-@app.route('/builder/publish/zip/<uuid_str>', methods=['POST'])
+@app.route('/builder/publish/zip/<uuid_str>', methods=['GET'])
 def preview_publish_get_zip(uuid_str):
-    req_data = request.get_json()
-    name = req_data.get('name')
+    name = f"publish_{uuid_str}"
     env_params = {}
     env_params.update(
         pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
     output_url, envs_required = prepare_agent_zip(name, DEFAULT_AGENT_DIR,
                                                   uuid_str, None)
     env_params.update(envs_required)
-    return jsonify({'success': True, 'data': {'output_url': output_url, 'envs_required': envs_required}})
+    return jsonify({'success': True,
+                    'output_url': output_url,
+                    'envs_required': envs_required,
+                    'request_id': request_id_var.get(""),
+                    })
 
 
 # 预览对话接口
@@ -275,6 +287,7 @@ def preview_chat(uuid_str, session_str):
             response += frame
             res = json.dumps({
                 'data': response,
+                'request_id': request_id_var.get("")
             }, ensure_ascii=False)
             yield f'data: {res}\n\n'
 
@@ -295,7 +308,7 @@ def preview_chat(uuid_str, session_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['DELETE'])
 def delete_preview_chat(uuid_str, session_str):
     app.session_manager.clear_user_bot(uuid_str, session_str)
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'request_id': request_id_var.get("")})
 
 
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['GET'])
@@ -303,7 +316,8 @@ def get_preview_chat_history(uuid_str, session_str):
     _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
     return jsonify({
         'history': user_memory.get_history(),
-        'success': True
+        'success': True,
+        'request_id': request_id_var.get("")
     })
 
 
@@ -313,7 +327,11 @@ def handle_error(error):
     stack_trace = stack_trace.replace("\n", "\\n")
     logger.error(stack_trace)
     # 处理错误并返回统一格式的错误信息
-    error_message = {'success': False, 'message': str(error), 'status': 500}
+    error_message = {'success': False,
+                     'message': str(error),
+                     'status': 500,
+                     'request_id': request_id_var.get("")
+                     }
     return jsonify(error_message), 500
 
 
