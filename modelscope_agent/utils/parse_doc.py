@@ -1,5 +1,6 @@
 import re
 
+from modelscope_agent.utils.nltk_utils import install_nltk_data
 from modelscope_agent.utils.tokenization_utils import count_tokens
 
 
@@ -26,33 +27,40 @@ def deal(text):
 
 
 def parse_doc(path):
-    if '.pdf' in path.lower():
-        from langchain_community.document_loaders import PDFMinerLoader
-        loader = PDFMinerLoader(path)
-        pages = loader.load_and_split()
-    elif '.docx' in path.lower():
-        from langchain_community.document_loaders import Docx2txtLoader
-        loader = Docx2txtLoader(path)
-        pages = loader.load_and_split()
-    elif '.pptx' in path.lower():
-        from langchain_community.document_loaders import UnstructuredPowerPointLoader
-        loader = UnstructuredPowerPointLoader(path)
-        pages = loader.load_and_split()
-    elif '.txt' in path.lower():
-        from langchain_community.document_loaders import TextLoader
-        from langchain.text_splitter import CharacterTextSplitter
-        # split the knowledge into chunk size 1000
-        text_splitter = CharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len,
+    try:
+        if '.pdf' in path.lower():
+            from langchain_community.document_loaders import PDFMinerLoader
+            loader = PDFMinerLoader(path)
+            pages = loader.load_and_split()
+        elif '.docx' in path.lower():
+            from langchain_community.document_loaders import Docx2txtLoader
+            loader = Docx2txtLoader(path)
+            pages = loader.load_and_split()
+        elif '.pptx' in path.lower():
+            from langchain_community.document_loaders import UnstructuredPowerPointLoader
+            loader = UnstructuredPowerPointLoader(path)
+            pages = loader.load_and_split()
+        elif '.txt' in path.lower():
+            from langchain_community.document_loaders import TextLoader
+            from langchain.text_splitter import CharacterTextSplitter
+            # split the knowledge into chunk size 1000
+            text_splitter = CharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len,
+            )
+            loader = TextLoader(path, autodetect_encoding=True)
+            pages = loader.load_and_split(text_splitter)
+        else:
+            from langchain_community.document_loaders import UnstructuredFileLoader
+            install_nltk_data()
+            loader = UnstructuredFileLoader(path)
+            pages = loader.load_and_split()
+    except Exception as e:
+        import traceback
+        raise RuntimeError(
+            f'Failed to load document with error {e}, and detail: {traceback.format_exc()}'
         )
-        loader = TextLoader(path, autodetect_encoding=True)
-        pages = loader.load_and_split(text_splitter)
-    else:
-        from langchain_community.document_loaders import UnstructuredFileLoader
-        loader = UnstructuredFileLoader(path)
-        pages = loader.load_and_split()
 
     res = []
     for page in pages:

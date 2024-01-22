@@ -21,4 +21,5 @@ seaborn
 sentencepiece
 tiktoken
 transformers>=4.33
+unstructured
 zhipuai

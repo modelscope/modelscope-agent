@@ -22,6 +22,7 @@ class VectorStorage(BaseStorage):
                  vs_cls: VectorStore = FAISS,
                  vs_params: Dict = {},
                  index_ext: str = '.faiss',
+                 use_cache: bool = True,
                  **kwargs):
         # index name used for storage
         self.storage_path = storage_path
@@ -31,7 +32,10 @@ class VectorStorage(BaseStorage):
         self.vs_cls = vs_cls
         self.vs_params = vs_params
         self.index_ext = index_ext
-        self.vs = self.load()
+        if use_cache:
+            self.vs = self.load()
+        else:
+            self.vs = None
 
     def construct(self, docs):
         assert len(docs) > 0

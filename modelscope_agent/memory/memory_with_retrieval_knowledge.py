@@ -4,6 +4,7 @@ import json
 from modelscope_agent.agent import Agent
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.storage import KnowledgeVector
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .base import Memory
 
@@ -16,6 +17,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
                  storage_path: Optional[str] = None,
                  name: Optional[str] = None,
                  description: Optional[str] = None,
+                 use_knowledge_cache: bool = True,
                  **kwargs):
         Memory.__init__(self, path=kwargs.get('memory_path', ''))
         Agent.__init__(
@@ -26,7 +28,8 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             description=description)
 
         # allow vector storage to save knowledge
-        self.store_knowledge = KnowledgeVector(storage_path, name)
+        self.store_knowledge = KnowledgeVector(
+            storage_path, name, use_cache=use_knowledge_cache)
 
     def _run(self,
              query: str = None,
@@ -41,10 +44,16 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
                 pass
 
             # add file to index
-            self.store_knowledge.add(url)
+            try:
+                self.store_knowledge.add(url)
+                self.store_knowledge.save()
+            except Exception as e:
+                logger.query_warning(
+                    uuid=kwargs.get('uuid_str', 'local_user'),
+                    details=str(e),
+                    message=f'fail to learn knowledge from {url}')
 
             # save store knowledge
-            self.store_knowledge.save()
 
         # no query then return None
         if not query:
