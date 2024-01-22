@@ -108,8 +108,8 @@ SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE = {
 }
 
 SPECIAL_PREFIX_TEMPLATE_FILE = {
-    'zh': '[上传文件 {file_names}]',
-    'en': '[Upload file {file_names}]',
+    'zh': '[上传文件 "{file_names}"]',
+    'en': '[Upload file "{file_names}"]',
 }
 
 DEFAULT_EXEC_TEMPLATE = """\nObservation: <result>{exec_result}</result>\nAnswer:"""

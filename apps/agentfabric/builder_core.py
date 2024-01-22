@@ -27,7 +27,7 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
     # init agent
     logger.query_info(
         uuid=uuid_str, message=f'using builder model {builder_cfg.model}')
-    llm_config = {'model': builder_cfg.model, 'model_server': 'dashscope'}
+    llm_config = {'model': builder_cfg.model, 'model_server': model_cfg[builder_cfg.model].type}
     # function_list = ['image_gen']  # use image_gen to draw logo?
 
     agent = AgentBuilder(llm=llm_config, uuid_str=uuid_str)
