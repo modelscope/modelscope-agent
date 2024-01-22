@@ -17,6 +17,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
                  storage_path: Optional[str] = None,
                  name: Optional[str] = None,
                  description: Optional[str] = None,
+                 use_cache: bool = True,
                  **kwargs):
         Memory.__init__(self, path=kwargs.get('memory_path', ''))
         Agent.__init__(
@@ -27,7 +28,8 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             description=description)
 
         # allow vector storage to save knowledge
-        self.store_knowledge = KnowledgeVector(storage_path, name)
+        self.store_knowledge = KnowledgeVector(
+            storage_path, name, use_cache=use_cache)
 
     def _run(self,
              query: str = None,
