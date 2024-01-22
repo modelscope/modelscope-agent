@@ -56,8 +56,9 @@ def init_builder(uuid_str, state):
 def update_builder(uuid_str, state):
 
     try:
-        builder_agent = init_builder_chatbot_agent(uuid_str)
+        builder_agent, builder_memory = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
+        state['builder_memory'] = builder_memory
     except Exception as e:
         logger.query_error(
             uuid=uuid_str,

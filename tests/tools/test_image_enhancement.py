@@ -8,7 +8,7 @@ def test_image_enhancement():
     kwargs = {'input.image_path': image_url, 'parameters.upscale': 2}
     phantom = ImageEnhancement()
     res = phantom.call(json.dumps(kwargs))
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN](http'))
 
 
 def test_image_enhancement_agent():
@@ -22,7 +22,7 @@ def test_image_enhancement_agent():
     bot = RolePlay(
         function_list=function_list, llm=llm_config, instruction=role_template)
 
-    response = bot.run('[上传文件luoli15.jpg], 2倍超分这张图')
+    response = bot.run('[上传文件 "luoli15.jpg"], 2倍超分这张图')
     text = ''
     for chunk in response:
         text += chunk

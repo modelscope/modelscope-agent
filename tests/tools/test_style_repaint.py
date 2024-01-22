@@ -9,7 +9,7 @@ def test_style_repaint():
 
     style_repaint = StyleRepaint()
     res = style_repaint.call(params)
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN](http'))
 
 
 def test_style_repaint_role():
@@ -23,7 +23,7 @@ def test_style_repaint_role():
     bot = RolePlay(
         function_list=function_list, llm=llm_config, instruction=role_template)
 
-    response = bot.run('[上传文件luoli15.jpg],我想要清雅国风')
+    response = bot.run('[上传文件 "luoli15.jpg"],我想要清雅国风')
     text = ''
     for chunk in response:
         text += chunk
