@@ -35,6 +35,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
              query: str = None,
              url: str = None,
              max_token: int = 4000,
+             top_k: int = 3,
              **kwargs) -> Union[str, Iterator[str]]:
         # no need for llm in this agent yet, all the operation could be handled by simple logic
         if url:
@@ -60,7 +61,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             return None
 
         # search records
-        records = self.store_knowledge.search(query)
+        records = self.store_knowledge.search(query, top_k=top_k)
 
         # limit length
         concatenated_records = '\n'.join(records)

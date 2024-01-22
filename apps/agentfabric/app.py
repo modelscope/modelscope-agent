@@ -576,7 +576,11 @@ with demo:
         if len(append_files) > 0:
             uploaded_file = append_files[0]
         ref_doc = user_memory.run(
-            query=input.text, url=uploaded_file, checked=True)
+            query=input.text,
+            url=uploaded_file,
+            max_token=4000,
+            top_k=2,
+            checked=True)
 
         response = ''
         try:
