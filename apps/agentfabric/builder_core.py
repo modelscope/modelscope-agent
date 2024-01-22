@@ -4,7 +4,7 @@ import re
 from http import HTTPStatus
 
 import json
-from config_utils import DEFAULT_UUID_HISTORY, parse_configuration
+from config_utils import parse_configuration, get_user_builder_history_dir
 from help_tools import config_conversion, logo_generate_remote_call
 from modelscope_agent.agents import AgentBuilder
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
@@ -32,9 +32,10 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
 
     agent = AgentBuilder(llm=llm_config, uuid_str=uuid_str)
 
-    current_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
-                                        session + '_builder.json')
-    memory = MemoryWithRetrievalKnowledge(path=current_history_path)
+    builder_history_dir = get_user_builder_history_dir(uuid_str)
+    current_history_path = os.path.join(builder_history_dir, session + '_builder.json')
+    memory = MemoryWithRetrievalKnowledge(memory_path=current_history_path)
+    memory.history = memory.load_memory()
 
     return agent, memory
 
@@ -80,7 +81,7 @@ def gen_response_and_process(agent,
                 message=f'LLM output in round 0',
                 details={'llm_result': llm_result})
     except Exception as e:
-        yield {'error': 'llm result is not valid'}
+        yield {'error': f'llm result is not valid, {e}'}
 
     try:
         re_pattern_config = re.compile(

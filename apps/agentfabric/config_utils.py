@@ -19,6 +19,7 @@ DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
                                          '/tmp/ci_workspace')
 DEFAULT_UUID_HISTORY = os.path.join(DEFAULT_AGENT_DIR, 'history')
+DEFAULT_PREVIEW_HISTORY = os.path.join(DEFAULT_AGENT_DIR, 'preview_history')
 
 
 def get_user_dir(uuid_str=''):
@@ -27,6 +28,18 @@ def get_user_dir(uuid_str=''):
 
 def get_ci_dir():
     return DEFAULT_CODE_INTERPRETER_DIR
+
+
+def get_user_ci_dir(uuid_str='', session_str=''):
+    return os.path.join(DEFAULT_CODE_INTERPRETER_DIR, uuid_str, session_str)
+
+
+def get_user_builder_history_dir(uuid_str='', session_str=''):
+    return os.path.join(DEFAULT_UUID_HISTORY, uuid_str, session_str)
+
+
+def get_user_preview_history_dir(uuid_str='', session_str=''):
+    return os.path.join(DEFAULT_UUID_HISTORY, uuid_str, 'preview', session_str)
 
 
 def get_user_cfg_file(uuid_str=''):
@@ -167,9 +180,9 @@ def parse_configuration(uuid_str=''):
                 error=str(e),
                 content={
                     'error_traceback':
-                    traceback.format_exc(),
+                        traceback.format_exc(),
                     'error_details':
-                    'The format of the plugin config file is incorrect.'
+                        'The format of the plugin config file is incorrect.'
                 })
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
