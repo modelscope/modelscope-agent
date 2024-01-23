@@ -109,6 +109,7 @@ def builder_chat(uuid_str):
 @app.route('/builder/chat/<uuid_str>', methods=['DELETE'])
 def delete_builder_chat(uuid_str):
     app.session_manager.clear_builder_bot(uuid_str)
+    logger.info(f"delete_builder_chat: {uuid_str}")
     return jsonify({
         'success': True,
         'request_id': request_id_var.get("")
@@ -118,8 +119,10 @@ def delete_builder_chat(uuid_str):
 @app.route('/builder/chat/<uuid_str>', methods=['GET'])
 def get_builder_chat_history(uuid_str):
     _, builder_memory = app.session_manager.get_builder_bot(uuid_str)
+    history = builder_memory.get_history()
+    logger.info(f"history: {json.dumps(history)}")
     return jsonify({
-        'history': builder_memory.get_history(),
+        'history': history,
         'success': True,
         'request_id': request_id_var.get("")
     })
@@ -164,7 +167,7 @@ def import_builder(uuid_str):
 
 
 # 获取用户当前builder config
-@app.route('/builder/config/<uuid_str>/')
+@app.route('/builder/config/<uuid_str>')
 def get_builder_config(uuid_str):
     builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
         uuid_str)

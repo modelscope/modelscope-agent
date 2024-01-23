@@ -98,7 +98,7 @@ class SessionManager:
         return builder_agent
 
     def clear_builder_bot(self, builder_id):
-        builder_agent = self.user_bots[builder_id]
+        builder_agent = self.builder_bots[builder_id]
         if builder_agent is not None:
             self.builder_bots.delete_key(builder_id)
         shutil.rmtree(get_user_builder_history_dir(builder_id), ignore_errors=True)
