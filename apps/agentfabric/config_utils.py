@@ -8,7 +8,7 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
 
-DEFAULT_AGENT_DIR = '/tmp/agentfabric'
+DEFAULT_AGENT_DIR = os.getenv('DEFAULT_AGENT_DIR', '/tmp/agentfabric')
 DEFAULT_BUILDER_CONFIG_DIR = os.path.join(DEFAULT_AGENT_DIR, 'config')
 DEFAULT_BUILDER_CONFIG_FILE = os.path.join(DEFAULT_BUILDER_CONFIG_DIR,
                                            'builder_config.json')
