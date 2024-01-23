@@ -106,7 +106,9 @@ class KnowledgeVector(VectorStorage):
         docs = []
         for f in all_files:
             if f.split('.')[-1].lower() in SUPPORTED_KNOWLEDGE_TYPE:
-                docs.extend(parse_doc(f))
+                doc_list = parse_doc(f)
+                if len(doc_list) > 0:
+                    docs.extend(doc_list)
         return docs
 
     # should load and save
