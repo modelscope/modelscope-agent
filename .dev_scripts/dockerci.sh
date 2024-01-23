@@ -2,7 +2,7 @@
 
 
 # install dependencies for ci
-pip install torch
+pip install torch pytest pytest-mock
 export CODE_INTERPRETER_WORK_DIR=${GITHUB_WORKSPACE}
 echo "${CODE_INTERPRETER_WORK_DIR}"
 
