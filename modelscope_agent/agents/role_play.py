@@ -274,12 +274,26 @@ class RolePlay(Agent):
         return (func_name is not None), func_name, func_args, text
 
     def _parse_role_config(self, config: dict, lang: str = 'zh') -> str:
+        """
+        Parsing role config dict to str.
+
+        Args:
+            config: One example of config is
+                {
+                    "name": "多啦A梦",
+                    "description": "能够像多啦A梦一样，拥有各种神奇的技能和能力，可以帮我解决生活中的各种问题。",
+                    "instruction": "可以查找信息、提供建议、提醒日程；爱讲笑话，每次说话的结尾都会加上一句幽默的总结；最喜欢的人是大熊"
+                }
+        Returns:
+            Processed string for this config
+        """
         if lang == 'en':
             return self._parse_role_config_en(config)
         else:
             return self._parse_role_config_zh(config)
 
     def _parse_role_config_en(self, config: dict) -> str:
+
         prompt = 'You are playing as an AI-Agent, '
 
         # concat agents

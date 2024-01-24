@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Iterator, List, Optional, Union
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
@@ -19,19 +19,20 @@ class Agent(ABC):
                  instruction: Union[str, dict] = None,
                  **kwargs):
         """
-        init tools/llm for one agent
+        init tools/llm/instruction for one agent
 
-        :param function_list: Optional[List[Union[str, Dict]]] :
-            (1)When str: tool names
-            (2)When Dict: tool cfg
-        :param llm: Optional[Union[Dict, BaseChatModel]]:
-            (1) When Dict: set the config of llm as {'model': '', 'api_key': '', 'model_server': ''}
-            (2) When BaseChatModel: llm is sent by another agent
-        :param storage_path: If not specified otherwise, all data will be stored here in KV pairs by memory
-        :param name: the name of agent
-        :param description: the description of agent, which is used for multi_agent
-        :param instruction: the system instruction of this agent
-        :param kwargs: other potential parameters
+        Args:
+            function_list: A list of tools
+                (1)When str: tool names
+                (2)When Dict: tool cfg
+            llm: The llm config of this agent
+                (1) When Dict: set the config of llm as {'model': '', 'api_key': '', 'model_server': ''}
+                (2) When BaseChatModel: llm is sent by another agent
+            storage_path: If not specified otherwise, all data will be stored here in KV pairs by memory
+            name: the name of agent
+            description: the description of agent, which is used for multi_agent
+            instruction: the system instruction of this agent
+            kwargs: other potential parameters
         """
         if isinstance(llm, Dict):
             self.llm_config = llm
@@ -44,7 +45,6 @@ class Agent(ABC):
         self.function_map = {}
         if function_list:
             for function in function_list:
-                self._register_tool(function)
                 try:
                     self._register_tool(function)
                 except Exception as e:
@@ -108,7 +108,7 @@ class Agent(ABC):
         """
         tool_name = tool
         tool_cfg = {}
-        if isinstance(tool, Dict):
+        if isinstance(tool, dict):
             tool_name = next(iter(tool))
             tool_cfg = tool[tool_name]
         if tool_name not in TOOL_REGISTRY:
@@ -117,66 +117,30 @@ class Agent(ABC):
             self.function_list.append(tool)
             self.function_map[tool_name] = TOOL_REGISTRY[tool_name](tool_cfg)
 
-    def _detect_tool(self, message: Union[str, dict]):
-        # use built-in default judgment functions
-        if isinstance(message, str):
-            return self._detect_tool_by_special_token(message)
-        else:
-            return self._detect_tool_by_func_call(message)
-
-    def _detect_tool_by_special_token(self, text: str):
-        """
-        A built-in tool call detection: After encapsulating function calls in the LLM layer, this is no longer needed
-
-        """
-        special_func_token = '\nAction:'
-        special_args_token = '\nAction Input:'
-        special_obs_token = '\nObservation:'
-        func_name, func_args = None, None
-        i = text.rfind(special_func_token)
-        j = text.rfind(special_args_token)
-        k = text.rfind(special_obs_token)
-        if 0 <= i < j:  # If the text has `Action` and `Action input`,
-            if k < j:  # but does not contain `Observation`,
-                # then it is likely that `Observation` is ommited by the LLM,
-                # because the output text may have discarded the stop word.
-                text = text.rstrip() + special_obs_token  # Add it back.
-            k = text.rfind(special_obs_token)
-            func_name = text[i + len(special_func_token):j].strip()
-            func_args = text[j + len(special_args_token):k].strip()
-            text = text[:k]  # Discard '\nObservation:'.
-
-        return (func_name is not None), func_name, func_args, text
-
-    def _detect_tool_by_func_call(self, message: Dict):
+    def _detect_tool(self, message: Union[str,
+                                          dict]) -> Tuple[bool, str, str, str]:
         """
         A built-in tool call detection for func_call format
 
+        Args:
+            message: one message
+                (1) When dict: Determine whether to call the tool through the function call format.
+                (2) When str: The tool needs to be parsed from the string, and at this point, the agent subclass needs
+                              to implement a custom _detect_tool function.
+
+        Returns:
+            - bool: need to call tool or not
+            - str: tool name
+            - str: tool args
+            - str: text replies except for tool calls
         """
         func_name = None
         func_args = None
+        assert isinstance(message, dict)
         if 'function_call' in message and message['function_call']:
             func_call = message['function_call']
             func_name = func_call.get('name', '')
             func_args = func_call.get('arguments', '')
-        text = message.get('content', '')
+        text = message['content']
 
         return (func_name is not None), func_name, func_args, text
-
-    def send(self,
-             message: Union[Dict, str],
-             recipient: 'Agent',
-             request_reply: Optional[bool] = None,
-             **kwargs):
-        recipient.receive(message, self, request_reply)
-
-    def receive(self,
-                message: Union[Dict, str],
-                sender: 'Agent',
-                request_reply: Optional[bool] = None,
-                **kwargs):
-        if request_reply is False or request_reply is None:
-            return
-        reply = self.run(message, sender=sender, **kwargs)
-        if reply is not None:
-            self.send(reply, sender, **kwargs)
