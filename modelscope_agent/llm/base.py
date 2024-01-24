@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Union
 
+from modelscope_agent.utils.retry import retry
 from modelscope_agent.utils.utils import print_traceback
 
 LLM_REGISTRY = {}
@@ -45,6 +46,8 @@ class BaseChatModel(ABC):
     #   response += chunk
     #   yield response
     # ```
+
+    @retry(max_retries=3, delay_seconds=0.5)
     def chat(self,
              prompt: Optional[str] = None,
              messages: Optional[List[Dict]] = None,
@@ -75,9 +78,11 @@ class BaseChatModel(ABC):
         else:
             return self._chat_no_stream(messages, stop=stop, **kwargs)
 
+    @retry(max_retries=3, delay_seconds=0.5)
     def chat_with_functions(self,
                             messages: List[Dict],
                             functions: Optional[List[Dict]] = None,
+                            stream: bool = True,
                             **kwargs) -> Dict:
         """
         Function call interface
@@ -109,7 +114,14 @@ class BaseChatModel(ABC):
         Returns:
             generated response message
         """
-        raise FnCallNotImplError
+        functions = [{
+            'type': 'function',
+            'function': item
+        } for item in functions]
+        if stream:
+            return self._chat_stream(messages, functions, **kwargs)
+        else:
+            return self._chat_no_stream(messages, functions, **kwargs)
 
     def chat_with_raw_prompt(self,
                              prompt: str,
