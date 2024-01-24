@@ -256,7 +256,7 @@ class RolePlay(Agent):
                 planning_prompt += output
                 break
 
-    def _detect_tool_by_special_token(self, text: str):
+    def _detect_tool(self, text: str):
         func_name, func_args = None, None
         i = text.rfind(ACTION_TOKEN)
         j = text.rfind(ARGS_TOKEN)
