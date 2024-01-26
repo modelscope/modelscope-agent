@@ -56,7 +56,7 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
         storage_path=storage_path,
         name=memory_agent_name,
         memory_path=memory_history_path,
-        use_cache=False,
+        use_knowledge_cache=False,
     )
 
     # memory knowledge
