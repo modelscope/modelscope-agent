@@ -24,7 +24,7 @@ app.session_manager = SessionManager()
 
 @app.before_request
 def set_request_id():
-    request_id = request.headers.get('X-AgentFabric-Request-Id', 'unknown')
+    request_id = request.headers.get('X-Modelscope-Request-Id', 'unknown')
     request_id_var.set(request_id)
 
 
