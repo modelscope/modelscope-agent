@@ -152,7 +152,7 @@ class VideoWrapper(OutputWrapper):
         if self._path.endswith('.gif'):
             self._repr = f'![IMAGEGEN]({self._path})'
         else:
-            self._repr = f'<audio src="{self._path}"/>'
+            self._repr = f'<video src="{self._path}"/>'
 
 
 def get_raw_output(exec_result: Dict):
