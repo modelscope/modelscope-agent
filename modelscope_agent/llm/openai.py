@@ -1,8 +1,8 @@
 import os
 from typing import Dict, Iterator, List, Optional
 
-from openai import OpenAI
 from modelscope_agent.llm.base import BaseChatModel, register_llm
+from openai import OpenAI
 
 
 @register_llm('openai')
@@ -11,10 +11,10 @@ class OpenAi(BaseChatModel):
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
 
-        api_base = kwargs.get('api_base',
-                                     'https://api.openai.com/v1').strip()
-        api_key = kwargs.get(
-            'api_key', os.getenv('OPENAI_API_KEY', default='EMPTY')).strip()
+        api_base = kwargs.get('api_base', 'https://api.openai.com/v1').strip()
+        api_key = kwargs.get('api_key',
+                             os.getenv('OPENAI_API_KEY',
+                                       default='EMPTY')).strip()
         self.client = OpenAI(api_key=api_key, base_url=api_base)
 
     def _chat_stream(self,
@@ -64,36 +64,33 @@ class OpenAi(BaseChatModel):
 
 @register_llm('openapi')
 class OpenAPILocal(BaseChatModel):
+
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
-        openai_api_key = "EMPTY"
-        openai_api_base = "http://localhost:8000/v1"
+        openai_api_key = 'EMPTY'
+        openai_api_base = 'http://localhost:8000/v1'
         self.client = OpenAI(
             api_key=openai_api_key,
             base_url=openai_api_base,
-        )       
+        )
 
-    def _chat_stream(self,
-                     prompt: str,
-                     **kwargs) -> Iterator[str]:
+    def _chat_stream(self, prompt: str, **kwargs) -> Iterator[str]:
         response = self.client.completions.create(
             model=self.model,
             prompt=prompt,
             stream=True,
-            )
+        )
         # TODO: error handling
         for chunk in response:
             if hasattr(chunk.choices[0], 'text'):
                 yield chunk.choices[0].text
 
-    def _chat_no_stream(self,
-                        prompt: str,
-                        **kwargs) -> str:
+    def _chat_no_stream(self, prompt: str, **kwargs) -> str:
         response = self.client.completions.create(
             model=self.model,
             prompt=prompt,
             stream=False,
-            )
+        )
         # TODO: error handling
         return response.choices[0].message.content
 
