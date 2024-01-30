@@ -2,15 +2,15 @@ import os
 from typing import Dict, Iterable, List, Union
 
 import json
-from modelscope_agent.schemas import AgentHolder, Message
+from modelscope_agent.schemas import AgentAttr, Message
 from pydantic import ConfigDict
 
 
-class Memory(AgentHolder):
+class Memory(AgentAttr):
     path: str
     model_config = ConfigDict(extra='allow')
 
-    def save_memory(self, history: List[Message]):
+    def save_history(self):
         """
         save history memory to path
         Args:
@@ -19,6 +19,9 @@ class Memory(AgentHolder):
         Returns: None
 
         """
+        if self.history is None or len(self.history) == 0:
+            return
+
         directory = os.path.dirname(self.path)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -29,7 +32,7 @@ class Memory(AgentHolder):
             # 使用 json.dump 将字典列表写入文件
             json.dump(messages_dict_list, file, ensure_ascii=False, indent=2)
 
-    def load_memory(self) -> List[Message]:
+    def load_history(self) -> List[Message]:
         """
         Load memory from path
         Returns: list of Message
@@ -44,6 +47,7 @@ class Memory(AgentHolder):
                     Message.model_validate(message_dict)
                     for message_dict in messages_dict_list
                 ]
+                self.history = messages_list
                 return messages_list
         except FileNotFoundError:
             print('File not found.')

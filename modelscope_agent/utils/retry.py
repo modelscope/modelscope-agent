@@ -33,7 +33,7 @@ def retry(max_retries=3, delay_seconds=1, return_str=False):
             if return_str:
                 return f'Max retries reached. Attempt to run {func.__name__} failed after {max_retries} times'
             else:
-                raise Exception(f'Max retries reached. Last error: {e}')
+                raise Exception('Max retries reached. Failed to get result')
 
         return wrapper
 
