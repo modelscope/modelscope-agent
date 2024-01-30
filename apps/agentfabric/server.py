@@ -194,9 +194,14 @@ def get_builder_file(uuid_str, file_name):
     try:
         if '../' in file_name:
             raise Exception("Access not allowed.")
-        response = make_response(
-            send_from_directory(
-                directory, file_name, as_attachment=as_attachment))
+        if os.path.exists(os.path.join(directory, file_name)):
+            response = make_response(
+                send_from_directory(
+                    directory, file_name, as_attachment=as_attachment))
+        else:
+            response = make_response(
+                send_from_directory(
+                    "./config", file_name, as_attachment=as_attachment))
         return response
     except Exception as e:
         return jsonify({

@@ -16,10 +16,16 @@ formatter = logging.Formatter(
     '[%(asctime)s] [%(request_id)s] [%(filename)s:%(lineno)d] %(levelname)s: %(message)s'
 )
 
-# 创建和配置日志记录器
 logger = logging.getLogger('my_custom_logger')
 logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-handler.addFilter(RequestIDLogFilter())
-logger.addHandler(handler)
+
+file_handler = logging.FileHandler('info.log')
+file_handler.setLevel(logging.INFO)
+file_handler.addFilter(RequestIDLogFilter())
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.addFilter(RequestIDLogFilter())
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
