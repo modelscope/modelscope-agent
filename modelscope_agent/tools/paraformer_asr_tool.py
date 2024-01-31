@@ -5,7 +5,6 @@ from typing import List, Any
 
 from modelscope_agent.tools.tool import Tool, ToolSchema
 from pydantic import ValidationError
-from dashscope.audio.asr import Recognition
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
@@ -49,6 +48,7 @@ class ParaformerAsrTool(Tool):
             all_param)
 
     def __call__(self, *args, **kwargs):
+        from dashscope.audio.asr import Recognition
         raw_audio_file = WORK_DIR + '/' + kwargs['audio_path']
         if not os.path.exists(raw_audio_file):
             raise ValueError(f'audio file {raw_audio_file} not exists')
@@ -67,8 +67,3 @@ class ParaformerAsrTool(Tool):
         else:
             raise ValueError(f'call paraformer asr failed, request id: {response.get_request_id()}')
         return {'result': result}
-
-
-if __name__ == '__main__':
-    tool = ParaformerAsrTool()
-    tool(audio_path='1_local_user.wav')

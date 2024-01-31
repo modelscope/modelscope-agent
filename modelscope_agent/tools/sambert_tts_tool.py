@@ -3,7 +3,6 @@ import os
 from modelscope_agent.output_wrapper import AudioWrapper
 from modelscope_agent.tools.tool import Tool, ToolSchema
 from pydantic import ValidationError
-from dashscope.audio.tts import SpeechSynthesizer
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
@@ -39,6 +38,7 @@ class SambertTtsTool(Tool):
             all_param)
 
     def __call__(self, *args, **kwargs):
+        from dashscope.audio.tts import SpeechSynthesizer
         tts_text = kwargs['text']
         if tts_text is None or len(tts_text) == 0 or tts_text == '':
             raise ValueError(f'tts input text is valid')
@@ -49,10 +49,5 @@ class SambertTtsTool(Tool):
             with open(wav_file, 'wb') as f:
                 f.write(response.get_audio_data())
         else:
-            raise ValueError(f'call sambert asr failed, request id: {response.get_response().request_id}')
+            raise ValueError(f'call sambert tts failed, request id: {response.get_response().request_id}')
         return {'result': AudioWrapper(wav_file)}
-
-
-if __name__ == '__main__':
-    tool = SambertTtsTool()
-    tool(text='今天天气怎么样？')
