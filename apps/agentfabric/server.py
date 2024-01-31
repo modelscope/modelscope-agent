@@ -2,8 +2,8 @@ import os
 import random
 
 import json
-import time
 import traceback
+from functools import wraps
 
 import requests
 
@@ -28,8 +28,26 @@ def set_request_id():
     request_id_var.set(request_id)
 
 
+def with_request_id(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        request_id = request_id_var.get("")
+        response = func(*args, **kwargs)
+        if isinstance(response, app.response_class):
+            response.headers['X-Modelscope-Request-Id'] = request_id
+            return response
+        elif isinstance(response[0], app.response_class):
+            response[0].headers['X-Modelscope-Request-Id'] = request_id
+            return response
+        else:
+            logger.error(f"with_request_id: unexpected response type {response}")
+            return response
+    return wrapper
+
+
 # builder对话接口
 @app.route('/builder/chat/<uuid_str>', methods=['POST'])
+@with_request_id
 def builder_chat(uuid_str):
     params_str = request.form.get('params')
     params = json.loads(params_str)
@@ -107,6 +125,7 @@ def builder_chat(uuid_str):
 
 
 @app.route('/builder/chat/<uuid_str>', methods=['DELETE'])
+@with_request_id
 def delete_builder_chat(uuid_str):
     app.session_manager.clear_builder_bot(uuid_str)
     logger.info(f"delete_builder_chat: {uuid_str}")
@@ -117,6 +136,7 @@ def delete_builder_chat(uuid_str):
 
 
 @app.route('/builder/chat/<uuid_str>', methods=['GET'])
+@with_request_id
 def get_builder_chat_history(uuid_str):
     _, builder_memory = app.session_manager.get_builder_bot(uuid_str)
     history = builder_memory.get_history()
@@ -130,6 +150,7 @@ def get_builder_chat_history(uuid_str):
 
 # builder导入配置
 @app.route('/builder/import/<uuid_str>', methods=['POST'])
+@with_request_id
 def import_builder(uuid_str):
     # 检查是否有文件被上传
     if 'file' in request.files:
@@ -168,6 +189,7 @@ def import_builder(uuid_str):
 
 # 获取用户当前builder config
 @app.route('/builder/config/<uuid_str>')
+@with_request_id
 def get_builder_config(uuid_str):
     builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
         uuid_str)
@@ -187,6 +209,7 @@ def get_builder_config(uuid_str):
 
 # 获取用户当前builder额外文件，例如头像、上传的其他知识库等
 @app.route('/builder/config_files/<uuid_str>/<file_name>', methods=['GET'])
+@with_request_id
 def get_builder_file(uuid_str, file_name):
     logger.info(f'uuid_str: {uuid_str} file_name: {file_name}')
     as_attachment = request.args.get('as_attachment') == 'true'
@@ -214,6 +237,7 @@ def get_builder_file(uuid_str, file_name):
 
 # 保存用户当前配置
 @app.route('/builder/update/<uuid_str>', methods=['POST'])
+@with_request_id
 def save_builder_config(uuid_str):
     builder_config_str = request.form.get('builder_config')
     builder_config = json.loads(builder_config_str)
@@ -234,6 +258,7 @@ def save_builder_config(uuid_str):
 
 # 获取用户发布包
 @app.route('/builder/publish/zip/<uuid_str>', methods=['GET'])
+@with_request_id
 def preview_publish_get_zip(uuid_str):
     name = f"publish_{uuid_str}"
     env_params = {}
@@ -251,6 +276,7 @@ def preview_publish_get_zip(uuid_str):
 
 # 预览对话接口
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['POST'])
+@with_request_id
 def preview_chat(uuid_str, session_str):
     params_str = request.form.get('params')
     params = json.loads(params_str)
@@ -282,8 +308,12 @@ def preview_chat(uuid_str, session_str):
 
         response = ''
 
-        print('input_content:', input_content)
-        is_final = False
+        logger.info(f'input_content: {input_content}')
+        res = json.dumps({
+            'data': "",
+            'is_final': False,
+            'request_id': request_id_var.get("")
+        }, ensure_ascii=False)
         for frame in user_agent.run(
                 input_content,
                 history=history,
@@ -295,6 +325,7 @@ def preview_chat(uuid_str, session_str):
             response += frame
             res = json.dumps({
                 'data': response,
+                'is_final': False,
                 'request_id': request_id_var.get("")
             }, ensure_ascii=False)
             yield f'data: {res}\n\n'
@@ -308,18 +339,26 @@ def preview_chat(uuid_str, session_str):
             Message(role='assistant', content=response),
         ])
         user_memory.save_memory(user_memory.history)
+        res = json.dumps({
+            'data': response,
+            'is_final': True,
+            'request_id': request_id_var.get("")
+        }, ensure_ascii=False)
+        yield f'data: {res}\n\n'
 
     return Response(generate(), mimetype='text/event-stream')
 
 
 # 清除当前预览对话实例
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['DELETE'])
+@with_request_id
 def delete_preview_chat(uuid_str, session_str):
     app.session_manager.clear_user_bot(uuid_str, session_str)
     return jsonify({'success': True, 'request_id': request_id_var.get("")})
 
 
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['GET'])
+@with_request_id
 def get_preview_chat_history(uuid_str, session_str):
     _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
     return jsonify({
@@ -330,6 +369,7 @@ def get_preview_chat_history(uuid_str, session_str):
 
 
 @app.errorhandler(Exception)
+@with_request_id
 def handle_error(error):
     stack_trace = traceback.format_exc()
     stack_trace = stack_trace.replace("\n", "\\n")
