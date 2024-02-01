@@ -4,6 +4,7 @@ import json
 from modelscope_agent.agent import Agent
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.storage import KnowledgeVector
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .base import Memory
 
@@ -16,6 +17,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
                  storage_path: Optional[str] = None,
                  name: Optional[str] = None,
                  description: Optional[str] = None,
+                 use_knowledge_cache: bool = True,
                  **kwargs):
         Memory.__init__(self, path=kwargs.get('memory_path', ''))
         Agent.__init__(
@@ -26,12 +28,14 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             description=description)
 
         # allow vector storage to save knowledge
-        self.store_knowledge = KnowledgeVector(storage_path, name)
+        self.store_knowledge = KnowledgeVector(
+            storage_path, name, use_cache=use_knowledge_cache)
 
     def _run(self,
              query: str = None,
              url: str = None,
              max_token: int = 4000,
+             top_k: int = 3,
              **kwargs) -> Union[str, Iterator[str]]:
         # no need for llm in this agent yet, all the operation could be handled by simple logic
         if url:
@@ -41,17 +45,21 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
                 pass
 
             # add file to index
-            self.store_knowledge.add(url)
-
-            # save store knowledge
-            self.store_knowledge.save()
+            try:
+                self.store_knowledge.add(url)
+                self.store_knowledge.save()
+            except Exception:
+                import traceback
+                logger.error(
+                    f'fail to learn knowledge from {url}, with error {traceback.format_exc()}'
+                )
 
         # no query then return None
         if not query:
             return None
 
         # search records
-        records = self.store_knowledge.search(query)
+        records = self.store_knowledge.search(query, top_k=top_k)
 
         # limit length
         concatenated_records = '\n'.join(records)

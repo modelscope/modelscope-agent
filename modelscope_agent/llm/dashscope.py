@@ -17,13 +17,10 @@ def stream_output(response, **kwargs):
         if trunk.status_code == HTTPStatus.OK:
             # logger at the first for the request_id, and the last time for whole output
             if not text or trunk.output.choices[0].finish_reason != 'null':
-                logger.query_info(
-                    uuid=kwargs.get('uuid_str', ''),
-                    details={
-                        'dashscope.request_id': trunk.request_id,
-                        'dashscope.output': trunk.output
-                    },
-                    message='call dashscope generation api success')
+                logger.info(
+                    f'call dashscope generation api success, '
+                    f'request_id: { trunk.request_id}, output: { trunk.output}'
+                )
             text = trunk.output.choices[0].message.content
             if (len(text) - last_len) <= delay_len:
                 in_delay = True
@@ -35,19 +32,10 @@ def stream_output(response, **kwargs):
                 yield now_rsp
                 last_len = len(real_text)
         else:
-            logger.query_error(
-                uuid=kwargs.get('uuid_str', ''),
-                details={
-                    'dashscope.request_id': trunk.request_id,
-                    'dashscope.status_code': trunk.status_code,
-                    'dashscope.code': trunk.code,
-                    'dashscope.message': trunk.message
-                },
-                message='call dashscope generation api error')
             err = '\nError code: %s. Error message: %s' % (trunk.code,
                                                            trunk.message)
             if trunk.code == 'DataInspectionFailed':
-                err += '\n错误码: 数据检查失败。错误信息: 输入数据可能包含不适当的内容。'
+                err += '\n错误码: 数据检查失败。错误信息: 输入数据可能包含不适当的内容。由于该不适当内容会一直存在历史对话中，后续的对话大概率仍会触发此错误。建议刷新重置页面。'
             text = ''
             yield f'{err}'
     # with open('debug.json', 'w', encoding='utf-8') as writer:
@@ -85,11 +73,6 @@ class DashScopeLLM(BaseChatModel):
             'result_format': 'message',
             'stream': True,
         }
-
-        logger.query_info(
-            uuid=kwargs.get('uuid_str', ''),
-            details=generation_input,
-            message='call dashscope generation api')
         response = dashscope.Generation.call(**generation_input)
         return stream_output(response, **kwargs)
 
@@ -160,6 +143,7 @@ class QwenChatAtDS(DashScopeLLM):
             return err
 
     def build_raw_prompt(self, messages):
+        messages.append({'role': 'assistant', 'content': ''})
         im_start = '<|im_start|>'
         im_end = '<|im_end|>'
         if messages[0]['role'] == 'system':

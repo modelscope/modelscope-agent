@@ -134,7 +134,7 @@ class ImageEnhancement(StyleRepaint):
                     print('任务已完成')
                     # output_url = self._parse_output(result['result']['output']['result_url'])
                     output_url = result['output']['result_url']
-                    return output_url
+                    return f'![IMAGEGEN]({output_url})'
 
                 elif task_status in ['FAILED', 'ERROR']:
                     raise ('任务失败')

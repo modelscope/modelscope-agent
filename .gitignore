@@ -27,6 +27,8 @@ wheels/
 *.egg
 /package
 /temp
+**/tmp/
+/apps/agentfabric/tmp/
 MANIFEST
 
 # PyInstaller

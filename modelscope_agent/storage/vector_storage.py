@@ -22,6 +22,7 @@ class VectorStorage(BaseStorage):
                  vs_cls: VectorStore = FAISS,
                  vs_params: Dict = {},
                  index_ext: str = '.faiss',
+                 use_cache: bool = True,
                  **kwargs):
         # index name used for storage
         self.storage_path = storage_path
@@ -31,7 +32,10 @@ class VectorStorage(BaseStorage):
         self.vs_cls = vs_cls
         self.vs_params = vs_params
         self.index_ext = index_ext
-        self.vs = self.load()
+        if use_cache:
+            self.vs = self.load()
+        else:
+            self.vs = None
 
     def construct(self, docs):
         assert len(docs) > 0
@@ -80,6 +84,10 @@ class VectorStorage(BaseStorage):
         if self.vs:
             self.vs.save_local(self.storage_path, self.index_name)
 
+    def delete(self):
+        """Now, no delete is implemented"""
+        raise NotImplementedError
+
 
 class KnowledgeVector(VectorStorage):
 
@@ -89,18 +97,22 @@ class KnowledgeVector(VectorStorage):
         if isinstance(file_path, str) and os.path.isfile(file_path):
             all_files.append(file_path)
         elif isinstance(file_path, list):
-            all_files = file_path
+            for f in file_path:
+                if os.path.isfile(f):
+                    all_files.append(f)
         elif os.path.isdir(file_path):
             for root, dirs, files in os.walk(file_path):
                 for f in files:
-                    if f.split('.')[-1].lower() in SUPPORTED_KNOWLEDGE_TYPE:
-                        all_files.append(os.path.join(root, f))
+                    all_files.append(os.path.join(root, f))
         else:
             raise ValueError('file_path must be a file or a directory')
 
         docs = []
         for f in all_files:
-            docs.extend(parse_doc(f))
+            if f.split('.')[-1].lower() in SUPPORTED_KNOWLEDGE_TYPE:
+                doc_list = parse_doc(f)
+                if len(doc_list) > 0:
+                    docs.extend(doc_list)
         return docs
 
     # should load and save

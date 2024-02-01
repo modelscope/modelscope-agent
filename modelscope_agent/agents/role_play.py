@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
 
@@ -108,8 +108,8 @@ SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE = {
 }
 
 SPECIAL_PREFIX_TEMPLATE_FILE = {
-    'zh': '[上传文件{file_names}]',
-    'en': '[Upload file {file_names}]',
+    'zh': '[上传文件 "{file_names}"]',
+    'en': '[Upload file "{file_names}"]',
 }
 
 DEFAULT_EXEC_TEMPLATE = """\nObservation: <result>{exec_result}</result>\nAnswer:"""
@@ -152,7 +152,7 @@ class RolePlay(Agent):
                 'knowledge'] = SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE[lang]
 
         # concat tools information
-        if self.function_map:
+        if self.function_map and not self.llm.support_function_calling():
             self.system_prompt += TOOL_TEMPLATE[lang].format(
                 tool_descs=self.tool_descs, tool_names=self.tool_names)
             self.query_prefix_dict['tool'] = SPECIAL_PREFIX_TEMPLATE_TOOL[
@@ -171,11 +171,12 @@ class RolePlay(Agent):
             self.system_prompt += PROMPT_TEMPLATE[lang].format(
                 role_prompt=self.instruction)
 
-        self.query_prefix = '('
+        self.query_prefix = ''
         self.query_prefix += self.query_prefix_dict['role']
         self.query_prefix += self.query_prefix_dict['tool']
         self.query_prefix += self.query_prefix_dict['knowledge']
-        self.query_prefix += ')'
+        if self.query_prefix:
+            self.query_prefix = '(' + self.query_prefix + ')'
 
         if len(append_files) > 0:
             file_names = ','.join(
@@ -198,9 +199,10 @@ class RolePlay(Agent):
             'role': 'user',
             'content': self.query_prefix + user_request
         })
-        messages.append({'role': 'assistant', 'content': ''})
 
-        planning_prompt = self.llm.build_raw_prompt(messages)
+        planning_prompt = ''
+        if self.llm.support_raw_prompt():
+            planning_prompt = self.llm.build_raw_prompt(messages)
 
         max_turn = 10
         while True and max_turn > 0:
@@ -208,15 +210,29 @@ class RolePlay(Agent):
             # print(planning_prompt)
             # print('=============Answer=================')
             max_turn -= 1
-            output = self.llm.chat(
-                prompt=planning_prompt,
-                stream=True,
-                stop=['Observation:', 'Observation:\n'],
-                **kwargs)
+            if self.llm.support_function_calling():
+                output = self.llm.chat_with_functions(
+                    messages=messages,
+                    stream=True,
+                    functions=[
+                        func.function for func in self.function_map.values()
+                    ],
+                )
+            else:
+                output = self.llm.chat(
+                    prompt=planning_prompt,
+                    stream=True,
+                    stop=['Observation:', 'Observation:\n'],
+                    messages=messages,
+                    **kwargs)
 
             llm_result = ''
             for s in output:
-                llm_result += s
+                if isinstance(s, dict):
+                    llm_result = s
+                    break
+                else:
+                    llm_result += s
                 yield s
 
             use_tool, action, action_input, output = self._detect_tool(
@@ -225,17 +241,25 @@ class RolePlay(Agent):
             # yield output
             print(output)
             if use_tool:
+                if self.llm.support_function_calling():
+                    yield f'Action: {action}\nAction Input: {action_input}'
                 observation = self._call_tool(action, action_input)
-                observation = DEFAULT_EXEC_TEMPLATE.format(
+                format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
-                yield observation
-                print(observation)
-                planning_prompt += output + observation
+                yield format_observation
+                if self.llm.support_function_calling():
+                    messages.append({'role': 'tool', 'content': observation})
+                else:
+                    planning_prompt += output + format_observation
+
             else:
                 planning_prompt += output
                 break
 
-    def _detect_tool_by_special_token(self, text: str):
+    def _detect_tool(self, message: Union[str,
+                                          dict]) -> Tuple[bool, str, str, str]:
+        assert isinstance(message, str)
+        text = message
         func_name, func_args = None, None
         i = text.rfind(ACTION_TOKEN)
         j = text.rfind(ARGS_TOKEN)
@@ -253,12 +277,26 @@ class RolePlay(Agent):
         return (func_name is not None), func_name, func_args, text
 
     def _parse_role_config(self, config: dict, lang: str = 'zh') -> str:
+        """
+        Parsing role config dict to str.
+
+        Args:
+            config: One example of config is
+                {
+                    "name": "多啦A梦",
+                    "description": "能够像多啦A梦一样，拥有各种神奇的技能和能力，可以帮我解决生活中的各种问题。",
+                    "instruction": "可以查找信息、提供建议、提醒日程；爱讲笑话，每次说话的结尾都会加上一句幽默的总结；最喜欢的人是大熊"
+                }
+        Returns:
+            Processed string for this config
+        """
         if lang == 'en':
             return self._parse_role_config_en(config)
         else:
             return self._parse_role_config_zh(config)
 
     def _parse_role_config_en(self, config: dict) -> str:
+
         prompt = 'You are playing as an AI-Agent, '
 
         # concat agents

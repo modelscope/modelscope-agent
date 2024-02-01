@@ -154,7 +154,9 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
         return json_files + image_files
 
     for f in find_json_and_images(config_path):
-        shutil.copy(f, new_config_path)
+        if not os.path.exists(
+                os.path.join(new_config_path, os.path.basename(f))):
+            shutil.copy(f, new_config_path)
 
     # 复制assets目录到new_directory
     assets_path = f'{local_file}/assets'

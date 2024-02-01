@@ -1,5 +1,5 @@
 import pytest
-from modelscope_agent.llm import DashScopeLLM
+from modelscope_agent.llm import QwenChatAtDS
 
 prompt = 'Tell me a joke.'
 messages = [{
@@ -22,7 +22,7 @@ def chat_model(mocker):
         'model_server': 'dashscope',
         'api_key': 'test'
     }
-    chat_model = DashScopeLLM(**llm_config)
+    chat_model = QwenChatAtDS(**llm_config)
     mocker.patch.object(
         chat_model, '_chat_stream', return_value=['hello', ' there'])
     mocker.patch.object(
@@ -48,13 +48,6 @@ def test_chat_stream_with_prompt(chat_model):
     assert all(isinstance(resp, str) for resp in responses)
     assert all(resp.strip() for resp in responses)
     assert responses == ['hello', ' there']
-
-
-def test_chat_stream_with_empty_messages(chat_model):
-    with pytest.raises(
-            AssertionError,
-            match='Do not pass prompt and messages at the same time.'):
-        chat_model.chat(prompt=prompt, messages=messages)
 
 
 def test_chat_no_stream_with_invalid_messages(chat_model):

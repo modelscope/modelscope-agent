@@ -8,7 +8,7 @@ from modelscope_agent.tools import BaseTool, register_tool
 
 @register_tool('web_browser')
 class WebBrowser(BaseTool):
-    description = '调用web browser api处理网页内容'
+    description = '网页浏览器，能根据网页url浏览网页并返回网页内容。'
     name = 'web_browser'
     parameters: list = [{
         'name': 'urls',

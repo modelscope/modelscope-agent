@@ -162,7 +162,7 @@ class StyleRepaint(BaseTool):
                     print('任务已完成')
                     # 取出result里url的部分，提高url图片展示稳定性
                     output_url = result['output']['results'][0]['url']
-                    return output_url
+                    return f'![IMAGEGEN]({output_url})'
 
                 elif task_status == 'FAILED':
                     raise Exception(output.get('message', '任务失败，请重试'))

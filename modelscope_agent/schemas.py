@@ -25,9 +25,9 @@ class Document(BaseModel):
     session: list
 
 
-class AgentHolder(BaseModel):
+class AgentAttr(BaseModel):
     """
-    AgentHolder: Record Agent information
+    AgentAttr: Record Agent information
     """
     session: str = ''
     uuid: str = ''

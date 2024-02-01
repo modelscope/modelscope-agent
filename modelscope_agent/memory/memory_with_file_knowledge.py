@@ -67,9 +67,7 @@ class MemoryWithFileKnowledge(Memory, Agent):
             query_with_keyword = query
 
         # retrieval related content
-        records = [
-            RefMaterialInput(**record) for record in json5.loads(records)
-        ]
+        records = [RefMaterialInput(**record) for record in records]
         content = self.retrieve_content(
             query_with_keyword, records=records, max_token=max_token)
         return content

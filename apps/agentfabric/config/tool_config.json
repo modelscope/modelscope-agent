@@ -44,7 +44,7 @@
     "is_active": true,
     "use": false
   },
-  "phantom_image_enhancement": {
+  "image_enhancement": {
     "name": "追影-放大镜",
     "is_active": true,
     "use": false
@@ -60,7 +60,7 @@
     "name": "命名实体识别",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee",
     "use": false,
-    "is_active": true,
+    "is_active": false,
     "is_remote_tool": true
   },
   "speech-generation": {

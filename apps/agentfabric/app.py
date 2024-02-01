@@ -56,8 +56,9 @@ def init_builder(uuid_str, state):
 def update_builder(uuid_str, state):
 
     try:
-        builder_agent = init_builder_chatbot_agent(uuid_str)
+        builder_agent, builder_memory = init_builder_chatbot_agent(uuid_str)
         state['builder_agent'] = builder_agent
+        state['builder_memory'] = builder_memory
     except Exception as e:
         logger.query_error(
             uuid=uuid_str,
@@ -576,7 +577,11 @@ with demo:
         if len(append_files) > 0:
             uploaded_file = append_files[0]
         ref_doc = user_memory.run(
-            query=input.text, url=uploaded_file, checked=True)
+            query=input.text,
+            url=uploaded_file,
+            max_token=4000,
+            top_k=2,
+            checked=True)
 
         response = ''
         try:
