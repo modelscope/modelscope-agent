@@ -20,6 +20,8 @@ from .translation_zh2en_tool import TranslationZh2EnTool
 from .web_browser import WebBrowser
 from .web_search import WebSearch
 from .wordart_tool import WordArtTexture
+from .paraformer_asr_tool import ParaformerAsrTool
+from .sambert_tts_tool import SambertTtsTool
 
 TOOL_INFO_LIST = {
     'text-translation-zh2en': 'TranslationZh2EnTool',
@@ -39,4 +41,6 @@ TOOL_INFO_LIST = {
     'qwen_vl': 'QWenVL',
     'style_repaint': 'StyleRepaint',
     'phantom_image_enhancement': 'Phantom',
+    'paraformer_asr': 'ParaformerAsrTool',
+    'sambert_tts': 'SambertTtsTool'
 }
