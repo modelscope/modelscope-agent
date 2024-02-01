@@ -84,6 +84,10 @@ class VectorStorage(BaseStorage):
         if self.vs:
             self.vs.save_local(self.storage_path, self.index_name)
 
+    def delete(self):
+        """Now, no delete is implemented"""
+        raise NotImplementedError
+
 
 class KnowledgeVector(VectorStorage):
 

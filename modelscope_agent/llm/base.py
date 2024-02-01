@@ -198,6 +198,8 @@ class BaseChatModel(ABC):
                     self._support_fn_call = True
             except FnCallNotImplError:
                 pass
+            except AttributeError:
+                pass
             except Exception:  # TODO: more specific
                 print_traceback()
         return self._support_fn_call
