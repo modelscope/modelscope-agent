@@ -3,10 +3,12 @@ from .code_interperter import CodeInterpreter
 from .code_interpreter_jupyter import CodeInterpreterJupyter
 from .hf_tool import HFTool
 from .image_chat_tool import ImageChatTool
+from .paraformer_asr_tool import ParaformerAsrTool
 from .phantom_tool import Phantom
 from .pipeline_tool import ModelscopePipelineTool
 from .plugin_tool import LangchainTool
 from .qwen_vl import QWenVL
+from .sambert_tts_tool import SambertTtsTool
 from .style_repaint import StyleRepaint
 from .text_address_tool import TextAddressTool
 from .text_ie_tool import TextInfoExtractTool
@@ -20,8 +22,6 @@ from .translation_zh2en_tool import TranslationZh2EnTool
 from .web_browser import WebBrowser
 from .web_search import WebSearch
 from .wordart_tool import WordArtTexture
-from .paraformer_asr_tool import ParaformerAsrTool
-from .sambert_tts_tool import SambertTtsTool
 
 TOOL_INFO_LIST = {
     'text-translation-zh2en': 'TranslationZh2EnTool',

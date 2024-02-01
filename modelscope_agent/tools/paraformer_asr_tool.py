@@ -1,7 +1,7 @@
 import os
 import subprocess
 from http import HTTPStatus
-from typing import List, Any
+from typing import Any, List
 
 from modelscope_agent.tools.tool import Tool, ToolSchema
 from pydantic import ValidationError
@@ -10,9 +10,11 @@ WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
 
 def _preprocess(input_file, output_file):
-    ret = subprocess.call(['ffmpeg', '-y', '-i', input_file,
-                           '-f', 's16le', '-acodec', 'pcm_s16le', '-ac', '1', '-ar', '16000',
-                           '-loglevel', 'quiet', output_file])
+    ret = subprocess.call([
+        'ffmpeg', '-y', '-i', input_file, '-f', 's16le', '-acodec',
+        'pcm_s16le', '-ac', '1', '-ar', '16000', '-loglevel', 'quiet',
+        output_file
+    ])
     if ret != 0:
         raise ValueError(f'Failed to preprocess audio file {input_file}')
 
@@ -29,7 +31,8 @@ class ParaformerAsrTool(Tool):
     def __init__(self, cfg={}):
         self.cfg = cfg.get(self.name, {})
 
-        self.api_key = self.cfg.get('dashscope_api_key', os.environ.get('DASHSCOPE_API_KEY'))
+        self.api_key = self.cfg.get('dashscope_api_key',
+                                    os.environ.get('DASHSCOPE_API_KEY'))
         if self.api_key is None:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
@@ -55,8 +58,12 @@ class ParaformerAsrTool(Tool):
         pcm_file = WORK_DIR + '/' + 'audio.pcm'
         _preprocess(raw_audio_file, pcm_file)
         if not os.path.exists(pcm_file):
-            raise ValueError(f'convert audio to pcm file failed')
-        recognition = Recognition(model='paraformer-realtime-v1', format='pcm', sample_rate=16000, callback=None)
+            raise ValueError(f'convert audio to pcm file {pcm_file} failed')
+        recognition = Recognition(
+            model='paraformer-realtime-v1',
+            format='pcm',
+            sample_rate=16000,
+            callback=None)
         response = recognition.call(pcm_file)
         result = ''
         if response.status_code == HTTPStatus.OK:
@@ -65,5 +72,7 @@ class ParaformerAsrTool(Tool):
                 for sentence in sentences:
                     result += sentence['text']
         else:
-            raise ValueError(f'call paraformer asr failed, request id: {response.get_request_id()}')
+            raise ValueError(
+                f'call paraformer asr failed, request id: {response.get_request_id()}'
+            )
         return {'result': result}
