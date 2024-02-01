@@ -63,7 +63,7 @@ def builder_chat(uuid_str):
 
     def generate():
         builder_agent, builder_memory = app.session_manager.get_builder_bot(uuid_str)
-        builder_memory.history = builder_memory.load_memory()
+        builder_memory.history = builder_memory.load_history()
 
         logger.info(f'input_content: {input_content}')
         response = ''
@@ -119,7 +119,7 @@ def builder_chat(uuid_str):
         }, ensure_ascii=False)
         yield f'data: {final_res}\n\n'
 
-        builder_memory.save_memory(builder_memory.history)
+        builder_memory.save_history()
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -296,7 +296,7 @@ def preview_chat(uuid_str, session_str):
         user_agent.seed = seed
 
         # get chat history from memory
-        user_memory.history = user_memory.load_memory()
+        user_memory.history = user_memory.load_history()
         history = user_memory.get_history()
 
         # get knowledge from memory, currently get one file
@@ -338,7 +338,7 @@ def preview_chat(uuid_str, session_str):
             Message(role='user', content=input_content),
             Message(role='assistant', content=response),
         ])
-        user_memory.save_memory(user_memory.history)
+        user_memory.save_history()
         res = json.dumps({
             'data': response,
             'is_final': True,

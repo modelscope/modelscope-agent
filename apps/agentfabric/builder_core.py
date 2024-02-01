@@ -38,7 +38,7 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
     builder_history_dir = get_user_builder_history_dir(uuid_str)
     current_history_path = os.path.join(builder_history_dir, session + '_builder.json')
     memory = MemoryWithRetrievalKnowledge(memory_path=current_history_path)
-    memory.history = memory.load_memory()
+    memory.history = memory.load_history()
 
     return agent, memory
 
