@@ -1,6 +1,5 @@
 from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.tools import ParaformerAsrTool
-from modelscope_agent.tools import SambertTtsTool
+from modelscope_agent.tools import ParaformerAsrTool, SambertTtsTool
 from tests.utils import MockLLM, MockOutParser, MockPromptGenerator
 
 
@@ -21,7 +20,8 @@ def test_sambert_tts():
 def test_paraformer_asr_agent():
     responses = [
         "<|startofthink|>{\"api_name\": \"paraformer_asr_utils\", \"parameters\": "
-        "{\"audio_path\": \"16k-xwlb3_local_user.wav\"}}<|endofthink|>", 'summarize'
+        "{\"audio_path\": \"16k-xwlb3_local_user.wav\"}}<|endofthink|>",
+        'summarize'
     ]
     llm = MockLLM(responses)
 

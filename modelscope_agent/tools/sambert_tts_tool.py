@@ -19,7 +19,8 @@ class SambertTtsTool(Tool):
     def __init__(self, cfg={}):
         self.cfg = cfg.get(self.name, {})
 
-        self.api_key = self.cfg.get('dashscope_api_key', os.environ.get('DASHSCOPE_API_KEY'))
+        self.api_key = self.cfg.get('dashscope_api_key',
+                                    os.environ.get('DASHSCOPE_API_KEY'))
         if self.api_key is None:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
@@ -41,13 +42,16 @@ class SambertTtsTool(Tool):
         from dashscope.audio.tts import SpeechSynthesizer
         tts_text = kwargs['text']
         if tts_text is None or len(tts_text) == 0 or tts_text == '':
-            raise ValueError(f'tts input text is valid')
+            raise ValueError('tts input text is valid')
         os.makedirs(WORK_DIR, exist_ok=True)
         wav_file = WORK_DIR + '/sambert_tts_audio.wav'
-        response = SpeechSynthesizer.call(model='sambert-zhijia-v1', format='wav', text=tts_text)
+        response = SpeechSynthesizer.call(
+            model='sambert-zhijia-v1', format='wav', text=tts_text)
         if response.get_audio_data() is not None:
             with open(wav_file, 'wb') as f:
                 f.write(response.get_audio_data())
         else:
-            raise ValueError(f'call sambert tts failed, request id: {response.get_response().request_id}')
+            raise ValueError(
+                f'call sambert tts failed, request id: {response.get_response().request_id}'
+            )
         return {'result': AudioWrapper(wav_file)}

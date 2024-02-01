@@ -5,17 +5,23 @@ from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
 
 def test_phantom():
     input = '2_local_user.png'
-    kwargs = {'input.image_path': input, 'parameters.upscale': 2, 'remote': False}
+    kwargs = {
+        'input.image_path': input,
+        'parameters.upscale': 2,
+        'remote': False
+    }
     phantom = Phantom()
     res = phantom(**kwargs)
 
     print(res)
     assert res['result']['url'].startswith('http')
 
+
 def test_phantom_agent():
     responses = [
         "<|startofthink|>{\"api_name\": \"phantom_image_enhancement\", \"parameters\": "
-        "{\"input.image_path\": \"2_local_user.png\"}}<|endofthink|>", 'summarize'
+        "{\"input.image_path\": \"2_local_user.png\"}}<|endofthink|>",
+        'summarize'
     ]
     llm = MockLLM(responses)
 
