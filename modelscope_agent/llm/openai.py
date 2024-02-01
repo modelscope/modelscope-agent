@@ -1,18 +1,23 @@
 import os
 from typing import Dict, Iterator, List, Optional, Union
 
-from modelscope_agent.utils.retry import retry
 from modelscope_agent.llm.base import BaseChatModel, register_llm
+from modelscope_agent.utils.retry import retry
 from openai import OpenAI
 
 
 @register_llm('openai')
 class OpenAi(BaseChatModel):
 
-    def __init__(self, model: str, model_server: str, is_chat: bool = True, is_function_call: Optional[bool] = None, support_stream: Optional[bool] = None, **kwargs):
+    def __init__(self,
+                 model: str,
+                 model_server: str,
+                 is_chat: bool = True,
+                 is_function_call: Optional[bool] = None,
+                 support_stream: Optional[bool] = None,
+                 **kwargs):
         super().__init__(model, model_server)
 
-        print(kwargs, model, model_server)
         api_base = kwargs.get('api_base', 'https://api.openai.com/v1').strip()
         api_key = kwargs.get('api_key',
                              os.getenv('OPENAI_API_KEY',
@@ -30,7 +35,7 @@ class OpenAi(BaseChatModel):
             model=self.model,
             messages=messages,
             stop=stop,
-            stream=True ,
+            stream=True,
             **kwargs)
         # TODO: error handling
         for chunk in response:
@@ -60,7 +65,8 @@ class OpenAi(BaseChatModel):
         if self.is_chat == None:
             return super().support_raw_prompt()
         else:
-            return self.is_chat
+            # if not chat, then prompt
+            return not self.is_chat
 
     @retry(max_retries=3, delay_seconds=0.5)
     def chat(self,
@@ -77,12 +83,15 @@ class OpenAi(BaseChatModel):
             messages = [{'role': 'user', 'content': prompt}]
         return super().chat(messages=messages, stop=stop, stream=stream, **kwargs)
 
+    def _out_generator(self, response):
+        for chunk in response:
+            if hasattr(chunk.choices[0], 'text'):
+                yield chunk.choices[0].text
+
     def chat_with_raw_prompt(self,
                              prompt: str,
-                             stream: bool=True,
+                             stream: bool = True,
                              **kwargs) -> str:
-        from prompts import prompts
-        prompt = prompts[self.model]
         max_tokens = kwargs.get('max_tokens', 2000)
         response = self.client.completions.create(
             model=self.model,
@@ -90,15 +99,12 @@ class OpenAi(BaseChatModel):
             stream=stream,
             max_tokens=max_tokens
         )
-        print(response)
+
         # TODO: error handling
         if stream:
-            for chunk in response:
-                if hasattr(chunk.choices[0], 'text'):
-                    yield chunk.choices[0].text
+            return self._out_generator(response)
         else:
             return response.choices[0].text
-
 
     def chat_with_functions(self,
                             messages: List[Dict],
@@ -115,4 +121,3 @@ class OpenAi(BaseChatModel):
                 model=self.model, messages=messages, **kwargs)
         # TODO: error handling
         return response.choices[0].message
-
