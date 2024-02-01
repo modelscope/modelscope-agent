@@ -1,19 +1,19 @@
 import os
 from typing import Dict, List, Optional, Tuple, Union
-from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.llm import get_chat_model
-from modelscope_agent import Agent
 
-PLANNER_TEMPLATE="""You have assess to the following apis:
+from modelscope_agent import Agent
+from modelscope_agent.llm import get_chat_model
+from modelscope_agent.llm.base import BaseChatModel
+
+PLANNER_TEMPLATE = """You have assess to the following apis:
 {doc}
 The conversation history is:
 {history}
 You are the assistant to plan what to do next and whether is caller's or conclusion's turn to answer.
 Answer with a following format:
-The thought of the next step, followed by Next: caller or conclusion or give up.""",
+The thought of the next step, followed by Next: caller or conclusion or give up."""
 
-
-CALLER_TEMPLATE="""You have assess to the following apis:
+CALLER_TEMPLATE = """You have assess to the following apis:
 {doc}
 The conversation history is:
 {history}
@@ -21,12 +21,10 @@ The thought of this step is:
 {thought}
 Base on the thought make an api call in the following format:
 Action: the name of api that should be called in this step, should be exactly in [{tool_names}],
-Action Input: the api call request.""",
+Action Input: the api call request."""
 
-SUMMARIZER_TEMPLATE= """Make a conclusion based on the conversation history:
-{history}""",
-
-
+SUMMARIZER_TEMPLATE = """Make a conclusion based on the conversation history:
+{history}"""
 
 ACTION_TOKEN = 'Action:'
 ARGS_TOKEN = 'Action Input:'
@@ -36,17 +34,16 @@ ANSWER_TOKEN = 'Answer:'
 
 class AlphaUmi(Agent):
 
-
     def __init__(self,
-                function_list: Optional[List[Union[str, Dict]]] = None,
-                llm_planner: Optional[Union[Dict, BaseChatModel]] = None,
-                llm_caller: Optional[Union[Dict, BaseChatModel]] = None,
-                llm_summarizer: Optional[Union[Dict, BaseChatModel]] = None,
-                storage_path: Optional[str] = None,
-                name: Optional[str] = None,
-                description: Optional[str] = None,
-                instruction: Union[str, dict] = None,
-                **kwargs):
+                 function_list: Optional[List[Union[str, Dict]]] = None,
+                 llm_planner: Optional[Union[Dict, BaseChatModel]] = None,
+                 llm_caller: Optional[Union[Dict, BaseChatModel]] = None,
+                 llm_summarizer: Optional[Union[Dict, BaseChatModel]] = None,
+                 storage_path: Optional[str] = None,
+                 name: Optional[str] = None,
+                 description: Optional[str] = None,
+                 instruction: Union[str, dict] = None,
+                 **kwargs):
         """
         init tools/llm/instruction for one agent
 
@@ -99,15 +96,12 @@ class AlphaUmi(Agent):
         self.instruction = instruction
         self.uuid_str = kwargs.get('uuid_str', None)
 
-
-
     def _run(self,
              user_request,
              history: Optional[List[Dict]] = None,
              ref_doc: str = None,
              lang: str = 'zh',
              **kwargs):
-        
         """
         修改：
         1. 取消了message，改为用prompt. 多步生成的对话历史用history控制
@@ -117,12 +111,14 @@ class AlphaUmi(Agent):
         """
 
         self.tool_descs = '\n'.join(tool.function_plain_text
-                                      for tool in self.function_map.values())
+                                    for tool in self.function_map.values())
         self.tool_names = ', '.join(tool.name
-                                   for tool in self.function_map.values())
+                                    for tool in self.function_map.values())
 
-        self.planner_prompt = PLANNER_TEMPLATE.replace("{doc}", self.tool_descs)
-        self.caller_prompt = CALLER_TEMPLATE.replace("{doc}", self.tool_descs).replace("{tool_names}", self.tool_names)
+        self.planner_prompt = PLANNER_TEMPLATE.replace('{doc}',
+                                                       self.tool_descs)
+        self.caller_prompt = CALLER_TEMPLATE.replace(
+            '{doc}', self.tool_descs).replace('{tool_names}', self.tool_names)
         self.summarizer_prompt = SUMMARIZER_TEMPLATE
         # Concat the system as one round of dialogue
 
@@ -131,7 +127,9 @@ class AlphaUmi(Agent):
                 'role'] != 'user', 'The history should not include the latest user query.'
             if history[0]['role'] == 'system':
                 history = history[1:]
-            history.append({'role':'user', "content":user_request})
+        else:
+            history = list()
+        history.append({'role': 'user', 'content': user_request})
 
         # concat the new messages
         max_turn = 10
@@ -139,10 +137,11 @@ class AlphaUmi(Agent):
             dispatch_history = self._concat_history(history)
             max_turn -= 1
             planner_output = self.llm_planner.chat(
-                prompt=self.planner_prompt.replace("{history}", dispatch_history) + " assistant: ",
+                prompt=self.planner_prompt.replace(
+                    '{history}', dispatch_history) + ' assistant: ',
+                max_tokens=2000,
                 stream=False,
                 **kwargs)
-            
             planner_result = ''
             for s in planner_output:
                 if isinstance(s, dict):
@@ -152,20 +151,21 @@ class AlphaUmi(Agent):
                     planner_result += s
                 yield s
 
-            decision, planner_result = self._parse_planner_output(planner_result)
-            history.append({
-                'role': "assistant",
-                'content': planner_result
-            })
-            print(planner_output)
-            if decision == "give_up":
+            decision, planner_result = self._parse_planner_output(
+                planner_result)
+            history.append({'role': 'assistant', 'content': planner_result})
+            yield planner_output
+
+            if decision == 'give_up':
                 break
-            
+
             elif decision == 'caller':
                 dispatch_history = self._concat_history(history)
                 caller_output = self.llm_caller.chat(
-                    prompt=self.caller_prompt.replace("{history}", dispatch_history) + " caller: ",
+                    prompt=self.caller_prompt.replace(
+                        '{history}', dispatch_history) + ' caller: ',
                     stream=False,
+                    max_tokens=2000,
                     **kwargs)
                 caller_result = ''
                 for s in caller_output:
@@ -176,23 +176,28 @@ class AlphaUmi(Agent):
                         caller_result += s
                     yield s
 
-
                 use_tool, action, action_input, caller_output = self._detect_tool(
                     caller_result)
 
                 history.append({'role': 'caller', 'content': caller_output})
                 # yield output
-                print(caller_output)
+                yield caller_output
+
                 if use_tool:
                     yield f'Action: {action}\nAction Input: {action_input}'
                     observation = self._call_tool(action, action_input)
-                    yield f"Observation: {observation}"
-                    history.append({'role': 'observation', 'content': observation})
+                    yield f'Observation: {observation}'
+                    history.append({
+                        'role': 'observation',
+                        'content': observation
+                    })
             else:
                 dispatch_history = self._concat_history(history)
                 summarizer_output = self.llm_summarizer.chat(
-                    prompt=self.summarizer_prompt.replace("{history}", dispatch_history) + " conclusion: ",
+                    prompt=self.summarizer_prompt.replace(
+                        '{history}', dispatch_history) + ' conclusion: ',
                     stream=False,
+                    max_tokens=2000,
                     **kwargs)
                 summarizer_result = ''
                 for s in summarizer_output:
@@ -202,10 +207,13 @@ class AlphaUmi(Agent):
                     else:
                         summarizer_result += s
                     yield s
-                print(summarizer_output)
-                history.append({'role': 'conclusion', 'content': summarizer_output})
-                break
+                yield summarizer_output
 
+                history.append({
+                    'role': 'conclusion',
+                    'content': summarizer_output
+                })
+                break
 
     def _detect_tool(self, message: Union[str,
                                           dict]) -> Tuple[bool, str, str, str]:
@@ -233,7 +241,8 @@ class AlphaUmi(Agent):
                     find_tool = True
                     break
 
-        return (func_name is not None and find_tool), func_name, func_args, text
+        return (func_name is not None
+                and find_tool), func_name, func_args, text
 
     def _parse_role_config(self, config: dict, lang: str = 'zh') -> str:
         """
@@ -253,40 +262,44 @@ class AlphaUmi(Agent):
             return self._parse_role_config_en(config)
         else:
             return self._parse_role_config_zh(config)
-        
+
     def _concat_history(self, history):
-        res = ""
+        res = ''
         for utter in history:
+            if not isinstance(utter, dict) or utter.get('role', None):
+                continue
             if utter['role'] == 'assistant':
-                history += ('assistant: '+utter['content']+'</s>')
+                history += ('assistant: ' + utter['content'] + '</s>')
             elif utter['role'] == 'user':
-                history += ('user: '+utter['content']+'</s>')
+                history += ('user: ' + utter['content'] + '</s>')
             elif utter['role'] == 'observation':
-                history += ('observation: '+utter['content'])
+                history += ('observation: ' + utter['content'])
             elif utter['role'] == 'caller':
-                history += ('caller: '+utter['content']+'</s>')
+                history += ('caller: ' + utter['content'] + '</s>')
             elif utter['role'] == 'conclusion':
-                history += ('conclusion: '+utter['content']+'</s>')
+                history += ('conclusion: ' + utter['content'] + '</s>')
         return res
-    
+
     def _parse_planner_output(self, planner_output):
         assert isinstance(planner_output, str)
-        if "Next: give up." in planner_output:
-            action_end_idx = planner_output.index("Next: give up.")
-            planner_output = planner_output[:action_end_idx + len("Next: give up.")]
-            return "give_up", planner_output
-        elif "Next: caller." in planner_output:
-            action_end_idx = planner_output.index("Next: caller.")
-            planner_output = planner_output[:action_end_idx + len("Next: caller.")]
-            return "caller", planner_output
+        if 'Next: give up.' in planner_output:
+            action_end_idx = planner_output.index('Next: give up.')
+            planner_output = planner_output[:action_end_idx
+                                            + len('Next: give up.')]
+            return 'give_up', planner_output
+        elif 'Next: caller.' in planner_output:
+            action_end_idx = planner_output.index('Next: caller.')
+            planner_output = planner_output[:action_end_idx
+                                            + len('Next: caller.')]
+            return 'caller', planner_output
         else:
-            if "Next: conclusion." in planner_output:
-                action_end_idx = planner_output.index("Next: conclusion.")
-                planner_output = planner_output[:action_end_idx + len("Next: conclusion.")]
+            if 'Next: conclusion.' in planner_output:
+                action_end_idx = planner_output.index('Next: conclusion.')
+                planner_output = planner_output[:action_end_idx
+                                                + len('Next: conclusion.')]
             else:
-                planner_output = planner_output + "Next: conclusion."
-            return "summarizer", planner_output
-    
+                planner_output = planner_output + 'Next: conclusion.'
+            return 'summarizer', planner_output
 
     def _parse_role_config_en(self, config: dict) -> str:
 

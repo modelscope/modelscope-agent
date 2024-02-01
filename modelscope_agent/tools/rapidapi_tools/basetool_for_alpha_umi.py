@@ -3,8 +3,8 @@ from typing import Dict, List, Optional, Union
 
 import json
 import json5
-from modelscope_agent.utils.utils import has_chinese_chars
 from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.utils.utils import has_chinese_chars
 
 TOOL_REGISTRY = {}
 
@@ -29,7 +29,7 @@ class BaseTool_alpha_umi(BaseTool):
         """
         self.cfg = cfg.get(self.name, {})
 
-        self.schema = "alpha_umi"
+        self.schema = 'alpha_umi'
         self.function = self._build_function()
         self.function_plain_text = self._parser_function()
 
@@ -40,12 +40,14 @@ class BaseTool_alpha_umi(BaseTool):
         """
         input_doc = {}
         for p in self.parameters:
-            input_doc[p['name']] = (p['type'] + ', ' + "required, " if p['required'] else "" + p['description'][:128])
-        
+            input_doc[p['name']] = (
+                p['type'] + ', ' + 'required, ' if p['required'] else ''
+                + p['description'][:128])
+
         function = {
-            "Name": self.name[-64:],
-            "function": self.description[-256:],
-            "input": input_doc
+            'Name': self.name[-64:],
+            'function': self.description[-256:],
+            'input': input_doc
         }
 
         return function
@@ -66,7 +68,6 @@ class BaseTool_alpha_umi(BaseTool):
         #     tool_desc = tool_desc_template['zh']
         # else:
         #     tool_desc = tool_desc_template['en']
-
 
         # return tool_desc.format(
         #     name=self.function['name'],
