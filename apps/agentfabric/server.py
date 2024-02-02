@@ -9,7 +9,7 @@ import requests
 
 from builder_core import beauty_output, gen_response_and_process
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_user_ci_dir, get_user_dir,
-                          parse_configuration, save_builder_configuration)
+                          parse_configuration, save_builder_configuration, get_ci_dir)
 from flask import (Flask, Response, jsonify, make_response, request,
                    send_from_directory)
 from publish_util import pop_user_info_from_config, prepare_agent_zip, reload_agent_dir
@@ -366,6 +366,30 @@ def get_preview_chat_history(uuid_str, session_str):
         'success': True,
         'request_id': request_id_var.get("")
     })
+
+
+@app.route('/preview/chat_file/<uuid_str>/<session_str>', methods=['GET'])
+@with_request_id
+def get_preview_chat_file(uuid_str, session_str):
+    file_path = request.args.get('file_path')
+    logger.info(f'uuid_str: {uuid_str} session_str: {session_str}')
+    as_attachment = request.args.get('as_attachment') == 'true'
+    try:
+        if not file_path.startswith(get_ci_dir()) or "../" in file_path:
+            raise Exception("Access not allowed.")
+        response = make_response(
+            send_from_directory(
+                os.path.dirname(file_path),
+                os.path.basename(file_path),
+                as_attachment=as_attachment))
+        return response
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'status': 404,
+            'message': str(e),
+            'request_id': request_id_var.get("")
+        }), 404
 
 
 @app.errorhandler(Exception)
