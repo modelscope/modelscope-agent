@@ -17,8 +17,7 @@ class OpenAi(BaseChatModel):
                  support_stream: Optional[bool] = None,
                  **kwargs):
         super().__init__(model, model_server)
-
-        print(kwargs, model, model_server)
+        self.model = model
         api_base = kwargs.get('api_base', 'https://api.openai.com/v1').strip()
         api_key = kwargs.get('api_key',
                              os.getenv('OPENAI_API_KEY',
@@ -78,8 +77,7 @@ class OpenAi(BaseChatModel):
         if isinstance(self.support_stream, bool):
             stream = self.support_stream
         if self.support_raw_prompt():
-            result = self.chat_with_raw_prompt(
-                prompt=prompt, stream=stream, stop=stop, **kwargs)
+            result = self.chat_with_raw_prompt(prompt=prompt, stream=stream, stop=stop, **kwargs)
             return result
         if not messages and prompt and isinstance(prompt, str):
             messages = [{'role': 'user', 'content': prompt}]
@@ -87,6 +85,11 @@ class OpenAi(BaseChatModel):
         result = super().chat(
             messages=messages, stop=stop, stream=stream, **kwargs)
         return result
+
+    def _out_generator(self, response):
+        for chunk in response:
+            if hasattr(chunk.choices[0], 'text'):
+                yield chunk.choices[0].text
 
     def chat_with_raw_prompt(self,
                              prompt: str,
@@ -100,9 +103,7 @@ class OpenAi(BaseChatModel):
             max_tokens=max_tokens)
         # TODO: error handling
         if stream:
-            for chunk in response:
-                if hasattr(chunk.choices[0], 'text'):
-                    yield chunk.choices[0].text
+            return self._out_generator(response)
         else:
             return response.choices[0].text
 

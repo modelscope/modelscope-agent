@@ -142,18 +142,10 @@ class AlphaUmi(Agent):
                 max_tokens=2000,
                 stream=False,
                 **kwargs)
-            planner_result = ''
-            for s in planner_output:
-                if isinstance(s, dict):
-                    planner_result = s
-                    break
-                else:
-                    planner_result += s
-                yield s
 
             decision, planner_result = self._parse_planner_output(
-                planner_result)
-            history.append({'role': 'assistant', 'content': planner_result})
+                planner_output)
+            history.append({'role': 'assistant', 'content': planner_output})
             yield planner_output
 
             if decision == 'give_up':
@@ -167,20 +159,11 @@ class AlphaUmi(Agent):
                     stream=False,
                     max_tokens=2000,
                     **kwargs)
-                caller_result = ''
-                for s in caller_output:
-                    if isinstance(s, dict):
-                        caller_result = s
-                        break
-                    else:
-                        caller_result += s
-                    yield s
 
                 use_tool, action, action_input, caller_output = self._detect_tool(
-                    caller_result)
+                    caller_output)
 
                 history.append({'role': 'caller', 'content': caller_output})
-                # yield output
                 yield caller_output
 
                 if use_tool:
@@ -199,14 +182,6 @@ class AlphaUmi(Agent):
                     stream=False,
                     max_tokens=2000,
                     **kwargs)
-                summarizer_result = ''
-                for s in summarizer_output:
-                    if isinstance(s, dict):
-                        summarizer_result = s
-                        break
-                    else:
-                        summarizer_result += s
-                    yield s
                 yield summarizer_output
 
                 history.append({
