@@ -2,6 +2,8 @@ import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
+from modelscope_agent.env_context_util import AgentEnvContextMixin
+from modelscope_agent.llm.base import BaseChatModel
 
 KNOWLEDGE_TEMPLATE_ZH = """
 
@@ -120,7 +122,19 @@ OBSERVATION_TOKEN = 'Observation:'
 ANSWER_TOKEN = 'Answer:'
 
 
-class RolePlay(Agent):
+class RolePlay(Agent, AgentEnvContextMixin):
+
+    def __init__(self,
+                 function_list: Optional[List[Union[str, Dict]]] = None,
+                 llm: Optional[Union[Dict, BaseChatModel]] = None,
+                 storage_path: Optional[str] = None,
+                 name: Optional[str] = None,
+                 description: Optional[str] = None,
+                 instruction: Union[str, dict] = None,
+                 **kwargs):
+        Agent.__init__(self, function_list, llm, storage_path, name,
+                       description, instruction, **kwargs)
+        AgentEnvContextMixin.__init__(self, **kwargs)
 
     def _run(self,
              user_request,
@@ -128,7 +142,6 @@ class RolePlay(Agent):
              ref_doc: str = None,
              lang: str = 'zh',
              **kwargs):
-
         self.tool_descs = '\n\n'.join(tool.function_plain_text
                                       for tool in self.function_map.values())
         self.tool_names = ','.join(tool.name

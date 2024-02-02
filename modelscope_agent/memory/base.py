@@ -2,11 +2,11 @@ import os
 from typing import Dict, Iterable, List, Union
 
 import json
-from modelscope_agent.schemas import AgentHolder, Message
+from modelscope_agent.schemas import AgentAttr, Message
 from pydantic import ConfigDict
 
 
-class Memory(AgentHolder):
+class Memory(AgentAttr):
     path: str
     model_config = ConfigDict(extra='allow')
 

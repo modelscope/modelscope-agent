@@ -7,8 +7,10 @@ class Message(BaseModel):
     """
     Message: message information
     """
-    role: str = ''
+    role: str = 'user'  # user, assistant, system, tool
     content: str = ''
+    sent_from: str = ''
+    send_to: set[str] = {'all'}
 
 
 class Document(BaseModel):
@@ -25,7 +27,7 @@ class Document(BaseModel):
     session: list
 
 
-class AgentHolder(BaseModel):
+class AgentAttr(BaseModel):
     """
     AgentHolder: Record Agent information
     """

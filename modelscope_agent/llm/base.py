@@ -191,13 +191,15 @@ class BaseChatModel(ABC):
             try:
                 response = self.chat_with_functions(
                     messages=messages, functions=functions)
+                # TODO： not working with streaming
                 if response.get('function_call', None):
                     # logger.info('Support of function calling is detected.')
                     self._support_fn_call = True
             except FnCallNotImplError:
-                pass
+                return False
             except Exception:  # TODO: more specific
                 print_traceback()
+                return False
         return self._support_fn_call
 
     def support_raw_prompt(self) -> bool:
