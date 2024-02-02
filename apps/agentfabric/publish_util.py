@@ -175,8 +175,11 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 复制.py文件到新目录
     for file in os.listdir(local_file):
-        if file.endswith('.py'):
+        if file.endswith('.py') and file != "app.py":
             shutil.copy(f'{local_file}/{file}', new_directory)
+
+    # add app.py
+    shutil.copy(f'{local_file}/appBot.py', os.path.join(new_directory, "app.py"))
 
     # 打包新目录
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)
