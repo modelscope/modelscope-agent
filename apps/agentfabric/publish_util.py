@@ -330,8 +330,7 @@ def reload_agent_dir(temp_extract_dir, dst_dir, uuid_str):
     # 修改知识库路径 config/xxx  to /tmp/agentfabric/config/$uuid/xxx
     target_conf = os.path.join(target_config_path, 'builder_config.json')
     builder_cfg = Config.from_file(target_conf)
-    builder_cfg.knowledge = [
-        f'{target_config_path}/' + f.split('/')[-1]
+    builder_cfg.knowledge = [f.split('/')[-1]
         for f in builder_cfg.knowledge
     ]
     with open(target_conf, 'w') as f:
