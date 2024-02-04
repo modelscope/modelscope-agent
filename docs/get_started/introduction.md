@@ -11,142 +11,102 @@ To equip the LLMs with tool-use abilities, a comprehensive framework has been pr
 
 The agent incorporates an LLM along with task-specific tools, and uses the LLM to determine which tool or tools to invoke in order to complete the user's tasks.
 
-To start, all you need to do is initialize an `LLM` object and an `AgentExecutor` object with corresponding tasks
+To start, all you need to do is initialize an `RolePlay` object with corresponding tasks
+
+- 这个示例代码使用了qwen-max模型，画图工具和天气预报工具。
+    - 使用qwen-max模型需要使用您的API-KEY替换示例中的 YOUR_DASHSCOPE_API_KEY，代码才能正常运行。YOUR_DASHSCOPE_API_KEY可以在[这里](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key?spm=a2c4g.11186623.0.i0)获取。画图工具调用的也是DASHSCOPE API（wanx万象），因此不需要额外配置。
+    - 使用天气预报工具需要使用您的高德天气API-KEY替换示例中的YOUR_AMAP_TOKEN，代码才能正常运行。YOUR_AMAP_TOKEN可以在[这里](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)获取。
+
 
 ```Python
+# 配置环境变量；如果您已经提前将api-key提前配置到您的运行环境中，可以省略这个步骤
 import os
-from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.agents import MSPromptGenerator
+os.environ['DASHSCOPE_API_KEY']=YOUR_DASHSCOPE_API_KEY
+os.environ['AMAP_TOKEN']=YOUR_AMAP_TOKEN
 
-# get cfg from file, refer the example in config folder
-model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
-model_cfg = Config.from_file(model_cfg_file)
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
-tool_cfg = Config.from_file(tool_cfg_file)
+# 选用RolePlay 配置agent
+from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
-# instantiation LLM
-model_name = 'modelscope-agent-qwen-7b'
-llm = LLMFactory.build_llm(model_name, model_cfg)
+role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
 
-# agents generator
-prompt_generator = MSPromptGenerator()
+llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 
-# instantiation agent
-agent = AgentExecutor(llm, tool_cfg, prompt_generator=prompt_generator)
+# input tool name
+function_list = ['amap_weather', 'image_gen']
+
+bot = RolePlay(
+    function_list=function_list, llm=llm_config, instruction=role_template)
+
+response = bot.run('朝阳区天气怎样？')
+
+text = ''
+for chunk in response:
+    text += chunk
 ```
 
-We provide several default tools that have been adapted from the **ModelScope** model pipeline, and these tools will be automatically initialized. These tools can be invoked via the local inference pipeline, or by a remote deployed server by setting `remote=True`.
+运行结果
+- terminal运行，llm输出
+```shell
+# 第一次调用llm的输出
+Action: amap_weather
+Action Input: {"location": "朝阳区"}
 
-* `Text address`:
-* `Text ie`:
-* `Text ner`:
-* `Text translation(Chinese to English)`:
-* `Text translation(English to Chinese)`:
-* `Text to image`:
-* `Text to speech`:
-* `Text to video`:
-* `Image chat`:
+# 第二次调用llm的输出
+目前，朝阳区的天气状况为阴天，气温为1度。
 
-Here are some examples of task executions:
+Action: image_gen
+Action Input: {"text": "朝阳区城市风光", "resolution": "1024*1024"}
 
-```Python
+# 第三次调用llm的输出
+目前，朝阳区的天气状况为阴天，气温为1度。同时，我已为你生成了一张朝阳区的城市风光图，如下所示：
 
-# write slogan and transfer to speech in remote mode
-agent.run("写一个 2023上海世界人工智能大会 20 字以内的口号，并语音念出来", remote=False)
-
-# extract address in sentence in local mode
-agent.run('使用地址识别模型，从下面的地址中找到省市区等元素，地址：浙江杭州市江干区九堡镇三村村一区', remote=True)
-
+![](https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/45/20240204/3ab595ad/96d55ca6-6550-4514-9013-afe0f917c7ac-1.jpg?Expires=1707123521&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=RsJRt7zsv2y4kg7D9QtQHuVkXZY%3D)
 ```
 
+## modules
+### Agent
 
-## Custom agents
+An `Agent` object consists of the following components:
 
-An `AgentExecutor` object consists of the following components:
+- `LLM`: A large language model that is responsible to process your inputs and decide calling tools. 
+- `function_list`: A list consists of available tools for agents.
 
-- `LLM`: A large language model that is responsible to process your inputs and decide calling tools.
-- `tool_list`: A list consists of available tools for agents.
-- `PromptGenerator`: A module integrates `prompt_template`, `user_input`, `history`, `tool_list`... into final prompt for llm.
-- `OutputParser`: A module to parse llm response into the tools to be invoked and the corresponding parameters.
+Currently, configuration of `Agent` may contain following arguments:
+- `llm`: The llm config of this agent
+    - When Dict: set the config of llm as {'model': '', 'api_key': '', 'model_server': ''}
+    - When BaseChatModel: llm is sent by another agent
+- `function_list`: A list of tools
+    - When str: tool names
+    - When Dict: tool cfg
+- `storage_path`: If not specified otherwise, all data will be stored here in KV pairs by memory
+- `instruction`: the system instruction of this agent
+- `name`: the name of agent
+- `description`: the description of agent, which is used for multi_agent
+- `kwargs`: other potential parameters
 
-We provide default implement of these components for users, but you can also custom your components according to your requirement.
+`Agent`作为一个基类无法直接被初始化调用，它的`_run`函数还没有被实现。`_run`函数为Agent的运行流程，主要包括三部分：messages/propmt的生成、llm的调用、根据llm的结果进行工具调用。使用时您需要调用其实现了`_run`函数的子类。We provide an implement of these components in `RolePlay` for users, and you can also custom your components according to your requirement.
 
-### `PromptGenerator`
-
-To custom you `PromptGenerator`, you may need to override the following functions in base class.
-
-```Python
-class MyPromptGenerator(PromptGenerato):
-
-    def init_prompt(self, task, tool_list, available_tool_list):
-        """
-        in this function, specify how to initialize your agents.
-        """
-        ...
-        return task
-
-    def generate(self, llm_result, exec_result):
-        """
-        the agent may need to interact with llm multiple times. This function generate next round agents based on previous llm_result and exec_result and update history
-        """
-        ...
-        self.prompt += f'{llm_result}{exec_result}'
-
-        return self.prompt
+```python
+from modelscope_agent import Agent
+class YourCustomAgent(Agent):
+    def _run(self, user_request, **kwargs):
+        # Custom your workflow
 ```
+To custom your llm, please refer to `agent.md`
 
-### `OutputParser`
+### LLM
+LLM is core module of agent, which ensures the quality of interaction results.
 
-```Python
-class MyOutputParser(OutputParser):
+Currently, configuration of `LLM` may contain following arguments:
+- `model`: 具体的模型名，将被直接传给模型服务提供商。
+- `model_server`: 模型服务的提供商。
 
-    def parse_response(self, response: str) -> Tuple[str, Dict]:
-        """
-        in this function, you need to define how to parse and get action(str) and action parameters(dict)
-        """
-        return response, {}
+LLM subclasses need to inherit it. They must implement interfaces _chat_stream and _chat_no_stream, which correspond to streaming output and non-streaming output respectively.
+Optionally implement chat_with_functions and chat_with_raw_prompt for function calling and text completion.
 
-```
-
-### `Tool`
-
-To custom your tool, please refer to `tool.md`
-
-To use custom tools with the agent, you should specify them using the `additional_tool_list` parameter during agent initialization.
-
-Additionally, the `tool_list` of agent may contain tools that are not relevant to your task. You can specify the tools that are available to the agent for a particular task by using the `set_available_tools` function.
-
-```Python
-
-# define your tool
-my_tool = MyTool()
-...
-
-additional_tool_list = {
-    'my_tool': my_tool
-}
-
-# initialize with additional_tool_list
-agent = AgentExecutor(llm, tool_cfg, additional_tool_list=additional_tool_list)
-
-available_tool_list = [
-    'my_tool'
-]
-
-# set available_tool list
-agent.set_available_tools(available_tool_list)
-
-```
-
-
-### `LLM`
+我们提供了dashscope（为qwen系列模型）, zhipu(为glm系列模型) and openai(为所有openai api格式的模型)三个模型服务提供商的实现。您可以直接使用上述服务商支持的模型，也可以定制您的llm。
 
 To custom your llm, please refer to `llm.md`
 
-### Configuration`
+### `Tool`
 
-For configurations like `user_token` that are not meant to be public, we recommend using the `dotenv` package along with an `.env` file to store these settings securely.
-
-Specifically, we provide an `.env.template` file and corresponding config files in our repository. You can easily customize the configuration by referring to the provided example and utilize your own `.env` file to read the configuration settings.
