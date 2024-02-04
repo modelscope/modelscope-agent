@@ -13,9 +13,9 @@ The agent incorporates an LLM along with task-specific tools, and uses the LLM t
 
 To start, all you need to do is initialize an `RolePlay` object with corresponding tasks
 
-- 这个示例代码使用了qwen-max模型，画图工具和天气预报工具。
-    - 使用qwen-max模型需要使用您的API-KEY替换示例中的 YOUR_DASHSCOPE_API_KEY，代码才能正常运行。YOUR_DASHSCOPE_API_KEY可以在[这里](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key?spm=a2c4g.11186623.0.i0)获取。画图工具调用的也是DASHSCOPE API（wanx万象），因此不需要额外配置。
-    - 使用天气预报工具需要使用您的高德天气API-KEY替换示例中的YOUR_AMAP_TOKEN，代码才能正常运行。YOUR_AMAP_TOKEN可以在[这里](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)获取。
+- This sample code uses the qwen-max model, drawing tools and weather forecast tools.
+     - Using the qwen-max model requires replacing YOUR_DASHSCOPE_API_KEY in the example with your API-KEY for the code to run properly. YOUR_DASHSCOPE_API_KEY can be obtained [here](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key). The drawing tool also calls DASHSCOPE API (wanx), so no additional configuration is required.
+     - When using the weather forecast tool, you need to replace YOUR_AMAP_TOKEN in the example with your AMAP weather API-KEY so that the code can run normally. YOUR_AMAP_TOKEN is available [here](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather).
 
 
 ```Python
@@ -44,8 +44,8 @@ for chunk in response:
     text += chunk
 ```
 
-运行结果
-- terminal运行，llm输出
+result
+- Terminal runs
 ```shell
 # 第一次调用llm的输出
 Action: amap_weather
@@ -84,7 +84,7 @@ Currently, configuration of `Agent` may contain following arguments:
 - `description`: the description of agent, which is used for multi_agent
 - `kwargs`: other potential parameters
 
-`Agent`作为一个基类无法直接被初始化调用，它的`_run`函数还没有被实现。`_run`函数为Agent的运行流程，主要包括三部分：messages/propmt的生成、llm的调用、根据llm的结果进行工具调用。使用时您需要调用其实现了`_run`函数的子类。We provide an implement of these components in `RolePlay` for users, and you can also custom your components according to your requirement.
+`Agent`, as a base class, cannot be directly initialized and called. Agent subclasses need to inherit it. They must implement function `_run`, which mainly includes three parts: generation of messages/propmt, calling of llm(s), and tool calling based on the results of llm. We provide an implement of these components in `RolePlay` for users, and you can also custom your components according to your requirement.
 
 ```python
 from modelscope_agent import Agent
@@ -92,21 +92,56 @@ class YourCustomAgent(Agent):
     def _run(self, user_request, **kwargs):
         # Custom your workflow
 ```
-To custom your llm, please refer to `agent.md`
+
 
 ### LLM
 LLM is core module of agent, which ensures the quality of interaction results.
 
-Currently, configuration of `LLM` may contain following arguments:
-- `model`: 具体的模型名，将被直接传给模型服务提供商。
-- `model_server`: 模型服务的提供商。
+Currently, configuration of `` may contain following arguments:
+- `model`: The specific model name will be passed directly to the model service provider.
+- `model_server`: provider of model services.
 
-LLM subclasses need to inherit it. They must implement interfaces _chat_stream and _chat_no_stream, which correspond to streaming output and non-streaming output respectively.
-Optionally implement chat_with_functions and chat_with_raw_prompt for function calling and text completion.
+`BaseChatModel`, as a base class of llm, cannot be directly initialized and called. The subclasses need to inherit it. They must implement function `_chat_stream` and `_chat_no_stream`, which correspond to streaming output and non-streaming output respectively.
+Optionally implement `chat_with_functions` and `chat_with_raw_prompt` for function calling and text completion.
 
-我们提供了dashscope（为qwen系列模型）, zhipu(为glm系列模型) and openai(为所有openai api格式的模型)三个模型服务提供商的实现。您可以直接使用上述服务商支持的模型，也可以定制您的llm。
+Currently we provide the implementation of three model service providers: dashscope (for qwen series models), zhipu (for glm series models) and openai (for all openai api format models). You can directly use the models supported by the above service providers, or you can customize your llm.
 
-To custom your llm, please refer to `llm.md`
+For more information please refer to `docs/modules/llm.md`
 
 ### `Tool`
+
+We provide several multi-domain tools that can be configured and used in the agent.
+
+You can also customize your tools with set the tool's name, description, and parameters based on a predefined pattern by inheriting the base tool. Depending on your needs, call() can be implemented.
+An example of a custom tool is provided in [demo_register_new_tool](../demo/demo_register_new_tool.ipynb)
+
+You can pass the tool name or configuration you want to use to the agent.
+```python
+# by tool name
+function_list = ['amap_weather', 'image_gen']
+bot = RolePlay(function_list=function_list, ...)
+
+# by tool configuration
+from langchain.tools import ShellTool
+function_list = [{'terminal':ShellTool()}]
+bot = RolePlay(function_list=function_list, ...)
+
+# by mixture
+function_list = ['amap_weather', {'terminal':ShellTool()}]
+bot = RolePlay(function_list=function_list, ...)
+```
+
+#### Built-in tools
+- `image_gen`: [Wanx Image Generation](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) needs to be configured in the environment variable.
+- `code_interpreter`: [Code Interpreter](https://jupyter-client.readthedocs.io/en/5.2.2/api/client.html)
+- `web_browser`: [Web Browsing](https://python.langchain.com/docs/use_cases/web_scraping)
+- `amap_weather`: [AMAP Weather](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather). AMAP_TOKEN needs to be configured in the environment variable.
+- `wordart_texture_generation`: [Word art texture generation](https://help.aliyun.com/zh/dashscope/developer-reference/wordart). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) needs to be configured in the environment variable.
+- `web_search`: [Web Searching](https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/overview). []
+- `qwen_vl`: [Qwen-VL image recognition](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-qianwen-vl-plus-api). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) needs to be configured in the environment variable.
+- `style_repaint`: [Character style redrawn](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang-style-repaint). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) needs to be configured in the environment variable.
+- `image_enhancement`: [Chasing shadow-magnifying glass](https://github.com/dreamoving/Phantom). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) needs to be configured in the environment variable.
+- `text-address`: [Geocoding](https://www.modelscope.cn/models/iic/mgeo_geographic_elements_tagging_chinese_base/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
+- `speech-generation`: [Speech generation](https://www.modelscope.cn/models/iic/speech_sambert-hifigan_tts_zh-cn_16k/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
+- `video-generation`: [Video generation](https://www.modelscope.cn/models/iic/text-to-video-synthesis/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 
