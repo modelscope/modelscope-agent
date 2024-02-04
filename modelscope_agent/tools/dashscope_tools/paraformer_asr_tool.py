@@ -1,7 +1,7 @@
 import os
 import subprocess
 from http import HTTPStatus
-from typing import Any, List
+from typing import Any, List, Optional, Dict
 
 from modelscope_agent.tools.base import BaseTool, register_tool
 from pydantic import ValidationError
@@ -26,7 +26,8 @@ class ParaformerAsrTool(BaseTool):
     parameters: list = [{
         'name': 'audio_path',
         'description': '需要转成文本的语音文件路径',
-        'required': True
+        'required': True,
+        'type': 'string'
     }]
 
     def __init__(self, cfg: Optional[Dict] = {}):
@@ -37,6 +38,8 @@ class ParaformerAsrTool(BaseTool):
         if self.api_key is None:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
+        super().__init__(cfg)
+        """
         try:
             all_param = {
                 'name': self.name,
@@ -50,6 +53,7 @@ class ParaformerAsrTool(BaseTool):
         self._str = self.tool_schema.model_dump_json()
         self._function = self.parse_pydantic_model_to_openai_function(
             all_param)
+         """
 
     def call(self, params: str, **kwargs):
         from dashscope.audio.asr import Recognition

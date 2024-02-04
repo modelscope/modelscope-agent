@@ -1,64 +1,52 @@
-from modelscope_agent.agent import AgentExecutor
+from modelscope_agent.agents.role_play import RolePlay  # NOQA
 from modelscope_agent.tools import ParaformerAsrTool, SambertTtsTool
-from tests.utils import MockLLM, MockOutParser, MockPromptGenerator
 
 
 def test_paraformer_asr():
-    kwargs = {'audio_path': '16k-xwlb3_local_user.wav'}
+    params = """{'audio_path': '16k-xwlb3_local_user.wav'}"""
     asr_tool = ParaformerAsrTool()
-    res = asr_tool.__call__(**kwargs)
+    res = asr_tool.call(params)
     print(res['result'])
-
+test_paraformer_asr()
 
 def test_sambert_tts():
-    kwargs = {'text': '今天天气怎么样？'}
+    params = """{'text': '今天天气怎么样？'}"""
     tts_tool = SambertTtsTool()
-    res = tts_tool.__call__(**kwargs)
+    res = tts_tool.call(params)
     print(res['result'])
 
 
 def test_paraformer_asr_agent():
-    responses = [
-        "<|startofthink|>{\"api_name\": \"paraformer_asr_utils\", \"parameters\": "
-        "{\"audio_path\": \"16k-xwlb3_local_user.wav\"}}<|endofthink|>",
-        'summarize'
-    ]
-    llm = MockLLM(responses)
+    role_template = '你扮演一个语音专家，用尽可能丰富的描述调用工具处理语音。'
 
-    tools = {'paraformer_asr_utils': ParaformerAsrTool()}
-    prompt_generator = MockPromptGenerator()
-    action_parser = MockOutParser('paraformer_asr_utils',
-                                  {'audio_path': '16k-xwlb3_local_user.wav'})
+    llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 
-    agent = AgentExecutor(
-        llm,
-        additional_tool_list=tools,
-        prompt_generator=prompt_generator,
-        action_parser=action_parser,
-        tool_retrieval=False,
-    )
-    res = agent.run('将上面的音频识别出来')
-    print(res)
+    function_list = ['paraformer_asr']
+
+    bot = RolePlay(
+        function_list=function_list, llm=llm_config, instruction=role_template)
+
+    response = bot.run('[上传文件 "16k-xwlb3_local_user.wav"], 将上面的音频识别出来')
+
+    text = ''
+    for chunk in response:
+        text += chunk
+    print(text)
 
 
 def test_sambert_tts_agent():
-    responses = [
-        "<|startofthink|>{\"api_name\": \"sambert_tts_utils\", \"parameters\": "
-        "{\"text\": \"今天天气怎么样？会下雨吗？\"}}<|endofthink|>", 'summarize'
-    ]
-    llm = MockLLM(responses)
+    role_template = '你扮演一个语音专家，用尽可能丰富的描述调用工具处理语音。'
 
-    tools = {'sambert_tts_utils': SambertTtsTool()}
-    prompt_generator = MockPromptGenerator()
-    action_parser = MockOutParser('sambert_tts_utils',
-                                  {'text': '今天天气怎么样？会下雨吗？'})
+    llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
 
-    agent = AgentExecutor(
-        llm,
-        additional_tool_list=tools,
-        prompt_generator=prompt_generator,
-        action_parser=action_parser,
-        tool_retrieval=False,
-    )
-    res = agent.run('合成一段语音')
-    print(res)
+    function_list = ['paraformer_asr']
+
+    bot = RolePlay(
+        function_list=function_list, llm=llm_config, instruction=role_template)
+
+    response = bot.run('合成语音，语音内容为：“今天天气怎么样？会下雨吗？”')
+
+    text = ''
+    for chunk in response:
+        text += chunk
+    print(text)

@@ -1,10 +1,7 @@
 from typing import Dict, List
 
-from modelscope_agent.tools import register_tool
-from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.tools.base import BaseTool, register_tool
 from transformers.tools import Tool as HFTool
-
-from .tool import Tool
 
 
 @register_tool('hf-tool')

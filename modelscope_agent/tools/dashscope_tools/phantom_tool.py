@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import requests
 from modelscope_agent.tools.base import BaseTool, register_tool
-from modelscope_agent.tools.localfile2url_utils.localfile2url import \
+from modelscope_agent.utils.utils import \
     get_upload_url
 from pydantic import ValidationError
 from requests.exceptions import RequestException, Timeout
