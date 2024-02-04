@@ -55,9 +55,9 @@ def builder_chat(uuid_str):
     files = request.files.getlist('files')
     file_paths = []
     for file in files:
-        ci_dir = get_user_ci_dir(uuid_str)
+        ci_dir = get_user_ci_dir()
         os.makedirs(ci_dir, exist_ok=True)
-        file_path = os.path.join(ci_dir, file.filename)
+        file_path = os.path.join(ci_dir, uuid_str + "_" + file.filename)
         file.save(file_path)
         file_paths.append(file_path)
 
@@ -289,11 +289,12 @@ def preview_chat(uuid_str, session_str):
     files = request.files.getlist('files')
     file_paths = []
     for file in files:
-        ci_dir = get_user_ci_dir(uuid_str)
+        ci_dir = get_user_ci_dir()
         os.makedirs(ci_dir, exist_ok=True)
-        file_path = os.path.join(ci_dir, file.filename)
+        file_path = os.path.join(ci_dir, uuid_str + "_" + file.filename)
         file.save(file_path)
         file_paths.append(file_path)
+    logger.info(f"/preview/chat/{uuid_str}/{session_str}: files: {file_paths}")
 
     def generate():
         seed = random.randint(0, 1000000000)
