@@ -241,6 +241,11 @@ def get_builder_file(uuid_str, file_name):
 def save_builder_config(uuid_str):
     builder_config_str = request.form.get('builder_config')
     builder_config = json.loads(builder_config_str)
+    if "knowledge" in builder_config:
+        builder_config["knowledge"] = [
+            os.path.join(get_user_dir(uuid_str), os.path.basename(k))
+            for k in builder_config["knowledge"]
+        ]
     files = request.files.getlist('files')
     upload_dir = get_user_dir(uuid_str)
     if not os.path.exists(upload_dir):
