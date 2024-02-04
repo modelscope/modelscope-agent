@@ -289,7 +289,7 @@ def preview_chat(uuid_str, session_str):
     files = request.files.getlist('files')
     file_paths = []
     for file in files:
-        ci_dir = get_user_ci_dir(uuid_str, session_str)
+        ci_dir = get_user_ci_dir(uuid_str)
         os.makedirs(ci_dir, exist_ok=True)
         file_path = os.path.join(ci_dir, file.filename)
         file.save(file_path)
