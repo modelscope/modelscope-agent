@@ -68,7 +68,7 @@ Action Input: {"text": "朝阳区城市风光", "resolution": "1024*1024"}
 
 An `Agent` object consists of the following components:
 
-- `LLM`: A large language model that is responsible to process your inputs and decide calling tools. 
+- `LLM`: A large language model that is responsible to process your inputs and decide calling tools.
 - `function_list`: A list consists of available tools for agents.
 
 Currently, configuration of `Agent` may contain following arguments:
@@ -144,4 +144,3 @@ bot = RolePlay(function_list=function_list, ...)
 - `text-address`: [Geocoding](https://www.modelscope.cn/models/iic/mgeo_geographic_elements_tagging_chinese_base/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 - `speech-generation`: [Speech generation](https://www.modelscope.cn/models/iic/speech_sambert-hifigan_tts_zh-cn_16k/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 - `video-generation`: [Video generation](https://www.modelscope.cn/models/iic/text-to-video-synthesis/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
-

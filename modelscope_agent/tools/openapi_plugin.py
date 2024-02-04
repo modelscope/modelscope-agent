@@ -19,12 +19,10 @@ class ParametersSchema(BaseModel):
     type: str
 
 
-
 class ToolSchema(BaseModel):
     name: str
     description: str
     parameters: List[ParametersSchema]
-    
 
 
 @register_tool('openapi_plugin')

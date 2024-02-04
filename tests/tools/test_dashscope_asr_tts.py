@@ -7,7 +7,10 @@ def test_paraformer_asr():
     asr_tool = ParaformerAsrTool()
     res = asr_tool.call(params)
     print(res['result'])
+
+
 test_paraformer_asr()
+
 
 def test_sambert_tts():
     params = """{'text': '今天天气怎么样？'}"""

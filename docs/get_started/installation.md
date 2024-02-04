@@ -15,5 +15,3 @@ pip install -r requirements.txt
 # set pwd to PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:`pwd`
 ```
-
-TODO : pypi? docker?

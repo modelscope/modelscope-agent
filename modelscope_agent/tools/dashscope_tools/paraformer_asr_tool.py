@@ -1,7 +1,7 @@
 import os
 import subprocess
 from http import HTTPStatus
-from typing import Any, List, Optional, Dict
+from typing import Any, Dict, List, Optional
 
 from modelscope_agent.tools.base import BaseTool, register_tool
 from pydantic import ValidationError

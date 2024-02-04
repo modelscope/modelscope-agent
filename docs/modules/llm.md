@@ -87,4 +87,3 @@ messages = [{
     'content': 'Tell me a joke.'
 }]
 ```
-
