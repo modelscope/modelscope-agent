@@ -86,7 +86,7 @@ class CodeInterpreter(BaseTool):
         for f in [connection_file, launch_kernel_script]:
             if os.path.exists(f):
                 print(f'WARNING: {f} already exists')
-                os.remove(f)
+                shutil.rmtree(f, ignore_errors=True)
 
         os.makedirs(WORK_DIR, exist_ok=True)
 
