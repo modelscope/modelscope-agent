@@ -56,13 +56,13 @@ class OpenAi(BaseChatModel):
         return response.choices[0].message.content
 
     def support_function_calling(self):
-        if self.is_function_call == None:
+        if self.is_function_call is None:
             return super().support_function_calling()
         else:
             return self.is_function_call
 
     def support_raw_prompt(self) -> bool:
-        if self.is_chat == None:
+        if self.is_chat is None:
             return super().support_raw_prompt()
         else:
             # if not chat, then prompt
@@ -78,10 +78,12 @@ class OpenAi(BaseChatModel):
         if isinstance(self.support_stream, bool):
             stream = self.support_stream
         if self.support_raw_prompt():
-            return self.chat_with_raw_prompt(prompt=prompt, stream=stream, stop=stop, **kwargs)
+            return self.chat_with_raw_prompt(
+                prompt=prompt, stream=stream, stop=stop, **kwargs)
         if not messages and prompt and isinstance(prompt, str):
             messages = [{'role': 'user', 'content': prompt}]
-        return super().chat(messages=messages, stop=stop, stream=stream, **kwargs)
+        return super().chat(
+            messages=messages, stop=stop, stream=stream, **kwargs)
 
     def _out_generator(self, response):
         for chunk in response:
@@ -97,8 +99,7 @@ class OpenAi(BaseChatModel):
             model=self.model,
             prompt=prompt,
             stream=stream,
-            max_tokens=max_tokens
-        )
+            max_tokens=max_tokens)
 
         # TODO: error handling
         if stream:
