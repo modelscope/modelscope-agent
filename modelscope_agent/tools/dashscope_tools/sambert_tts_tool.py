@@ -13,7 +13,8 @@ class SambertTtsTool(BaseTool):
     parameters: list = [{
         'name': 'text',
         'description': '需要转成语音的文本',
-        'required': True
+        'required': True,
+        'type': 'string'
     }]
 
     def __init__(self, cfg={}):
@@ -24,19 +25,7 @@ class SambertTtsTool(BaseTool):
         if self.api_key is None:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
-        try:
-            all_param = {
-                'name': self.name,
-                'description': self.description,
-                'parameters': self.parameters
-            }
-            self.tool_schema = ToolSchema(**all_param)
-        except ValidationError:
-            raise ValueError(f'Error when parsing parameters of {self.name}')
-
-        self._str = self.tool_schema.model_dump_json()
-        self._function = self.parse_pydantic_model_to_openai_function(
-            all_param)
+        super().__init__(cfg)
 
     def call(self, params: str, **kwargs) -> str:
         from dashscope.audio.tts import SpeechSynthesizer
