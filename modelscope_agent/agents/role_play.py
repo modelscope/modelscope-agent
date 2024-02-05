@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
 
@@ -256,7 +256,10 @@ class RolePlay(Agent):
                 planning_prompt += output
                 break
 
-    def _detect_tool_by_special_token(self, text: str):
+    def _detect_tool(self, message: Union[str,
+                                          dict]) -> Tuple[bool, str, str, str]:
+        assert isinstance(message, str)
+        text = message
         func_name, func_args = None, None
         i = text.rfind(ACTION_TOKEN)
         j = text.rfind(ARGS_TOKEN)
@@ -274,12 +277,26 @@ class RolePlay(Agent):
         return (func_name is not None), func_name, func_args, text
 
     def _parse_role_config(self, config: dict, lang: str = 'zh') -> str:
+        """
+        Parsing role config dict to str.
+
+        Args:
+            config: One example of config is
+                {
+                    "name": "多啦A梦",
+                    "description": "能够像多啦A梦一样，拥有各种神奇的技能和能力，可以帮我解决生活中的各种问题。",
+                    "instruction": "可以查找信息、提供建议、提醒日程；爱讲笑话，每次说话的结尾都会加上一句幽默的总结；最喜欢的人是大熊"
+                }
+        Returns:
+            Processed string for this config
+        """
         if lang == 'en':
             return self._parse_role_config_en(config)
         else:
             return self._parse_role_config_zh(config)
 
     def _parse_role_config_en(self, config: dict) -> str:
+
         prompt = 'You are playing as an AI-Agent, '
 
         # concat agents

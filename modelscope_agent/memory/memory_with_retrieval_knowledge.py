@@ -48,13 +48,11 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             try:
                 self.store_knowledge.add(url)
                 self.store_knowledge.save()
-            except Exception as e:
-                logger.query_warning(
-                    uuid=kwargs.get('uuid_str', 'local_user'),
-                    details=str(e),
-                    message=f'fail to learn knowledge from {url}')
-
-            # save store knowledge
+            except Exception:
+                import traceback
+                logger.error(
+                    f'fail to learn knowledge from {url}, with error {traceback.format_exc()}'
+                )
 
         # no query then return None
         if not query:

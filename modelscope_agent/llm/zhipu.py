@@ -71,20 +71,6 @@ class ZhipuLLM(BaseChatModel):
         )
         return response.choices[0].message
 
-    def chat_with_functions(self,
-                            messages: List[Dict],
-                            functions: Optional[List[Dict]] = None,
-                            stream: bool = True,
-                            **kwargs) -> Dict:
-        functions = [{
-            'type': 'function',
-            'function': item
-        } for item in functions]
-        if stream:
-            return self._chat_stream(messages, functions, **kwargs)
-        else:
-            return self._chat_no_stream(messages, functions, **kwargs)
-
 
 @register_llm('glm-4')
 class GLM4(ZhipuLLM):

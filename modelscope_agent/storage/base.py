@@ -12,3 +12,8 @@ class BaseStorage(ABC):
     def search(self, *args, **kwargs):
         """search from db or indexer"""
         pass
+
+    @abstractmethod
+    def delete(self, *args, **kwargs):
+        """delete data from db or indexer"""
+        pass

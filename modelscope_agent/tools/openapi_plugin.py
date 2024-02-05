@@ -16,6 +16,7 @@ class ParametersSchema(BaseModel):
     name: str
     description: str
     required: Optional[bool] = True
+    type: str
 
 
 class ToolSchema(BaseModel):

@@ -75,6 +75,8 @@ class ModelScopeLLM(BaseChatModel):
                 self.model_dir, trust_remote_code=True)
 
     def load_from_lora(self):
+        from swift import Swift
+
         model = self.model.bfloat16()
         # transform to lora
         model = Swift.from_pretrained(model, self.lora_ckpt_dir)

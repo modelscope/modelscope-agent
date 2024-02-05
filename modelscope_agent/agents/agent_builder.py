@@ -75,6 +75,10 @@ RichConfig: {rich_config}"""
 
 
 class AgentBuilder(Agent):
+    """
+    This agent is used to create an agent through dialogue
+
+    """
 
     def __init__(self,
                  function_list: Optional[List[Union[str, Dict]]] = None,
