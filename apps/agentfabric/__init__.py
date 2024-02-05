@@ -1,4 +1,0 @@
-from .builder_prompt import BuilderPromptGenerator
-from .builder_prompt_zh import ZhBuilderPromptGenerator
-from .custom_prompt import CustomPromptGenerator
-from .custom_prompt_zh import ZhCustomPromptGenerator

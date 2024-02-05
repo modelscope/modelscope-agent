@@ -13,15 +13,13 @@
 
 ## 简介
 
-**ModelScope-Agent**是一个通用的、可定制的Agent框架，用于实际应用程序，其基于开源的大语言模型 (LLMs) 作为核心。它提供了一个用户友好的系统库，
-具有以下特点：
-- **可定制且功能全面的框架**：提供可定制的引擎设计，涵盖了数据收集、工具检索、工具注册、存储管理、定制模型训练和实际应用等功能，可用于快速实现实际场景中的应用。
-- **开源LLMs作为核心组件**：支持在 ModelScope 社区的多个开源LLMs上进行模型训练。
-- **多样化且全面的API**：以统一的方式实现与模型API和常见的功能API的无缝集成。
+Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent具有角色扮演、LLM调用、工具使用、规划、记忆等能力。 主要具有以下特点：
 
-![图片](resource/modelscope-agent.png)
+- 简单的Agent实现流程：仅需指定角色描述、LLM名称、工具名列表，即可实现一个Agent应用，框架内部自动实现工具使用、规划、记忆等工作流的编排。
+- 丰富的模型和工具：框架内置丰富的LLM接口，例如Dashscope和Modelscope模型接口，OpenAI模型接口等。内置丰富的工具，例如**代码运行**、**天气查询**、**文生图**、**网页解析**等，方便定制专属Agent。
+- 统一的接口和高扩展性：框架具有清晰的工具、LLM注册机制，方便用户扩展能力更加丰富的Agent应用。
+- 低耦合性：开发者可以方便的直接使用内置的工具、LLM、记忆等组件，而不需要绑定更上层的Agent。
 
-为了赋予LLMs工具使用能力，提出了一个全面的框架，涵盖了数据收集、工具检索、工具注册、存储管理、定制模型训练和实际应用的方方面面。
 
 ## 新闻
 * 2023.11.26: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric)支持ModelScope[创空间](https://modelscope.cn/studios/modelscope/AgentFabric/summary)多人使用，支持分享定制应用到创空间，更新到最新的[GTE](https://modelscope.cn/models/damo/nlp_gte_sentence-embedding_chinese-base/summary) text embedding。
@@ -60,34 +58,31 @@ Notebook环境使用简单，您只需要按以下步骤操作（注意：目前
 
 ## 快速入门
 
-使用 ModelScope-Agent，您只需要实例化一个 `AgentExecutor` 对象，并使用 `run()` 来执行您的任务即可。
+使用 ModelScope-Agent，您只需要实例化一个 `Agent` 对象，并使用 `run()` 来执行您的任务即可。
 
 如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。也可通过魔搭社区在线Demo直接体验[ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary).
 
 ```Python
-import os
+from modelscope_agent.agents import RolePlay
 
-from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
+# config
+role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
+llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+function_list = ['amap_weather', 'image_gen']
 
-# get cfg from file, refer the example in config folder
-model_cfg_file = os.getenv('MODEL_CONFIG_FILE', 'config/cfg_model_template.json')
-model_cfg = Config.from_file(model_cfg_file)
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
-tool_cfg = Config.from_file(tool_cfg_file)
+# init agent
+bot = RolePlay(function_list=function_list, llm=llm_config, instruction=role_template)
 
-# instantiation LLM
-model_name = 'qwen-72b'
+# run agent
+response = bot.run('朝阳区天气怎样？')
 
-print('To use qwen-72b model, you need to enter DashScope Token, which can be obtained from here: 1. Register and log in to https://dashscope.aliyun.com 2. Open the model square and select Tongyi Qianwen 72b. It is expected to take half a day to pass')
-os.environ['DASHSCOPE_API_KEY'] = input()
+# result processing
+text = ''
+for chunk in response:
+    text += chunk
+print(text)
 
-llm = LLMFactory.build_llm(model_name, model_cfg)
 
-# instantiation agent
-
-agent = AgentExecutor(llm, tool_cfg)
 ```
 
 - 单步 & 多步工具使用
@@ -105,8 +100,8 @@ agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
-  <img src="resource/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
 </div>
 
 - 多轮工具使用和知识问答
@@ -120,8 +115,8 @@ agent.run('给这个故事配一张图', remote=True)
 ```
 
 <div style="display: flex;">
-  <img src="resource/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
-  <img src="resource/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
+  <img src="resources/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
 </div>
 
 ### 主要组件
@@ -173,13 +168,13 @@ from modelscope_agent.agent import AgentExecutor
 
 model_name = 'modelscope-agent-7b'
 model_cfg = {
-    'modelscope-agent-7b':{
-        'type': 'modelscope',
-        'model_id': 'damo/ModelScope-Agent-7B',
-        'model_revision': 'v1.0.0',
-        'use_raw_generation_config': True,
-        'custom_chat': True
-    }
+  'modelscope-agent-7b': {
+    'type': 'modelscope',
+    'model_id': 'damo/ModelScope-Agent-7B',
+    'model_revision': 'v1.0.0',
+    'use_raw_generation_config': True,
+    'custom_chat': True
+  }
 }
 
 tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
@@ -208,6 +203,7 @@ from modelscope_agent.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
 from modelscope_agent.output_wrapper import AudioWrapper
 
+
 class TexttoSpeechTool(ModelscopePipelineTool):
     default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
     description = '文本转语音服务，将文字转换为自然而逼真的语音，可配置男声/女声'
@@ -232,7 +228,6 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         return kwargs
 
     def _parse_output(self, origin_result, remote=True):
-
         audio = origin_result['output_wav']
         return {'result': AudioWrapper(audio)}
 ```
@@ -242,6 +237,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
 ```python
 from modelscope_agent.tools import ModelscopePipelineTool
 from modelscope.utils.constant import Tasks
+
 
 class TextAddressTool(ModelscopePipelineTool):
     default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'
@@ -290,7 +286,7 @@ ds = MsDataset.load('damo/MSAgent-Bench', split='train')
 one_ds = next(iter(ds))
 ```
 
-![image](resource/MSAgent-Bench.png)
+![image](resources/MSAgent-Bench.png)
 
 ### 训练微调
 

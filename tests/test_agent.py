@@ -1,77 +1,63 @@
-from modelscope_agent.agent import AgentExecutor
-from tests.utils import MockLLM, MockOutParser, MockPromptGenerator, MockTool
+import pytest
+from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.llm import BaseChatModel
+from modelscope_agent.tools import TOOL_REGISTRY, BaseTool
+
+from .utils import MockTool
 
 
-def _get_llm(responses=['mock_llm_response']):
-    llm = MockLLM(responses)
-    return llm
+class MockTool1(MockTool):
+    name: str = 'mock_tool1'
 
 
-def _get_tool(name='search_tool', func=lambda x: x, description='mock tool'):
-    tool = MockTool(name, func, description)
-    return tool
-
-
-def _get_action_parser(action, args):
-    action_parser = MockOutParser(action, args)
-    return action_parser
-
-
-def _get_agent(llm, tools={}, prompt_generator=None, action_parser=None):
-    agent = AgentExecutor(
-        llm,
-        additional_tool_list=tools,
-        prompt_generator=prompt_generator,
-        action_parser=action_parser)
+# Using RolePlay as a concrete agent
+@pytest.fixture
+def tester_agent(mocker):
+    TOOL_REGISTRY['mock_tool'] = MockTool
+    TOOL_REGISTRY['mock_tool1'] = MockTool1
+    function_list = ['mock_tool', {'mock_tool1': {'config': 'some_config'}}]
+    llm_config = {
+        'model': 'qwen-max',
+        'model_server': 'dashscope',
+        'api_key': 'test'
+    }
+    agent = RolePlay(
+        function_list=function_list,
+        llm=llm_config,
+        storage_path='/path/to/storage',
+        name='ConcreteAgent',
+        description='A concrete agent for testing',
+        instruction='Role player for testing')
+    mocker.patch.object(agent, '_run', return_value=['hello', ' there'])
     return agent
 
 
-def test_agent_run():
+def test_agent_initialization(tester_agent):
+    assert isinstance(tester_agent.function_list, list)
+    assert len(tester_agent.function_list) == 2
+    assert 'mock_tool1' in tester_agent.function_map
+    assert 'mock_tool' in tester_agent.function_map
 
-    responses = [
-        "<|startofthink|>{\"api_name\": \"search_tool\", \"parameters\": {\"x\": \"mock task\"}}<|endofthink|>",
-        'summaerize'
-    ]
-    llm = _get_llm(responses)
+    assert tester_agent.llm is not None  # Assuming the llm was provided as a config dict
+    assert isinstance(
+        tester_agent.llm,
+        BaseChatModel)  # Ensure llm is an instance of BaseChatModel
 
-    def func_tool(x, **kwargs):
-        return x
-
-    tools = {'search_tool': _get_tool('search_tool', func_tool)}
-    agent = _get_agent(llm, tools)
-    res = agent.run('mock task')
-    assert res == [{'result': 'mock task'}]
-
-
-def test_unknown_action_error():
-    # test when llm and parser return unknown action
-    llm = _get_llm()
-    tools = {'search_tool': _get_tool('search_tool')}
-    action_parser = _get_action_parser('fake_search_tool',
-                                       {'query': 'mock query'})
-    prompt_generator = MockPromptGenerator()
-    agent = _get_agent(
-        llm,
-        tools,
-        prompt_generator=prompt_generator,
-        action_parser=action_parser)
-    res = agent.run('mock task')
-    assert res == [{'exec_result': "Unknown action: 'fake_search_tool'. "}]
+    assert tester_agent.storage_path == '/path/to/storage'
+    assert tester_agent.name == 'ConcreteAgent'
+    assert tester_agent.description == 'A concrete agent for testing'
+    assert tester_agent.instruction == 'Role player for testing'
 
 
-def test_tool_execute_error():
-    # test when action calling error
-    llm = _get_llm()
-    tools = {
-        'search_tool': _get_tool('search_tool', lambda x: 1 / 0, 'mock tool')
-    }
-    action_parser = _get_action_parser('search_tool', {'query': 'mock query'})
-    prompt_generator = MockPromptGenerator()
-    agent = _get_agent(
-        llm,
-        tools,
-        prompt_generator=prompt_generator,
-        action_parser=action_parser)
-    res = agent.run('mock task')
-    assert res[0]['exec_result'].startswith(
-        "Action call error: search_tool: {'query': 'mock query'}.")
+def test_agent_run(tester_agent):
+    responses = list(tester_agent.run('Hello, world!'))
+    assert isinstance(responses, list)
+    assert all(isinstance(resp, str) for resp in responses)
+    assert all(resp.strip() for resp in responses)
+    assert responses == ['hello', ' there']
+
+
+def test_agent_call_tool(tester_agent):
+    # Mocking a simple response from the tool for testing purposes
+    response = tester_agent._call_tool('mock_tool', 'tool response')
+    assert response == 'tool response'

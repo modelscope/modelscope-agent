@@ -1,0 +1,72 @@
+name: citest
+
+on:
+  push:
+    branches:
+      - master
+      - "release/**"
+    paths-ignore:
+      - "setup.*"
+      - "requirements.txt"
+      - "apps/**"
+      - "docs/**"
+      - "demo/**"
+      - "config/**"
+      - "resource/**"
+      - "README.md"
+      - "README_zh-CN.md"
+      - "NOTICE"
+      - ".github/workflows/lint.yaml"
+
+  pull_request:
+    paths-ignore:
+      - "setup.*"
+      - "requirements.txt"
+      - "apps/**"
+      - "docs/**"
+      - "demo/**"
+      - "config/**"
+      - "resource/**"
+      - "README.md"
+      - "README_zh-CN.md"
+      - "NOTICE"
+      - ".github/workflows/lint.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unittest:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: testci
+    steps:
+    - uses: actions/checkout@v3
+
+#    - name: Cache Python dependencies
+#      uses: actions/cache@v3
+#      id: cache
+#      with:
+#        path: ~/.cache/pip
+#        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+    - name: Set up Python 3.10.13
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10.13"
+
+    - name: Install dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: pip install -r requirements.txt
+
+    - name: Run tests
+      env:
+        AMAP_TOKEN: ${{ secrets.AMAP_TOKEN }}
+        BING_SEARCH_V7_SUBSCRIPTION_KEY: ${{ secrets.BING_SEARCH_V7_SUBSCRIPTION_KEY }}
+        DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+        MODELSCOPE_API_TOKEN: ${{ secrets.MODELSCOPE_API_TOKEN }}
+
+      shell: bash
+      run: bash .dev_scripts/dockerci.sh

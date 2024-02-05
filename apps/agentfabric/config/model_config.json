@@ -15,9 +15,25 @@
             "top_p": 0.8
         }
     },
+    "glm-4": {
+        "type": "zhipu",
+        "model": "glm-4"
+    },
     "qwen-max-1201": {
         "type": "dashscope",
         "model": "qwen-max-1201",
+        "length_constraint": {
+            "knowledge": 4000,
+            "input": 6000
+        },
+        "generate_cfg": {
+            "use_raw_prompt": true,
+            "top_p": 0.8
+        }
+    },
+    "qwen-max": {
+        "type": "dashscope",
+        "model": "qwen-max",
         "length_constraint": {
             "knowledge": 4000,
             "input": 6000

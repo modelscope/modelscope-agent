@@ -5,10 +5,9 @@ from typing import List, Optional
 import json
 import requests
 from jsonschema import RefResolver
+from modelscope_agent.tools.base import BaseTool, register_tool
 from pydantic import BaseModel, ValidationError
 from requests.exceptions import RequestException, Timeout
-
-from .tool import Tool
 
 MAX_RETRY_TIMES = 3
 
@@ -17,6 +16,7 @@ class ParametersSchema(BaseModel):
     name: str
     description: str
     required: Optional[bool] = True
+    type: str
 
 
 class ToolSchema(BaseModel):
@@ -25,7 +25,8 @@ class ToolSchema(BaseModel):
     parameters: List[ParametersSchema]
 
 
-class OpenAPIPluginTool(Tool):
+@register_tool('openapi_plugin')
+class OpenAPIPluginTool(BaseTool):
     """
      openapi schema tool
     """
@@ -34,6 +35,7 @@ class OpenAPIPluginTool(Tool):
     parameters: list = []
 
     def __init__(self, cfg, name):
+        super().__init__(cfg)
         self.name = name
         self.cfg = cfg.get(self.name, {})
         self.is_remote_tool = self.cfg.get('is_remote_tool', False)
@@ -58,15 +60,19 @@ class OpenAPIPluginTool(Tool):
         self._str = self.tool_schema.model_dump_json()
         self._function = self.parse_pydantic_model_to_openai_function(all_para)
 
-    def _remote_call(self, *args, **kwargs):
+    def call(self, params: str, **kwargs):
         if self.url == '':
             raise ValueError(
                 f"Could not use remote call for {self.name} since this tool doesn't have a remote endpoint"
             )
+        #
+        # remote_parsed_input = json.dumps(
+        #     self._remote_parse_input(*args, **kwargs))
+        params = self._verify_args(params)
+        if isinstance(params, str):
+            return 'Parameter Error'
 
-        remote_parsed_input = json.dumps(
-            self._remote_parse_input(*args, **kwargs))
-        origin_result = None
+        # origin_result = None
         if self.method == 'POST':
             retry_times = MAX_RETRY_TIMES
             while retry_times:
@@ -75,19 +81,16 @@ class OpenAPIPluginTool(Tool):
                     print(f'data: {kwargs}')
                     print(f'header: {self.header}')
                     response = requests.request(
-                        'POST',
-                        url=self.url,
-                        headers=self.header,
-                        data=remote_parsed_input)
+                        'POST', url=self.url, headers=self.header, data=params)
 
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
-                    origin_result = json.loads(
-                        response.content.decode('utf-8'))
-
-                    final_result = self._parse_output(
-                        origin_result, remote=True)
-                    return final_result
+                    # origin_result = json.loads(
+                    #     response.content.decode('utf-8'))
+                    #
+                    # final_result = self._parse_output(
+                    #     origin_result, remote=True)
+                    return response.content.decode('utf-8')
                 except Timeout:
                     continue
                 except RequestException as e:
@@ -118,19 +121,16 @@ class OpenAPIPluginTool(Tool):
                     print('GET:', self.url)
 
                     response = requests.request(
-                        'GET',
-                        url=new_url,
-                        headers=self.header,
-                        params=remote_parsed_input)
+                        'GET', url=new_url, headers=self.header, params=params)
                     if response.status_code != requests.codes.ok:
                         response.raise_for_status()
 
-                    origin_result = json.loads(
-                        response.content.decode('utf-8'))
-
-                    final_result = self._parse_output(
-                        origin_result, remote=True)
-                    return final_result
+                    # origin_result = json.loads(
+                    #     response.content.decode('utf-8'))
+                    #
+                    # final_result = self._parse_output(
+                    #     origin_result, remote=True)
+                    return response.content.decode('utf-8')
                 except Timeout:
                     continue
                 except RequestException as e:
