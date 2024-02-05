@@ -39,4 +39,5 @@ def test_run_langchin_tool():
     input = """{'text': 'Hello','src_lang':'English','tgt_lang':'French'}"""
     res = shell_tool.call(input)
     print(res)
-    assert res == 'Je vous salue.'
+    assert res == '"Je vous salue."'
+

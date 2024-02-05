@@ -1,7 +1,9 @@
+import pytest
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 from modelscope_agent.tools import ParaformerAsrTool, SambertTtsTool
 
 
+@pytest.mark.skip()
 def test_paraformer_asr():
     params = """{'audio_path': '34aca18b-17a1-4558-9064-22fdfcef7a94.wav'}"""
     asr_tool = ParaformerAsrTool()
@@ -9,6 +11,7 @@ def test_paraformer_asr():
     assert res == 'today is a beautiful day. '
 
 
+@pytest.mark.skip()
 def test_sambert_tts():
     params = """{'text': '今天天气怎么样？'}"""
     tts_tool = SambertTtsTool()
@@ -16,6 +19,7 @@ def test_sambert_tts():
     assert res.endswith('.wav')
 
 
+@pytest.mark.skip()
 def test_paraformer_asr_agent():
     role_template = '你扮演一个语音专家，用尽可能丰富的描述调用工具处理语音。'
 

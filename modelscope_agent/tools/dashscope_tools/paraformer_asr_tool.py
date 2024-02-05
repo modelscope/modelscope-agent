@@ -64,5 +64,5 @@ class ParaformerAsrTool(BaseTool):
                     result += sentence['text']
         else:
             raise ValueError(
-                f'call paraformer asr failed, response: {response}')
+                f'call paraformer asr failed, request id: {response.get_request_id()}')
         return result
