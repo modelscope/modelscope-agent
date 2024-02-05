@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+import json
 from modelscope_agent.tools.base import BaseTool, register_tool
 from transformers.tools import Tool as HFTool
 

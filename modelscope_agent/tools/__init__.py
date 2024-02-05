@@ -4,7 +4,6 @@ from .code_interpreter import CodeInterpreter
 from .dashscope_tools.image_enhancement import ImageEnhancement
 from .dashscope_tools.image_generation import TextToImageTool
 from .dashscope_tools.paraformer_asr_tool import ParaformerAsrTool
-from .dashscope_tools.phantom_tool import Phantom
 from .dashscope_tools.qwen_vl import QWenVL
 from .dashscope_tools.sambert_tts_tool import SambertTtsTool
 from .dashscope_tools.style_repaint import StyleRepaint
