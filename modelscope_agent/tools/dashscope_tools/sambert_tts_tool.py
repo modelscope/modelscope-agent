@@ -27,7 +27,6 @@ class SambertTtsTool(BaseTool):
 
         super().__init__(cfg)
 
-
     def call(self, params: str, **kwargs) -> str:
         from dashscope.audio.tts import SpeechSynthesizer
         params = self._verify_args(params)

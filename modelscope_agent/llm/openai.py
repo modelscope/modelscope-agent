@@ -1,5 +1,4 @@
 import os
-
 from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.llm.base import BaseChatModel, register_llm
