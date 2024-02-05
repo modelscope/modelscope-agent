@@ -41,5 +41,7 @@ class SambertTtsTool(BaseTool):
             with open(wav_file, 'wb') as f:
                 f.write(response.get_audio_data())
         else:
-            raise ValueError(f'call sambert tts failed, request id: {response.get_response().request_id}')
+            raise ValueError(
+                f'call sambert tts failed, request id: {response.get_response().request_id}'
+            )
         return wav_file

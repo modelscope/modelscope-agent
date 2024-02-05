@@ -40,4 +40,3 @@ def test_run_langchin_tool():
     res = shell_tool.call(input)
     print(res)
     assert res == '"Je vous salue."'
-
