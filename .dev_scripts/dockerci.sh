@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # install dependencies for ci
-apt install ffmpeg
+wget -O ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
+tar xvf ffmpeg.tar.xz
+export PATH=$PATH:./
 pip install torch
 export CODE_INTERPRETER_WORK_DIR=${GITHUB_WORKSPACE}
 echo "${CODE_INTERPRETER_WORK_DIR}"
