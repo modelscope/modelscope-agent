@@ -1,3 +1,5 @@
+import logging
+import time
 from queue import Queue
 from typing import List, Union
 
@@ -96,15 +98,27 @@ class Environment:
 
     def step(self, task, round=1):
         for _ in range(round):
-            for agent in self.agents.values():
-                accumulated_results = []
-                for frame in agent.agent_step.remote(task):
-                    remote_frame = ray.get(frame)
-                    accumulated_results.append(remote_frame)
-                    print(remote_frame)
+            # create a list to hold the futures of all the agents
+            futures = [
+                agent.agent_step.remote(task)
+                for agent in self.agents.values()
+            ]
 
-                for result in accumulated_results:
-                    yield result
+            # wait for the agents to finish
+            finish_flag = {}
+            while True:
+                for future in futures:
+                    try:
+                        # try to get the next result from the agent
+                        result = ray.get(next(future))
+                        yield result
+                    except StopIteration:
+                        # if the agent has no more results, break
+                        finish_flag[future] = True
+
+                #  the number of finish flag equals to the num of agents
+                if len(finish_flag.keys()) == len(futures):
+                    break
 
     # def produce_message(self, role: str)
     #     messages_to_role = []

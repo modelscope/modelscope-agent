@@ -36,7 +36,7 @@ role_play2 = AgentEnvContextMixin.create_remote(
     llm=llm_config,
     function_list=function_list)
 
-env.add_agents.remote([role_play1, role_play2])
+ray.get(env.add_agents.remote([role_play1, role_play2]))
 
 n_round = 1
 task = 'who are u'
@@ -52,10 +52,11 @@ while n_round > 0:
 
     time.sleep(3)
     print('here3')
+    n_round -= 1
 
-env_queue = env.get_message_queue_persist.remote('role_play1')
-queue = ray.get(env_queue)
-y = queue.get_nowait()
-print(y)
+# env_queue = env.get_message_queue_persist.remote('role_play1')
+# queue = ray.get(env_queue)
+# y = queue.get_nowait()
+# print(y)
 
 ray.shutdown()

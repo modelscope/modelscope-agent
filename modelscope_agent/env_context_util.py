@@ -160,6 +160,10 @@ class AgentEnvContextMixin:
         # agents_to_send = self.remove_self(agents_to_send)
         message = Message(
             content=result, send_to=agents_to_send, sent_from=self._role)
+        import logging
+        import time
+        logging.warning(msg=f'time:{time.time()} name: {self._role}')
+
         self.env_context.consume_message.remote(self._role, message)
 
     #
