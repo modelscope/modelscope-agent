@@ -34,7 +34,10 @@ class BaseChatModel(ABC):
 
     """
 
-    def __init__(self, model: str, model_server: str):
+    def __init__(self,
+                 model: str,
+                 model_server: str,
+                 support_fn_call: bool = None):
         self._support_fn_call: Optional[bool] = None
         self.model = model
         self.model_server = model_server
