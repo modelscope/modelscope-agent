@@ -1,8 +1,14 @@
-from typing import Union
+import logging
+import os
+import time
+from pathlib import Path
+from typing import List, Union
 
 import ray
 from modelscope_agent.agent import Agent
+from modelscope_agent.constants import DEFAULT_AGENT_ROOT
 from modelscope_agent.environment import Environment
+from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
 from ray._raylet import ObjectRefGenerator
 from ray.util.client.common import ClientActorHandle, ClientObjectRef
@@ -14,16 +20,27 @@ class AgentEnvContextMixin:
         self,
         role: str,
         env: Union[Environment, ClientActorHandle] = {},
+        storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
     ):
         self._role = role
         self.env_context = env
         self.cur_step_env_prompt = ''
+        knowledge_path = os.path.join(storage_path, role, 'knowledge')
+        memory_path = os.path.join(storage_path, role, 'memory')
+
+        self.memory = MemoryWithRetrievalKnowledge(
+            storage_path=knowledge_path,
+            name=role + '_memory',
+            memory_path=memory_path,
+            use_cache=False,
+        )
 
     @staticmethod
     def create_remote(cls, role: str, function_list: list, llm, env, *args,
                       **kwargs) -> ClientActorHandle:
+        max_concurrency = kwargs.get('max_concurrency', 1)
         return ray.remote(
-            name=role, max_concurrency=10)(cls).remote(
+            name=role, max_concurrency=max_concurrency)(cls).remote(
                 role=role,
                 function_list=function_list,
                 llm=llm,
@@ -41,10 +58,6 @@ class AgentEnvContextMixin:
             env=env,
             *args,
             **kwargs)
-
-    def run_test(self):
-        for i in range(5):
-            yield str(i)
 
     def role(self):
         """Get the name of the agent."""
@@ -85,23 +98,41 @@ class AgentEnvContextMixin:
         else:
             prompt = messages
 
-        # if chat_mode:
-        #     self.pull()
-        #
-        # last_step_env_prompt = self.cur_step_env_prompt
-        #
-        # # get hint messages
-        # cur_step_env_prompt = convert_to_string(messages)
-
-        # # update cur_step_env_prompt
-        # cur_step_env_prompt += last_step_env_prompt
+        cur_step_env_info = self.pull()
+        prompt += cur_step_env_info
 
         # run agent core loop to get action or reslt
         result = ''
-        for frame in self.run(prompt):
+        logging.warning(
+            msg=f'time:{time.time()} {self._role} cur prompt is: {prompt}')
+        logging.warning(
+            msg=
+            f'time:{time.time()} {self._role} cur history is: {self.memory.get_history()}'
+        )
+
+        for frame in self.run(
+                prompt,
+                history=self.memory.get_history(),
+        ):
             cur_frame = frame
             result += cur_frame
             yield AgentEnvContextMixin.frame_wrapper(self._role, cur_frame)
+
+        # update memory
+        self.memory.update_history([
+            Message(
+                role='user',
+                content=prompt,
+                send_to=send_to,
+                sent_from=self._role,
+            ),
+            Message(
+                role='assistant',
+                content=result,
+                send_to=send_to,
+                sent_from=self._role,
+            )
+        ])
 
         # publish result to env
         self.publish(result, send_to)
@@ -160,22 +191,43 @@ class AgentEnvContextMixin:
         # agents_to_send = self.remove_self(agents_to_send)
         message = Message(
             content=result, send_to=agents_to_send, sent_from=self._role)
-        import logging
-        import time
+
         logging.warning(msg=f'time:{time.time()} name: {self._role}')
 
-        self.env_context.consume_message.remote(self._role, message)
+        self.env_context.store_message_from_role.remote(self._role, message)
 
     #
     # def subscribe(self, role: str):
     #     recieved_message = self.env_context.produce_message(self, self.role)
     #     self.cur_step_env_prompt = convert_to_string(recieved_message)
     #
-    # # register to a callback runnable later
-    # def pull(self):
-    #     recieved_message = self.env_context.produce_message(self, self.role)
-    #     self.cur_step_env_prompt = convert_to_string(recieved_message)
-    #
+    # register to a callback runnable later
+    def pull(self):
+        """
+        extract
+        Returns:
+
+        """
+        recieved_messages = self.env_context.extract_message_by_role.remote(
+            self._role)
+        recieved_messages = ray.get(recieved_messages)
+        if recieved_messages and len(recieved_messages) > 0:
+            cur_step_env_prompt = self.convert_to_string(recieved_messages)
+            return cur_step_env_prompt
+        else:
+            return ''
+
+    def convert_to_string(self, messages: List[Message]):
+        prompt_template = """
+        . In last round, you get the following information from environment:
+        {conversation_history}
+        """
+        conversation_history = ''
+        for item in messages:
+            conversation_history += f'{item.sent_from}: {item.content}\n'
+        return prompt_template.format(
+            conversation_history=conversation_history)
+
     #
     #
     # def _parse_message_attribute_from_llm(llm_result):

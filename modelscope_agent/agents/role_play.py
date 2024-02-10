@@ -172,10 +172,6 @@ class RolePlay(Agent, AgentEnvContextMixin):
                 tool_descs=self.tool_descs, tool_names=self.tool_names)
             self.query_prefix_dict['tool'] = SPECIAL_PREFIX_TEMPLATE_TOOL[
                 lang].format(tool_names=self.tool_names)
-        logging.warning(
-            msg=
-            f'time:{time.time()} self.system_prompt: {self.system_prompt}, location 3'
-        )
 
         # concat instruction
         if isinstance(self.instruction, dict):
@@ -258,7 +254,6 @@ class RolePlay(Agent, AgentEnvContextMixin):
                 llm_result)
 
             # yield output
-            print(output)
             if use_tool:
                 if self.llm.support_function_calling():
                     yield f'Action: {action}\nAction Input: {action_input}'

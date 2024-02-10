@@ -1,12 +1,12 @@
 import logging
 import time
-from queue import Queue
 from typing import List, Union
 
 import ray
 from modelscope_agent.agent import Agent
 from modelscope_agent.schemas import Message
 from ray.util.client.common import ClientActorHandle, ClientObjectRef
+from ray.util.queue import Queue
 
 
 @ray.remote
@@ -74,27 +74,61 @@ class Environment:
         for item in agents:
             self.add_agent(item)
 
-    def consume_message(self, role: str, message: Message):
+    def store_message_from_role(self, role: str, message: Message):
+        """
+        Store message from role to the environment
+        Args:
+            role: the role who send the message
+            message: the detail message information
+
+        Returns:
+
+        """
         self.raw_history += f'state at {self.state}, {role}: {message.content}/n'
         recipiants = message.send_to
         if 'all' in recipiants:
             recipiants = self.agents.keys()
         for recipiant in recipiants:
-            self.messages_queue_map[recipiant].put(
-                Message(
-                    content=message.content,
-                    sent_to=recipiant,
-                    sent_from=message.sent_from))
-            self.message_queue_persist[recipiant].put(
-                Message(
-                    content=message.content,
-                    sent_to=recipiant,
-                    sent_from=message.sent_from))
-            self.messages_list_map[recipiant].append(
-                Message(
-                    content=message.content,
-                    sent_to=recipiant,
-                    sent_from=message.sent_from))
+            if role != recipiant:
+                logging.warning(
+                    msg=f'time:{time.time()} {role} put data: {message}')
+
+                self.messages_queue_map[recipiant].put(
+                    Message(
+                        content=message.content,
+                        sent_to=recipiant,
+                        sent_from=message.sent_from))
+                self.message_queue_persist[recipiant].put(
+                    Message(
+                        content=message.content,
+                        sent_to=recipiant,
+                        sent_from=message.sent_from))
+                self.messages_list_map[recipiant].append(
+                    Message(
+                        content=message.content,
+                        sent_to=recipiant,
+                        sent_from=message.sent_from))
+
+    def extract_message_by_role(self, role: str):
+        """
+        extract all messages that left to the role from others
+        Args:
+            role: the role
+
+        Returns:
+
+        """
+        messages_to_role = []
+        while self.messages_queue_map[role]:
+            messages_to_role.append(self.messages_queue_map[role].get())
+        logging.warning(
+            msg=f'time:{time.time()} {role} extract data: {messages_to_role}')
+        logging.warning(
+            msg=
+            f'time:{time.time()} {role} get data: {self.messages_list_map[role]}'
+        )
+
+        return messages_to_role
 
     def step(self, task, round=1):
         for _ in range(round):
@@ -126,11 +160,7 @@ class Environment:
     #         messages_to_role.append(messages_queue_map[role].pop())
     #     return messages_to_role
     #
-    # def produce_message_from_role(self, role: str)
-    #     messages_to_role = []
-    #     while messages_queue_map[role]:
-    #         messages_to_role.append(messages_queue_map[role].pop())
-    #     return messages_to_role
+
     #
     # def get_state(self):
     #     with lock:

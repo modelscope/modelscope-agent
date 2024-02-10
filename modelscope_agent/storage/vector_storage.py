@@ -1,7 +1,7 @@
 import os
+from pathlib import Path
 from typing import Dict, List, Union
 
-import json
 from langchain.schema import Document
 from langchain_community.embeddings import ModelScopeEmbeddings
 from langchain_community.vectorstores import FAISS, VectorStore
@@ -16,7 +16,7 @@ SUPPORTED_KNOWLEDGE_TYPE = ['txt', 'md', 'pdf', 'docx', 'pptx', 'md']
 class VectorStorage(BaseStorage):
 
     def __init__(self,
-                 storage_path: str,
+                 storage_path: Union[str, Path],
                  index_name: str,
                  embedding: Embeddings = None,
                  vs_cls: VectorStore = FAISS,
@@ -25,7 +25,7 @@ class VectorStorage(BaseStorage):
                  use_cache: bool = True,
                  **kwargs):
         # index name used for storage
-        self.storage_path = storage_path
+        self.storage_path = str(storage_path)
         self.index_name = index_name
         self.embedding = embedding or ModelScopeEmbeddings(
             model_id='damo/nlp_gte_sentence-embedding_chinese-base')
