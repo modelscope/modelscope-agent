@@ -4,9 +4,9 @@ import os
 import time
 
 import ray
+from modelscope_agent import create_component
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.env_context_util import AgentEnvContextMixin
-from modelscope_agent.environment import Environment
+from modelscope_agent.multi_agents_task import TaskCenter
 
 llm_config = {
     'model': 'qwen-max',
@@ -15,31 +15,29 @@ llm_config = {
 }
 function_list = []
 
-# ray.init(local_mode=True)
-if ray.is_initialized:
-    ray.shutdown()
-ray.init(logging_level=logging.ERROR)
+task_center = TaskCenter(remote=True)
 
-env = Environment.create_remote(Environment)
-
-role_play1 = AgentEnvContextMixin.create_remote(
+role_play1 = create_component(
     RolePlay,
+    name='role_play1',
+    remote=True,
     role='role_play1',
-    env=env,
     llm=llm_config,
     function_list=function_list)
 
-role_play2 = AgentEnvContextMixin.create_remote(
+role_play2 = create_component(
     RolePlay,
-    role='role_play2',
-    env=env,
+    name='role_play1',
+    remote=True,
+    role='role_play1',
     llm=llm_config,
     function_list=function_list)
 
-ray.get(env.add_agents.remote([role_play1, role_play2]))
+task_center.add_agents([role_play1, role_play2])
 
 n_round = 2
 task = 'who are u'
+task_center.start_task(task)
 while n_round > 0:
 
     for frame in env.step.remote(task):

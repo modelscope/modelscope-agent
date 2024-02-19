@@ -4,7 +4,7 @@ import time
 from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
-from modelscope_agent.env_context_util import AgentEnvContextMixin
+from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
 
 KNOWLEDGE_TEMPLATE_ZH = """
@@ -124,7 +124,7 @@ OBSERVATION_TOKEN = 'Observation:'
 ANSWER_TOKEN = 'Answer:'
 
 
-class RolePlay(Agent, AgentEnvContextMixin):
+class RolePlay(Agent, AgentEnvMixin):
 
     def __init__(self,
                  function_list: Optional[List[Union[str, Dict]]] = None,
@@ -136,7 +136,7 @@ class RolePlay(Agent, AgentEnvContextMixin):
                  **kwargs):
         Agent.__init__(self, function_list, llm, storage_path, name,
                        description, instruction, **kwargs)
-        AgentEnvContextMixin.__init__(self, **kwargs)
+        AgentEnvMixin.__init__(self, **kwargs)
 
     def _run(self,
              user_request,

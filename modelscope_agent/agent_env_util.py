@@ -14,12 +14,12 @@ from ray._raylet import ObjectRefGenerator
 from ray.util.client.common import ClientActorHandle, ClientObjectRef
 
 
-class AgentEnvContextMixin:
+class AgentEnvMixin:
 
     def __init__(
         self,
         role: str,
-        env: Union[Environment, ClientActorHandle] = {},
+        env: Union[Environment, ClientActorHandle] = None,
         storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
     ):
         self._role = role
@@ -59,31 +59,40 @@ class AgentEnvContextMixin:
             *args,
             **kwargs)
 
+    def set_env_context(self, env_context):
+        if env_context:
+            self.env_context = env_context
+
     def role(self):
         """Get the name of the agent."""
         return self._role
 
-    def agent_step(self,
-                   messages: Union[str, dict, ObjectRefGenerator] = [],
-                   send_to: list = [],
-                   chat_mode=True):
+    def step(self,
+             messages: Union[str, dict, ObjectRefGenerator] = None,
+             send_to: list = [],
+             **kwargs):
         """
         step function for agent to interact with env and other agents
         Args:
             messages:
             send_to: the message allow to send to other agent
-            chat_mode:
+            kwargs: other keywords
 
         Returns: ObjectRefGenerator that could be used to get result from other agent or env
 
         """
+        # check if env is ready
+        if not self._check_env_ready():
+            raise ValueError(
+                'Environment context is not set, please set environment first')
+
         # get message from other agent or env by generator
         prompt = ''
         if isinstance(messages, ObjectRefGenerator):
             remote_input = {}
             try:
                 ref = next(messages)
-                input_frame = AgentEnvContextMixin.extract_frame(ray.get(ref))
+                input_frame = AgentEnvMixin.extract_frame(ray.get(ref))
                 if input_frame['agent'] not in remote_input:
                     remote_input[input_frame['agent']] = input_frame['content']
                 else:
@@ -91,10 +100,11 @@ class AgentEnvContextMixin:
                         input_frame['agent']] += input_frame['content']
             except StopIteration:
                 pass
-            messages = remote_input
             prompt = remote_input[input_frame['agent']]
         elif isinstance(messages, dict):
             prompt = messages['content']
+        elif messages is None:
+            prompt = ''
         else:
             prompt = messages
 
@@ -116,7 +126,7 @@ class AgentEnvContextMixin:
         ):
             cur_frame = frame
             result += cur_frame
-            yield AgentEnvContextMixin.frame_wrapper(self._role, cur_frame)
+            yield AgentEnvMixin.frame_wrapper(self._role, cur_frame)
 
         # update memory
         self.memory.update_history([
@@ -168,44 +178,30 @@ class AgentEnvContextMixin:
     def publish(self, result, send_to=[]):
         # parse current state and message from
         # state, message, send_to_by_model = self._parse_message_attribute_from_llm(llm_result)
-        # env_state = self.env_context.get_state()
-        # make sure state maintain the same
-        env_state = True
-        state = env_state
-        agents_to_send = {'all'}
-        if env_state == state:
-            if len(send_to) > 0:
-                # user defined logic is in the primary
-                agents_to_send = send_to
-            # elif len(send_to_by_model) > 0 and use_rule_from_llm:
-            #     # if user use parse from model
-            #     agents_to_send = check_valid(send_to_by_model)
-            # else:
-            #     # rule based
-            #     agents = self.env_context.get_agents()
-            #     agents_to_send = self.rules.send_to_group(self.role, agents, state)
-        else:
-            # mismatched state should send no message
-            agents_to_send = [], message = None
 
-        # agents_to_send = self.remove_self(agents_to_send)
+        # if no specific send to then, send to all
+        # todo: should add parse from llm to decide send to which role
+        agents_to_send = 'all'
+        if len(send_to) > 0:
+            # user defined logic is in the primary
+            agents_to_send = send_to
+        else:
+            agents_to_send = list(agents_to_send)
+
         message = Message(
             content=result, send_to=agents_to_send, sent_from=self._role)
 
-        logging.warning(msg=f'time:{time.time()} name: {self._role}')
+        logging.warning(
+            msg=
+            f'time:{time.time()} ready for send message from: {self._role}, to {agents_to_send}'
+        )
 
         self.env_context.store_message_from_role.remote(self._role, message)
 
-    #
-    # def subscribe(self, role: str):
-    #     recieved_message = self.env_context.produce_message(self, self.role)
-    #     self.cur_step_env_prompt = convert_to_string(recieved_message)
-    #
-    # register to a callback runnable later
     def pull(self):
         """
-        extract
-        Returns:
+        extract message from environment by role name
+        Returns: prompt
 
         """
         recieved_messages = self.env_context.extract_message_by_role.remote(
@@ -228,8 +224,8 @@ class AgentEnvContextMixin:
         return prompt_template.format(
             conversation_history=conversation_history)
 
-    #
-    #
-    # def _parse_message_attribute_from_llm(llm_result):
-    #     # override parse logic here for different Agent
-    #     return state, message，send_to
+    def _check_env_ready(self):
+        if self.env_context:
+            return True
+        else:
+            return False
