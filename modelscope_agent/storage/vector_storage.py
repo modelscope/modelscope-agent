@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Union
 
+import json
 from langchain.schema import Document
 from langchain_community.embeddings import ModelScopeEmbeddings
 from langchain_community.vectorstores import FAISS, VectorStore
@@ -83,6 +84,10 @@ class VectorStorage(BaseStorage):
     def save(self):
         if self.vs:
             self.vs.save_local(self.storage_path, self.index_name)
+
+    def delete(self):
+        """Now, no delete is implemented"""
+        raise NotImplementedError
 
 
 class KnowledgeVector(VectorStorage):

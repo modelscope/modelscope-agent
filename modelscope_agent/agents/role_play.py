@@ -144,6 +144,7 @@ class RolePlay(Agent, AgentEnvMixin):
              ref_doc: str = None,
              lang: str = 'zh',
              **kwargs):
+
         self.tool_descs = '\n\n'.join(tool.function_plain_text
                                       for tool in self.function_map.values())
         self.tool_names = ','.join(tool.name
