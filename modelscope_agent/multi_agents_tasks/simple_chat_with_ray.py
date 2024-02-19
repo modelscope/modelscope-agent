@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import time
@@ -16,6 +15,7 @@ llm_config = {
 function_list = []
 
 task_center = TaskCenter(remote=True)
+logging.warning(msg=f'time:{time.time()} done create task center')
 
 role_play1 = create_component(
     RolePlay,
@@ -27,9 +27,9 @@ role_play1 = create_component(
 
 role_play2 = create_component(
     RolePlay,
-    name='role_play1',
+    name='role_play2',
     remote=True,
-    role='role_play1',
+    role='role_play2',
     llm=llm_config,
     function_list=function_list)
 
@@ -40,7 +40,7 @@ task = 'who are u'
 task_center.start_task(task)
 while n_round > 0:
 
-    for frame in env.step.remote(task):
+    for frame in TaskCenter.step.remote(task_center):
         print(ray.get(frame))
 
     time.sleep(3)

@@ -6,7 +6,7 @@ from typing import List, Union
 
 import ray
 from modelscope_agent.agent import Agent
-from modelscope_agent.constants import DEFAULT_AGENT_ROOT
+from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
@@ -16,12 +16,11 @@ from ray.util.client.common import ClientActorHandle, ClientObjectRef
 
 class AgentEnvMixin:
 
-    def __init__(
-        self,
-        role: str,
-        env: Union[Environment, ClientActorHandle] = None,
-        storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
-    ):
+    def __init__(self,
+                 role: str,
+                 env: Union[Environment, ClientActorHandle] = None,
+                 storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
+                 **kwargs):
         self._role = role
         self.env_context = env
         self.cur_step_env_prompt = ''
@@ -69,7 +68,7 @@ class AgentEnvMixin:
 
     def step(self,
              messages: Union[str, dict, ObjectRefGenerator] = None,
-             send_to: list = [],
+             send_to: Union[str, list] = DEFAULT_SEND_TO,
              **kwargs):
         """
         step function for agent to interact with env and other agents
@@ -85,6 +84,9 @@ class AgentEnvMixin:
         if not self._check_env_ready():
             raise ValueError(
                 'Environment context is not set, please set environment first')
+
+        if isinstance(send_to, str):
+            send_to = [send_to]
 
         # get message from other agent or env by generator
         prompt = ''
@@ -175,18 +177,13 @@ class AgentEnvMixin:
         result_dict = {'agent': agent, 'content': content}
         return result_dict
 
-    def publish(self, result, send_to=[]):
+    def publish(self, result, send_to: list = []):
         # parse current state and message from
         # state, message, send_to_by_model = self._parse_message_attribute_from_llm(llm_result)
 
         # if no specific send to then, send to all
         # todo: should add parse from llm to decide send to which role
-        agents_to_send = 'all'
-        if len(send_to) > 0:
-            # user defined logic is in the primary
-            agents_to_send = send_to
-        else:
-            agents_to_send = list(agents_to_send)
+        agents_to_send = send_to
 
         message = Message(
             content=result, send_to=agents_to_send, sent_from=self._role)

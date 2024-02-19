@@ -3,8 +3,8 @@ import time
 from typing import List, Union
 
 import ray
+from modelscope_agent.constants import DEFAULT_SEND_TO
 from modelscope_agent.schemas import Message
-from ray.util.client.common import ClientActorHandle, ClientObjectRef
 from ray.util.queue import Queue
 
 
@@ -19,9 +19,9 @@ class Environment:
     roles: list = []
 
     def __init__(self, roles: List = [], **kwargs):
-        self.registry_role(roles)
+        self.register_roles(roles)
 
-    def registry_role(self, roles: List[str]):
+    def register_roles(self, roles: List[str]):
         self.roles.extend(roles)
         for role in roles:
             if not isinstance(role, str):
@@ -50,27 +50,31 @@ class Environment:
         self._check_role_in_env(role)
         self.raw_history += f'state at {self.state}, {role}: {message.content}/n'
         recipiants = message.send_to
-        if 'all' in recipiants:
+        if DEFAULT_SEND_TO in recipiants:
             recipiants = self.roles
-        for recipiant in recipiants:
-            if role != recipiant:
+        logging.warning(
+            msg=
+            f'time:{time.time()} recipiants are : {recipiants}, and type is {type(recipiants)}'
+        )
+        for recipient in recipiants:
+            if role != recipient:
                 logging.warning(
-                    msg=f'time:{time.time()} {role} put data: {message}')
+                    msg=f'time:{time.time()} {role} put message: {message}')
 
-                self.messages_queue_map[recipiant].put(
+                self.messages_queue_map[recipient].put(
                     Message(
                         content=message.content,
-                        sent_to=recipiant,
+                        sent_to=recipient,
                         sent_from=message.sent_from))
-                self.message_queue_persist[recipiant].put(
+                self.message_queue_persist[recipient].put(
                     Message(
                         content=message.content,
-                        sent_to=recipiant,
+                        sent_to=recipient,
                         sent_from=message.sent_from))
-                self.messages_list_map[recipiant].append(
+                self.messages_list_map[recipient].append(
                     Message(
                         content=message.content,
-                        sent_to=recipiant,
+                        sent_to=recipient,
                         sent_from=message.sent_from))
 
     def extract_message_by_role(self, role: str):
@@ -102,25 +106,12 @@ class Environment:
                 notified_roles.append(role)
         return notified_roles
 
+    def get_all_roles(self):
+        return self.roles
+
     def _check_role_in_env(self, role: str):
         role_set = set(self.roles)
         if role not in role_set and role != 'human':
             raise ValueError(
                 f'Role {role} is not in the environment scope, please register it to env'
             )
-
-    #
-    # @staticmethod
-    # def create_remote(cls,
-    #                   roles=[],
-    #                   state='',
-    #                   max_concurrency=10,
-    #                   *args,
-    #                   **kwargs) -> ClientActorHandle:
-    #     return ray.remote(
-    #         name='env', max_concurrency=max_concurrency)(cls).remote(
-    #             roles=roles, state=state, *args, **kwargs)
-    #
-    # @staticmethod
-    # def create_local(cls, roles=[], state='', *args, **kwargs):
-    #     return cls(roles=roles, state=state, *args, **kwargs)

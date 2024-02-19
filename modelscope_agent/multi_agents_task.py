@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import List, Union
 
 import ray
@@ -17,8 +18,9 @@ class TaskCenter:
             if ray.is_initialized:
                 ray.shutdown()
             ray.init(logging_level=logging.ERROR)
-        self.env = create_component(Environment, remote)
-        self.agent_registry = create_component(AgentRegistry, remote)
+        self.env = create_component(Environment, 'env', remote)
+        self.agent_registry = create_component(AgentRegistry, 'agent_center',
+                                               remote)
         self.remote = remote
 
     def add_agents(self, agents: List[Agent]):
@@ -30,9 +32,18 @@ class TaskCenter:
         Returns:
 
         """
+        logging.warning(
+            msg=f'time:{time.time()}  adding agents. {self.agent_registry}')
+
+        roles = []
+        for agent in agents:
+            roles.append(ray.get(agent.role.remote()))
         if self.remote:
-            ray.get(self.agent_registry.register_agents(agents, self.env))
+            ray.get(self.env.register_roles.remote(roles))
+            ray.get(
+                self.agent_registry.register_agents.remote(agents, self.env))
         else:
+            self.env.register_roles.remote(roles)
             self.agent_registry.register_agents(agents, self.env)
 
     def disable_agent(self, agent):
@@ -62,12 +73,20 @@ class TaskCenter:
             send_to=send_to,
             sent_from=send_from,
         )
-        self.env.store_message_from_role(send_from, message)
+        ray.get(self.env.store_message_from_role.remote(send_from, message))
+        logging.warning(
+            msg=f'time:{time.time()}  send first task {task} to {send_to}')
 
-    def step(self, task=None, round: int = 1, send_to: Union[str, list] = []):
+    @staticmethod
+    @ray.remote
+    def step(task_center,
+             task=None,
+             round: int = 1,
+             send_to: Union[str, list] = DEFAULT_SEND_TO):
         """
         Core step to make sure
         Args:
+            task_center: the task_center object
             task: additional task in current step
             round: current step might have multi round
             send_to: manually define the message send to which role
@@ -80,16 +99,19 @@ class TaskCenter:
             send_to = [send_to]
 
         # get current steps' agent
-        roles = ray.get(self.env.get_notified_roles.remote())
+        roles = ray.get(task_center.env.get_notified_roles.remote())
+
         if len(roles) == 0:
             return
-        agents = ray.get(self.agent_registry.get_agents_by_role.remote(roles))
+        agents = ray.get(
+            task_center.agent_registry.get_agents_by_role.remote(roles))
 
         for _ in range(round):
             # create a list to hold the futures of all notified agents
             futures = [
                 agent.step.remote(task, send_to) for agent in agents.values()
             ]
+            logging.warning(msg=f'time:{time.time()}  futures from agents.')
 
             # wait for the agents to finish
             finish_flag = {}
