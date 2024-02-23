@@ -1,18 +1,35 @@
 import os
 import time
-from openai import OpenAI
+
 from modelscope_agent.agents.alpha_umi import AlphaUmi
+from openai import OpenAI
 
 llm_configs = {
-    'planner_llm_config': {'model': 'iic/alpha-umi-planner-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8090/v1', 'is_chat': False},
-    'caller_llm_config': {'model': 'iic/alpha-umi-caller-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8091/v1', 'is_chat': False},
-    'summarizer_llm_config': {'model': 'iic/alpha-umi-summarizer-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8092/v1', 'is_chat': False},
+    'planner_llm_config': {
+        'model': 'iic/alpha-umi-planner-7b',
+        'model_server': 'openai',
+        'api_base': 'http://localhost:8090/v1',
+        'is_chat': False
+    },
+    'caller_llm_config': {
+        'model': 'iic/alpha-umi-caller-7b',
+        'model_server': 'openai',
+        'api_base': 'http://localhost:8091/v1',
+        'is_chat': False
+    },
+    'summarizer_llm_config': {
+        'model': 'iic/alpha-umi-summarizer-7b',
+        'model_server': 'openai',
+        'api_base': 'http://localhost:8092/v1',
+        'is_chat': False
+    },
 }
 
+
 def deploy_model():
-    deploy_planner_cmd = "python -m vllm.entrypoints.openai.api_server --model=iic/alpha-umi-planner-7b --revision=v1.0.0 --trust-remote-code --port 8090 --gpu-memory-utilization 0.3 > planner.log &"
-    deploy_caller_cmd = "python -m vllm.entrypoints.openai.api_server --model=iic/alpha-umi-caller-7b --revision=v1.0.0 --trust-remote-code --port 8091 --gpu-memory-utilization 0.3 > caller.log &"
-    deploy_summarizer_cmd = "python -m vllm.entrypoints.openai.api_server --model=iic/alpha-umi-summarizer-7b --revision=v1.0.0 --trust-remote-code --port 8092 --gpu-memory-utilization 0.3 > summarizer.log &"
+    deploy_planner_cmd = "python -m vllm.entrypoints.openai.api_server --model=iic/alpha-umi-planner-7b --revision=v1.0.0 --trust-remote-code --port 8090 --gpu-memory-utilization 0.3 > planner.log &"  # noqa E501
+    deploy_caller_cmd = "python -m vllm.entrypoints.openai.api_server --model=iic/alpha-umi-caller-7b --revision=v1.0.0 --trust-remote-code --port 8091 --gpu-memory-utilization 0.3 > caller.log &"  # noqa E501
+    deploy_summarizer_cmd = "python -m vllm.entrypoints.openai.api_server --model=iic/alpha-umi-summarizer-7b --revision=v1.0.0 --trust-remote-code --port 8092 --gpu-memory-utilization 0.3 > summarizer.log &"  # noqa E501
     os.system(deploy_planner_cmd)
     os.system(deploy_caller_cmd)
     os.system(deploy_summarizer_cmd)
@@ -27,15 +44,16 @@ def test_single_deploy(model_id: str, api_base: str):
         base_url=openai_api_base,
     )
     prompt = 'Introduce yourself.'
-    completion = client.completions.create(model=model_id,
-                                           max_tokens=2000,
-                                           prompt=prompt)
+    completion = client.completions.create(
+        model=model_id, max_tokens=2000, prompt=prompt)
     assert isinstance(completion.choices[0].text, str)
     print(f'{model_id} is ready.')
+
 
 def test_deploys():
     for _, cfg in llm_configs.items():
         test_single_deploy(cfg['model'], cfg['api_base'])
+
 
 def test_alpha_umi():
     function_list = []
@@ -48,7 +66,6 @@ def test_alpha_umi():
 
     response = bot.run('Introduce yourself.')
 
-    text = ''
     for chunk in response:
         print(chunk)
 
@@ -57,9 +74,7 @@ if __name__ == '__main__':
     # 需先在本地部署3个7b模型:调用deploy_model()即可. 需要A100 * 1, 需要手动释放
     # deploy_model()
 
-    
     test_deploys()
     print('Model APIs are ready.')
-    print('-------------------------') 
+    print('-------------------------')
     test_alpha_umi()
-

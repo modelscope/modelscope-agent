@@ -78,7 +78,6 @@ class BaseChatModel(ABC):
         else:
             return self._chat_no_stream(messages, stop=stop, **kwargs)
 
-
     @retry(max_retries=3, delay_seconds=0.5)
     def chat_with_functions(self,
                             messages: List[Dict],

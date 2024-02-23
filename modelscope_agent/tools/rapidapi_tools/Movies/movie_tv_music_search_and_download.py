@@ -37,7 +37,7 @@ class search_torrents_for_movie_tv_music_search_and_download(
         if isinstance(params, str):
             return 'Parameter Error'
         toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
-        url = f'https://movie-tv-music-search-and-download.p.rapidapi.com/search'
+        url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/search'
         querystring = {
             'keywords': params['keywords'],
             'quantity': params['quantity'],
@@ -54,7 +54,7 @@ class search_torrents_for_movie_tv_music_search_and_download(
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except Exception:
             observation = response.text
         return observation
 
@@ -76,7 +76,7 @@ class get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download(
 
     def call(self, params: str, **kwargs) -> str:
         toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
-        url = f'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_music'
+        url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_music'
         querystring = {}
 
         headers = {
@@ -88,7 +88,7 @@ class get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download(
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except Exception:
             observation = response.text
         return observation
 
@@ -110,7 +110,7 @@ class get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download(
 
     def call(self, params: str, **kwargs) -> str:
         toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
-        url = f'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_games'
+        url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_games'
         querystring = {}
 
         headers = {
@@ -122,7 +122,7 @@ class get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download(
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except Exception:
             observation = response.text
         return observation
 
@@ -144,7 +144,7 @@ class get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_downlo
 
     def call(self, params: str, **kwargs) -> str:
         toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
-        url = f'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_tv_shows'
+        url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_tv_shows'
         querystring = {}
 
         headers = {
@@ -156,7 +156,7 @@ class get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_downlo
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except Exception:
             observation = response.text
         return observation
 
@@ -178,7 +178,7 @@ class get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and
 
     def call(self, params: str, **kwargs) -> str:
         toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
-        url = f'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_movies'
+        url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_movies'
         querystring = {}
 
         headers = {
@@ -190,7 +190,7 @@ class get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except BaseException:
             observation = response.text
         return observation
 
