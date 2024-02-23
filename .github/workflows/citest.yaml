@@ -14,7 +14,7 @@ on:
       - "config/**"
       - "resource/**"
       - "README.md"
-      - "README_zh-CN.md"
+      - "README_CN.md"
       - "NOTICE"
       - ".github/workflows/lint.yaml"
 

@@ -74,11 +74,10 @@ class BaseChatModel(ABC):
         assert len(messages) > 0, 'messages list must not be empty'
 
         if stream:
-            return self._chat_stream(
-                messages=messages, stop=stop, prompt=prompt, **kwargs)
+            return self._chat_stream(messages, stop=stop, **kwargs)
         else:
-            return self._chat_no_stream(
-                messages=messages, stop=stop, prompt=prompt, **kwargs)
+            return self._chat_no_stream(messages, stop=stop, **kwargs)
+
 
     @retry(max_retries=3, delay_seconds=0.5)
     def chat_with_functions(self,

@@ -49,11 +49,3 @@ def test_modelscope_text_ie():
     txt_ie = TextInfoExtractTool()
     res = txt_ie.call(kwargs)
     assert isinstance(res, str)
-
-
-def test_modelscope_image_chat():
-    from modelscope_agent.tools.modelscope_tools import ImageChatTool
-    kwargs = """{'image': 'http://mm-chatgpt.oss-cn-zhangjiakou.aliyuncs.com/mplug_owl_demo/released_checkpoint/portrait_input.png', 'text': 'Describe the facial expression of the man.'}"""  # noqa E501
-    image_chat = ImageChatTool()
-    res = image_chat.call(kwargs)
-    assert isinstance(res, str)

@@ -23,6 +23,18 @@
     "is_active": true,
     "use": false
   },
+  "paraformer_asr": {
+    "name": "Paraformer语音识别",
+    "is_active": true,
+    "use": false,
+    "is_remote_tool": true
+  },
+  "sambert_tts": {
+    "name": "Sambert语音合成",
+    "is_active": true,
+    "use": false,
+    "is_remote_tool": true
+  },
   "wordart_texture_generation": {
     "name": "艺术字纹理生成",
     "is_active": true,
