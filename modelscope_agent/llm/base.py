@@ -38,7 +38,7 @@ class BaseChatModel(ABC):
                  model: str,
                  model_server: str,
                  support_fn_call: bool = None):
-        self._support_fn_call: Optional[bool] = None
+        self._support_fn_call: Optional[bool] = support_fn_call
         self.model = model
         self.model_server = model_server
 
