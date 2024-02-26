@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from modelscope_agent import Agent
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
+import json
 
 PLANNER_TEMPLATE = """You have assess to the following apis:
 {doc}
@@ -153,9 +154,10 @@ class AlphaUmi(Agent):
 
             elif decision == 'caller':
                 dispatch_history = self._concat_history(history)
+
                 caller_output = self.llm_caller.chat(
                     prompt=self.caller_prompt.replace(
-                        '{history}', dispatch_history) + ' caller: ',
+                        '{history}', dispatch_history).replace("{thought}",history[-1]['content']) + ' caller: ',
                     stream=False,
                     max_tokens=2000,
                     **kwargs)
@@ -170,9 +172,15 @@ class AlphaUmi(Agent):
                     yield f'Action: {action}\nAction Input: {action_input}'
                     observation = self._call_tool(action, action_input)
                     yield f'Observation: {observation}'
+                    if isinstance(observation,dict) or isinstance(observation,list):
+                        observation_str = json.dumps(observation)
+                    elif isinstance(observation,observation):
+                        observation_str = observation
+                    else:
+                        observation_str = str(observation)
                     history.append({
                         'role': 'observation',
-                        'content': observation
+                        'content': observation_str
                     })
             else:
                 dispatch_history = self._concat_history(history)
@@ -241,18 +249,18 @@ class AlphaUmi(Agent):
     def _concat_history(self, history):
         res = ''
         for utter in history:
-            if not isinstance(utter, dict) or utter.get('role', None):
+            if not isinstance(utter, dict) or not utter.get('role', None):
                 continue
             if utter['role'] == 'assistant':
-                history += ('assistant: ' + utter['content'] + '</s>')
+                res += ('assistant: ' + utter['content'] + '</s>')
             elif utter['role'] == 'user':
-                history += ('user: ' + utter['content'] + '</s>')
+                res += ('user: ' + utter['content'] + '</s>')
             elif utter['role'] == 'observation':
-                history += ('observation: ' + utter['content'])
+                res += ('observation: ' + utter['content'])
             elif utter['role'] == 'caller':
-                history += ('caller: ' + utter['content'] + '</s>')
+                res += ('caller: ' + utter['content'] + '</s>')
             elif utter['role'] == 'conclusion':
-                history += ('conclusion: ' + utter['content'] + '</s>')
+                res += ('conclusion: ' + utter['content'] + '</s>')
         return res
 
     def _parse_planner_output(self, planner_output):

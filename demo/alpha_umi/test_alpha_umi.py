@@ -56,7 +56,12 @@ def test_deploys():
 
 
 def test_alpha_umi():
-    function_list = []
+    function_list = ["get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download",
+                      "get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download",
+                      "get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download",
+                      "get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download",
+                      "search_torrents_for_movie_tv_music_search_and_download"]
+
     bot = AlphaUmi(
         function_list=function_list,
         llm_planner=llm_configs['planner_llm_config'],
@@ -64,8 +69,8 @@ def test_alpha_umi():
         llm_summarizer=llm_configs['summarizer_llm_config'],
     )
 
-    response = bot.run('Introduce yourself.')
-
+    response = bot.run('give me the link of the monthly top-1 music')
+    text = ''
     for chunk in response:
         print(chunk)
 
