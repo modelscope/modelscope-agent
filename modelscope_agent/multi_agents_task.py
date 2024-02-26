@@ -82,7 +82,9 @@ class TaskCenter:
     def step(task_center,
              task=None,
              round: int = 1,
-             send_to: Union[str, list] = DEFAULT_SEND_TO):
+             send_to: Union[str, list] = DEFAULT_SEND_TO,
+             allowed_roles: list = [],
+             **kwargs):
         """
         Core step to make sure
         Args:
@@ -90,6 +92,8 @@ class TaskCenter:
             task: additional task in current step
             round: current step might have multi round
             send_to: manually define the message send to which role
+            allowed_roles: make sure only the notified role can be step
+            kwargs: additional keywords, such as runtime llm setting
 
         Returns:
             ray's object ref generator
@@ -98,8 +102,11 @@ class TaskCenter:
         if isinstance(send_to, str):
             send_to = [send_to]
 
-        # get current steps' agent
-        roles = ray.get(task_center.env.get_notified_roles.remote())
+        # get current steps' agent from env or from input
+        if len(allowed_roles) == 0:
+            roles = ray.get(task_center.env.get_notified_roles.remote())
+        else:
+            roles = allowed_roles
 
         if len(roles) == 0:
             return
@@ -109,7 +116,8 @@ class TaskCenter:
         for _ in range(round):
             # create a list to hold the futures of all notified agents
             futures = [
-                agent.step.remote(task, send_to) for agent in agents.values()
+                agent.step.remote(task, send_to, **kwargs)
+                for agent in agents.values()
             ]
             logging.warning(msg=f'time:{time.time()}  futures from agents.')
 

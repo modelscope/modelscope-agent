@@ -1,4 +1,6 @@
+import logging
 import os
+import time
 from http import HTTPStatus
 from typing import Dict, Iterator, List, Optional
 
@@ -73,6 +75,13 @@ class DashScopeLLM(BaseChatModel):
             'result_format': 'message',
             'stream': True,
         }
+        if kwargs.get('temperature', None):
+            generation_input['temperature'] = kwargs.get('temperature')
+        if kwargs.get('seed', None):
+            generation_input['seed'] = kwargs.get('seed')
+        logging.warning(
+            msg=f'time:{time.time()} The generation input is {generation_input}'
+        )
         response = dashscope.Generation.call(**generation_input)
         return stream_output(response, **kwargs)
 

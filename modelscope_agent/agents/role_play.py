@@ -220,6 +220,9 @@ class RolePlay(Agent, AgentEnvMixin):
         if self.llm.support_raw_prompt():
             planning_prompt = self.llm.build_raw_prompt(messages)
 
+        logging.warning(
+            msg=f'time:{time.time()} The planning_prompt is {planning_prompt}')
+
         max_turn = 10
         while True and max_turn > 0:
             # print('=====one input planning_prompt======')
@@ -233,7 +236,7 @@ class RolePlay(Agent, AgentEnvMixin):
                     functions=[
                         func.function for func in self.function_map.values()
                     ],
-                )
+                    **kwargs)
             else:
                 output = self.llm.chat(
                     prompt=planning_prompt,

@@ -16,6 +16,7 @@ class Environment:
     state: Union[str,
                  dict] = ''  # sort of transition state? shall we maintain it?
     messages_list_map: dict[str, list] = {}
+    message_history: list = []
     roles: list = []
 
     def __init__(self, roles: List = [], **kwargs):
@@ -48,7 +49,7 @@ class Environment:
 
         """
         self._check_role_in_env(role)
-        self.raw_history += f'state at {self.state}, {role}: {message.content}/n'
+        self.raw_history += f'{role}: {message.content}/n'
         recipiants = message.send_to
         if DEFAULT_SEND_TO in recipiants:
             recipiants = self.roles
@@ -56,26 +57,21 @@ class Environment:
             msg=
             f'time:{time.time()} recipiants are : {recipiants}, and type is {type(recipiants)}'
         )
+
+        # add the message to system
+        self.message_history.append(message)
         for recipient in recipiants:
             if role != recipient:
                 logging.warning(
-                    msg=f'time:{time.time()} {role} put message: {message}')
-
-                self.messages_queue_map[recipient].put(
-                    Message(
-                        content=message.content,
-                        sent_to=recipient,
-                        sent_from=message.sent_from))
-                self.message_queue_persist[recipient].put(
-                    Message(
-                        content=message.content,
-                        sent_to=recipient,
-                        sent_from=message.sent_from))
-                self.messages_list_map[recipient].append(
-                    Message(
-                        content=message.content,
-                        sent_to=recipient,
-                        sent_from=message.sent_from))
+                    msg=f'time:{time.time()} {role} message: {message.content}'
+                    f'{recipient}, {message.sent_from}')
+                message = Message(
+                    content=message.content,
+                    send_to=recipient,
+                    sent_from=message.sent_from)
+                self.messages_queue_map[recipient].put(message)
+                # self.message_queue_persist[recipient].put(message)
+                self.messages_list_map[recipient].append(message)
 
     def extract_message_by_role(self, role: str):
         """
@@ -98,6 +94,12 @@ class Environment:
         )
 
         return messages_to_role
+
+    def extract_all_history_message(self, limit: int = None):
+        if limit and limit > 0:
+            return self.message_history[-limit:]
+        else:
+            return self.message_history
 
     def get_notified_roles(self):
         notified_roles = []

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from pydantic import BaseModel
 
@@ -10,7 +10,7 @@ class Message(BaseModel):
     role: str = 'user'  # user, assistant, system, tool
     content: str = ''
     sent_from: str = ''
-    send_to: set[str] = {'all'}
+    send_to: Union[str, set[str]] = {'all'}
 
 
 class Document(BaseModel):

@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Union
+from typing import Callable, List, Union
 
 import ray
 from modelscope_agent.agent import Agent
@@ -20,10 +20,34 @@ class AgentEnvMixin:
                  role: str,
                  env: Union[Environment, ClientActorHandle] = None,
                  storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
+                 is_watcher: bool = False,
+                 use_history: bool = True,
+                 parse_env_prompt_function: Callable = None,
                  **kwargs):
+        """
+        Agent environment context mixin class to allow the agent to communicate with other agent, in the
+        form of multi-agent
+        Args:
+            role: the name of role
+            env: the environment instance, where the message come from
+            storage_path: the local history story path
+            is_watcher: if the agent is a watcher, who view all information and leave no message
+            use_history：some roles need history, while some not
+            parse_env_prompt_function: The function convert the env message into current prompt,
+            this function receive message and convert it into prompt
+            **kwargs:
+        """
         self._role = role
         self.env_context = env
         self.cur_step_env_prompt = ''
+        self.is_watcher = is_watcher
+        self.use_history = use_history
+        if not parse_env_prompt_function:
+            self.parse_env_prompt_function = self.convert_to_string
+        else:
+            self.parse_env_prompt_function = parse_env_prompt_function
+        assert isinstance(self.parse_env_prompt_function, Callable)
+
         knowledge_path = os.path.join(storage_path, role, 'knowledge')
         memory_path = os.path.join(storage_path, role, 'memory')
 
@@ -33,30 +57,6 @@ class AgentEnvMixin:
             memory_path=memory_path,
             use_cache=False,
         )
-
-    @staticmethod
-    def create_remote(cls, role: str, function_list: list, llm, env, *args,
-                      **kwargs) -> ClientActorHandle:
-        max_concurrency = kwargs.get('max_concurrency', 1)
-        return ray.remote(
-            name=role, max_concurrency=max_concurrency)(cls).remote(
-                role=role,
-                function_list=function_list,
-                llm=llm,
-                env=env,
-                *args,
-                **kwargs)
-
-    @staticmethod
-    def create_local(cls, role: str, function_list: list, llm, env, *args,
-                     **kwargs) -> Agent:
-        return cls(
-            role=role,
-            function_list=function_list,
-            llm=llm,
-            env=env,
-            *args,
-            **kwargs)
 
     def set_env_context(self, env_context):
         if env_context:
@@ -75,7 +75,7 @@ class AgentEnvMixin:
         Args:
             messages:
             send_to: the message allow to send to other agent
-            kwargs: other keywords
+            kwargs: additional keywords, such as runtime llm setting
 
         Returns: ObjectRefGenerator that could be used to get result from other agent or env
 
@@ -122,32 +122,41 @@ class AgentEnvMixin:
             f'time:{time.time()} {self._role} cur history is: {self.memory.get_history()}'
         )
 
+        # get history
+        history = []
+        if self.use_history:
+            history = self.memory.get_history()
+
+        # run generation
         for frame in self.run(
                 prompt,
-                history=self.memory.get_history(),
+                history=history,
+                **kwargs,
         ):
             cur_frame = frame
             result += cur_frame
             yield AgentEnvMixin.frame_wrapper(self._role, cur_frame)
 
         # update memory
-        self.memory.update_history([
-            Message(
-                role='user',
-                content=prompt,
-                send_to=send_to,
-                sent_from=self._role,
-            ),
-            Message(
-                role='assistant',
-                content=result,
-                send_to=send_to,
-                sent_from=self._role,
-            )
-        ])
+        if self.use_history:
+            self.memory.update_history([
+                Message(
+                    role='user',
+                    content=prompt,
+                    send_to=send_to,
+                    sent_from=self._role,
+                ),
+                Message(
+                    role='assistant',
+                    content=result,
+                    send_to=send_to,
+                    sent_from=self._role,
+                )
+            ])
 
-        # publish result to env
-        self.publish(result, send_to)
+        # publish result to env if not only observe
+        if not self.is_watcher:
+            self.publish(result, send_to)
 
     @staticmethod
     def frame_wrapper(agent_name, frame: str) -> str:
@@ -201,14 +210,27 @@ class AgentEnvMixin:
         Returns: prompt
 
         """
-        recieved_messages = self.env_context.extract_message_by_role.remote(
-            self._role)
-        recieved_messages = ray.get(recieved_messages)
-        if recieved_messages and len(recieved_messages) > 0:
-            cur_step_env_prompt = self.convert_to_string(recieved_messages)
-            return cur_step_env_prompt
+        if not self.is_watcher:
+            recieved_messages = self.env_context.extract_message_by_role.remote(
+                self._role)
+            recieved_messages = ray.get(recieved_messages)
+            if recieved_messages and len(recieved_messages) > 0:
+                cur_step_env_prompt = self.parse_env_prompt_function(
+                    recieved_messages)
+                return cur_step_env_prompt
+            else:
+                return ''
         else:
-            return ''
+            recieved_messages = self.env_context.extract_all_history_message.remote(
+            )
+            recieved_messages = ray.get(recieved_messages)
+            if recieved_messages and len(recieved_messages) > 0:
+                conversation_history = ''
+                for item in recieved_messages:
+                    conversation_history += f'{item.sent_from}\n{item.content}\n'
+                return conversation_history
+            else:
+                return ''
 
     def convert_to_string(self, messages: List[Message]):
         prompt_template = """
