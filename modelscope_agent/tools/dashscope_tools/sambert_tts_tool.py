@@ -1,6 +1,7 @@
 import os
 
 from modelscope_agent.tools.base import BaseTool, register_tool
+from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
 from pydantic import ValidationError
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
@@ -13,7 +14,8 @@ class SambertTtsTool(BaseTool):
     parameters: list = [{
         'name': 'text',
         'description': '需要转成语音的文本',
-        'required': True
+        'required': True,
+        'type': 'string'
     }]
 
     def __init__(self, cfg={}):
@@ -24,19 +26,7 @@ class SambertTtsTool(BaseTool):
         if self.api_key is None:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
-        try:
-            all_param = {
-                'name': self.name,
-                'description': self.description,
-                'parameters': self.parameters
-            }
-            self.tool_schema = ToolSchema(**all_param)
-        except ValidationError:
-            raise ValueError(f'Error when parsing parameters of {self.name}')
-
-        self._str = self.tool_schema.model_dump_json()
-        self._function = self.parse_pydantic_model_to_openai_function(
-            all_param)
+        super().__init__(cfg)
 
     def call(self, params: str, **kwargs) -> str:
         from dashscope.audio.tts import SpeechSynthesizer
@@ -55,4 +45,4 @@ class SambertTtsTool(BaseTool):
             raise ValueError(
                 f'call sambert tts failed, request id: {response.get_response().request_id}'
             )
-        return wav_file
+        return str(AudioWrapper(wav_file))

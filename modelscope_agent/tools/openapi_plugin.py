@@ -35,6 +35,7 @@ class OpenAPIPluginTool(BaseTool):
     parameters: list = []
 
     def __init__(self, cfg, name):
+        super().__init__(cfg)
         self.name = name
         self.cfg = cfg.get(self.name, {})
         self.is_remote_tool = self.cfg.get('is_remote_tool', False)
