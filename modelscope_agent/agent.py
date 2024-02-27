@@ -106,7 +106,14 @@ class Agent(ABC):
             raise NotImplementedError
         if tool not in self.function_list:
             self.function_list.append(tool)
-            self.function_map[tool_name] = TOOL_REGISTRY[tool_name](tool_cfg)
+            tool_class = TOOL_REGISTRY[tool_name]
+            try:
+                self.function_map[tool_name] = tool_class(tool_cfg)
+            except TypeError:
+                # When using OpenAPI, tool_class is already an instantiated object, not a corresponding class
+                self.function_map[tool_name] = tool_class
+            except Exception as e:
+                raise RuntimeError(e)
 
     def _detect_tool(self, message: Union[str,
                                           dict]) -> Tuple[bool, str, str, str]:
