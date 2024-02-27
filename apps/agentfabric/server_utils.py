@@ -8,6 +8,7 @@ from collections import OrderedDict
 from config_utils import get_user_builder_history_dir, get_user_preview_history_dir
 from builder_core import init_builder_chatbot_agent, AgentBuilder, MemoryWithRetrievalKnowledge
 from user_core import init_user_chatbot_agent, RolePlay, MemoryWithRetrievalKnowledge
+from server_logging import logger
 
 STATIC_FOLDER = 'statics'
 
@@ -70,11 +71,14 @@ class ExpiringDict(OrderedDict):
     def _cleanup(self):
         with self.lock:
             current_time = time.time()
-            keys_to_delete = [key for key, last_time in self.last_access.items() if
-                              current_time - last_time >= self.max_age]
+            keys_and_age = {key: current_time - last_time for key, last_time in self.last_access.items()}
+            keys_to_delete = [key for key, age in keys_and_age.items() if
+                              age >= self.max_age]
             for key in keys_to_delete:
                 del self[key]
                 del self.last_access[key]
+            logger.info(f"expiring_dict_clean_up: keys_and_age {keys_and_age}, keys_to_delete {keys_to_delete}, "
+                        f"remaining keys {self.keys()}")
 
         # 重新启动定时器
         self._start_cleanup_thread()
@@ -93,6 +97,7 @@ class SessionManager:
     def get_builder_bot(self, builder_id, renew=False) -> (AgentBuilder, MemoryWithRetrievalKnowledge):
         builder_agent = self.builder_bots[builder_id]
         if renew or builder_agent is None:
+            logger.info(f"init_builder_chatbot_agent: {builder_id} ")
             builder_agent = init_builder_chatbot_agent(builder_id)
             self.builder_bots[builder_id] = builder_agent
         return builder_agent
@@ -107,6 +112,7 @@ class SessionManager:
         unique_id = builder_id + "_" + session
         user_agent = self.user_bots[unique_id]
         if renew or user_agent is None:
+            logger.info(f"init_user_chatbot_agent: {builder_id} {session}")
             user_agent = init_user_chatbot_agent(builder_id, session)
             self.user_bots[unique_id] = user_agent
         return user_agent
