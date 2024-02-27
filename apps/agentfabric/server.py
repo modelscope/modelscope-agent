@@ -49,6 +49,7 @@ def with_request_id(func):
 @app.route('/builder/chat/<uuid_str>', methods=['POST'])
 @with_request_id
 def builder_chat(uuid_str):
+    logger.info(f"builder_chat: uuid_str_{uuid_str}")
     params_str = request.form.get('params')
     params = json.loads(params_str)
     input_content = params.get('content')
@@ -127,6 +128,7 @@ def builder_chat(uuid_str):
 @app.route('/builder/chat/<uuid_str>', methods=['DELETE'])
 @with_request_id
 def delete_builder_chat(uuid_str):
+    logger.info(f"delete_builder_chat: uuid_str_{uuid_str}")
     app.session_manager.clear_builder_bot(uuid_str)
     logger.info(f"delete_builder_chat: {uuid_str}")
     return jsonify({
@@ -138,6 +140,7 @@ def delete_builder_chat(uuid_str):
 @app.route('/builder/chat/<uuid_str>', methods=['GET'])
 @with_request_id
 def get_builder_chat_history(uuid_str):
+    logger.info(f"get_builder_chat_history: uuid_str_{uuid_str}")
     _, builder_memory = app.session_manager.get_builder_bot(uuid_str)
     history = builder_memory.get_history()
     logger.info(f"history: {json.dumps(history)}")
@@ -152,6 +155,8 @@ def get_builder_chat_history(uuid_str):
 @app.route('/builder/import/<uuid_str>', methods=['POST'])
 @with_request_id
 def import_builder(uuid_str):
+    logger.info(f"import_builder: uuid_str_{uuid_str}")
+
     # 检查是否有文件被上传
     if 'file' in request.files:
         # 获取上传的文件
@@ -191,6 +196,8 @@ def import_builder(uuid_str):
 @app.route('/builder/config/<uuid_str>')
 @with_request_id
 def get_builder_config(uuid_str):
+    logger.info(f"get_builder_config: uuid_str_{uuid_str}")
+
     builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
         uuid_str)
     data = {
@@ -211,7 +218,7 @@ def get_builder_config(uuid_str):
 @app.route('/builder/config_files/<uuid_str>/<file_name>', methods=['GET'])
 @with_request_id
 def get_builder_file(uuid_str, file_name):
-    logger.info(f'uuid_str: {uuid_str} file_name: {file_name}')
+    logger.info(f"get_builder_file: uuid_str_{uuid_str} file_name: {file_name}")
     as_attachment = request.args.get('as_attachment') == 'true'
     directory = get_user_dir(uuid_str)
     try:
@@ -239,6 +246,8 @@ def get_builder_file(uuid_str, file_name):
 @app.route('/builder/update/<uuid_str>', methods=['POST'])
 @with_request_id
 def save_builder_config(uuid_str):
+    logger.info(f"save_builder_config: uuid_str_{uuid_str}")
+
     builder_config_str = request.form.get('builder_config')
     builder_config = json.loads(builder_config_str)
     if "knowledge" in builder_config:
@@ -265,6 +274,8 @@ def save_builder_config(uuid_str):
 @app.route('/builder/publish/zip/<uuid_str>', methods=['GET'])
 @with_request_id
 def preview_publish_get_zip(uuid_str):
+    logger.info(f"preview_publish_get_zip: uuid_str_{uuid_str}")
+
     name = f"publish_{uuid_str}"
     env_params = {}
     env_params.update(
@@ -283,6 +294,8 @@ def preview_publish_get_zip(uuid_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['POST'])
 @with_request_id
 def preview_chat(uuid_str, session_str):
+    logger.info(f"preview_chat: uuid_str_{uuid_str}_session_str_{session_str}")
+
     params_str = request.form.get('params')
     params = json.loads(params_str)
     input_content = params.get('content')
@@ -359,6 +372,8 @@ def preview_chat(uuid_str, session_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['DELETE'])
 @with_request_id
 def delete_preview_chat(uuid_str, session_str):
+    logger.info(f"delete_preview_chat: uuid_str_{uuid_str}_session_str_{session_str}")
+
     app.session_manager.clear_user_bot(uuid_str, session_str)
     return jsonify({'success': True, 'request_id': request_id_var.get("")})
 
@@ -366,6 +381,8 @@ def delete_preview_chat(uuid_str, session_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['GET'])
 @with_request_id
 def get_preview_chat_history(uuid_str, session_str):
+    logger.info(f"get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}")
+
     _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
     return jsonify({
         'history': user_memory.get_history(),
@@ -377,6 +394,8 @@ def get_preview_chat_history(uuid_str, session_str):
 @app.route('/preview/chat_file/<uuid_str>/<session_str>', methods=['GET'])
 @with_request_id
 def get_preview_chat_file(uuid_str, session_str):
+    logger.info(f"get_preview_chat_file: uuid_str_{uuid_str}_session_str_{session_str}")
+
     file_path = request.args.get('file_path')
     logger.info(f'uuid_str: {uuid_str} session_str: {session_str}')
     as_attachment = request.args.get('as_attachment') == 'true'

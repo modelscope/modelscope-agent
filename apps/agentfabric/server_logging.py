@@ -1,4 +1,5 @@
 import logging
+import os
 from contextvars import ContextVar
 
 request_id_var = ContextVar("request_id", default="")
@@ -8,12 +9,13 @@ request_id_var = ContextVar("request_id", default="")
 class RequestIDLogFilter(logging.Filter):
     def filter(self, record):
         record.request_id = request_id_var.get("")
+        record.ip_addr = os.getenv("ALIYUN_ECI_ETH0_IP", "")
         return True
 
 
 # 设置日志格式
 formatter = logging.Formatter(
-    '[%(asctime)s] [%(request_id)s] [%(filename)s:%(lineno)d] %(levelname)s: %(message)s'
+    '[%(asctime)s] [%(request_id)s] [%(filename)s:%(lineno)d] [%(ip_addr)s] SERVER_LOG_%(levelname)s: %(message)s'
 )
 
 logger = logging.getLogger('my_custom_logger')
