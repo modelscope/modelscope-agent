@@ -15,9 +15,6 @@ llm_configs = {
                               'api_base': 'http://localhost:8092/v1', 'is_chat': False},
 }
 
-
-
-
 def test_alpha_umi():
     function_list = [
                       "translate_for_google_translate"]
