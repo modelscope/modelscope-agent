@@ -4,9 +4,15 @@ from openai import OpenAI
 from modelscope_agent.agents.alpha_umi import AlphaUmi
 
 llm_configs = {
-    'planner_llm_config': {'model': 'iic/alpha-umi-planner-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8090/v1', 'is_chat': False},
-    'caller_llm_config': {'model': 'iic/alpha-umi-caller-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8091/v1', 'is_chat': False},
-    'summarizer_llm_config': {'model': 'iic/alpha-umi-summarizer-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8092/v1', 'is_chat': False},
+    'planner_llm_config': {'model': 'iic/alpha-umi-planner-7b', 
+                           'model_server': 'openai', 
+                           'api_base': 'http://localhost:8090/v1', 'is_chat': False},
+    'caller_llm_config': {'model': 'iic/alpha-umi-caller-7b', 
+                          'model_server': 'openai', 
+                          'api_base': 'http://localhost:8091/v1', 'is_chat': False},
+    'summarizer_llm_config': {'model': 'iic/alpha-umi-summarizer-7b', 
+                              'model_server': 'openai', 
+                              'api_base': 'http://localhost:8092/v1', 'is_chat': False},
 }
 
 
