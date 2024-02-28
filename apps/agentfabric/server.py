@@ -81,7 +81,7 @@ def builder_chat(uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 step_result = frame.get('step', '')
-                logger.info("frame, {}".format(frame.replace("\n", "\\n")))
+                logger.info("frame, {}".format(str(frame).replace("\n", "\\n")))
                 if len(exec_result) != 0:
                     if isinstance(exec_result, dict):
                         exec_result = exec_result['result']
@@ -346,7 +346,7 @@ def preview_chat(uuid_str, session_str):
                     ref_doc=ref_doc,
                     append_files=file_paths,
                     uuid_str=uuid_str):
-                logger.info("frame, {}".format(frame.replace("\n", "\\n")))
+                logger.info("frame, {}".format(str(frame).replace("\n", "\\n")))
                 # important! do not change this
                 response += frame
                 res = json.dumps({
