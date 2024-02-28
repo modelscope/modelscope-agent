@@ -3,7 +3,8 @@ from typing import Dict, Optional
 
 import json
 import requests
-from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import BaseTool_alpha_umi
+from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
+    BaseTool_alpha_umi
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -85,7 +86,6 @@ class ModelscopePipelineTool(BaseTool_alpha_umi):
             except RequestException as e:
                 return f'Remote call failed with error code: {e.response.status_code},\
                            error message: {e.response.content.decode("utf-8")}'
-
 
         return 'Remote call max retry times exceeded! Please try to use local call.'
 

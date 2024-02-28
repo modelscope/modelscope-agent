@@ -12,6 +12,7 @@ class TextInfoExtractTool_for_alpha_umi(ModelscopePipelineTool):
     default_model = 'damo/nlp_structbert_siamese-uie_chinese-base'
     description = 'Information extraction service for Chinese text, which extracts specific content according to a predefined schema, \
     identifies the corresponding information, and displays it in JSON format.'
+
     name = 'model_scope_text_ie'
     parameters: list = [{
         'name': 'input',
