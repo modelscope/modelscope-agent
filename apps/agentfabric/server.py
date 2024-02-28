@@ -339,7 +339,6 @@ def preview_chat(uuid_str, session_str):
                 ref_doc=ref_doc,
                 append_files=file_paths,
                 uuid_str=uuid_str):
-            logger.info(f'frame: {frame}')
             # important! do not change this
             response += frame
             res = json.dumps({
@@ -352,17 +351,18 @@ def preview_chat(uuid_str, session_str):
         if len(history) == 0:
             user_memory.update_history(
                 Message(role='system', content=user_agent.system_prompt))
-
-        user_memory.update_history([
-            Message(role='user', content=input_content),
-            Message(role='assistant', content=response),
-        ])
-        user_memory.save_history()
         res = json.dumps({
             'data': response,
             'is_final': True,
             'request_id': request_id_var.get("")
         }, ensure_ascii=False)
+        logger.info(f"response: {res}")
+        user_memory.update_history([
+            Message(role='user', content=input_content),
+            Message(role='assistant', content=response),
+        ])
+        user_memory.save_history()
+        logger.info(f"user_memory save_history complete.")
         yield f'data: {res}\n\n'
 
     return Response(generate(), mimetype='text/event-stream')
