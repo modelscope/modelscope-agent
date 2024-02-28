@@ -1,12 +1,28 @@
 import os
 import time
-from openai import OpenAI
+
 from modelscope_agent.agents.alpha_umi import AlphaUmi
+from openai import OpenAI
 
 llm_configs = {
-    'planner_llm_config': {'model': 'iic/alpha-umi-planner-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8090/v1', 'is_chat': False},
-    'caller_llm_config': {'model': 'iic/alpha-umi-caller-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8091/v1', 'is_chat': False},
-    'summarizer_llm_config': {'model': 'iic/alpha-umi-summarizer-7b', 'model_server': 'openai', 'api_base': 'http://localhost:8092/v1', 'is_chat': False},
+    'planner_llm_config': {
+        'model': 'iic/alpha-umi-planner-7b',
+        'model_server': 'openai',
+        'api_base': 'http://localhost:8090/v1',
+        'is_chat': False
+    },
+    'caller_llm_config': {
+        'model': 'iic/alpha-umi-caller-7b',
+        'model_server': 'openai',
+        'api_base': 'http://localhost:8091/v1',
+        'is_chat': False
+    },
+    'summarizer_llm_config': {
+        'model': 'iic/alpha-umi-summarizer-7b',
+        'model_server': 'openai',
+        'api_base': 'http://localhost:8092/v1',
+        'is_chat': False
+    },
 }
 
 # llm_configs = {
@@ -23,8 +39,7 @@ def deploy_model():
     #     "/nas-wulanchabu/shenweizhou.swz/models/alpha-umi-local/online/alpha-umi-summarizer-7b"
     # ]
     model_paths = [
-        "iic/alpha-umi-planner-7b",
-        "iic/alpha-umi-caller-7b",
+        "iic/alpha-umi-planner-7b", "iic/alpha-umi-caller-7b",
         "iic/alpha-umi-summarizer-7b"
     ]
     # os.system("VLLM_USE_MODELSCOPE=True")
@@ -57,9 +72,9 @@ def deploy_model():
 #         test_single_deploy(cfg['model'], cfg['api_base'])
 #         # break
 
+
 def test_alpha_umi():
-    function_list = [
-                      "translate_for_google_translate"]
+    function_list = ["translate_for_google_translate"]
 
     bot = AlphaUmi(
         function_list=function_list,
@@ -79,10 +94,8 @@ if __name__ == '__main__':
     # 需先在本地部署3个7b模型:调用deploy_model()即可. 需要A100 * 1, 需要手动释放
     # deploy_model()
 
-    
     # test_deploys()
     # print('Model APIs are ready.')
-    # print('-------------------------') 
+    # print('-------------------------')
     # test_deploys()
     test_alpha_umi()
-

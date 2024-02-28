@@ -1,10 +1,10 @@
 import os
 from typing import Dict, List, Optional, Tuple, Union
 
+import json
 from modelscope_agent import Agent
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
-import json
 
 PLANNER_TEMPLATE = """You have assess to the following apis:
 {doc}
@@ -157,7 +157,8 @@ class AlphaUmi(Agent):
 
                 caller_output = self.llm_caller.chat(
                     prompt=self.caller_prompt.replace(
-                        '{history}', dispatch_history).replace("{thought}",history[-1]['content']) + ' caller: ',
+                        '{history}', dispatch_history).replace(
+                            '{thought}', history[-1]['content']) + ' caller: ',
                     stream=False,
                     max_tokens=2000,
                     **kwargs)
@@ -172,9 +173,10 @@ class AlphaUmi(Agent):
                     yield f'Action: {action}\nAction Input: {action_input}'
                     observation = self._call_tool(action, action_input)
                     yield f'Observation: {observation}'
-                    if isinstance(observation,dict) or isinstance(observation,list):
+                    if isinstance(observation, dict) or isinstance(
+                            observation, list):
                         observation_str = json.dumps(observation)
-                    elif isinstance(observation,observation):
+                    elif isinstance(observation, observation):
                         observation_str = observation
                     else:
                         observation_str = str(observation)
