@@ -2,6 +2,7 @@ import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
+from modelscope_agent.utils.utils import check_and_limit_input_length
 
 KNOWLEDGE_TEMPLATE_ZH = """
 
@@ -146,6 +147,9 @@ class RolePlay(Agent):
 
         # concat knowledge
         if ref_doc and use_ref_doc:
+            knowledge_limit = kwargs.get('knowledge_limit',
+                                         os.getenv('KNOWLEDGE_LIMIT', 4000))
+            ref_doc = check_and_limit_input_length(ref_doc, knowledge_limit)
             self.system_prompt += KNOWLEDGE_TEMPLATE[lang].format(
                 ref_doc=ref_doc)
             self.query_prefix_dict[

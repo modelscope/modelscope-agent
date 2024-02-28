@@ -5,6 +5,7 @@ import glob
 import io
 import os
 import queue
+import random
 import re
 import shutil
 import signal
@@ -58,7 +59,8 @@ class CodeInterpreter(BaseTool):
         self.kernel_clients: Dict[int, BlockingKernelClient] = {}
         atexit.register(self._kill_kernels)
 
-        pid: int = os.getpid()
+        # pid: int = os.getpid()
+        pid = random.randint(1, 999999)
         if pid in self.kernel_clients:
             kc = self.kernel_clients[pid]
         else:
