@@ -17,7 +17,8 @@ class detect_for_google_translate(BaseTool_alpha_umi):
     parameters: list = [{
         'name': 'q',
         'description':
-        'The input text upon which to perform language detection. Repeat this parameter to perform language detection on multiple text inputs.',
+        'The input text upon which to perform language detection. \
+            Repeat this parameter to perform language detection on multiple text inputs.',
         'required': True,
         'type': 'string'
     }]
@@ -40,7 +41,7 @@ class detect_for_google_translate(BaseTool_alpha_umi):
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except AttributeError:
             observation = response.text
         return observation
 
@@ -55,14 +56,19 @@ class languages_for_google_translate(BaseTool_alpha_umi):
     name = 'languages_for_google_translate'
     parameters: list = [{
         'name': 'target',
-        'description':
-        'The target language code for the results. If specified, then the language names are returned in the name field of the response, localized in the target language. If you do not supply a target language, then the name field is omitted from the response and only the language codes are returned.',
+        'description': 'The target language code for the results. \
+            If specified, then the language names are returned in the name field of the response, \
+            localized in the target language. \
+            If you do not supply a target language, \
+            then the name field is omitted from the response and only the language codes are returned.',
         'required': False,
         'type': 'string'
     }, {
         'name': 'model',
-        'description':
-        'The translation model of the supported languages. Can be either base to return languages supported by the Phrase-Based Machine Translation (PBMT) model, or nmt to return languages supported by the Neural Machine Translation (NMT) model. If omitted, then all supported languages are returned.',
+        'description': 'The translation model of the supported languages. \
+            Can be either base to return languages supported by the Phrase-Based Machine Translation (PBMT) model, \
+            or nmt to return languages supported by the Neural Machine Translation (NMT) model. \
+            If omitted, then all supported languages are returned.',
         'required': False,
         'type': 'string'
     }]
@@ -87,7 +93,7 @@ class languages_for_google_translate(BaseTool_alpha_umi):
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except AttributeError:
             observation = response.text
         return observation
 
@@ -102,32 +108,40 @@ class translate_for_google_translate(BaseTool_alpha_umi):
     name = 'translate_for_google_translate'
     parameters: list = [{
         'name': 'q',
-        'description':
-        'The input text to translate. Repeat this parameter to perform translation operations on multiple text inputs.',
+        'description': 'The input text to translate. \
+        Repeat this parameter to perform translation operations on multiple text inputs.',
         'required': True,
         'type': 'string'
     }, {
         'name': 'target',
         'description':
-        'The language to use for translation of the input text, set to one of the language codes listed in the overview tab',
+        'The language to use for translation of the input text, \
+        set to one of the language codes listed in the overview tab',
         'required': True,
         'type': 'string'
     }, {
         'name': 'format',
         'description':
-        'The format of the source text, in either HTML (default) or plain-text. A value of html indicates HTML and a value of text indicates plain-text.',
+        'The format of the source text, in either HTML (default) or plain-text. \
+            A value of html indicates HTML and a value of text indicates plain-text.',
         'required': False,
         'type': 'string'
     }, {
         'name': 'source',
         'description':
-        'The language of the source text, set to one of the language codes listed in Language Support. If the source language is not specified, the API will attempt to detect the source language automatically and return it within the response.',
+        'The language of the source text, set to one of the language codes listed in Language Support. \
+            If the source language is not specified, \
+            the API will attempt to detect the source language automatically and return it within the response.',
         'required': False,
         'type': 'string'
     }, {
         'name': 'model',
-        'description':
-        'The translation model. Can be either base to use the Phrase-Based Machine Translation (PBMT) model, or nmt to use the Neural Machine Translation (NMT) model. If omitted, then nmt is used. If the model is nmt, and the requested language translation pair is not supported for the NMT model, then the request is translated using the base model.',
+        'description': 'The translation model. \
+            Can be either base to use the Phrase-Based Machine Translation (PBMT) model, \
+            or nmt to use the Neural Machine Translation (NMT) model. \
+            If omitted, then nmt is used. If the model is nmt, \
+            and the requested language translation pair is not supported for the NMT model, \
+            then the request is translated using the base model.',
         'required': False,
         'type': 'string'
     }]
@@ -153,7 +167,7 @@ class translate_for_google_translate(BaseTool_alpha_umi):
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except:
+        except AttributeError:
             observation = response.text
         return observation
 
