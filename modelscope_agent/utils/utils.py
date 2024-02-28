@@ -4,7 +4,7 @@ import re
 import socket
 import sys
 import traceback
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 from urllib.parse import unquote_plus, urlparse
 
 import jieba
@@ -255,3 +255,39 @@ def get_upload_url(model: str, file_to_upload: str, api_key: str):
         else:
             raise InvalidInput('The file: %s is not exists!' % file_path)
     return None
+
+
+def check_and_limit_input_length(check_body: Union[list, str],
+                                 max_length: int) -> str:
+    """
+    Check the input length and limit the length,
+
+    Args:
+        check_body: the input to be checked, should be a list of message or single prompt string
+        max_length: the maximum length of the check_body
+
+    Returns:
+        the output with the length limited
+    """
+    if isinstance(check_body, str):
+        if len(check_body) <= max_length:
+            return check_body
+        check_result = check_body[:max_length]
+        return check_result
+    else:
+        # limit the length by limit the history of message from far to near
+        used_length = 0
+        output_messages = []
+        start_index = 0
+        if check_body[0]['role'] == 'system':
+            output_messages.append(check_body[0])
+            used_length += len(check_body[0]['content'])
+            start_index = 1
+        for message in reversed(check_body[start_index:]):
+            used_length += len(message['content'])
+            if used_length <= max_length:
+                # add to the output messages first index
+                output_messages.insert(start_index, message)
+            else:
+                break
+        return output_messages

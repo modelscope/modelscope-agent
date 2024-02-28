@@ -142,25 +142,37 @@ class QwenChatAtDS(DashScopeLLM):
             )
             return err
 
-    def build_raw_prompt(self, messages):
+    def build_raw_prompt(self, messages: list, max_length=6000):
+
+        max_length = os.getenv('DASHSCOPE_MAX_LENGTH', max_length)
+        prompt = ''
         messages.append({'role': 'assistant', 'content': ''})
         im_start = '<|im_start|>'
         im_end = '<|im_end|>'
         if messages[0]['role'] == 'system':
             sys = messages[0]['content']
-            prompt = f'{im_start}system\n{sys}{im_end}'
+            system_prompt = f'{im_start}system\n{sys}{im_end}'
         else:
-            prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
+            system_prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
 
-        for message in messages:
+        used_length = len(system_prompt)
+
+        for message in reversed(messages):
+            if used_length + len(message['content']) + 4 > max_length:
+                break
+            used_length += len(message['content']) + 4
             if message['role'] == 'user':
                 query = message['content'].lstrip('\n').rstrip()
-                prompt += f'\n{im_start}user\n{query}{im_end}'
+                prompt = f'\n{im_start}user\n{query}{im_end}' + prompt
             elif message['role'] == 'assistant':
                 response = message['content'].lstrip('\n').rstrip()
-                prompt += f'\n{im_start}assistant\n{response}{im_end}'
+                prompt = f'\n{im_start}assistant\n{response}{im_end}' + prompt
+
+        prompt = system_prompt + prompt
 
         # add one empty reply for the last round of assistant
-        assert prompt.endswith(f'\n{im_start}assistant\n{im_end}')
+        # ensure the end of prompt is assistant
+        if not prompt.endswith(f'\n{im_start}assistant\n{im_end}'):
+            prompt += f'\n{im_start}assistant\n{im_end}'
         prompt = prompt[:-len(f'{im_end}')]
         return prompt
