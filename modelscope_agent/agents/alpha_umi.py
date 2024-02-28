@@ -176,7 +176,7 @@ class AlphaUmi(Agent):
                     if isinstance(observation, dict) or isinstance(
                             observation, list):
                         observation_str = json.dumps(observation)
-                    elif isinstance(observation, observation):
+                    elif isinstance(observation, str):
                         observation_str = observation
                     else:
                         observation_str = str(observation)

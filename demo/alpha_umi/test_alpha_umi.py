@@ -27,7 +27,11 @@ llm_configs = {
 
 
 def test_alpha_umi():
-    function_list = ["translate_for_google_translate"]
+    function_list = [
+        "get_data_fact_for_numbers", "get_math_fact_for_numbers",
+        "get_year_fact_for_numbers", "listquotes_for_current_exchange",
+        "exchange_for_current_exchange"
+    ]
 
     bot = AlphaUmi(
         function_list=function_list,
@@ -36,7 +40,9 @@ def test_alpha_umi():
         llm_summarizer=llm_configs['summarizer_llm_config'],
     )
 
-    response = bot.run('translate "你早上吃饭了吗" into japanese and english')
+    response = bot.run('how many CNY can I exchange for 1 US dollar? \
+        also, give me a special property about the number of CNY after exchange'
+                       )
 
     for chunk in response:
         print(chunk)

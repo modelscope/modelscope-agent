@@ -4,10 +4,12 @@ import requests
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
     BaseTool_alpha_umi
-from requests.exceptions import RequestException, Timeout
+from requests.exceptions import JSONDecodeError, RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
+
+RAPID_API_TOKEN = os.getenv('RAPID_API_TOKEN', None)
 
 
 @register_tool('detect_for_google_translate')
@@ -28,13 +30,15 @@ class detect_for_google_translate(BaseTool_alpha_umi):
         if isinstance(params, str):
             return 'Parameter Error'
         url = 'https://google-translate1.p.rapidapi.com/language/translate/v2/detect'
-        querystring = {'q': params['q']}
+        querystring = {}
+        for p in self.parameters:
+            if p['name'] in params.keys():
+                querystring[p['name']] = params[p['name']]
 
         headers = {
             'content-type': 'application/x-www-form-urlencoded',
             'Accept-Encoding': 'application/gzip',
-            'X-RapidAPI-Key':
-            '1010919056msh03dc548f7c5ff35p1e0988jsndc80beff3fa8',
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host': 'google-translate1.p.rapidapi.com'
         }
 
@@ -85,15 +89,14 @@ class languages_for_google_translate(BaseTool_alpha_umi):
 
         headers = {
             'Accept-Encoding': 'application/gzip',
-            'X-RapidAPI-Key':
-            '1010919056msh03dc548f7c5ff35p1e0988jsndc80beff3fa8',
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host': 'google-translate1.p.rapidapi.com'
         }
 
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except AttributeError:
+        except JSONDecodeError:
             observation = response.text
         return observation
 
@@ -159,15 +162,14 @@ class translate_for_google_translate(BaseTool_alpha_umi):
         headers = {
             'content-type': 'application/x-www-form-urlencoded',
             'Accept-Encoding': 'application/gzip',
-            'X-RapidAPI-Key':
-            '1010919056msh03dc548f7c5ff35p1e0988jsndc80beff3fa8',
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host': 'google-translate1.p.rapidapi.com'
         }
 
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except AttributeError:
+        except JSONDecodeError:
             observation = response.text
         return observation
 

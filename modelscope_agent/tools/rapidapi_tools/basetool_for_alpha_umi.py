@@ -41,7 +41,8 @@ class BaseTool_alpha_umi(BaseTool):
         input_doc = {}
         for p in self.parameters:
             input_doc[p['name']] = (
-                p['type'] + ', ' + 'required, ' if p['required'] else ''
+                p['type'] + ', '
+                + 'required, ' if p['required'] else 'optional, '
                 + p['description'][:128])
 
         function = {
@@ -57,12 +58,6 @@ class BaseTool_alpha_umi(BaseTool):
         Text description of function
 
         """
-        # tool_desc_template = {
-        #     'zh':
-        #     '{name}: {name} API。{description} 输入参数: {parameters} Format the arguments as a JSON object.',
-        #     'en':
-        #     '{name}: {name} API. {description} Parameters: {parameters} Format the arguments as a JSON object.'
-        # }
 
         # if has_chinese_chars(self.function['description']):
         #     tool_desc = tool_desc_template['zh']

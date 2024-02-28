@@ -4,10 +4,11 @@ import requests
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
     BaseTool_alpha_umi
-from requests.exceptions import RequestException, Timeout
+from requests.exceptions import JSONDecodeError, RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
+RAPID_API_TOKEN = os.getenv('RAPID_API_TOKEN', None)
 
 
 @register_tool('search_torrents_for_movie_tv_music_search_and_download')
@@ -36,17 +37,14 @@ class search_torrents_for_movie_tv_music_search_and_download(
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-        toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
         url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/search'
-        querystring = {
-            'keywords': params['keywords'],
-            'quantity': params['quantity'],
-        }
-        if 'page' in params:
-            querystring['page'] = params['page']
+        querystring = {}
+        for p in self.parameters:
+            if p['name'] in params.keys():
+                querystring[p['name']] = params[p['name']]
 
         headers = {
-            'X-RapidAPI-Key': toolbench_rapidapi_key,
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host':
             'movie-tv-music-search-and-download.p.rapidapi.com'
         }
@@ -54,7 +52,7 @@ class search_torrents_for_movie_tv_music_search_and_download(
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except Exception:
+        except JSONDecodeError:
             observation = response.text
         return observation
 
@@ -75,12 +73,14 @@ class get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download(
     parameters: list = []
 
     def call(self, params: str, **kwargs) -> str:
-        toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
         url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_music'
         querystring = {}
+        for p in self.parameters:
+            if p['name'] in params.keys():
+                querystring[p['name']] = params[p['name']]
 
         headers = {
-            'X-RapidAPI-Key': toolbench_rapidapi_key,
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host':
             'movie-tv-music-search-and-download.p.rapidapi.com'
         }
@@ -88,7 +88,7 @@ class get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download(
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except Exception:
+        except JSONDecodeError:
             observation = response.text
         return observation
 
@@ -109,12 +109,13 @@ class get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download(
     parameters: list = []
 
     def call(self, params: str, **kwargs) -> str:
-        toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
         url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_games'
         querystring = {}
-
+        for p in self.parameters:
+            if p['name'] in params.keys():
+                querystring[p['name']] = params[p['name']]
         headers = {
-            'X-RapidAPI-Key': toolbench_rapidapi_key,
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host':
             'movie-tv-music-search-and-download.p.rapidapi.com'
         }
@@ -122,7 +123,7 @@ class get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download(
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except Exception:
+        except JSONDecodeError:
             observation = response.text
         return observation
 
@@ -143,12 +144,14 @@ class get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_downlo
     parameters: list = []
 
     def call(self, params: str, **kwargs) -> str:
-        toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
         url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_tv_shows'
         querystring = {}
+        for p in self.parameters:
+            if p['name'] in params.keys():
+                querystring[p['name']] = params[p['name']]
 
         headers = {
-            'X-RapidAPI-Key': toolbench_rapidapi_key,
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host':
             'movie-tv-music-search-and-download.p.rapidapi.com'
         }
@@ -156,7 +159,7 @@ class get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_downlo
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except Exception:
+        except JSONDecodeError:
             observation = response.text
         return observation
 
@@ -177,12 +180,14 @@ class get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and
     parameters: list = []
 
     def call(self, params: str, **kwargs) -> str:
-        toolbench_rapidapi_key = 'NrZV7wugc4YCn9W83a5GmBhHIKk0OztQTLRElq6xvAUioJPFyM'
         url = 'https://movie-tv-music-search-and-download.p.rapidapi.com/monthly_top100_movies'
         querystring = {}
+        for p in self.parameters:
+            if p['name'] in params.keys():
+                querystring[p['name']] = params[p['name']]
 
         headers = {
-            'X-RapidAPI-Key': toolbench_rapidapi_key,
+            'X-RapidAPI-Key': RAPID_API_TOKEN,
             'X-RapidAPI-Host':
             'movie-tv-music-search-and-download.p.rapidapi.com'
         }
@@ -190,7 +195,7 @@ class get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and
         response = requests.get(url, headers=headers, params=querystring)
         try:
             observation = response.json()
-        except BaseException:
+        except JSONDecodeError:
             observation = response.text
         return observation
 
