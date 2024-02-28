@@ -63,64 +63,70 @@ def builder_chat(uuid_str):
         file_paths.append(file_path)
 
     def generate():
-        builder_agent, builder_memory = app.session_manager.get_builder_bot(uuid_str)
-        builder_memory.history = builder_memory.load_history()
+        try:
+            builder_agent, builder_memory = app.session_manager.get_builder_bot(uuid_str)
+            builder_memory.history = builder_memory.load_history()
 
-        logger.info(f'input_content: {input_content}')
-        response = ''
-        is_final = False
+            logger.info(f'input_content: {input_content}')
+            response = ''
+            is_final = False
 
-        for frame in gen_response_and_process(
-                builder_agent,
-                query=input_content,
-                memory=builder_memory,
-                print_info=True,
-                uuid_str=uuid_str):
+            for frame in gen_response_and_process(
+                    builder_agent,
+                    query=input_content,
+                    memory=builder_memory,
+                    print_info=True,
+                    uuid_str=uuid_str):
 
-            llm_result = frame.get('llm_text', '')
-            exec_result = frame.get('exec_result', '')
-            step_result = frame.get('step', '')
-            logger.info(f"frame, {frame}")
-            if len(exec_result) != 0:
-                if isinstance(exec_result, dict):
-                    exec_result = exec_result['result']
-                    assert isinstance(exec_result, Config)
-                    builder_cfg = exec_result.to_dict()
-                    save_builder_configuration(builder_cfg, uuid_str)
-                    # app.session_manager.clear_user_bot(uuid_str)
+                llm_result = frame.get('llm_text', '')
+                exec_result = frame.get('exec_result', '')
+                step_result = frame.get('step', '')
+                logger.info("frame, {}".format(frame.replace("\n", "\\n")))
+                if len(exec_result) != 0:
+                    if isinstance(exec_result, dict):
+                        exec_result = exec_result['result']
+                        assert isinstance(exec_result, Config)
+                        builder_cfg = exec_result.to_dict()
+                        save_builder_configuration(builder_cfg, uuid_str)
+                        # app.session_manager.clear_user_bot(uuid_str)
+                        res = json.dumps({
+                            'data': response,
+                            'config': builder_cfg,
+                            'is_final': is_final,
+                        }, ensure_ascii=False)
+                        logger.info(f'res: {res}')
+                        yield f'data: {res}\n\n'
+                else:
+                    # llm result
+                    if isinstance(llm_result, dict):
+                        content = llm_result['content']
+                    else:
+                        content = llm_result
+                    if frame.get('is_final', False):
+                        is_final = True
+                    frame_text = content
+                    response = beauty_output(f'{response}{frame_text}',
+                                             step_result)
                     res = json.dumps({
                         'data': response,
-                        'config': builder_cfg,
                         'is_final': is_final,
                     }, ensure_ascii=False)
                     logger.info(f'res: {res}')
                     yield f'data: {res}\n\n'
-            else:
-                # llm result
-                if isinstance(llm_result, dict):
-                    content = llm_result['content']
-                else:
-                    content = llm_result
-                if frame.get('is_final', False):
-                    is_final = True
-                frame_text = content
-                response = beauty_output(f'{response}{frame_text}',
-                                         step_result)
-                res = json.dumps({
-                    'data': response,
-                    'is_final': is_final,
-                }, ensure_ascii=False)
-                logger.info(f'res: {res}')
-                yield f'data: {res}\n\n'
 
-        final_res = json.dumps({
-            'data': response,
-            'is_final': True,
-            'request_id': request_id_var.get("")
-        }, ensure_ascii=False)
-        yield f'data: {final_res}\n\n'
+            final_res = json.dumps({
+                'data': response,
+                'is_final': True,
+                'request_id': request_id_var.get("")
+            }, ensure_ascii=False)
+            yield f'data: {final_res}\n\n'
 
-        builder_memory.save_history()
+            builder_memory.save_history()
+        except Exception as e:
+            stack_trace = traceback.format_exc()
+            stack_trace = stack_trace.replace("\n", "\\n")
+            logger.error(f"builder_chat_generate_error: {str(e)}, {stack_trace}")
+            raise e
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -310,60 +316,67 @@ def preview_chat(uuid_str, session_str):
     logger.info(f"/preview/chat/{uuid_str}/{session_str}: files: {file_paths}")
 
     def generate():
-        seed = random.randint(0, 1000000000)
-        user_agent, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
-        user_agent.seed = seed
+        try:
+            seed = random.randint(0, 1000000000)
+            user_agent, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
+            user_agent.seed = seed
 
-        # get chat history from memory
-        user_memory.history = user_memory.load_history()
-        history = user_memory.get_history()
+            # get chat history from memory
+            user_memory.history = user_memory.load_history()
+            history = user_memory.get_history()
 
-        # get knowledge from memory, currently get one file
-        uploaded_file = None
-        if len(file_paths) > 0:
-            uploaded_file = file_paths[0]
-        ref_doc = user_memory.run(
-            query=input_content, url=uploaded_file, checked=True)
+            # get knowledge from memory, currently get one file
+            uploaded_file = None
+            if len(file_paths) > 0:
+                uploaded_file = file_paths[0]
+            ref_doc = user_memory.run(
+                query=input_content, url=uploaded_file, checked=True)
 
-        response = ''
+            response = ''
 
-        logger.info(f'input_content: {input_content}')
-        res = json.dumps({
-            'data': "",
-            'is_final': False,
-            'request_id': request_id_var.get("")
-        }, ensure_ascii=False)
-        for frame in user_agent.run(
-                input_content,
-                history=history,
-                ref_doc=ref_doc,
-                append_files=file_paths,
-                uuid_str=uuid_str):
-            # important! do not change this
-            response += frame
+            logger.info(f'input_content: {input_content}')
             res = json.dumps({
-                'data': response,
+                'data': "",
                 'is_final': False,
                 'request_id': request_id_var.get("")
             }, ensure_ascii=False)
-            yield f'data: {res}\n\n'
+            for frame in user_agent.run(
+                    input_content,
+                    history=history,
+                    ref_doc=ref_doc,
+                    append_files=file_paths,
+                    uuid_str=uuid_str):
+                logger.info("frame, {}".format(frame.replace("\n", "\\n")))
+                # important! do not change this
+                response += frame
+                res = json.dumps({
+                    'data': response,
+                    'is_final': False,
+                    'request_id': request_id_var.get("")
+                }, ensure_ascii=False)
+                yield f'data: {res}\n\n'
 
-        if len(history) == 0:
-            user_memory.update_history(
-                Message(role='system', content=user_agent.system_prompt))
-        res = json.dumps({
-            'data': response,
-            'is_final': True,
-            'request_id': request_id_var.get("")
-        }, ensure_ascii=False)
-        logger.info(f"response: {res}")
-        user_memory.update_history([
-            Message(role='user', content=input_content),
-            Message(role='assistant', content=response),
-        ])
-        user_memory.save_history()
-        logger.info(f"user_memory save_history complete.")
-        yield f'data: {res}\n\n'
+            if len(history) == 0:
+                user_memory.update_history(
+                    Message(role='system', content=user_agent.system_prompt))
+            res = json.dumps({
+                'data': response,
+                'is_final': True,
+                'request_id': request_id_var.get("")
+            }, ensure_ascii=False)
+            logger.info(f"response: {res}")
+            user_memory.update_history([
+                Message(role='user', content=input_content),
+                Message(role='assistant', content=response),
+            ])
+            user_memory.save_history()
+            logger.info(f"user_memory save_history complete.")
+            yield f'data: {res}\n\n'
+        except Exception as e:
+            stack_trace = traceback.format_exc()
+            stack_trace = stack_trace.replace("\n", "\\n")
+            logger.error(f"preview_chat_generate_error: {str(e)}, {stack_trace}")
+            raise e
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -422,7 +435,7 @@ def get_preview_chat_file(uuid_str, session_str):
 def handle_error(error):
     stack_trace = traceback.format_exc()
     stack_trace = stack_trace.replace("\n", "\\n")
-    logger.error(stack_trace)
+    logger.error(f"{str(error)}, {stack_trace}")
     # 处理错误并返回统一格式的错误信息
     error_message = {'success': False,
                      'message': str(error),
