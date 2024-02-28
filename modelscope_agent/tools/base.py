@@ -76,10 +76,16 @@ class BaseTool(ABC):
                 },
             }
             for para in self.parameters:
-                function['parameters']['properties'][para['name']] = {
-                    'type': para['type'],
-                    'description': para['description']
+                function_details = {
+                    'type':
+                    para['type'] if 'type' in para else para['schema']['type'],
+                    'description':
+                    para['description']
                 }
+                if 'enum' in para and para['enum'] not in ['', []]:
+                    function_details['enum'] = para['enum']
+                function['parameters']['properties'][
+                    para['name']] = function_details
                 if 'required' in para and para['required']:
                     function['parameters']['required'].append(para['name'])
         else:

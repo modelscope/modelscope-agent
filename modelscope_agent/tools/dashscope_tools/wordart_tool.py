@@ -45,7 +45,6 @@ class WordArtTexture(BaseTool):
         if isinstance(params, str):
             return 'Parameter Error'
         remote_parsed_input = json.dumps(self._remote_parse_input(**params))
-        origin_result = None
         self.token = kwargs.get('token',
                                 os.environ.get('DASHSCOPE_API_KEY', ''))
         assert self.token != '', 'dashscope api token must be acquired with wordart'
