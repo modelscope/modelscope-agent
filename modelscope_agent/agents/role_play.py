@@ -242,7 +242,7 @@ class RolePlay(Agent):
                 use_tool, action, action_input, output = super()._detect_tool(
                     llm_result)
             else:
-                assert "llm_result must be an instance of dict or str"
+                assert 'llm_result must be an instance of dict or str'
 
             # yield output
             print(output)
