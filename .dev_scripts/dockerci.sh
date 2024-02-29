@@ -13,4 +13,4 @@ cp tests/samples/* "${CODE_INTERPRETER_WORK_DIR}/"
 ls  "${CODE_INTERPRETER_WORK_DIR}"
 
 # run ci
-pytest
+pytest tests
