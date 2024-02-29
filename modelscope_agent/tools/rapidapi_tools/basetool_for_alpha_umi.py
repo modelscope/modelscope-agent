@@ -59,16 +59,4 @@ class BaseTool_alpha_umi(BaseTool):
 
         """
 
-        # if has_chinese_chars(self.function['description']):
-        #     tool_desc = tool_desc_template['zh']
-        # else:
-        #     tool_desc = tool_desc_template['en']
-
-        # return tool_desc.format(
-        #     name=self.function['name'],
-        #     description=self.function['description'],
-        #     parameters=json.dumps(
-        #         self.function['parameters'], ensure_ascii=False),
-        # )
-
         return json.dumps(self.function)

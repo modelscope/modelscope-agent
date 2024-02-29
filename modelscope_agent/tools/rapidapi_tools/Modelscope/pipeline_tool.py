@@ -10,7 +10,7 @@ from requests.exceptions import RequestException, Timeout
 MAX_RETRY_TIMES = 3
 
 
-class ModelscopePipelineTool(BaseTool_alpha_umi):
+class ModelscopePipelineTool_for_alpha_umi(BaseTool_alpha_umi):
     default_model: str = ''
     task: str = ''
     model_revision = None
