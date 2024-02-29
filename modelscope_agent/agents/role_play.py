@@ -1,7 +1,9 @@
 import os
+import re
 from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
+from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
 
 KNOWLEDGE_TEMPLATE_ZH = """
@@ -243,7 +245,6 @@ class RolePlay(Agent):
                 llm_result)
 
             # yield output
-            print(output)
             if use_tool:
                 if self.llm.support_function_calling():
                     yield f'Action: {action}\nAction Input: {action_input}'
@@ -251,14 +252,48 @@ class RolePlay(Agent):
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation
+                format_observation = self._limit_observation_length(
+                    format_observation)
                 if self.llm.support_function_calling():
                     messages.append({'role': 'tool', 'content': observation})
                 else:
+                    messages[-1]['content'] += output + format_observation
                     planning_prompt += output + format_observation
 
             else:
+                messages[-1]['content'] += output
                 planning_prompt += output
                 break
+
+            # limit the length of the planning prompt if exceed the length by calling the build_raw_prompt
+            if not self.llm.check_max_length(planning_prompt):
+                if self.llm.support_raw_prompt():
+                    planning_prompt = self.llm.build_raw_prompt(messages)
+
+    def _limit_observation_length(self, observation):
+        """
+        limit the observation result length if exceeds half of the max length
+        Args:
+            observation: the output from the tool
+
+        Returns:
+
+        """
+        if self.llm.get_max_length() / 2 >= count_tokens(observation):
+            return observation
+
+        # get actual observation length
+        pattern = r'<result>(.*?)<\/result>'
+        match = re.search(pattern, observation)
+
+        actual_observation = match.group(1) if match else None
+
+        if actual_observation:
+            reasonable_length = int(self.llm.get_max_length() / 2)
+            limited_observation = actual_observation[:reasonable_length]
+            format_observation = DEFAULT_EXEC_TEMPLATE.format(
+                exec_result=limited_observation)
+            return format_observation
 
     def _detect_tool(self, message: Union[str,
                                           dict]) -> Tuple[bool, str, str, str]:
