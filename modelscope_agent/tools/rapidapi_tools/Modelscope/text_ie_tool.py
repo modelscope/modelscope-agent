@@ -4,11 +4,11 @@ from typing import Union
 from modelscope_agent.tools import register_tool
 
 from modelscope.utils.constant import Tasks
-from .pipeline_tool import ModelscopePipelineTool_for_alpha_umi
+from .pipeline_tool import ModelscopepipelinetoolForAlphaUmi
 
 
 @register_tool('model_scope_text_ie')
-class TextInfoExtractTool_for_alpha_umi(ModelscopePipelineTool_for_alpha_umi):
+class TextinfoextracttoolForAlphaUmi(ModelscopepipelinetoolForAlphaUmi):
     default_model = 'damo/nlp_structbert_siamese-uie_chinese-base'
     description = 'Information extraction service for Chinese text, which extracts specific content according to a predefined schema, \
     identifies the corresponding information, and displays it in JSON format.'

@@ -22,21 +22,21 @@ from .modelscope_tools.translation_en2zh_tool import TranslationEn2ZhTool
 from .modelscope_tools.translation_zh2en_tool import TranslationZh2EnTool
 from .openapi_plugin import OpenAPIPluginTool
 from .rapidapi_tools.Finance.current_exchage import (
-    exchange_for_current_exchange, listquotes_for_current_exchange)
+    ListquotesForCurrentExchange, exchange_for_current_exchange)
 from .rapidapi_tools.Modelscope.text_ie_tool import \
-    TextInfoExtractTool_for_alpha_umi
+    TextinfoextracttoolForAlphaUmi
 from .rapidapi_tools.Movies.movie_tv_music_search_and_download import (
-    get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download,
-    get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download,
-    get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download,
-    get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download,
-    search_torrents_for_movie_tv_music_search_and_download)
-from .rapidapi_tools.Number.numbers import (get_data_fact_for_numbers,
-                                            get_math_fact_for_numbers,
-                                            get_year_fact_for_numbers)
+    GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload,
+    GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload,
+    GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload,
+    GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload,
+    SearchTorrentsForMovieTvMusicSearchAndDownload)
+from .rapidapi_tools.Number.numbers import (GetDataFactForNumbers,
+                                            GetMathFactForNumbers,
+                                            GetYearFactForNumbers)
 from .rapidapi_tools.Translate.google_translate import (
-    detect_for_google_translate, languages_for_google_translate,
-    translate_for_google_translate)
+    DetectForGoogleTranslate, LanguagesForGoogleTranslate,
+    TranslateForGoogleTranslate)
 from .similarity_search import SimilaritySearch
 from .storage_proxy_tool import Storage
 from .web_browser import WebBrowser

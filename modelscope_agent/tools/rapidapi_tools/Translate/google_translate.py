@@ -3,7 +3,7 @@ import os
 import requests
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
-    BaseTool_alpha_umi
+    BasetoolAlphaUmi
 from requests.exceptions import JSONDecodeError, RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -13,7 +13,7 @@ RAPID_API_TOKEN = os.getenv('RAPID_API_TOKEN', None)
 
 
 @register_tool('detect_for_google_translate')
-class detect_for_google_translate(BaseTool_alpha_umi):
+class DetectForGoogleTranslate(BasetoolAlphaUmi):
     description = 'Detects the language of text within a request.'
     name = 'detect_for_google_translate'
     parameters: list = [{
@@ -55,7 +55,7 @@ class detect_for_google_translate(BaseTool_alpha_umi):
 
 
 @register_tool('languages_for_google_translate')
-class languages_for_google_translate(BaseTool_alpha_umi):
+class LanguagesForGoogleTranslate(BasetoolAlphaUmi):
     description = 'Returns a list of supported languages for translation.'
     name = 'languages_for_google_translate'
     parameters: list = [{
@@ -106,7 +106,7 @@ class languages_for_google_translate(BaseTool_alpha_umi):
 
 
 @register_tool('translate_for_google_translate')
-class translate_for_google_translate(BaseTool_alpha_umi):
+class TranslateForGoogleTranslate(BasetoolAlphaUmi):
     description = 'Returns a list of supported languages for translation.'
     name = 'translate_for_google_translate'
     parameters: list = [{

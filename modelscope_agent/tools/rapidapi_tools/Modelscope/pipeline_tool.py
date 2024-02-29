@@ -4,13 +4,13 @@ from typing import Dict, Optional
 import json
 import requests
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
-    BaseTool_alpha_umi
+    BasetoolAlphaUmi
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
 
 
-class ModelscopePipelineTool_for_alpha_umi(BaseTool_alpha_umi):
+class ModelscopepipelinetoolForAlphaUmi(BasetoolAlphaUmi):
     default_model: str = ''
     task: str = ''
     model_revision = None

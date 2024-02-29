@@ -3,7 +3,7 @@ import os
 import requests
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
-    BaseTool_alpha_umi
+    BasetoolAlphaUmi
 from requests.exceptions import JSONDecodeError, RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -12,8 +12,7 @@ RAPID_API_TOKEN = os.getenv('RAPID_API_TOKEN', None)
 
 
 @register_tool('search_torrents_for_movie_tv_music_search_and_download')
-class search_torrents_for_movie_tv_music_search_and_download(
-        BaseTool_alpha_umi):
+class SearchTorrentsForMovieTvMusicSearchAndDownload(BasetoolAlphaUmi):
     description = 'Get downloadable  torrent link by movie name.'
     name = 'search_torrents_for_movie_tv_music_search_and_download'
     parameters: list = [{
@@ -66,8 +65,8 @@ class search_torrents_for_movie_tv_music_search_and_download(
 @register_tool(
     'get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download'
 )
-class get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download(
-        BaseTool_alpha_umi):
+class GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload(
+        BasetoolAlphaUmi):
     description = '"Monthly Top 100 Music Torrents"'
     name = 'get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download'
     parameters: list = []
@@ -102,8 +101,8 @@ class get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download(
 @register_tool(
     'get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download'
 )
-class get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download(
-        BaseTool_alpha_umi):
+class GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload(
+        BasetoolAlphaUmi):
     description = '"Monthly Top 100 Games Torrents"'
     name = 'get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download'
     parameters: list = []
@@ -137,8 +136,8 @@ class get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download(
 @register_tool(
     'get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download'
 )
-class get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download(
-        BaseTool_alpha_umi):
+class GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload(
+        BasetoolAlphaUmi):
     description = '"Monthly Top 100 TV shows Torrents"'
     name = 'get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download'
     parameters: list = []
@@ -173,8 +172,8 @@ class get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_downlo
 @register_tool(
     'get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download'
 )
-class get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download(
-        BaseTool_alpha_umi):
+class GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload(
+        BasetoolAlphaUmi):
     description = '"Monthly Top 100 Movies Torrents"'
     name = 'get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download'
     parameters: list = []

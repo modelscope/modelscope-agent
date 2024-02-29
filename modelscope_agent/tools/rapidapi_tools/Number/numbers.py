@@ -3,7 +3,7 @@ import os
 import requests
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
-    BaseTool_alpha_umi
+    BasetoolAlphaUmi
 from requests.exceptions import JSONDecodeError, RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -13,7 +13,7 @@ RAPID_API_TOKEN = os.getenv('RAPID_API_TOKEN', None)
 
 
 @register_tool('get_data_fact_for_numbers')
-class get_data_fact_for_numbers(BaseTool_alpha_umi):
+class GetDataFactForNumbers(BasetoolAlphaUmi):
     description = 'Get a fact about a day of year'
     name = 'get_data_fact_for_numbers'
     parameters: list = [{
@@ -73,7 +73,7 @@ class get_data_fact_for_numbers(BaseTool_alpha_umi):
 
 
 @register_tool('get_math_fact_for_numbers')
-class get_math_fact_for_numbers(BaseTool_alpha_umi):
+class GetMathFactForNumbers(BasetoolAlphaUmi):
     description = 'Get a mathematical property about a number'
     name = 'get_math_fact_for_numbers'
     parameters: list = [{
@@ -128,7 +128,7 @@ class get_math_fact_for_numbers(BaseTool_alpha_umi):
 
 
 @register_tool('get_year_fact_for_numbers')
-class get_year_fact_for_numbers(BaseTool_alpha_umi):
+class GetYearFactForNumbers(BasetoolAlphaUmi):
     description = 'Get a fact about a year'
     name = 'get_year_fact_for_numbers'
     parameters: list = [{

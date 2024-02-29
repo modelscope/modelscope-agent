@@ -18,7 +18,7 @@ def register_tool(name):
     return decorator
 
 
-class BaseTool_alpha_umi(BaseTool):
+class BasetoolAlphaUmi(BaseTool):
     name: str
     description: str
     parameters: List[Dict]

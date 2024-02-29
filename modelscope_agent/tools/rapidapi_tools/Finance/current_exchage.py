@@ -3,7 +3,7 @@ import os
 import requests
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.rapidapi_tools.basetool_for_alpha_umi import \
-    BaseTool_alpha_umi
+    BasetoolAlphaUmi
 from requests.exceptions import JSONDecodeError, RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -13,7 +13,7 @@ RAPID_API_TOKEN = os.getenv('RAPID_API_TOKEN', None)
 
 
 @register_tool('listquotes_for_current_exchange')
-class listquotes_for_current_exchange(BaseTool_alpha_umi):
+class ListquotesForCurrentExchange(BasetoolAlphaUmi):
     description = 'List the available quotes in JSON Array this API support, \
         all the available quotes can be used in source and destination quote. \
         Refer exchange endpoint for more information how to call the \
@@ -51,7 +51,7 @@ class listquotes_for_current_exchange(BaseTool_alpha_umi):
 
 
 @register_tool('exchange_for_current_exchange')
-class exchange_for_current_exchange(BaseTool_alpha_umi):
+class exchange_for_current_exchange(BasetoolAlphaUmi):
     description = 'Get Currency Exchange by specifying the quotes of source (from) and destination (to), \
         and optionally the source amount to calculate which to get the destination amount, \
             by default the source amount will be 1.'
