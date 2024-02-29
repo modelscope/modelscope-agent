@@ -21,6 +21,22 @@ from .modelscope_tools.text_to_video_tool import TextToVideoTool
 from .modelscope_tools.translation_en2zh_tool import TranslationEn2ZhTool
 from .modelscope_tools.translation_zh2en_tool import TranslationZh2EnTool
 from .openapi_plugin import OpenAPIPluginTool
+from .rapidapi_tools.Finance.current_exchage import (
+    ListquotesForCurrentExchange, exchange_for_current_exchange)
+from .rapidapi_tools.Modelscope.text_ie_tool import \
+    TextinfoextracttoolForAlphaUmi
+from .rapidapi_tools.Movies.movie_tv_music_search_and_download import (
+    GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload,
+    GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload,
+    GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload,
+    GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload,
+    SearchTorrentsForMovieTvMusicSearchAndDownload)
+from .rapidapi_tools.Number.numbers import (GetDataFactForNumbers,
+                                            GetMathFactForNumbers,
+                                            GetYearFactForNumbers)
+from .rapidapi_tools.Translate.google_translate import (
+    DetectForGoogleTranslate, LanguagesForGoogleTranslate,
+    TranslateForGoogleTranslate)
 from .similarity_search import SimilaritySearch
 from .storage_proxy_tool import Storage
 from .web_browser import WebBrowser
