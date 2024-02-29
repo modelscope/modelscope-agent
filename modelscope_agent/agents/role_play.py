@@ -235,8 +235,14 @@ class RolePlay(Agent):
                     llm_result += s
                 yield s
 
-            use_tool, action, action_input, output = self._detect_tool(
-                llm_result)
+            if isinstance(llm_result, str):
+                use_tool, action, action_input, output = self._detect_tool(
+                    llm_result)
+            elif isinstance(llm_result, dict):
+                use_tool, action, action_input, output = super()._detect_tool(
+                    llm_result)
+            else:
+                assert "llm_result must be an instance of dict or str"
 
             # yield output
             print(output)
