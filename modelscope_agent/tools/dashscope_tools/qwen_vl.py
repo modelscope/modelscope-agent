@@ -79,6 +79,8 @@ class QWenVL(BaseTool):
                 raise ValueError(
                     f'Remote call failed with error code: {e.response.status_code},\
                     error message: {e.response.content.decode("utf-8")}')
+            except Exception as e:
+                raise ValueError(f'Error: {e}')
 
     def _remote_parse_input(self, *args, **kwargs):
         kwargs['image_file_path'] = os.path.join(WORK_DIR,
