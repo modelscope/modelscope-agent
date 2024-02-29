@@ -8,7 +8,7 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.multi_agents_task import TaskCenter
+from modelscope_agent.task_center import TaskCenter
 
 ROLE_INSTRUCTION_PROMPT = """你是{role}，请你根据对话情节设定、对话角色设定，继续当前的对话，推动剧情发展。
 
@@ -70,13 +70,8 @@ ROLES_MAP = {
 }
 
 llm_config = {
-    'model': 'qwen-spark-plus',
-    'api_key': 'sk-3bcafaf283634da7a3dec96cd90066ac',
-    'model_server': 'dashscope'
-}
-llm_config = {
     'model': 'qwen-max',
-    'api_key': 'sk-c19dd46605d04b7ba0976b60d9ea6f9c',
+    'api_key': os.getenv('DASHSCOPE_API_KEY'),
     'model_server': 'dashscope'
 }
 kwargs = {
@@ -174,3 +169,5 @@ while n_round > 0:
         for frame in TaskCenter.step.remote(
                 task_center, allowed_roles=next_agent_names, **kwargs):
             print(ray.get(frame))
+
+ray.shutdown()

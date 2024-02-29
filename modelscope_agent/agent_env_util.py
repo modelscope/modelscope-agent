@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Callable, List, Union
 
 import ray
-from modelscope_agent.agent import Agent
 from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
@@ -23,6 +22,7 @@ class AgentEnvMixin:
                  is_watcher: bool = False,
                  use_history: bool = True,
                  parse_env_prompt_function: Callable = None,
+                 remote=True,
                  **kwargs):
         """
         Agent environment context mixin class to allow the agent to communicate with other agent, in the
@@ -42,6 +42,7 @@ class AgentEnvMixin:
         self.cur_step_env_prompt = ''
         self.is_watcher = is_watcher
         self.use_history = use_history
+        self.remote = remote
         if not parse_env_prompt_function:
             self.parse_env_prompt_function = self.convert_to_string
         else:
@@ -62,6 +63,9 @@ class AgentEnvMixin:
         if env_context:
             self.env_context = env_context
 
+    def set_remote(self, remote):
+        self.remote = remote
+
     def role(self):
         """Get the name of the agent."""
         return self._role
@@ -74,7 +78,7 @@ class AgentEnvMixin:
         step function for agent to interact with env and other agents
         Args:
             messages:
-            send_to: the message allow to send to other agent
+            send_to: the message that allows to send to other agents
             kwargs: additional keywords, such as runtime llm setting
 
         Returns: ObjectRefGenerator that could be used to get result from other agent or env
@@ -201,8 +205,11 @@ class AgentEnvMixin:
             msg=
             f'time:{time.time()} ready for send message from: {self._role}, to {agents_to_send}'
         )
-
-        self.env_context.store_message_from_role.remote(self._role, message)
+        if self.remote:
+            self.env_context.store_message_from_role.remote(
+                self._role, message)
+        else:
+            self.env_context.store_message_from_role(self._role, message)
 
     def pull(self):
         """
@@ -211,22 +218,30 @@ class AgentEnvMixin:
 
         """
         if not self.is_watcher:
-            recieved_messages = self.env_context.extract_message_by_role.remote(
-                self._role)
-            recieved_messages = ray.get(recieved_messages)
-            if recieved_messages and len(recieved_messages) > 0:
+            if self.remote:
+                received_messages = self.env_context.extract_message_by_role.remote(
+                    self._role)
+                received_messages = ray.get(received_messages)
+            else:
+                received_messages = self.env_context.extract_message_by_role(
+                    self._role)
+            if received_messages and len(received_messages) > 0:
                 cur_step_env_prompt = self.parse_env_prompt_function(
-                    recieved_messages)
+                    received_messages)
                 return cur_step_env_prompt
             else:
                 return ''
         else:
-            recieved_messages = self.env_context.extract_all_history_message.remote(
-            )
-            recieved_messages = ray.get(recieved_messages)
-            if recieved_messages and len(recieved_messages) > 0:
+            if self.remote:
+                received_messages = self.env_context.extract_all_history_message.remote(
+                )
+                received_messages = ray.get(received_messages)
+            else:
+                received_messages = self.env_context.extract_all_history_message(
+                )
+            if received_messages and len(received_messages) > 0:
                 conversation_history = ''
-                for item in recieved_messages:
+                for item in received_messages:
                     conversation_history += f'{item.sent_from}\n{item.content}\n'
                 return conversation_history
             else:

@@ -5,7 +5,7 @@ import time
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.multi_agents_task import TaskCenter
+from modelscope_agent.task_center import TaskCenter
 
 llm_config = {
     'model': 'qwen-max',

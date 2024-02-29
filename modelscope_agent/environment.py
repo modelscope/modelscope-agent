@@ -1,25 +1,25 @@
 import logging
+import queue
 import time
 from typing import List, Union
 
 import ray
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from modelscope_agent.schemas import Message
-from ray.util.queue import Queue
 
 
 class Environment:
     turn: str = '0'
     raw_history: str = ''
-    message_queue_persist: dict[str, Queue] = {}
-    messages_queue_map: dict[str, Queue] = {}
     state: Union[str,
                  dict] = ''  # sort of transition state? shall we maintain it?
     messages_list_map: dict[str, list] = {}
+    messages_queue_map: dict[str, object] = {}
     message_history: list = []
     roles: list = []
 
     def __init__(self, roles: List = [], **kwargs):
+        self.remote = kwargs.get('remote', True)
         self.register_roles(roles)
 
     def register_roles(self, roles: List[str]):
@@ -28,12 +28,12 @@ class Environment:
             if not isinstance(role, str):
                 raise ValueError(
                     f'The type of role should be str, but get {type(role)}')
+            if self.remote:
+                from ray.util.queue import Queue
+            else:
+                from queue import Queue
             self.messages_queue_map[role] = Queue()
-            self.message_queue_persist[role] = Queue()
             self.messages_list_map[role] = []
-
-    def get_message_queue_persist(self, role: str):
-        return self.message_queue_persist[role]
 
     def get_message_list(self, role: str):
         return self.messages_list_map[role]
@@ -50,17 +50,19 @@ class Environment:
         """
         self._check_role_in_env(role)
         self.raw_history += f'{role}: {message.content}/n'
-        recipiants = message.send_to
-        if DEFAULT_SEND_TO in recipiants:
-            recipiants = self.roles
+        recipients = message.send_to
+        if isinstance(recipients, str):
+            recipients = [recipients]
+        if DEFAULT_SEND_TO in recipients:
+            recipients = self.roles
         logging.warning(
             msg=
-            f'time:{time.time()} recipiants are : {recipiants}, and type is {type(recipiants)}'
+            f'time:{time.time()} recipients are : {recipients}, and type is {type(recipients)}'
         )
 
         # add the message to system
         self.message_history.append(message)
-        for recipient in recipiants:
+        for recipient in recipients:
             if role != recipient:
                 logging.warning(
                     msg=f'time:{time.time()} {role} message: {message.content}'
@@ -70,7 +72,6 @@ class Environment:
                     send_to=recipient,
                     sent_from=message.sent_from)
                 self.messages_queue_map[recipient].put(message)
-                # self.message_queue_persist[recipient].put(message)
                 self.messages_list_map[recipient].append(message)
 
     def extract_message_by_role(self, role: str):
@@ -85,7 +86,14 @@ class Environment:
         self._check_role_in_env(role)
         messages_to_role = []
         while self.messages_queue_map[role]:
-            messages_to_role.append(self.messages_queue_map[role].get())
+            if self.remote:
+                item = self.messages_queue_map[role].get()
+            else:
+                try:
+                    item = self.messages_queue_map[role].get_nowait()
+                except queue.Empty:
+                    break
+            messages_to_role.append(item)
         logging.warning(
             msg=f'time:{time.time()} {role} extract data: {messages_to_role}')
         logging.warning(
@@ -104,8 +112,12 @@ class Environment:
     def get_notified_roles(self):
         notified_roles = []
         for role in self.messages_queue_map.keys():
-            if self.messages_queue_map[role].size() > 0:
-                notified_roles.append(role)
+            if hasattr(self.messages_queue_map[role], 'size'):
+                if self.messages_queue_map[role].size() > 0:
+                    notified_roles.append(role)
+            else:
+                if self.messages_queue_map[role].qsize() > 0:
+                    notified_roles.append(role)
         return notified_roles
 
     def get_all_roles(self):
