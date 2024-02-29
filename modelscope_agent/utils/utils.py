@@ -13,6 +13,7 @@ from dashscope.common.error import InvalidInput, UploadFileException
 from dashscope.utils.oss_utils import OssUtils
 from jieba import analyse
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_agent.utils.tokenization_utils import count_tokens
 
 
 def get_local_ip():
@@ -281,10 +282,10 @@ def check_and_limit_input_length(check_body: Union[list, str],
         start_index = 0
         if check_body[0]['role'] == 'system':
             output_messages.append(check_body[0])
-            used_length += len(check_body[0]['content'])
+            used_length += count_tokens(check_body[0]['content'])
             start_index = 1
         for message in reversed(check_body[start_index:]):
-            used_length += len(message['content'])
+            used_length += count_tokens(message['content'])
             if used_length <= max_length:
                 # add to the output messages first index
                 output_messages.insert(start_index, message)

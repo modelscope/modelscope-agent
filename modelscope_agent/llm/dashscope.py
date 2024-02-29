@@ -1,9 +1,10 @@
 import os
 from http import HTTPStatus
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional, Union
 
 import dashscope
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_agent.utils.tokenization_utils import count_tokens
 
 from .base import BaseChatModel, register_llm
 
@@ -64,7 +65,8 @@ class DashScopeLLM(BaseChatModel):
 
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
-
+        self.max_length = kwargs.get(
+            'max_length', int(os.getenv('DASHSCOPE_MAX_LENGTH', default=6000)))
         dashscope.api_key = kwargs.get(
             'api_key', os.getenv('DASHSCOPE_API_KEY', default='')).strip()
         assert dashscope.api_key, 'DASHSCOPE_API_KEY is required.'
@@ -159,9 +161,7 @@ class QwenChatAtDS(DashScopeLLM):
             )
             return err
 
-    def build_raw_prompt(self, messages: list, max_length=6000):
-
-        max_length = os.getenv('DASHSCOPE_MAX_LENGTH', max_length)
+    def build_raw_prompt(self, messages: list):
         prompt = ''
         messages.append({'role': 'assistant', 'content': ''})
         im_start = '<|im_start|>'
@@ -172,12 +172,13 @@ class QwenChatAtDS(DashScopeLLM):
         else:
             system_prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
 
-        used_length = len(system_prompt)
+        used_length = count_tokens(system_prompt)
 
         for message in reversed(messages):
-            if used_length + len(message['content']) + 4 > max_length:
+            cur_content_length = count_tokens(message['content'])
+            if used_length + cur_content_length > self.max_length:
                 break
-            used_length += len(message['content']) + 4
+            used_length += cur_content_length
             if message['role'] == 'user':
                 query = message['content'].lstrip('\n').rstrip()
                 prompt = f'\n{im_start}user\n{query}{im_end}' + prompt
