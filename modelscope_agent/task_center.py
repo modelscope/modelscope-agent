@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import List, Union
 
 import ray
@@ -9,6 +8,7 @@ from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 class TaskCenter:
@@ -32,8 +32,7 @@ class TaskCenter:
         Returns:
 
         """
-        logging.warning(
-            msg=f'time:{time.time()}  adding agents. {self.agent_registry}')
+        logger.info(f'Adding agents. {self.agent_registry}')
 
         roles = []
         for agent in agents:
@@ -74,8 +73,7 @@ class TaskCenter:
             sent_from=send_from,
         )
         ray.get(self.env.store_message_from_role.remote(send_from, message))
-        logging.warning(
-            msg=f'time:{time.time()}  send first task {task} to {send_to}')
+        logger.info(f'Send init task, {task} to {send_to}')
 
     @staticmethod
     @ray.remote
@@ -119,7 +117,6 @@ class TaskCenter:
                 agent.step.remote(task, send_to, **kwargs)
                 for agent in agents.values()
             ]
-            logging.warning(msg=f'time:{time.time()}  futures from agents.')
 
             # wait for the agents to finish
             finish_flag = {}

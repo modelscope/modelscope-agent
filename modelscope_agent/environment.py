@@ -1,11 +1,9 @@
-import logging
 import queue
-import time
 from typing import List, Union
 
-import ray
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from modelscope_agent.schemas import Message
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 class Environment:
@@ -55,18 +53,13 @@ class Environment:
             recipients = [recipients]
         if DEFAULT_SEND_TO in recipients:
             recipients = self.roles
-        logging.warning(
-            msg=
-            f'time:{time.time()} recipients are : {recipients}, and type is {type(recipients)}'
-        )
 
         # add the message to system
         self.message_history.append(message)
         for recipient in recipients:
             if role != recipient:
-                logging.warning(
-                    msg=f'time:{time.time()} {role} message: {message.content}'
-                    f'{recipient}, {message.sent_from}')
+                logger.info(
+                    f'{role} send message: {message.content} to {recipient}')
                 message = Message(
                     content=message.content,
                     send_to=recipient,
@@ -94,12 +87,7 @@ class Environment:
                 except queue.Empty:
                     break
             messages_to_role.append(item)
-        logging.warning(
-            msg=f'time:{time.time()} {role} extract data: {messages_to_role}')
-        logging.warning(
-            msg=
-            f'time:{time.time()} {role} get data: {self.messages_list_map[role]}'
-        )
+        logger.info(f'{role} extract data: {messages_to_role}')
 
         return messages_to_role
 

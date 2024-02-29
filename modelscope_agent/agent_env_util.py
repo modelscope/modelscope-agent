@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 from pathlib import Path
@@ -9,6 +8,7 @@ from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
+from modelscope_agent.utils.logger import agent_logger as logger
 from ray._raylet import ObjectRefGenerator
 from ray.util.client.common import ClientActorHandle, ClientObjectRef
 
@@ -119,12 +119,7 @@ class AgentEnvMixin:
 
         # run agent core loop to get action or reslt
         result = ''
-        logging.warning(
-            msg=f'time:{time.time()} {self._role} cur prompt is: {prompt}')
-        logging.warning(
-            msg=
-            f'time:{time.time()} {self._role} cur history is: {self.memory.get_history()}'
-        )
+        logger.info(f'{self._role} cur prompt is: {prompt}')
 
         # get history
         history = []
@@ -201,10 +196,8 @@ class AgentEnvMixin:
         message = Message(
             content=result, send_to=agents_to_send, sent_from=self._role)
 
-        logging.warning(
-            msg=
-            f'time:{time.time()} ready for send message from: {self._role}, to {agents_to_send}'
-        )
+        logger.info(
+            f'Ready for send message from: {self._role}, to {agents_to_send}')
         if self.remote:
             self.env_context.store_message_from_role.remote(
                 self._role, message)
