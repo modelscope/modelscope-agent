@@ -17,6 +17,7 @@ pydantic>=2.3.0
 pytest
 pytest-mock
 python-dotenv
+ray
 seaborn
 sentencepiece
 tiktoken
