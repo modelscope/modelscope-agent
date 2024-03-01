@@ -64,7 +64,7 @@ class DashScopeLLM(BaseChatModel):
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
         self.max_length = kwargs.get(
-            'max_length', int(os.getenv('DASHSCOPE_MAX_LENGTH', default=6000)))
+            'max_length', int(os.getenv('DASHSCOPE_MAX_LENGTH', default=5900)))
         dashscope.api_key = kwargs.get(
             'api_key', os.getenv('DASHSCOPE_API_KEY', default='')).strip()
         assert dashscope.api_key, 'DASHSCOPE_API_KEY is required.'
@@ -173,10 +173,11 @@ class QwenChatAtDS(DashScopeLLM):
         used_length = count_tokens(system_prompt)
 
         for message in reversed(messages):
-            cur_content_length = count_tokens(message['content'])
-            if used_length + cur_content_length > self.max_length:
-                break
-            used_length += cur_content_length
+            if message['role'] != 'system':
+                cur_content_length = count_tokens(message['content'])
+                if used_length + cur_content_length > self.max_length:
+                    break
+                used_length += cur_content_length
             if message['role'] == 'user':
                 query = message['content'].lstrip('\n').rstrip()
                 prompt = f'\n{im_start}user\n{query}{im_end}' + prompt
