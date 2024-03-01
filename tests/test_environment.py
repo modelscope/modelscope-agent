@@ -3,14 +3,14 @@ from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def remote_environment():
     roles = ['agent1', 'agent2']
     env = Environment(roles=roles)
     return env
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def local_environment():
     roles = ['agent1', 'agent2']
     env = Environment(roles=roles, remote=False)
@@ -26,6 +26,7 @@ def test_register_roles(remote_environment):
 
 
 def test_store_and_extract_message(remote_environment):
+    remote_environment.reset_env_queues()
     role = 'agent1'
     recipient = 'agent2'
     message_content = 'Hello, World!'
@@ -48,6 +49,7 @@ def test_store_and_extract_message(remote_environment):
 
 
 def test_extract_all_history_message(remote_environment):
+    remote_environment.reset_env_queues()
     role = 'agent1'
     recipient = 'agent2'
     message1 = Message(
@@ -70,6 +72,7 @@ def test_extract_all_history_message(remote_environment):
 
 
 def test_extract_all_history_message_local(local_environment):
+    local_environment.reset_env_queues()
     role = 'agent1'
     recipient = 'agent2'
     message1 = Message(
@@ -91,7 +94,7 @@ def test_extract_all_history_message_local(local_environment):
     assert last_message[0].content == 'Second Message'
 
 
-def test_get_roles(local_environment):
+def test_get_roles(remote_environment):
     agent1 = 'agent1'
     agent2 = 'agent2'
     message1 = Message(
@@ -99,8 +102,8 @@ def test_get_roles(local_environment):
     message2 = Message(
         content='Second Message', send_to=agent2, sent_from=agent1)
 
-    local_environment.store_message_from_role(agent2, message1)
-    local_environment.store_message_from_role(agent1, message2)
+    remote_environment.store_message_from_role(agent2, message1)
+    remote_environment.store_message_from_role(agent1, message2)
 
-    notified_roles = local_environment.get_notified_roles()
-    assert notified_roles == local_environment.get_all_roles()
+    notified_roles = remote_environment.get_notified_roles()
+    assert notified_roles == ['agent1', 'agent2']

@@ -21,8 +21,11 @@ class Environment:
         self.register_roles(roles)
 
     def register_roles(self, roles: List[str]):
-        self.roles.extend(roles)
+        roles_set = set(self.roles)
         for role in roles:
+            if role in roles_set:
+                continue
+            self.roles.append(role)
             if not isinstance(role, str):
                 raise ValueError(
                     f'The type of role should be str, but get {type(role)}')
@@ -100,12 +103,8 @@ class Environment:
     def get_notified_roles(self):
         notified_roles = []
         for role in self.messages_queue_map.keys():
-            if hasattr(self.messages_queue_map[role], 'size'):
-                if self.messages_queue_map[role].size() > 0:
-                    notified_roles.append(role)
-            else:
-                if self.messages_queue_map[role].qsize() > 0:
-                    notified_roles.append(role)
+            if self.messages_queue_map[role].qsize() > 0:
+                notified_roles.append(role)
         return notified_roles
 
     def get_all_roles(self):
@@ -117,3 +116,13 @@ class Environment:
             raise ValueError(
                 f'Role {role} is not in the environment scope, please register it to env'
             )
+
+    def reset_env_queues(self):
+        for role in self.messages_queue_map.keys():
+            if self.remote:
+                from ray.util.queue import Queue
+            else:
+                from queue import Queue
+            self.messages_queue_map[role] = Queue()
+            self.messages_list_map[role] = []
+        self.message_history = []

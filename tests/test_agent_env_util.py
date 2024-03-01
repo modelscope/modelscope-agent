@@ -31,7 +31,7 @@ def agent_getter(environment):
 
 
 @pytest.fixture
-def remote_environment():
+def remote_environments():
     roles = ['test_agent1']
     env = create_component(Environment, name='env', roles=roles, remote=True)
     return env
@@ -83,12 +83,11 @@ def test_publish_pull_all(agent_sender, agent_getter, environment):
 
 
 def test_publish_pull_remote(remote_agent_sender, remote_agent_getter,
-                             remote_environment):
-    ray.init()
-    ray.get(remote_agent_sender.set_env_context.remote(remote_environment))
-    ray.get(remote_agent_getter.set_env_context.remote(remote_environment))
+                             remote_environments):
+    ray.get(remote_agent_sender.set_env_context.remote(remote_environments))
+    ray.get(remote_agent_getter.set_env_context.remote(remote_environments))
     ray.get(
-        remote_environment.register_roles.remote(
+        remote_environments.register_roles.remote(
             ['test_agent3', 'test_agent2', 'test_agent1']))
     ray.get(remote_agent_sender.publish.remote('Hello, World!', 'test_agent3'))
     message = ray.get(remote_agent_getter.pull.remote())

@@ -16,7 +16,7 @@ from ray.util.client.common import ClientActorHandle, ClientObjectRef
 class AgentEnvMixin:
 
     def __init__(self,
-                 role: str,
+                 role: str = 'default_role',
                  env: Union[Environment, ClientActorHandle] = None,
                  storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
                  is_watcher: bool = False,
