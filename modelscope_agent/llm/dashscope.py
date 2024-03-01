@@ -33,8 +33,18 @@ def stream_output(response, **kwargs):
                 yield now_rsp
                 last_len = len(real_text)
         else:
-            err = '\nError code: %s. Error message: %s' % (trunk.code,
-                                                           trunk.message)
+            logger.query_error(
+                uuid=kwargs.get('uuid_str', ''),
+                details={
+                    'dashscope.request_id': trunk.request_id,
+                    'dashscope.status_code': trunk.status_code,
+                    'dashscope.code': trunk.code,
+                    'dashscope.message': trunk.message
+                },
+                message='call dashscope generation api error')
+
+            err = '\nError code: %s. Error message: %s with request id %s' % (
+                trunk.code, trunk.message, trunk.request_id)
             if trunk.code == 'DataInspectionFailed':
                 err += '\n错误码: 数据检查失败。错误信息: 输入数据可能包含不适当的内容。由于该不适当内容会一直存在历史对话中，后续的对话大概率仍会触发此错误。建议刷新重置页面。'
             text = ''
