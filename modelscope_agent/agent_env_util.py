@@ -1,7 +1,7 @@
 import os
 import time
 from pathlib import Path
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 
 import ray
 from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
@@ -21,6 +21,7 @@ class AgentEnvMixin:
                  storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
                  is_watcher: bool = False,
                  use_history: bool = True,
+                 human_input_mode: Optional[str] = 'CLOSE',
                  parse_env_prompt_function: Callable = None,
                  remote=True,
                  **kwargs):
@@ -33,6 +34,8 @@ class AgentEnvMixin:
             storage_path: the local history story path
             is_watcher: if the agent is a watcher, who view all information and leave no message
             use_history：some roles need history, while some not
+            human_input_mode: human input mode, which is used to control the human input mode,
+                including: CLOSE, ON, TERMINAL
             parse_env_prompt_function: The function convert the env message into current prompt,
             this function receive message and convert it into prompt
             **kwargs:
@@ -43,6 +46,8 @@ class AgentEnvMixin:
         self.is_watcher = is_watcher
         self.use_history = use_history
         self.remote = remote
+        self.human_input_mode = human_input_mode
+
         if not parse_env_prompt_function:
             self.parse_env_prompt_function = self.convert_to_string
         else:
@@ -66,6 +71,12 @@ class AgentEnvMixin:
     def set_remote(self, remote):
         self.remote = remote
 
+    def set_human_input_mode(self, human_input_mode):
+        self.human_input_mode = human_input_mode
+
+    def is_user_agent(self):
+        return self.human_input_mode == 'ON' or self.human_input_mode == 'TERMINAL'
+
     def role(self):
         """Get the name of the agent."""
         return self._role
@@ -73,12 +84,15 @@ class AgentEnvMixin:
     def step(self,
              messages: Union[str, dict, ObjectRefGenerator] = None,
              send_to: Union[str, list] = DEFAULT_SEND_TO,
+             user_response: str = None,
              **kwargs):
         """
         step function for agent to interact with env and other agents
         Args:
-            messages:
+            messages: the message that send to the current agent as input
             send_to: the message that allows to send to other agents
+            user_response: the output from user, could be treated as LLM output's alternative
+                sort of the step function's output if human input mode is on
             kwargs: additional keywords, such as runtime llm setting
 
         Returns: ObjectRefGenerator that could be used to get result from other agent or env
@@ -117,24 +131,47 @@ class AgentEnvMixin:
         cur_step_env_info = self.pull()
         prompt += cur_step_env_info
 
-        # run agent core loop to get action or reslt
+        # run agent core loop to get action or result
         result = ''
-        logger.info(f'{self._role} cur prompt is: {prompt}')
+        logger.info(f'{self._role}\'s current prompt is: {prompt}')
 
-        # get history
-        history = []
-        if self.use_history:
-            history = self.memory.get_history()
+        user_not_response = True
+        # In some case user might run the agent in terminal mode without remote, then use this
+        if self.human_input_mode == 'TERMINAL' and not self.remote:
+            result = input(
+                f'You are {self.role()}. Press enter to skip and use auto-reply, '
+                f'or input any information to talk with other roles: ')
+            user_not_response = True if not result else False
+            if not user_not_response:
+                yield AgentEnvMixin.frame_wrapper(self._role, result)
 
-        # run generation
-        for frame in self.run(
-                prompt,
-                history=history,
-                **kwargs,
-        ):
-            cur_frame = frame
-            result += cur_frame
-            yield AgentEnvMixin.frame_wrapper(self._role, cur_frame)
+        # In the most cases, user input will come from task center, then use this
+        if self.human_input_mode == 'ON' or (self.human_input_mode
+                                             == 'TERMINAL' and self.remote):
+            result = user_response
+            user_not_response = True if not result else False
+            if not user_not_response:
+                self.publish(result, send_to)
+                # user response is a response from user input, don't yield it to system as response again.
+                return
+
+        # If human input mode is close, or human input is empty, then run the generation,
+        if self.human_input_mode == 'CLOSE' or user_not_response:
+
+            # get history
+            history = []
+            if self.use_history:
+                history = self.memory.get_history()
+
+            # run generation
+            for frame in self.run(
+                    prompt,
+                    history=history,
+                    **kwargs,
+            ):
+                cur_frame = frame
+                result += cur_frame
+                yield AgentEnvMixin.frame_wrapper(self._role, cur_frame)
 
         # update memory
         if self.use_history:

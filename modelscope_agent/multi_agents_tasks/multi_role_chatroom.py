@@ -52,7 +52,7 @@ CHATROOM_INSTRUCTION_PROMPT = """你是一个小说作家，请你根据对话�
 最近的对话历史会通过用户信息展示。
 
 
-**不要返回任何json格式以外信息，不要试图续写**
+**不要返回任何json格式以外信息，包括```json ```这个格式，不要试图续写**
 """
 
 STORY = """用户是男主角顾易，与六位长相、性格都大相径庭的美女相识，包括魅惑魔女郑梓妍、知性姐姐李云思、清纯女生肖鹿、刁蛮大小姐沈彗星、性感辣妈林乐清、冷艳总裁钟甄。
@@ -99,6 +99,10 @@ def generate_role_instruction(role):
 def init_all_agents():
     agents = []
     for role in ROLES_MAP:
+        human_input_mode = 'CLOSE'
+        if role == '顾易':
+            human_input_mode = 'TERMINAL'
+
         agent = create_component(
             RolePlay,
             name=role,
@@ -107,7 +111,8 @@ def init_all_agents():
             description=ROLES_MAP[role],
             llm=llm_config,
             function_list=function_list,
-            instruction=generate_role_instruction(role))
+            instruction=generate_role_instruction(role),
+            human_input_mode=human_input_mode)
         agents.append(agent)
     return agents
 
@@ -153,6 +158,10 @@ while n_round > 0:
         chat_room_result += raw_result['content']
 
     try:
+        if chat_room_result.startswith('```json'):
+            re_pattern_config = re.compile(pattern=r'```json([\s\S]+)```')
+            res = re_pattern_config.search(chat_room_result)
+            chat_room_result = res.group(1).strip()
         response_json = json.loads(chat_room_result)
         if isinstance(response_json['next_speakers'], str):
             next_agent_names = re.findall('|'.join(role_names),
@@ -166,8 +175,19 @@ while n_round > 0:
         next_agent_names = []
 
     if len(next_agent_names) > 0:
+        user_agent_names = task_center.is_user_agent_present(next_agent_names)
+
+        if len(user_agent_names) == 1:
+            # only one user agent in this case
+            user_response = input(
+                f'You are {user_agent_names}. Press enter to skip and use auto-reply, '
+                f'or input any information to talk with other roles: ')
+
         for frame in TaskCenter.step.remote(
-                task_center, allowed_roles=next_agent_names, **kwargs):
+                task_center,
+                allowed_roles=next_agent_names,
+                user_response=user_response,
+                **kwargs):
             print(ray.get(frame))
 
 ray.shutdown()

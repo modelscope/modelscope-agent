@@ -48,6 +48,14 @@ class TaskCenter:
     def disable_agent(self, agent):
         pass
 
+    def is_user_agent_present(self, roles: List[str] = []):
+        if len(roles) == 0:
+            roles = ray.get(self.env.get_notified_roles.remote())
+        user_roles = ray.get(
+            self.agent_registry.get_user_agents_role_name.remote())
+        notified_user_roles = list(set(roles) & set(user_roles))
+        return notified_user_roles
+
     def start_task(self,
                    task,
                    send_to: Union[str, list] = DEFAULT_SEND_TO,
@@ -82,6 +90,7 @@ class TaskCenter:
              round: int = 1,
              send_to: Union[str, list] = DEFAULT_SEND_TO,
              allowed_roles: list = [],
+             user_response: str = None,
              **kwargs):
         """
         Core step to make sure
@@ -91,6 +100,8 @@ class TaskCenter:
             round: current step might have multi round
             send_to: manually define the message send to which role
             allowed_roles: make sure only the notified role can be step
+            user_response: using the user response to replace the llm output from user_agent,
+                if user_agent is in this step
             kwargs: additional keywords, such as runtime llm setting
 
         Returns:
@@ -108,13 +119,14 @@ class TaskCenter:
 
         if len(roles) == 0:
             return
+
         agents = ray.get(
             task_center.agent_registry.get_agents_by_role.remote(roles))
 
         for _ in range(round):
             # create a list to hold the futures of all notified agents
             futures = [
-                agent.step.remote(task, send_to, **kwargs)
+                agent.step.remote(task, send_to, user_response, **kwargs)
                 for agent in agents.values()
             ]
 
