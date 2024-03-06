@@ -1,3 +1,4 @@
+import copy
 import os.path
 from typing import List
 
@@ -31,11 +32,8 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     function_list = parse_tool_cfg(tool_cfg)
     function_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, function_list)
-
-    llm_config = {
-        'model': builder_cfg.model,
-        'model_server': model_cfg[builder_cfg.model].type
-    }
+    llm_config = copy.deepcopy(model_cfg[builder_cfg.model])
+    llm_config['model_server'] = llm_config.pop('type')
     instruction = {
         'name': builder_cfg.name,
         'description': builder_cfg.description,

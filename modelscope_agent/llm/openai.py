@@ -16,7 +16,7 @@ class OpenAi(BaseChatModel):
                  is_function_call: Optional[bool] = None,
                  support_stream: Optional[bool] = None,
                  **kwargs):
-        super().__init__(model, model_server)
+        super().__init__(model, model_server, is_function_call)
 
         api_base = kwargs.get('api_base', 'https://api.openai.com/v1').strip()
         api_key = kwargs.get('api_key',
@@ -39,7 +39,9 @@ class OpenAi(BaseChatModel):
             **kwargs)
         # TODO: error handling
         for chunk in response:
-            if hasattr(chunk.choices[0].delta, 'content'):
+            # sometimes delta.content is None by vllm, we should not yield None
+            if hasattr(chunk.choices[0].delta,
+                       'content') and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
     def _chat_no_stream(self,
@@ -75,6 +77,11 @@ class OpenAi(BaseChatModel):
              stop: Optional[List[str]] = None,
              stream: bool = False,
              **kwargs) -> Union[str, Iterator[str]]:
+
+        if 'uuid_str' in kwargs:
+            kwargs.pop('uuid_str')
+        if 'append_files' in kwargs:
+            kwargs.pop('append_files')
         if isinstance(self.support_stream, bool):
             stream = self.support_stream
         if self.support_raw_prompt():
@@ -112,13 +119,14 @@ class OpenAi(BaseChatModel):
                             functions: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
         if functions:
-            response = self.client.completions.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                functions=functions,
+                tools=functions,
+                tool_choice='auto',
                 **kwargs)
         else:
-            response = self.client.completions.create(
+            response = self.client.chat.completions.create(
                 model=self.model, messages=messages, **kwargs)
         # TODO: error handling
         return response.choices[0].message

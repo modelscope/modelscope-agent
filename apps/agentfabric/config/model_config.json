@@ -101,5 +101,12 @@
             "top_p": 0.8,
             "debug": false
         }
+    },
+    "qwen1.5-7b-chat-vllm-local": {
+        "type": "openai",
+        "model": "qwen/Qwen1.5-7B-Chat",
+        "api_base": "http://localhost:8000/v1",
+        "is_chat": true,
+        "is_function_call": false
     }
 }
