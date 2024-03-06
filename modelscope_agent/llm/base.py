@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.utils.retry import retry
+from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import print_traceback
 
 LLM_REGISTRY = {}
@@ -41,6 +42,7 @@ class BaseChatModel(ABC):
         self._support_fn_call: Optional[bool] = support_fn_call
         self.model = model
         self.model_server = model_server
+        self.max_length = 6000
 
     # It is okay to use the same code to handle the output
     # regardless of whether stream is True or False, as follows:
@@ -216,3 +218,14 @@ class BaseChatModel(ABC):
             return False
         except Exception:
             return False
+
+    def check_max_length(self, messages: Union[List[Dict], str]) -> bool:
+        if isinstance(messages, str):
+            return count_tokens(messages) <= self.max_length
+        total_length = 0
+        for message in messages:
+            total_length += count_tokens(message['content'])
+        return total_length <= self.max_length
+
+    def get_max_length(self) -> int:
+        return self.max_length
