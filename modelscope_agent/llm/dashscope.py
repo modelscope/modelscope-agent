@@ -105,6 +105,7 @@ class DashScopeLLM(BaseChatModel):
 
 
 @register_llm('dashscope_qwen')
+@register_llm('dashscope_qwen1.5')
 class QwenChatAtDS(DashScopeLLM):
     """
     qwen_model from dashscope
