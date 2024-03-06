@@ -1,8 +1,11 @@
 import os
+import gc
+import platform
 import shutil
 import time
 import threading
 import zipfile
+import ctypes
 from collections import OrderedDict
 
 from config_utils import get_user_builder_history_dir, get_user_preview_history_dir
@@ -62,6 +65,10 @@ class ExpiringDict(OrderedDict):
             if key in self.last_access:
                 del self[key]
                 del self.last_access[key]
+                gc.collect()
+                if platform.uname()[0] != "Darwin":
+                    libc = ctypes.cdll.LoadLibrary("libc.{}".format("so.6"))
+                    libc.malloc_trim(0)
 
     def _start_cleanup_thread(self):
         self.cleanup_thread = threading.Timer(self.cleanup_interval, self._cleanup)
