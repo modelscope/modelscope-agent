@@ -4,13 +4,12 @@ import shutil
 import traceback
 
 import gradio as gr
-import modelscope_gradio_components as mgr
+import modelscope_studio as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
-from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
-    qwen
+from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
 from user_core import init_user_chatbot_agent
 
 uuid_str = 'local_user'
@@ -55,7 +54,7 @@ def init_user(state):
 demo = gr.Blocks(css='assets/appBot.css', theme=customTheme)
 with demo:
     gr.Markdown(
-        '# <center> \N{fire} AgentFabric powered by Modelscope-agent ([github star](https://github.com/modelscope/modelscope-agent/tree/main))</center>'  # noqa E501
+        '# <center class="agent_title"> \N{fire} AgentFabric powered by Modelscope-agent [github star](https://github.com/modelscope/modelscope-agent/tree/main)</center>'  # noqa E501
     )
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed})
@@ -69,7 +68,6 @@ with demo:
                     elem_classes=['markdown-body'],
                     avatar_images=avatar_pairs,
                     height=600,
-                    latex_delimiters=[],
                     show_label=False,
                     show_copy_button=True,
                     llm_thinking_presets=[

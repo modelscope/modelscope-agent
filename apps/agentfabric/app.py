@@ -5,7 +5,7 @@ import traceback
 
 import gradio as gr
 import json
-import modelscope_gradio_components as mgr
+import modelscope_studio as mgr
 import yaml
 from builder_core import (beauty_output, gen_response_and_process,
                           init_builder_chatbot_agent)
@@ -16,13 +16,13 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
-from modelscope_agent.schemas import Message
-from modelscope_agent.utils.logger import agent_logger as logger
-from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
-    qwen
+from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
+
+from modelscope_agent.schemas import Message
+from modelscope_agent.utils.logger import agent_logger as logger
 
 
 def init_user(uuid_str, state):
@@ -238,7 +238,6 @@ with demo:
                 elem_classes=['markdown-body'],
                 avatar_images=get_avatar_image('', uuid_str),
                 height=650,
-                latex_delimiters=[],
                 show_label=False,
                 visible=False,
                 show_copy_button=True,
