@@ -9,13 +9,15 @@ import requests
 
 from builder_core import beauty_output, gen_response_and_process
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_user_ci_dir, get_user_dir,
-                          parse_configuration, save_builder_configuration, get_ci_dir)
+                          parse_configuration, save_builder_configuration, get_ci_dir,
+                          is_valid_plugin_configuration,save_plugin_configuration)
 from flask import (Flask, Response, jsonify, make_response, request,
                    send_from_directory)
 from publish_util import pop_user_info_from_config, prepare_agent_zip, reload_agent_dir
 from server_utils import STATIC_FOLDER, IMPORT_ZIP_TEMP_DIR, SessionManager, unzip_with_folder
 from server_logging import request_id_var, logger
 from modelscope_agent.schemas import Message
+import yaml
 
 app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 
@@ -267,6 +269,34 @@ def save_builder_config(uuid_str):
         os.makedirs(upload_dir)
     for file in files:
         file.save(os.path.join(upload_dir, file.filename))
+    if len(builder_config["openAPIConfigs"]) > 0:
+        openapi_config = builder_config["openAPIConfigs"][0]
+        openapi_schema = openapi_config.get("schema", "")
+        try:
+            try:
+                schema_dict = json.loads(openapi_schema)
+            except json.decoder.JSONDecodeError:
+                schema_dict = yaml.safe_load(openapi_schema)
+            except Exception as e:
+                logger.error(f"OpenAPI schema format error, should be one of json and yaml: {e}")
+
+            openapi_plugin_cfg = {
+                'schema': schema_dict,
+                'auth': {
+                    'type': openapi_config.get("authenticationType"),
+                    'apikey': openapi_config.get("apiKey"),
+                    'apikey_type': openapi_config.get("apiKeyType")
+                },
+                'privacy_policy': ""
+            }
+            if is_valid_plugin_configuration(openapi_plugin_cfg):
+                save_plugin_configuration(openapi_plugin_cfg=openapi_plugin_cfg,
+                                        uuid_str=uuid_str)
+        except Exception as e:
+            logger.query_error(
+                uuid=uuid_str,
+                error=str(e),
+                details={'error_traceback': traceback.format_exc()})
     save_builder_configuration(builder_cfg=builder_config, uuid_str=uuid_str)
     # app.session_manager.clear_user_bot(uuid_str)
 
