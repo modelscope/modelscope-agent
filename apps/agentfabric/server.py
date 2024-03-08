@@ -1,4 +1,5 @@
 import os
+import re
 import random
 
 import json
@@ -7,7 +8,7 @@ from functools import wraps
 
 import requests
 
-from builder_core import beauty_output, gen_response_and_process
+from builder_core import beauty_output, gen_response_and_process, CONFIG_UPDATED_STEP, LOGO_UPDATED_STEP
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_user_ci_dir, get_user_dir,
                           parse_configuration, save_builder_configuration, get_ci_dir,
                           is_valid_plugin_configuration,save_plugin_configuration)
@@ -152,6 +153,17 @@ def get_builder_chat_history(uuid_str):
     _, builder_memory = app.session_manager.get_builder_bot(uuid_str)
     history = builder_memory.get_history()
     logger.info(f"history: {json.dumps(history)}")
+
+    for item in history:
+        if item['role'] == 'system' or item['role'] == 'user':
+            continue
+        content = item['content']
+        re_pattern_config = re.compile(
+            pattern=r'([\s\S]+)Config: ([\s\S]+)\nRichConfig')
+        res = re_pattern_config.search(content)
+        if res:
+            item['content'] = res.group(1) + CONFIG_UPDATED_STEP + LOGO_UPDATED_STEP
+
     return jsonify({
         'history': history,
         'success': True,

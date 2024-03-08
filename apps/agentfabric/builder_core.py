@@ -55,6 +55,7 @@ def gen_response_and_process(agent,
     history = memory.get_history()
     llm_result = ''
     llm_result_prefix = ''
+    result = dict()
     try:
         response = agent.run(query, history=history, uuid_str=uuid_str)
         for s in response:
