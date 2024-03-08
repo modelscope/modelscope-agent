@@ -5,6 +5,7 @@ import shutil
 import zipfile
 from configparser import ConfigParser
 from urllib.parse import unquote, urlparse
+from server_logging import logger
 
 import json
 import oss2
@@ -192,6 +193,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 获取必须设置的envs
     envs_required = {}
+    logger.info(f"builder_cfg is {builder_cfg}")
     for t, t_cfg in builder_cfg.tools.items():
         if t == 'amap_weather' and t_cfg['is_active'] and t_cfg['use']:
             envs_required['AMAP_TOKEN'] = 'Your-AMAP-TOKEN'
