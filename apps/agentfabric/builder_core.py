@@ -62,9 +62,10 @@ def gen_response_and_process(agent,
             answer, finish, llm_result_prefix = agent.parse_answer(
                 llm_result_prefix, llm_result)
             if answer == '':
-                continue
+                if not result.get('llm_text', None) and result.get('step', None):
+                    continue
             result = {
-                'llm_text': answer
+                'llm_text': answer.strip('Config:')
             }  # Incremental content in streaming output
             if finish:
                 result.update({'step': UPDATING_CONFIG_STEP})
@@ -91,6 +92,7 @@ def gen_response_and_process(agent,
             pattern=r'Config: ([\s\S]+)\nRichConfig')
         res = re_pattern_config.search(llm_result)
         if res is None:
+            yield {'error': 'llm result is not valid. parse RichConfig error'}
             return
         config = res.group(1).strip()
         agent.last_assistant_structured_response['config_str'] = config
@@ -100,6 +102,7 @@ def gen_response_and_process(agent,
         try:
             answer = json.loads(rich_config)
         except Exception:
+            yield {'error': 'llm result is not valid. parse RichConfig error'}
             logger.query_error(uuid=uuid_str, error='parse RichConfig error')
             return
         agent.last_assistant_structured_response['rich_config_dict'] = answer
