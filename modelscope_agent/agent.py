@@ -86,7 +86,7 @@ class Agent(ABC):
             result = self.function_map[tool_name].call(tool_args, **kwargs)
         except BaseException as e:
             result = f'Tool api {tool_name} failed to call. Args: {tool_args}.'
-            result += f'Details: {e}'
+            result += f'Details: {str(e)[:200]}'
         return result
 
     def _register_tool(self, tool: Union[str, Dict]):
