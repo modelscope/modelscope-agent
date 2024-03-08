@@ -6,6 +6,8 @@ from .dashscope_tools.image_generation import TextToImageTool
 from .dashscope_tools.qwen_vl import QWenVL
 from .dashscope_tools.style_repaint import StyleRepaint
 from .dashscope_tools.wordart_tool import WordArtTexture
+from .dashscope_tools.sambert_tts_tool import SambertTtsTool
+from .dashscope_tools.paraformer_asr_tool import ParaformerAsrTool
 from .doc_parser import DocParser
 from .langchain_proxy_tool import LangchainTool
 from .modelscope_tools.pipeline_tool import ModelscopePipelineTool
