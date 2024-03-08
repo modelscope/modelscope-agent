@@ -2,7 +2,7 @@
   "image_gen": {
     "name": "Wanx Image Generation",
     "is_active": true,
-    "use": true,
+    "use": false,
     "is_remote_tool": true
   },
   "code_interpreter": {
