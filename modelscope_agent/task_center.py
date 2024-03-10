@@ -23,6 +23,10 @@ class TaskCenter:
                                                remote)
         self.remote = remote
 
+    def __del__(self):
+        if self.remote:
+            ray.shutdown()
+
     def add_agents(self, agents: List[Agent]):
         """
         add agents to the task scope
@@ -32,28 +36,37 @@ class TaskCenter:
         Returns:
 
         """
-        logger.info(f'Adding agents. {self.agent_registry}')
-
         roles = []
         for agent in agents:
-            roles.append(ray.get(agent.role.remote()))
+            if self.remote:
+                agent_role = ray.get(agent.role.remote())
+            else:
+                agent_role = agent.role()
+            logger.info(f'Adding agent to task center: {agent_role}')
+            roles.append(agent_role)
         if self.remote:
             ray.get(self.env.register_roles.remote(roles))
             ray.get(
                 self.agent_registry.register_agents.remote(agents, self.env))
         else:
-            self.env.register_roles.remote(roles)
+            self.env.register_roles(roles)
             self.agent_registry.register_agents(agents, self.env)
 
     def disable_agent(self, agent):
         pass
 
     def is_user_agent_present(self, roles: List[str] = []):
-        if len(roles) == 0:
-            roles = ray.get(self.env.get_notified_roles.remote())
-        user_roles = ray.get(
-            self.agent_registry.get_user_agents_role_name.remote())
+        if self.remote:
+            if len(roles) == 0:
+                roles = ray.get(self.env.get_notified_roles.remote())
+            user_roles = ray.get(
+                self.agent_registry.get_user_agents_role_name.remote())
+        else:
+            if len(roles) == 0:
+                roles = self.env.get_notified_roles()
+            user_roles = self.agent_registry.get_user_agents_role_name()
         notified_user_roles = list(set(roles) & set(user_roles))
+
         return notified_user_roles
 
     def start_task(self,
@@ -80,8 +93,18 @@ class TaskCenter:
             send_to=send_to,
             sent_from=send_from,
         )
-        ray.get(self.env.store_message_from_role.remote(send_from, message))
+        if self.remote:
+            ray.get(
+                self.env.store_message_from_role.remote(send_from, message))
+        else:
+            self.env.store_message_from_role(send_from, message)
         logger.info(f'Send init task, {task} to {send_to}')
+
+    def reset_env(self):
+        if self.remote:
+            ray.get(self.env.reset_env_queues.remote())
+        else:
+            self.env.reset_env_queues()
 
     @staticmethod
     @ray.remote
