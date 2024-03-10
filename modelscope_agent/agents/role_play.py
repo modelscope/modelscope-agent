@@ -283,7 +283,7 @@ class RolePlay(Agent):
         """
         reasonable_length = self.llm.get_max_length() / 2 - count_tokens(
             DEFAULT_EXEC_TEMPLATE.format(exec_result=' '))
-        limited_observation = observation[:reasonable_length]
+        limited_observation = observation[:int(reasonable_length)]
         return DEFAULT_EXEC_TEMPLATE.format(exec_result=limited_observation)
 
     def _detect_tool(self, message: Union[str,
