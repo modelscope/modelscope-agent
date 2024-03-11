@@ -47,7 +47,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             # add file to index
             try:
                 self.store_knowledge.add(url)
-                self.store_knowledge.save()
+                # self.store_knowledge.save()
             except Exception:
                 import traceback
                 logger.error(
