@@ -13,10 +13,10 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 LOGO_TOOL_NAME = 'logo_designer'
 
-UPDATING_CONFIG_STEP = '🚀Updating Config...'
-CONFIG_UPDATED_STEP = '✅Config Updated!'
-UPDATING_LOGO_STEP = '🚀Updating Logo...'
-LOGO_UPDATED_STEP = '✅Logo Updated!'
+UPDATING_CONFIG_STEP = '🚀参数配置更新中...'
+CONFIG_UPDATED_STEP = '✅参数配置更新完毕!'
+UPDATING_LOGO_STEP = '🚀智能体图标更新中...'
+LOGO_UPDATED_STEP = '✅智能体图标更新完毕!'
 
 
 def init_builder_chatbot_agent(uuid_str: str, session='default'):
