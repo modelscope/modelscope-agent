@@ -66,13 +66,13 @@ with gr.Blocks() as demo:
                 value=[[None, None]],
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
-                avatar_images=[None],
+                avatar_images=[None, None],
                 height=650,
                 show_label=True,
                 visible=True,
                 show_copy_button=True)
             preview_chat_input = mgr.MultimodalInput(
-                interactive=True,
+                interactive=False,
                 label='输入',
                 placeholder='输入你的消息',
                 submit_button_props=dict(label='发送（role 加载中...）'))
@@ -109,11 +109,7 @@ with gr.Blocks() as demo:
         _state = start_chat_with_topic(from_user, topic, _state)
 
         _chatbot.append([topic, None])
-        yield {
-            state: _state,
-            preview_chat_input: gr.update(interactive=False, value=None),
-            user_chatbot: _chatbot
-        }
+        yield {state: _state, user_chatbot: _chatbot}
 
         bot_messages = {key: '' for key in _state['role_names']}
 
@@ -121,18 +117,28 @@ with gr.Blocks() as demo:
             role, content = get_frame_data(frame_text)
             if role in bot_messages:
                 bot_messages[role] += content
-            _chatbot[-1][1] = [
-                bot_messages[key] for key in _state['role_names']
-            ]
-            yield {
-                user_chatbot: _chatbot,
-            }
+                output = []
+                for item in bot_messages:
+                    if bot_messages[item] != '':
+                        output.append({
+                            'name': item,
+                            'text': bot_messages[item]
+                        })
+
+                _chatbot[-1][1] = output
+                yield {
+                    user_chatbot: _chatbot,
+                }
 
             # try to parse the next_speakers from yield result
             try:
                 next_speakers = json.loads(frame_text)['next_agent_names']
                 _state['next_agent_names'] = next_speakers
-                yield {state: _state}
+                yield {
+                    state: _state,
+                    preview_chat_input:
+                    gr.update(interactive=True, value=None),
+                }
             except Exception:
                 pass
 
@@ -146,25 +152,34 @@ with gr.Blocks() as demo:
 
         bot_messages = {key: '' for key in _state['role_names']}
 
-        for frame_text in chat_progress(_chatbot.text, _state):
+        for frame_text in chat_progress(_input.text, _state):
             role, content = get_frame_data(frame_text)
             if role in bot_messages:
                 bot_messages[role] += content
-            _chatbot[-1][1] = [
-                bot_messages[key] for key in _state['role_names']
-            ]
+                output = []
+                for item in bot_messages:
+                    if bot_messages[item] != '':
+                        output.append({
+                            'name': item,
+                            'text': bot_messages[item]
+                        })
+
+                _chatbot[-1][1] = output
+                yield {
+                    user_chatbot: _chatbot,
+                }
 
             # try to parse the next_speakers from yield result
             try:
                 next_agent_names = json.loads(frame_text)['next_agent_names']
                 _state['next_agent_names'] = next_agent_names
-                yield {state: _state}
+                yield {
+                    state: _state,
+                    preview_chat_input:
+                    gr.update(interactive=True, value=None),
+                }
             except Exception:
                 pass
-
-        yield {
-            user_chatbot: _chatbot,
-        }
 
     # send message btn
     preview_chat_input.submit(
