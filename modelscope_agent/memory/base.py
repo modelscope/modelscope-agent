@@ -24,7 +24,7 @@ class Memory(AgentAttr):
 
         directory = os.path.dirname(self.path)
         if not os.path.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
         with open(self.path, 'w', encoding='utf-8') as file:
             # 使用 Pydantic 的 dict() 方法将模型列表转换为字典列表
