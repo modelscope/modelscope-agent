@@ -24,6 +24,7 @@ customTheme = gr.themes.Default(
     radius_size=gr.themes.utils.sizes.radius_none,
 )
 
+shutil.rmtree("/tmp/agentfabric/config/local_user/", ignore_errors=True)
 
 def check_uuid(uuid_str):
     if not uuid_str or uuid_str == '':
