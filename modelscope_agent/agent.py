@@ -147,8 +147,3 @@ class Agent(ABC):
         text = message.get('content', '')
 
         return (func_name is not None), func_name, func_args, text
-
-    # del the tools as well while del the agent
-    def __del__(self):
-        for item in self.function_map.items():
-            del item
