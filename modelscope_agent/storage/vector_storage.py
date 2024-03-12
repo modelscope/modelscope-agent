@@ -78,8 +78,11 @@ class VectorStorage(BaseStorage):
         if not (os.path.exists(index_file) and os.path.exists(store_file)):
             return None
 
-        return self.vs_cls.load_local(self.storage_path, self.embedding,
-                                      self.index_name)
+        return self.vs_cls.load_local(
+            self.storage_path,
+            self.embedding,
+            self.index_name,
+            allow_dangerous_deserialization=True)
 
     def save(self):
         if self.vs:

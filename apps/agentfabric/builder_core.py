@@ -1,4 +1,5 @@
 # flake8: noqa E501
+import copy
 import os
 import re
 from http import HTTPStatus
@@ -27,10 +28,8 @@ def init_builder_chatbot_agent(uuid_str: str, session='default'):
     # init agent
     logger.query_info(
         uuid=uuid_str, message=f'using builder model {builder_cfg.model}')
-    llm_config = {
-        'model': builder_cfg.model,
-        'model_server': model_cfg[builder_cfg.model].type
-    }
+    llm_config = copy.deepcopy(model_cfg[builder_cfg.model])
+    llm_config['model_server'] = llm_config.pop('type')
     # function_list = ['image_gen']  # use image_gen to draw logo?
 
     agent = AgentBuilder(llm=llm_config, uuid_str=uuid_str)
@@ -54,6 +53,8 @@ def gen_response_and_process(agent,
     history = memory.get_history()
     llm_result = ''
     llm_result_prefix = ''
+    result = dict()
+
     try:
         response = agent.run(query, history=history, uuid_str=uuid_str)
         for s in response:
@@ -61,9 +62,11 @@ def gen_response_and_process(agent,
             answer, finish, llm_result_prefix = agent.parse_answer(
                 llm_result_prefix, llm_result)
             if answer == '':
-                continue
+                if not result.get('llm_text', None) and result.get(
+                        'step', None):
+                    continue
             result = {
-                'llm_text': answer
+                'llm_text': answer.strip('Config:')
             }  # Incremental content in streaming output
             if finish:
                 result.update({'step': UPDATING_CONFIG_STEP})
@@ -83,13 +86,19 @@ def gen_response_and_process(agent,
                 message=f'LLM output in round 0',
                 details={'llm_result': llm_result})
     except Exception as e:
-        yield {'error': 'llm result is not valid'}
+        import traceback
+        logger.query_error(
+            uuid=uuid_str,
+            error='llm result is not valid',
+            details=traceback.format_exc())
+        yield {'error': f'llm result is not valid: {e}'}
 
     try:
         re_pattern_config = re.compile(
             pattern=r'Config: ([\s\S]+)\nRichConfig')
         res = re_pattern_config.search(llm_result)
         if res is None:
+            yield {'error': 'llm result is not valid. parse RichConfig error'}
             return
         config = res.group(1).strip()
         agent.last_assistant_structured_response['config_str'] = config
@@ -99,6 +108,7 @@ def gen_response_and_process(agent,
         try:
             answer = json.loads(rich_config)
         except Exception:
+            yield {'error': 'llm result is not valid. parse RichConfig error'}
             logger.query_error(uuid=uuid_str, error='parse RichConfig error')
             return
         agent.last_assistant_structured_response['rich_config_dict'] = answer

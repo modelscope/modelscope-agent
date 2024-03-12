@@ -1,11 +1,10 @@
-import logging
 import os
-import time
 from http import HTTPStatus
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional, Union
 
 import dashscope
 from modelscope_agent.utils.logger import agent_logger as logger
+from modelscope_agent.utils.tokenization_utils import count_tokens
 
 from .base import BaseChatModel, register_llm
 
@@ -34,8 +33,18 @@ def stream_output(response, **kwargs):
                 yield now_rsp
                 last_len = len(real_text)
         else:
-            err = '\nError code: %s. Error message: %s' % (trunk.code,
-                                                           trunk.message)
+            logger.query_error(
+                uuid=kwargs.get('uuid_str', ''),
+                details={
+                    'dashscope.request_id': trunk.request_id,
+                    'dashscope.status_code': trunk.status_code,
+                    'dashscope.code': trunk.code,
+                    'dashscope.message': trunk.message
+                },
+                message='call dashscope generation api error')
+
+            err = '\nError code: %s. Error message: %s with request id %s' % (
+                trunk.code, trunk.message, trunk.request_id)
             if trunk.code == 'DataInspectionFailed':
                 err += '\n错误码: 数据检查失败。错误信息: 输入数据可能包含不适当的内容。由于该不适当内容会一直存在历史对话中，后续的对话大概率仍会触发此错误。建议刷新重置页面。'
             text = ''
@@ -54,7 +63,8 @@ class DashScopeLLM(BaseChatModel):
 
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
-
+        self.max_length = kwargs.get(
+            'max_length', int(os.getenv('DASHSCOPE_MAX_LENGTH', default=5700)))
         dashscope.api_key = kwargs.get(
             'api_key', os.getenv('DASHSCOPE_API_KEY', default='')).strip()
         assert dashscope.api_key, 'DASHSCOPE_API_KEY is required.'
@@ -75,13 +85,15 @@ class DashScopeLLM(BaseChatModel):
             'result_format': 'message',
             'stream': True,
         }
+
+        logger.query_info(
+            uuid=kwargs.get('uuid_str', ''),
+            details=generation_input,
+            message='call dashscope generation api')
         if kwargs.get('temperature', None):
             generation_input['temperature'] = kwargs.get('temperature')
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
-        logging.warning(
-            msg=f'time:{time.time()} The generation input is {generation_input}'
-        )
         response = dashscope.Generation.call(**generation_input)
         return stream_output(response, **kwargs)
 
@@ -114,6 +126,7 @@ class DashScopeLLM(BaseChatModel):
 
 
 @register_llm('dashscope_qwen')
+@register_llm('dashscope_qwen1.5')
 class QwenChatAtDS(DashScopeLLM):
     """
     qwen_model from dashscope
@@ -151,25 +164,39 @@ class QwenChatAtDS(DashScopeLLM):
             )
             return err
 
-    def build_raw_prompt(self, messages):
+    def build_raw_prompt(self, messages: list):
+        prompt = ''
         messages.append({'role': 'assistant', 'content': ''})
         im_start = '<|im_start|>'
         im_end = '<|im_end|>'
         if messages[0]['role'] == 'system':
             sys = messages[0]['content']
-            prompt = f'{im_start}system\n{sys}{im_end}'
+            system_prompt = f'{im_start}system\n{sys}{im_end}'
         else:
-            prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
+            system_prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
 
-        for message in messages:
+        used_length = count_tokens(system_prompt)
+
+        for message in reversed(messages):
             if message['role'] == 'user':
                 query = message['content'].lstrip('\n').rstrip()
-                prompt += f'\n{im_start}user\n{query}{im_end}'
+                local_prompt = f'\n{im_start}user\n{query}{im_end}'
             elif message['role'] == 'assistant':
                 response = message['content'].lstrip('\n').rstrip()
-                prompt += f'\n{im_start}assistant\n{response}{im_end}'
+                local_prompt = f'\n{im_start}assistant\n{response}{im_end}'
+
+            if message['role'] != 'system':
+                cur_content_length = count_tokens(local_prompt)
+                if used_length + cur_content_length > self.max_length:
+                    break
+                used_length += cur_content_length
+                prompt = local_prompt + prompt
+
+        prompt = system_prompt + prompt
 
         # add one empty reply for the last round of assistant
-        assert prompt.endswith(f'\n{im_start}assistant\n{im_end}')
+        # ensure the end of prompt is assistant
+        if not prompt.endswith(f'\n{im_start}assistant\n{im_end}'):
+            prompt += f'\n{im_start}assistant\n{im_end}'
         prompt = prompt[:-len(f'{im_end}')]
         return prompt

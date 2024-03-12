@@ -1,11 +1,12 @@
-import logging
 import os
-import time
+import re
 from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
+from modelscope_agent.utils.tokenization_utils import count_tokens
+from modelscope_agent.utils.utils import check_and_limit_input_length
 
 KNOWLEDGE_TEMPLATE_ZH = """
 
@@ -162,6 +163,9 @@ class RolePlay(Agent, AgentEnvMixin):
 
         # concat knowledge
         if ref_doc and use_ref_doc:
+            knowledge_limit = kwargs.get('knowledge_limit',
+                                         os.getenv('KNOWLEDGE_LIMIT', 4000))
+            ref_doc = check_and_limit_input_length(ref_doc, knowledge_limit)
             self.system_prompt += KNOWLEDGE_TEMPLATE[lang].format(
                 ref_doc=ref_doc)
             self.query_prefix_dict[
@@ -220,9 +224,6 @@ class RolePlay(Agent, AgentEnvMixin):
         if self.llm.support_raw_prompt():
             planning_prompt = self.llm.build_raw_prompt(messages)
 
-        logging.warning(
-            msg=f'time:{time.time()} The planning_prompt is {planning_prompt}')
-
         max_turn = 10
         while True and max_turn > 0:
             # print('=====one input planning_prompt======')
@@ -254,8 +255,14 @@ class RolePlay(Agent, AgentEnvMixin):
                     llm_result += s
                 yield s
 
-            use_tool, action, action_input, output = self._detect_tool(
-                llm_result)
+            if isinstance(llm_result, str):
+                use_tool, action, action_input, output = self._detect_tool(
+                    llm_result)
+            elif isinstance(llm_result, dict):
+                use_tool, action, action_input, output = super()._detect_tool(
+                    llm_result)
+            else:
+                assert 'llm_result must be an instance of dict or str'
 
             # yield output
             if use_tool:
@@ -265,14 +272,48 @@ class RolePlay(Agent, AgentEnvMixin):
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation
+                format_observation = self._limit_observation_length(
+                    format_observation)
                 if self.llm.support_function_calling():
                     messages.append({'role': 'tool', 'content': observation})
                 else:
+                    messages[-1]['content'] += output + format_observation
                     planning_prompt += output + format_observation
 
             else:
+                messages[-1]['content'] += output
                 planning_prompt += output
                 break
+
+            # limit the length of the planning prompt if exceed the length by calling the build_raw_prompt
+            if not self.llm.check_max_length(planning_prompt):
+                if self.llm.support_raw_prompt():
+                    planning_prompt = self.llm.build_raw_prompt(messages)
+
+    def _limit_observation_length(self, observation):
+        """
+        limit the observation result length if exceeds half of the max length
+        Args:
+            observation: the output from the tool
+
+        Returns:
+
+        """
+        if self.llm.get_max_length() / 2 >= count_tokens(observation):
+            return observation
+
+        # get actual observation length
+        pattern = r'<result>(.*?)<\/result>'
+        match = re.search(pattern, observation)
+
+        actual_observation = match.group(1) if match else None
+
+        if actual_observation:
+            reasonable_length = int(self.llm.get_max_length() / 2)
+            limited_observation = actual_observation[:reasonable_length]
+            format_observation = DEFAULT_EXEC_TEMPLATE.format(
+                exec_result=limited_observation)
+            return format_observation
 
     def _detect_tool(self, message: Union[str,
                                           dict]) -> Tuple[bool, str, str, str]:
