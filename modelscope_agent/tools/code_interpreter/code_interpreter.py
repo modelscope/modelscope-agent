@@ -125,6 +125,8 @@ class CodeInterpreter(BaseTool):
                     break
                 except json.JSONDecodeError:
                     pass
+                except FileNotFoundError:
+                    pass
 
         # Client
         kc = BlockingKernelClient(connection_file=connection_file)
