@@ -86,9 +86,7 @@ class Agent(ABC):
             result = self.function_map[tool_name].call(tool_args, **kwargs)
         except BaseException as e:
             result = f'Tool api {tool_name} failed to call. Args: {tool_args}.'
-            logger.query_warning(
-                uuid=self.uuid_str, details=str(e), message=result)
-            result += f'Details: {e}'
+            result += f'Details: {str(e)[:200]}'
         return result
 
     def _register_tool(self, tool: Union[str, Dict]):
@@ -149,3 +147,8 @@ class Agent(ABC):
         text = message.get('content', '')
 
         return (func_name is not None), func_name, func_args, text
+
+    # del the tools as well while del the agent
+    def __del__(self):
+        for tool_instance in self.function_map.items():
+            del tool_instance
