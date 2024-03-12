@@ -108,10 +108,14 @@ with gr.Blocks() as demo:
         _state = init_all_remote_actors(roles, username, _state)
         _state = start_chat_with_topic(from_user, topic, _state)
 
-        _chatbot.append([topic, None])
+        init_chat = [{'name': from_user, 'text': topic}]
+        _chatbot.append([None, init_chat])
+
         yield {state: _state, user_chatbot: _chatbot}
 
         bot_messages = {key: '' for key in _state['role_names']}
+
+        new_round = False
 
         for frame_text in chat_progress(None, _state):
             role, content = get_frame_data(frame_text)
@@ -125,10 +129,19 @@ with gr.Blocks() as demo:
                             'text': bot_messages[item]
                         })
 
-                _chatbot[-1][1] = output
+                if not new_round:
+                    _chatbot[-1][1] = init_chat + output
+                else:
+                    _chatbot.append([None, output])
+                    new_round = False
                 yield {
                     user_chatbot: _chatbot,
                 }
+
+            if frame_text == 'new_round':
+                new_round = True
+                bot_messages = {key: '' for key in _state['role_names']}
+                continue
 
             # try to parse the next_speakers from yield result
             try:
@@ -151,6 +164,7 @@ with gr.Blocks() as demo:
         }
 
         bot_messages = {key: '' for key in _state['role_names']}
+        new_round = False
 
         for frame_text in chat_progress(_input.text, _state):
             role, content = get_frame_data(frame_text)
@@ -164,10 +178,19 @@ with gr.Blocks() as demo:
                             'text': bot_messages[item]
                         })
 
-                _chatbot[-1][1] = output
+                if not new_round:
+                    _chatbot[-1][1] = output
+                else:
+                    _chatbot.append([None, output])
+                    new_round = False
                 yield {
                     user_chatbot: _chatbot,
                 }
+
+            if frame_text == 'new_round':
+                new_round = True
+                bot_messages = {key: '' for key in _state['role_names']}
+                continue
 
             # try to parse the next_speakers from yield result
             try:

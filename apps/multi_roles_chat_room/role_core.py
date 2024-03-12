@@ -27,6 +27,7 @@ ROLE_INSTRUCTION_PROMPT = """你是{role}，请你根据对话情节设定、对
 # 注意事项
 1. 这是聊天室，不要发发送私信给任何人
 2. 仅代表你个人说话,不要扮演其他人
+3. 长话短说，不要说太多话，不要超过100字
 
 """
 
@@ -43,17 +44,17 @@ CHATROOM_INSTRUCTION_PROMPT = """你是一个小说作家，请你根据对话�
 2. 当上一个角色已经连发多条消息，你需要让另一个角色接话。
 3. 当主角明确@某个角色，你需要让被@的角色接话。
 4. 允许下一个角色可以是多个人，不要超过3个，可以是1到3人，随机一些
+5. 不要生成人物介绍以外的角色参与讨论
 
 # 回复格式
 请用json格式回复，字段包括
 * plot: <first summarize recent chat history in 20 words>
-* thought: <think who is most likely to speak next>
+* thought: <think who is most likely to speak next in 50 words>
 * next_speakers: <next speakers>
 
 
 # 最近对话历史
 最近的对话历史会通过用户信息展示。
-
 
 **不要返回任何json格式以外信息，包括```json ```这个格式，不要试图续写**
 """
@@ -215,7 +216,7 @@ def chat_progress(user_response, _state):
         # reset the last_round_roles to empty
         last_round_roles = []
 
-        # decide the next speakers
+        # chat_room decide the next speakers
         chat_room_result = ''
         for frame in TaskCenter.step.remote(
                 task_center, allowed_roles=['chat_room'], **kwargs):
@@ -245,21 +246,22 @@ def chat_progress(user_response, _state):
             user_agent_names = task_center.is_user_agent_present(
                 next_agent_names)
 
+            # only none user agent could send message here
+            if len(user_agent_names) == 1:
+                next_agent_names = list(
+                    set(next_agent_names) - set(user_agent_names))
+
+            for frame in TaskCenter.step.remote(
+                    task_center,
+                    allowed_roles=next_agent_names,
+                    user_response=user_response,
+                    **kwargs):
+                yield ray.get(frame)
+
             # stop and let user send message
             if len(user_agent_names) == 1:
                 next_agent_names_string = json.dumps(
-                    {'next_agent_names': next_agent_names})
+                    {'next_agent_names': user_agent_names})
                 yield next_agent_names_string
                 break
-            else:
-                for frame in TaskCenter.step.remote(
-                        task_center,
-                        allowed_roles=next_agent_names,
-                        user_response=user_response,
-                        **kwargs):
-                    yield ray.get(frame)
-    return
-
-
-def user_send():
-    pass
+        yield 'new_round'

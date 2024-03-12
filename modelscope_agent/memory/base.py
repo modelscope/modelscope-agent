@@ -25,11 +25,13 @@ class Memory(AgentAttr):
 
         directory = os.path.dirname(self.path)
         if not os.path.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
         with open(self.path, 'w', encoding='utf-8') as file:
             # 使用 Pydantic 的 dict() 方法将模型列表转换为字典列表
-            messages_dict_list = [message.model_dump() for message in history]
+            messages_dict_list = [
+                message.model_dump() for message in self.history
+            ]
             # 使用 json.dump 将字典列表写入文件
             json.dump(messages_dict_list, file, ensure_ascii=False, indent=2)
 
