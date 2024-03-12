@@ -377,7 +377,7 @@ def preview_chat(uuid_str, session_str):
                 uploaded_file = file_paths[0]
             ref_doc = user_memory.run(
                 query=input_content, url=uploaded_file, checked=True)
-            logger.info(f'load knowledge method: time consumed {time.time() - start_time}')
+            logger.info(f'load knowledge method: time consumed {time.time() - start_time}, the uplodated_file name is {uploaded_file}')
 
             response = ''
 
