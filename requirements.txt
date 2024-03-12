@@ -8,6 +8,7 @@ langchain
 langchain-community
 langchain-experimental
 modelscope>=1.9.3
+modelscope_studio
 moviepy
 openai
 opencv-python

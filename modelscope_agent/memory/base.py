@@ -54,7 +54,7 @@ class Memory(AgentAttr):
                 return messages_list
         except FileNotFoundError:
             print('File not found.')
-            return None
+            return []
 
     def get_history(self) -> List[Message]:
         return [message.model_dump() for message in self.history]
