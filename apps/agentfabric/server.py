@@ -7,7 +7,7 @@ import traceback
 from functools import wraps
 
 import requests
-
+import time
 from builder_core import beauty_output, gen_response_and_process, CONFIG_UPDATED_STEP, LOGO_UPDATED_STEP
 from config_utils import (DEFAULT_AGENT_DIR, Config, get_user_ci_dir, get_user_dir,
                           parse_configuration, save_builder_configuration, get_ci_dir,
@@ -359,13 +359,17 @@ def preview_chat(uuid_str, session_str):
 
     def generate():
         try:
+            start_time = time.time()
             seed = random.randint(0, 1000000000)
             user_agent, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
             user_agent.seed = seed
+            logger.info(f'get method: time consumed {time.time() - start_time}')
 
             # get chat history from memory
-            user_memory.history = user_memory.load_history()
+            user_memory.load_history()
             history = user_memory.get_history()
+
+            logger.info(f'load history method: time consumed {time.time() - start_time}')
 
             # get knowledge from memory, currently get one file
             uploaded_file = None
@@ -373,6 +377,7 @@ def preview_chat(uuid_str, session_str):
                 uploaded_file = file_paths[0]
             ref_doc = user_memory.run(
                 query=input_content, url=uploaded_file, checked=True)
+            logger.info(f'load knowledge method: time consumed {time.time() - start_time}')
 
             response = ''
 
