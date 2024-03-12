@@ -60,7 +60,7 @@ class CodeInterpreter(BaseTool):
         atexit.register(self._kill_kernels)
 
         # pid: int = os.getpid()
-        pid = random.randint(1, 999999)
+        pid = random.randint(1, 9999999)
         if pid in self.kernel_clients:
             kc = self.kernel_clients[pid]
         else:
@@ -114,9 +114,13 @@ class CodeInterpreter(BaseTool):
         print(f"INFO: kernel process's PID = {kernel_process.pid}")
 
         # Wait for kernel connection file to be written
+        max_retry = 10
+        try_times = 0
         while True:
             if not os.path.isfile(connection_file):
                 time.sleep(0.1)
+                if try_times > 0:
+                    try_times += 1
             else:
                 # Keep looping if JSON parsing fails, file may be partially written
                 try:
@@ -126,8 +130,13 @@ class CodeInterpreter(BaseTool):
                 except json.JSONDecodeError:
                     pass
                 except FileNotFoundError:
+                    # handle the situation that pass in line 120, while fail in 127
+                    try_times += 1
                     pass
-
+            if try_times >= max_retry:
+                raise (f'kernel process PID {kernel_process.pid} s config json {connection_file}'
+                       f'has been deleted by other process. please try again.')
+                
         # Client
         kc = BlockingKernelClient(connection_file=connection_file)
         asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())

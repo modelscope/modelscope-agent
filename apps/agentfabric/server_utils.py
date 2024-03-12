@@ -69,6 +69,7 @@ class ExpiringDict(OrderedDict):
                 if platform.uname()[0] != "Darwin":
                     libc = ctypes.cdll.LoadLibrary("libc.{}".format("so.6"))
                     libc.malloc_trim(0)
+                logger.info(f"Done deleting the key {key}")
 
     def _start_cleanup_thread(self):
         self.cleanup_thread = threading.Timer(self.cleanup_interval, self._cleanup)
