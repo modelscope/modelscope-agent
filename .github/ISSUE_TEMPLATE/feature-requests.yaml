@@ -1,13 +1,17 @@
 name: Modelscope-Agent feature request
 description: Suggest an idea for Modelscope-Agent project
 title: "[<Agent component: framework|tool|llm|etc...>] "
-labels: [enhancement, triage]
+labels: [enhancement]
+assignees:
+  - zzhangpurdue
+  - suluyana
+
 body:
   - type: markdown
     attributes:
       value: |
         Thank you for finding the time to propose a new feature!
-        We really appreciate the community efforts to improve Ray.
+        We really appreciate the community efforts to improve Modelscope-Agent.
 
   - type: checkboxes
     id: searched

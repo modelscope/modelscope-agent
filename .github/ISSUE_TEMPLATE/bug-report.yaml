@@ -3,8 +3,8 @@ title: "[<Agent component: framework|tool|llm|etc...>] "
 description: Problems and issues with code of Modelscope-Agent
 labels: [bug]
 assignees:
-  - suluyana
   - zzhangpurdue
+  - suluyana
 body:
   - type: markdown
     attributes:
