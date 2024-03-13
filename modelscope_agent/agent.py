@@ -150,5 +150,6 @@ class Agent(ABC):
 
     # del the tools as well while del the agent
     def __del__(self):
-        for tool_instance in self.function_map.items():
-            del tool_instance
+        if self.function_map:
+            for tool_instance in self.function_map.items():
+                del tool_instance
