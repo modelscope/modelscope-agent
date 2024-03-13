@@ -12,6 +12,10 @@ from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
 from user_core import init_user_chatbot_agent
 
+dir_need_to_rm = "/tmp/agentfabric/config/local_user/"
+if os.path.exists(dir_need_to_rm):
+    shutil.rmtree(dir_need_to_rm, ignore_errors=True)
+
 uuid_str = 'local_user'
 builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
     uuid_str)
@@ -24,22 +28,6 @@ customTheme = gr.themes.Default(
     radius_size=gr.themes.utils.sizes.radius_none,
 )
 
-dir_need_to_rm = "/tmp/agentfabric/config/local_user/"
-file_to_keep = "custom_bot_avatar.png"
-
-for filename in os.listdir(dir_need_to_rm):
-    file_path = os.path.join(dir_need_to_rm, filename)
-    
-    # 检查是否为要保留的文件
-    if filename != file_to_keep:
-        # 如果是文件则删除
-        if os.path.isfile(file_path) or os.path.islink(file_path):
-            os.remove(file_path)
-        # 如果是目录则删除整个目录
-        elif os.path.isdir(file_path):
-            shutil.rmtree(file_path)
-
-shutil.rmtree("/tmp/agentfabric/config/local_user/", ignore_errors=True)
 
 def check_uuid(uuid_str):
     if not uuid_str or uuid_str == '':
