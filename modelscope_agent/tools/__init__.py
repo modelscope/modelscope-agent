@@ -1,6 +1,7 @@
 from .amap_weather import AMAPWeather
 from .base import TOOL_REGISTRY, BaseTool, register_tool
 from .code_interpreter import CodeInterpreter
+from .contrib import *  # noqa F403
 from .dashscope_tools.image_enhancement import ImageEnhancement
 from .dashscope_tools.image_generation import TextToImageTool
 from .dashscope_tools.paraformer_asr_tool import ParaformerAsrTool
