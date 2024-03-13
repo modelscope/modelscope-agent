@@ -1,4 +1,4 @@
-name: Modelscope-Agent feature request
+name: Feature Request
 description: Suggest an idea for Modelscope-Agent project
 title: "[<Agent component: framework|tool|llm|etc...>] "
 labels: [enhancement]
