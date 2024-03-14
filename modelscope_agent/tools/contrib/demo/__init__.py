@@ -1,1 +1,1 @@
-from renew_aliyun_instance import AliyunRenewInstanceTool
+from .renew_aliyun_instance import AliyunRenewInstanceTool
