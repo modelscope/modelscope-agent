@@ -224,8 +224,8 @@ class AgentEnvMixin:
         result_dict = {'agent': agent, 'content': content}
         return result_dict
 
-    def publish(self, result, send_to: list = []):
-        # parse current state and message from
+    def publish(self, result, send_to: list = [DEFAULT_SEND_TO]):
+        # parse current state and message from llm
         # state, message, send_to_by_model = self._parse_message_attribute_from_llm(llm_result)
 
         # if no specific send to then, send to all
