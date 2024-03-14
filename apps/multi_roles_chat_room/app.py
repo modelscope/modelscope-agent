@@ -3,7 +3,7 @@ import re
 import gradio as gr
 import json
 import modelscope_studio as mgr
-from role_core import chat_progress, init_all_remote_actors
+from role_core import chat_progress, get_avatar_by_name, init_all_remote_actors
 from role_core import roles as origin_roles
 from role_core import start_chat_with_topic
 
@@ -67,6 +67,7 @@ with gr.Blocks() as demo:
                 elem_id='user_chatbot',
                 elem_classes=['markdown-body'],
                 avatar_images=[None, None],
+                avatar_image_width=60,
                 height=650,
                 show_label=True,
                 visible=True,
@@ -108,7 +109,11 @@ with gr.Blocks() as demo:
         _state = init_all_remote_actors(roles, username, _state)
         _state = start_chat_with_topic(from_user, topic, _state)
 
-        init_chat = [{'name': from_user, 'text': topic}]
+        init_chat = [{
+            'avatar': get_avatar_by_name(from_user),
+            'name': from_user,
+            'text': topic
+        }]
         _chatbot.append([None, init_chat])
 
         yield {state: _state, user_chatbot: _chatbot}
@@ -125,6 +130,7 @@ with gr.Blocks() as demo:
                 for item in bot_messages:
                     if bot_messages[item] != '':
                         output.append({
+                            'avatar': get_avatar_by_name(item),
                             'name': item,
                             'text': bot_messages[item]
                         })
@@ -174,6 +180,7 @@ with gr.Blocks() as demo:
                 for item in bot_messages:
                     if bot_messages[item] != '':
                         output.append({
+                            'avatar': get_avatar_by_name(item),
                             'name': item,
                             'text': bot_messages[item]
                         })

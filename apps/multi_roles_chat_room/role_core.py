@@ -25,9 +25,10 @@ ROLE_INSTRUCTION_PROMPT = """你是{role}，请你根据对话情节设定、对
 {role_description}
 
 # 注意事项
-1. 这是聊天室，不要发发送私信给任何人
+1. 这是聊天室，不要发送私信给任何人
 2. 仅代表你个人说话,不要扮演其他人
-3. 长话短说，不要说太多话，不要超过100字
+3. 长话短说，不要说太多话，不要超过50字
+4. 返回结果的时候不要在最开始加上名字
 
 """
 
@@ -48,8 +49,6 @@ CHATROOM_INSTRUCTION_PROMPT = """你是一个小说作家，请你根据对话�
 
 # 回复格式
 请用json格式回复，字段包括
-* plot: <first summarize recent chat history in 20 words>
-* thought: <think who is most likely to speak next in 50 words>
 * next_speakers: <next speakers>
 
 
@@ -74,12 +73,11 @@ STORY = """用户是男主角顾易，与六位长相、性格都大相径庭的
 #     '钟甄': '钟甄，32岁， 狮子座，AB型血，负责任的女总裁，高贵冷艳的霸道女总，职业：会计事务所合伙人'
 # }
 
-STORY = """用户是男主角顾易，与两位长相、性格都大相径庭的美女相识，包括魅惑魔女郑梓妍、知性姐姐李云思。
-这几位美女都喜欢顾易，相互之间争风吃醋，展开一段轻喜甜蜜的恋爱之旅。
+STORY = """用户是男主角顾易，与多位长相、性格都大相径庭的美女相识，这几位美女都喜欢顾易，相互之间争风吃醋，展开一段轻喜甜蜜的恋爱之旅。
 """
 
 roles = {
-    '顾易': '男主角，与六位美女相识，被美女包围，展开一段轻喜甜蜜的恋爱之旅',
+    '顾易': '男主角，与多位美女相识，被美女包围，展开一段轻喜甜蜜的恋爱之旅',
     '郑梓妍': '郑梓妍，23岁，射手座，A型血，鬼点子大王，极致魅惑，职业：杂志编辑',
     '李云思': '李云思，27岁，摩羯座，O型血，趣味相投的知音，温婉大气，职业：策展人',
 }
@@ -99,6 +97,27 @@ function_list = []
 all_roles_info = ''
 for cur_role in roles:
     all_roles_info += f'* {cur_role}\n {roles[cur_role]}\n\n'
+
+
+def get_avatar_by_name(role_name):
+    # get current file path
+    current_file_path = os.path.abspath(__file__)
+
+    # get current parent directory
+    parent_directory_path = os.path.dirname(current_file_path)
+    file_map = {
+        '顾易': 'guyi.png',
+        '郑梓妍': 'zhengziyan.png',
+        '李云思': 'liyunsi.png',
+        'others': 'default_girl.png'
+    }
+    if role_name not in file_map.keys():
+        file_name = file_map['others']
+    else:
+        file_name = file_map[role_name]
+    avatar_abs_path = os.path.join(parent_directory_path, 'resources',
+                                   file_name)
+    return avatar_abs_path
 
 
 def generate_role_instruction(role):
@@ -251,12 +270,14 @@ def chat_progress(user_response, _state):
                 next_agent_names = list(
                     set(next_agent_names) - set(user_agent_names))
 
-            for frame in TaskCenter.step.remote(
-                    task_center,
-                    allowed_roles=next_agent_names,
-                    user_response=user_response,
-                    **kwargs):
-                yield ray.get(frame)
+            # only if other agent than user run into this logic
+            if len(next_agent_names) > 0:
+                for frame in TaskCenter.step.remote(
+                        task_center,
+                        allowed_roles=next_agent_names,
+                        user_response=user_response,
+                        **kwargs):
+                    yield ray.get(frame)
 
             # stop and let user send message
             if len(user_agent_names) == 1:

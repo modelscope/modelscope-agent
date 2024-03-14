@@ -156,13 +156,15 @@ class AgentEnvMixin:
                 return
 
         # If human input mode is close, or human input is empty, then run the generation,
-        if self.human_input_mode == 'CLOSE' or user_not_response:
+        if self.human_input_mode == 'CLOSE' or not user_not_response:
 
             # get history
             history = []
             if self.use_history:
                 history = self.memory.get_history()
-
+            logger.info(
+                f'reach here 2 {result}, self.human_input_mode {self.human_input_mode}'
+            )
             # run generation
             for frame in self.run(
                     prompt,
