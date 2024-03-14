@@ -165,6 +165,7 @@ def parse_configuration(uuid_str=''):
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}
     available_plugin_list = []
+    openapi_plugin_cfg_file_temp = './config/openapi_plugin_config.json'
     if os.path.exists(openapi_plugin_file):
         openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
         try:
@@ -184,5 +185,10 @@ def parse_configuration(uuid_str=''):
                     'error_details':
                         'The format of the plugin config file is incorrect.'
                 })
+    elif not os.path.exists(openapi_plugin_file):
+        if  os.path.exists(openapi_plugin_cfg_file_temp):
+            os.makedirs(os.path.dirname(openapi_plugin_file), exist_ok=True)
+            if openapi_plugin_cfg_file_temp != openapi_plugin_file:
+                shutil.copy(openapi_plugin_cfg_file_temp, openapi_plugin_file)
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
