@@ -144,6 +144,12 @@ class Agent(ABC):
             func_call = message['function_call']
             func_name = func_call.get('name', '')
             func_args = func_call.get('arguments', '')
+        # Compatible with OpenAI API
+        if 'tool_calls' in message and message['tool_calls']:
+            func_call = message['tool_calls'][0]['function']
+            func_name = func_call.get('name', '')
+            func_args = func_call.get('arguments', '')
+
         text = message.get('content', '')
 
         return (func_name is not None), func_name, func_args, text
