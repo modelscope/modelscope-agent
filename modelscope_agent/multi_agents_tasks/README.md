@@ -1,12 +1,16 @@
-<p align="center">
-   <picture>
-    <img src="https://modelscope.oss-cn-beijing.aliyuncs.com/modelscope.gif" width="400"/>
-  </picture>
-</p>
+<h1> Multi-Agent based on Ray and ModelScope-Agent</h1>
 
-<h3 align="center">
-Multi-Agent based on Ray and ModelScope-Agent
-</h3>
+<p align="center">
+    <br>
+    <img src="https://modelscope.oss-cn-beijing.aliyuncs.com/modelscope.gif" width="400"/>
+    <br>
+<p>
+
+<p align="center">
+<a href="https://modelscope.cn/home">Modelscope Hub</a> ｜ <a href="https://arxiv.org/abs/2309.00986">Paper</a> ｜ <a href="https://modelscope.cn/studios/damo/ModelScopeGPT/summary">Demo</a>
+<br>
+        <a href="README_CN.md">中文</a>&nbsp ｜ &nbsp 英文
+</p>
 
 
 ## Introduction

@@ -1,4 +1,4 @@
-<h1> ModelScope-Agent: Building Your Customizable Agent System with Open-source Large Language Models</h1>
+<h1> Multi-Agent based on Ray and ModelScope-Agent</h1>
 
 <p align="center">
     <br>
