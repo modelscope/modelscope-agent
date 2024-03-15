@@ -19,7 +19,7 @@ In order to allow modelscope-agent run on multi-agent mode, we have proposed the
 ## Architecture
 
 <p align="center">
-  <img src="../../resources/multi-agent_with_modelscope.png" width="600" />
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/multi-agent_with_modelscope.png" width="600" />
 </p>
 
 ## Why
@@ -60,13 +60,13 @@ Considering the current status of ModelScope-Agent, the following design solutio
 A simple multi-roles chat room gradio [app](../../demo/demo_multi_roles_chat_room.ipynb) demonstrated the logic of multi-agent design.
 
 <p align="center">
-  <img src="../../resources/multi-roles-chat-room.png" width="600" />
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/multi-roles-chat-room.png" width="600" />
 </p>
 
 Another demo shows it could work on multi-modality video generation task. (*polishing demo code, will add soon*).
 
 <p align="center">
-  <img src="../../resources/video-generation-multi-agent.png" width="600" />
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/video-generation-multi-agent.png" width="600" />
 </p>
 
 ## Future works

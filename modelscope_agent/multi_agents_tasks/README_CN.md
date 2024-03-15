@@ -30,7 +30,7 @@
 ## 架构
 
 <p align="center">
-  <img src="../../resources/multi-agent_with_modelscope.png" width="600" />
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/multi-agent_with_modelscope.png" width="600" />
 </p>
 
 ## 动机
@@ -72,13 +72,13 @@
 基于有god角色的的多人聊天室gradio [app](../../demo/demo_multi_roles_chat_room.ipynb)
 
 <p align="center">
-  <img src="../../resources/multi-roles-chat-room.png" width="600" />
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/multi-roles-chat-room.png" width="600" />
 </p>
 
 基于固定流程的视频生成gradio app (*polishing demo code, will add soon*).
 
 <p align="center">
-  <img src="../../resources/video-generation-multi-agent.png" width="600" />
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/video-generation-multi-agent.png" width="600" />
 </p>
 
 ## 未来工作
