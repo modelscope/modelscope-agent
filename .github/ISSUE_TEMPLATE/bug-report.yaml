@@ -23,13 +23,13 @@ body:
         _Sorry to sound so draconian 👿; but every second spent replying to issues is time not spent improving Modelscope-Agent 🙇._
       options:
         - label: I have searched GitHub for a duplicate issue and I'm sure this is something new
-          required: true
+          required: false
         - label: I have read and followed [the docs & demos](https://github.com/modelscope/modelscope-agent/tree/master/demo) and still think this is a bug
-          required: true
+          required: false
         - label: >
             I am confident that the issue is with modelscope-agent
             (not my code, or another library in the ecosystem)
-          required: true
+          required: false
 
   - type: textarea
     attributes:
