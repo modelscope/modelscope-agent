@@ -1,4 +1,4 @@
-<h1 align="center"> Multi-Agent based on Ray and ModelScope-Agent</h1>
+<h1 align="center"> Multi-Agent based on ModelScope-Agent and Ray</h1>
 
 <p align="center">
     <br>
