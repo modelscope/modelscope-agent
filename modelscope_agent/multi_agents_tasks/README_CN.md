@@ -70,7 +70,7 @@
   <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/multi-roles-chat-room.png" width="600" />
 </p>
 
-基于固定流程的视频生成gradio app (*polishing demo code, will add soon*).
+基于固定流程的视频生成gradio [app](../../demo/demo_multi_role_videogen.ipynb).
 
 <p align="center">
   <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/video-generation-multi-agent.png" width="600" />
