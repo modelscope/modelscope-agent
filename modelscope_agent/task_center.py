@@ -69,12 +69,12 @@ class TaskCenter:
 
         return notified_user_roles
 
-    def start_task(self,
-                   task,
-                   send_to: Union[str, list] = DEFAULT_SEND_TO,
-                   send_from: str = 'human'):
+    def send_task_request(self,
+                          task,
+                          send_to: Union[str, list] = DEFAULT_SEND_TO,
+                          send_from: str = 'human'):
         """
-        Start the task by send the first message to the environment
+        Send the task request by send the message to the environment
         Args:
             task: the task from user
             send_to: send to the message to whom

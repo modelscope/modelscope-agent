@@ -141,7 +141,7 @@ task_center.add_agents([chat_room])
 
 # start the chat by send chat message to env
 chat = '@顾易 要不要来我家吃饭？'
-task_center.start_task(chat, send_from='林乐清')
+task_center.send_task_request(chat, send_from='林乐清')
 
 # limit the round to n_round
 n_round = 50

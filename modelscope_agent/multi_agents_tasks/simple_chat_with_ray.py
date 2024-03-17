@@ -37,7 +37,7 @@ task_center.add_agents([role_play1, role_play2])
 
 n_round = 2
 task = 'who are u'
-task_center.start_task(task)
+task_center.send_task_request(task)
 while n_round > 0:
 
     for frame in TaskCenter.step.remote(task_center):

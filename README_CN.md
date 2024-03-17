@@ -282,6 +282,9 @@ print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
 
 ```
 
+### Multi-Agent
+请参考相关[文档](modelscope_agent/multi_agents_tasks/README_CN.md)。
+
 ## 训练框架
 
 我们在[demo/tool_agent_finetune_swift](demo/tool_agent_finetune_swift)中提供了一个开源大模型训练框架，主要集成了来自ModelScope的SWIFT训练框架。此外，我们还发布了一个大规模的工具指令微调数据集MSAgent-Bench。

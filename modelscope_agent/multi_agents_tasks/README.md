@@ -74,6 +74,127 @@ Another demo shows it could work on multi-modality video generation task. (*poli
   <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/video-generation-multi-agent.png" width="600" />
 </p>
 
+## Quick Start
+
+The multi-agent is running on Ray in a Process Oriented Design(POD) manner.
+Such that, user don't need to take care any additional distribution or multi-processes stuff, modelscope-agent with ray have
+covered this part. User only need to write the procedure based on the task type to drive the communication between agents.
+
+There are two stages to run a multi-agent task, initialization and Process as shown below.
+
+
+<p align="center">
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/sequence_diagram.png" width="600" />
+</p>
+
+During initialization stage, Ray will covert all classes into actor by a sync operation,
+such as: `task_center`, `environment`, `agent_registry` and `agent`.
+
+### Task Center
+Task center will initialize the *Ray*, and convert `environment` and `agent_registry` into actor on ray.
+The variable `remote` are assign to `True`, meaning the task will be a multi-processes ray task,
+which could run on a single machine or on a cluster. (Currently only single machine tested, will be on cluster soon.)
+
+If the `remote = False`, then it will be a single process task without ray.
+
+```python3
+from modelscope_agent.task_center import TaskCenter
+
+task_center = TaskCenter(remote=True)
+```
+
+### Agents
+Agents will be initialized by the function `create_component`.
+The `remote=True` will convert the agent into a ray actor and will run on an independent process,
+if `remote=False` then it is a simple agent.
+
+`name` is used to define the agent actor's name in *Ray*, on the other hand,
+`role` is used to define the role name in *ModelScope-Agent*.
+
+The rest definition of the inputs are the same as [single agent](../agent.py).
+
+
+```python3
+import os
+
+from modelscope_agent import create_component
+from modelscope_agent.agents import RolePlay
+
+llm_config = {
+    'model': 'qwen-max',
+    'api_key': os.getenv('DASHSCOPE_API_KEY'),
+    'model_server': 'dashscope'
+}
+function_list = []
+role_play1 = create_component(
+    RolePlay,
+    name='role_play1',
+    remote=True,
+    role='role_play1',
+    llm=llm_config,
+    function_list=function_list)
+
+role_play2 = create_component(
+    RolePlay,
+    name='role_play2',
+    remote=True,
+    role='role_play2',
+    llm=llm_config,
+    function_list=function_list)
+```
+
+Those agents will then be registered to `task_center` by `add_agents` method.
+```python
+
+# register agents
+task_center.add_agents([role_play1, role_play2])
+```
+
+All the operations so far are in a sync manner, in order to make sure all the actors are correctly initialized.
+
+### Task Process
+We could start a new task by calling `send_task_request`, and send the task to the `environment`.
+
+```python
+task = 'what is the best solution to land on moon?'
+task_center.send_task_request(task)
+```
+also we could send task request only to specific agents by passing the input `send_to` with role name of agent.
+```python
+task_center.send_task_request(task, send_to=['role_play1'])
+```
+
+Then, we could code our multi-agent procedure logic with task_center's static method `step`
+
+```python
+import ray
+n_round = 10
+while n_round > 0:
+
+    for frame in TaskCenter.step.remote(task_center):
+        print(ray.get(frame))
+
+
+    n_round -= 1
+```
+The `step` method should be converted to a `task` function in ray as `step.remote`, so we have to make it static,
+and pass in the `task_center` as input, in order to let this step function have the information about this task.
+
+In side the `step` task method, it will call each agent's `step` method parallely, for those agents who should response in this step.
+The response will be a distributed generator so-called `object reference generator` in ray, which is a memory shared object among the ray cluster.
+So we have to call `ray.get(frame)` to extract this object as normal generator.
+
+For detail understanding of ray, please refer the Ray introduction [document](https://docs.ray.io/en/latest/ray-core/key-concepts.html)
+
+### Summary
+
+So far, we have built a multi-agent system with two agents, and  let then discuss a topic about
+*'what is the best solution to land on moon?'*.
+
+With the increasing number of agents, the efficiency of this multi-agent on ray will be revealed.
+
+This is a very simple task, and we hope developers could explore more tasks with more complicated conditions, so as we will do.
+
 ## Future works
 
 Even though, we have designed such multi-agent system, it still has many challenges to get into production environment.
@@ -84,7 +205,8 @@ The following problem are known issues:
 * Hard to debugging for those who only code on single process, it should be better to track issues by logs.
 
 Other than above issues, following features still need to be added, in order to make multi-agent fit in more complex task
-* Support more complicated distributed task, such as the data spider system mentioned above
+* Support more complicated distributed task, such as the data spider system on multi-machine cluster
+* Actually, we never try to run the multi-agents on a single process(`remote=True`) with python native async function, might be tested and added for some simple case.
 * Better instruction & prompt for different task
 * Distributed memory
 * Distributed tool service

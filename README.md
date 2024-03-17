@@ -205,6 +205,10 @@ bot = RolePlay(function_list=function_list, ...)
 - `speech-generation`: [Speech generation](https://www.modelscope.cn/models/iic/speech_sambert-hifigan_tts_zh-cn_16k/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 - `video-generation`: [Video generation](https://www.modelscope.cn/models/iic/text-to-video-synthesis/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 
+### Multi-agent
+
+Please refer the multi-agent [readme](modelscope_agent/multi_agents_tasks/README.md).
+
 
 ## Related Tutorials
 

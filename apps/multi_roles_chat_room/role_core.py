@@ -212,7 +212,7 @@ def init_all_remote_actors(_roles, user_role, _state):
 
 def start_chat_with_topic(from_user, topic, _state):
     task_center = _state['task_center']
-    task_center.start_task(topic, send_from=from_user)
+    task_center.send_task_request(topic, send_from=from_user)
     _state['task_center'] = task_center
     return _state
 

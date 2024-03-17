@@ -76,6 +76,121 @@
   <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/video-generation-multi-agent.png" width="600" />
 </p>
 
+## 快速开始
+
+本设计中Multi-Agent System主要以面向流程设计的方式在Ray上运行。
+这样，用户不需要关心任何额外的分布式或多进程问题，ModelScope-Agent和Ray已经涵盖了这部分。
+用户只需要根据任务类型编写过程脚本，以驱动代理之间的通信。
+
+运行multi-agent分为两个阶段，初始化和处理，如下图所示。
+<p align="center">
+  <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/sequence_diagram.png" width="600" />
+</p>
+
+在初始化阶段，Ray会通过同步操作将所有类转换为actor，例如：`task_center`、`environment`、`agent_registry`和`agent`。
+
+### 任务中心
+
+任务中心将初始化*Ray*所需要的环境， 并将`environment`和`agent_registry`转换为*Ray*上的actor。
+变量`remote`被设置为`True`，这意味着任务将是一个多进程的*Ray*任务，可以在单台机器上运行，也可以在集群上运行。（目前只在单机上测试过，不久将在集群上测试）
+如果`remote = False`，那么它将是一个没有Ray的单进程任务, 和普通的类没有区别。
+
+```python3
+from modelscope_agent.task_center import TaskCenter
+
+task_center = TaskCenter(remote=True)
+```
+
+### Agents
+所有的agent将通过函数`create_component`进行初始化。
+如果设置`remote=True`，将把agent转换为一个*Ray*上的`actor`，并将在一个独立的进程上运行.
+如果`remote=False`，那么它就是一个简单的agent类，和普通的single agent没有区别。
+
+
+入参`name`用于定义在*Ray*中对应的`actor`的名称；
+另一方面，入参`role`用于在ModelScope-Agent中定义角色名称。
+
+其余输入的定义与 [single agent](../agent.py)相同。
+
+```python3
+import os
+
+from modelscope_agent import create_component
+from modelscope_agent.agents import RolePlay
+
+llm_config = {
+    'model': 'qwen-max',
+    'api_key': os.getenv('DASHSCOPE_API_KEY'),
+    'model_server': 'dashscope'
+}
+function_list = []
+role_play1 = create_component(
+    RolePlay,
+    name='role_play1',
+    remote=True,
+    role='role_play1',
+    llm=llm_config,
+    function_list=function_list)
+
+role_play2 = create_component(
+    RolePlay,
+    name='role_play2',
+    remote=True,
+    role='role_play2',
+    llm=llm_config,
+    function_list=function_list)
+```
+
+这些agent随后将通过task_center的`add_agents`方法进行注册。
+
+```python
+# register agents
+task_center.add_agents([role_play1, role_play2])
+```
+
+值得注意的是，目前为主以上所有操作都是以同步方式进行的，以确保所有的actor都正确初始化。
+
+### 任务处理
+
+我们可以通过调用`send_task_request`来启动一个新的任务，并将任务发送到`environment`。
+```python
+task = 'what is the best solution to land on moon?'
+task_center.send_task_request(task)
+```
+另外，我们也可以通过参数`send_to`传入agent的角色名称，以向特定的agent发送任务请求。
+```python
+task_center.send_task_request(task, send_to=['role_play1'])
+```
+然后，我们可以使用task_center的静态方法`step`来编写我们的multi-agent流程逻辑。
+```python
+import ray
+n_round = 10
+while n_round > 0:
+
+    for frame in TaskCenter.step.remote(task_center):
+        print(ray.get(frame))
+
+
+    n_round -= 1
+```
+
+`step`方法需要被转换为*Ray*中的task函数，即`step.remote`，因此我们必须将其设置为静态方法，并将task_center作为输入传入，以便让这个step函数获得任务的信息。
+在`step`任务方法内部，它将并行地调用对于那些在这一步骤中应该响应的agent的`step`方法。
+
+返回的响应将是一个分布式生成器，在*Ray*中被称为`object reference generator`，它是*Ray*集群中的一个共享内存对象。
+因此，我们必须调用`ray.get(frame)`来将这个对象提取为正常的生成器。
+
+要详细了解ray，请参考Ray介绍[文档](https://docs.ray.io/en/latest/ray-core/key-concepts.html)。
+
+### 总结
+
+到目前为止，我们创建了一个包含两个agent的multi-agent system，并让它们讨论一个关于 *登月的最佳解决方案是什么* 的话题。
+
+同时，值得注意的是，随着agent数量的增加，这个基于*Ray*的multi-agent system的效率将会显现出来, 数量增大能发挥出来*Ray*的特性。
+
+目前我们实现了一个非常简单的任务，我们希望开发者能够探索更多具有更复杂条件的任务，我们也会持续的进行探索。
+
+
 ## 未来工作
 
 尽管我们设计了这样的multi-agent框架，但要将其投入生产环境还有许多挑战。以下问题是已知问题：
