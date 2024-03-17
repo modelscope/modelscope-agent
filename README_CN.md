@@ -31,9 +31,9 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 - 低耦合性：开发者可以方便的直接使用内置的工具、LLM、记忆等组件，而不需要绑定更上层的Agent。
 
 
-## 更新
-* 2024.3.15: 基于[Ray](https://docs.ray.io/en/latest/)的multi-agent方案正式上线，参考[文档](https://github.com/modelscope/modelscope-agent/tree/master/modelscope_agent/multi_agents_tasks/README_CN.md)
-* 2024.3.13: 基于modelscope-agent的[AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric)已经正式进入Modelscope[创空间](https://modelscope.cn/studios/agent)生成环境。
+##  🎉更新
+* 🔥2024.3.15: 基于[Ray](https://docs.ray.io/en/latest/)的multi-agent方案正式上线，参考[文档](https://github.com/modelscope/modelscope-agent/tree/master/modelscope_agent/multi_agents_tasks/README_CN.md)
+* 🔥2024.3.13: 基于modelscope-agent的[AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric)已经正式进入Modelscope[创空间](https://modelscope.cn/studios/agent)生成环境。
 * 2024.2.10：在中国新年期间，我们将modelscope agent升级到v0.3版本，以便开发者通过编码更方便地定制各类agent，并使创建多agent演示变得更加容易。更多详情，您可以参考[#267](https://github.com/modelscope/modelscope-agent/pull/267) 和 [#293](https://github.com/modelscope/modelscope-agent/pull/293)。
 * 2023.11.26: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric)支持ModelScope[创空间](https://modelscope.cn/studios/modelscope/AgentFabric/summary)多人使用，支持分享定制应用到创空间，更新到最新的[GTE](https://modelscope.cn/models/damo/nlp_gte_sentence-embedding_chinese-base/summary) text embedding。
 * 2023.11.17: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric) 发布，这是一个交互式的智能体构建工具，用于方便地创建针对各种现实应用量身定制智能体。
