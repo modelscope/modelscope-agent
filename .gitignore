@@ -122,6 +122,8 @@ venv.bak/
 *.tar.gz
 *.swp
 *.log
+**/logs/
+**/log/
 *.tar.gz
 source.sh
 tensorboard.sh

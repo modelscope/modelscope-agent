@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Dict, Iterable, List, Union
 
 import json
@@ -7,7 +8,7 @@ from pydantic import ConfigDict
 
 
 class Memory(AgentAttr):
-    path: str
+    path: Union[str, Path]
     model_config = ConfigDict(extra='allow')
 
     def save_history(self):
@@ -24,11 +25,13 @@ class Memory(AgentAttr):
 
         directory = os.path.dirname(self.path)
         if not os.path.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
         with open(self.path, 'w', encoding='utf-8') as file:
             # 使用 Pydantic 的 dict() 方法将模型列表转换为字典列表
-            messages_dict_list = [message.model_dump() for message in history]
+            messages_dict_list = [
+                message.model_dump() for message in self.history
+            ]
             # 使用 json.dump 将字典列表写入文件
             json.dump(messages_dict_list, file, ensure_ascii=False, indent=2)
 
@@ -51,7 +54,7 @@ class Memory(AgentAttr):
                 return messages_list
         except FileNotFoundError:
             print('File not found.')
-            return None
+            return []
 
     def get_history(self) -> List[Message]:
         return [message.model_dump() for message in self.history]

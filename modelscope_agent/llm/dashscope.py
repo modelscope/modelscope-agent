@@ -90,6 +90,10 @@ class DashScopeLLM(BaseChatModel):
             uuid=kwargs.get('uuid_str', ''),
             details=generation_input,
             message='call dashscope generation api')
+        if kwargs.get('temperature', None):
+            generation_input['temperature'] = kwargs.get('temperature')
+        if kwargs.get('seed', None):
+            generation_input['seed'] = kwargs.get('seed')
         response = dashscope.Generation.call(**generation_input)
         return stream_output(response, **kwargs)
 

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Union
 
 import json
@@ -14,7 +15,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
     def __init__(self,
                  function_list: Optional[List[Union[str, Dict]]] = None,
                  llm: Optional[Union[Dict, BaseChatModel]] = None,
-                 storage_path: Optional[str] = None,
+                 storage_path: Optional[Union[str, Path]] = None,
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  use_knowledge_cache: bool = True,

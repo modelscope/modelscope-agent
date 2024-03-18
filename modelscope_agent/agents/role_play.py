@@ -3,6 +3,8 @@ import re
 from typing import Dict, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
+from modelscope_agent.agent_env_util import AgentEnvMixin
+from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
 
@@ -123,7 +125,19 @@ OBSERVATION_TOKEN = 'Observation:'
 ANSWER_TOKEN = 'Answer:'
 
 
-class RolePlay(Agent):
+class RolePlay(Agent, AgentEnvMixin):
+
+    def __init__(self,
+                 function_list: Optional[List[Union[str, Dict]]] = None,
+                 llm: Optional[Union[Dict, BaseChatModel]] = None,
+                 storage_path: Optional[str] = None,
+                 name: Optional[str] = None,
+                 description: Optional[str] = None,
+                 instruction: Union[str, dict] = None,
+                 **kwargs):
+        Agent.__init__(self, function_list, llm, storage_path, name,
+                       description, instruction, **kwargs)
+        AgentEnvMixin.__init__(self, **kwargs)
 
     def _run(self,
              user_request,
@@ -223,7 +237,7 @@ class RolePlay(Agent):
                     functions=[
                         func.function for func in self.function_map.values()
                     ],
-                )
+                    **kwargs)
             else:
                 output = self.llm.chat(
                     prompt=planning_prompt,
