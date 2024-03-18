@@ -32,6 +32,7 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 
 ## 更新
+* 2024.3。15: Modelscope-Agent 和 Agentfabric（面向GPT的开源版本）正在[modelscope studio](https://modelscope.cn/studios/agent)的生产环境中运行。
 * 2024.2.10：在中国新年期间，我们将modelscope agent升级到v0.3版本，以便开发者通过编码更方便地定制各类agent，并使创建多agent演示变得更加容易。更多详情，您可以参考[#267](https://github.com/modelscope/modelscope-agent/pull/267) 和 [#293](https://github.com/modelscope/modelscope-agent/pull/293)。
 * 2023.11.26: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric)支持ModelScope[创空间](https://modelscope.cn/studios/modelscope/AgentFabric/summary)多人使用，支持分享定制应用到创空间，更新到最新的[GTE](https://modelscope.cn/models/damo/nlp_gte_sentence-embedding_chinese-base/summary) text embedding。
 * 2023.11.17: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric) 发布，这是一个交互式的智能体构建工具，用于方便地创建针对各种现实应用量身定制智能体。
@@ -69,78 +70,89 @@ Notebook环境使用简单，您只需要按以下步骤操作（注意：目前
 
 ## 快速入门
 
-使用 ModelScope-Agent，您只需要实例化一个 `Agent` 对象，并使用 `run()` 来执行您的任务即可。
+agent结合了大型语言模型（LLM）以及特定任务的工具，并利用LLM来确定为了完成用户任务需要调用哪个或哪些工具。
 
-如下简单示例，更多细节可参考[demo_agent](demo/demo_qwen_agent.ipynb)。也可通过魔搭社区在线Demo直接体验[ModelScope](https://modelscope.cn/studios/damo/ModelScopeGPT/summary).
+在一开始，您所需要做的就是使用相应的任务初始化一个`RolePlay`对象。
+
+- 样本代码使用了 qwen-max 模型、绘图工具和天气预报工具。
+     - 使用 qwen-max 模型需要将示例中的 YOUR_DASHSCOPE_API_KEY 替换为您的 API-KEY，以便代码正常运行。您的 YOUR_DASHSCOPE_API_KEY 可以在[这里](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key)获得。绘图工具也调用了 DASHSCOPE API（wanx），因此不需要额外配置。
+     - 在使用天气预报工具时，需要将示例中的 YOUR_AMAP_TOKEN 替换为您的高德天气 API-KEY，以便代码能够正常运行。您的 YOUR_AMAP_TOKEN 可以在[这里](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)获得。
 
 ```Python
-from modelscope_agent.agents import RolePlay
+# 配置环境变量；如果您已经提前将api-key提前配置到您的运行环境中，可以省略这个步骤
+import os
+os.environ['DASHSCOPE_API_KEY']=YOUR_DASHSCOPE_API_KEY
+os.environ['AMAP_TOKEN']=YOUR_AMAP_TOKEN
 
-# config
+# 选用RolePlay 配置agent
+from modelscope_agent.agents.role_play import RolePlay  # NOQA
+
 role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
+
 llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+
+# input tool name
 function_list = ['amap_weather', 'image_gen']
 
-# init agent
-bot = RolePlay(function_list=function_list, llm=llm_config, instruction=role_template)
+bot = RolePlay(
+    function_list=function_list, llm=llm_config, instruction=role_template)
 
-# run agent
 response = bot.run('朝阳区天气怎样？')
 
-# result processing
 text = ''
 for chunk in response:
     text += chunk
-print(text)
-
-
 ```
 
-- 单步 & 多步工具使用
+结果
+- Terminal 运行
+```shell
+# 第一次调用llm的输出
+Action: amap_weather
+Action Input: {"location": "朝阳区"}
 
-```Python
-# Single-step tool-use
-agent.run("I want to see cute kittens", remote=True)
+# 第二次调用llm的输出
+目前，朝阳区的天气状况为阴天，气温为1度。
 
-# Multi-step tool-use
-print('The built-in voice generation and video generation capabilities are deployed in mdoelscope. You need to enter the ModelScope Token, which can be obtained from here: https://modelscope.cn/my/myaccesstoken')
-os.environ['MODELSCOPE_API_TOKEN'] = input()
+Action: image_gen
+Action Input: {"text": "朝阳区城市风光", "resolution": "1024*1024"}
 
-agent.reset()
-agent.run('写一篇关于Vision Pro VR眼镜的20字宣传文案，并用女声读出来，同时生成个视频看看', remote=True)
+# 第三次调用llm的输出
+目前，朝阳区的天气状况为阴天，气温为1度。同时，我已为你生成了一张朝阳区的城市风光图，如下所示：
+
+![](https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/45/20240204/3ab595ad/96d55ca6-6550-4514-9013-afe0f917c7ac-1.jpg?Expires=1707123521&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=RsJRt7zsv2y4kg7D9QtQHuVkXZY%3D)
 ```
-
-<div style="display: flex;">
-  <img src="resources/modelscopegpt_case_single-step.png" alt="Image 1" style="width: 45%;">
-  <img src="resources/modelscopegpt_case_video-generation.png" alt="Image 2" style="width: 45%;">
-</div>
-
-- 多轮工具使用和知识问答
-
-```Python
-# Multi-turn tool-use
-agent.reset()
-agent.run('写一个20字左右简短的小故事', remote=True)
-agent.run('用女声念出来', remote=True)
-agent.run('给这个故事配一张图', remote=True)
-```
-
-<div style="display: flex;">
-  <img src="resources/modelscopegpt_case_multi-turn.png" alt="Image 1" style="width: 45%;">
-  <img src="resources/modelscopegpt_case_knowledge-qa.png" alt="Image 2" style="width: 45%;">
-</div>
 
 ### 主要组件
 
-`AgentExecutor`对象包括以下组件：
+`Agent`对象包括以下组件：
 
 - `LLM`：负责处理用户输入并决策调用合适工具。
-- `tool_list`：包含代理可用工具的列表。
-- `PromptGenerator`：提示词管理组件，将 `prompt_template`、`user_input`、`history`、`tool_list` 等整合到高效的提示词中。
-- `OutputParser`：输出模块，将LLM响应解析为要调用的工具和相应的参数。
+- `function_list`：包含代理可用工具的列表。
 
 我们为用户提供了这些组件的默认实现，但用户也可以根据自己的需求自定义组件。
 
+目前，Agent 的配置可能包含以下参数：
+- `llm`: 该代理的语言模型配置
+    - 当为字典时：设置语言模型的配置为 {'model': '', 'api_key': '', 'model_server': ''}
+    - 当为 BaseChatModel 时：语言模型由另一个agent发送
+- `function_list`： 工具列表
+    - 当为字符串时：工具名称
+    - 当为字典时：工具配置
+- `storage_path`： 如果没有另外指定，所有数据都将以键值对的形式存储在这里，通过内存
+- `instruction`： 该agent的系统指令
+- `name`: agent的名称
+- `description`： agent的描述，用于multi_agent
+- `kwargs`： 其他潜在参数
+
+`agent` 作为一个基类，不能直接初始化和调用。代理的子类需要继承它。它们必须实现函数`_run`，主要包括三个部分：生成消息或提示，调用 llm（语言模型），以及基于 llm 结果的工具调用。我们为用户提供了`RolePlay`中这些组件的实现，您也可以根据您的需求自定义组件。
+
+```python
+from modelscope_agent import Agent
+class YourCustomAgent(Agent):
+    def _run(self, user_request, **kwargs):
+        # 定制您的工作流程
+```
 
 ### 配置
 
@@ -156,131 +168,57 @@ agent.run('给这个故事配一张图', remote=True)
 
 ### LLM
 
-我们提供了开箱即用的LLM方便用户使用，具体模型如下：
-* modelscope-agent-7b: [modelscope-agent-7b](https://modelscope.cn/models/damo/ModelScope-Agent-7B/summary)是驱动ModelScope-Agent框架的核心开源模型，可以直接下载到本地使用。
-* modelscope-agent: 部署在[DashScope](http://dashscope.aliyun.com)上的ModelScope-Agent服务，不需要本地GPU资源，在DashScope平台执行如下操作：
-    1. 申请开通DashScope服务，进入`模型广场`-> `通义千问开源系列` -> 申请试用`通义千问7B`， 免费额度为10万token
-    2. `API-kEY管理`中创建API-KEY，在`config/.env`文件中配置
+LLM 是代理的核心模块，它确保了交互结果的质量。
 
+目前，LLM 的配置可能包含以下参数:
+- `model`: 特定的模型名称，将直接传递给模型服务提供商。
+- `model_server`: 模型服务的提供商。
 
-如果用户想使用其他LLM，也可以继承基类并专门实现 `generate()` 或 `stream_generate()`。
+`BaseChatModel`作为 LLM 的基类，不能直接初始化和调用。子类需要继承它。它们必须分别实现函数 `_chat_stream` 和 `_chat_no_stream`，这两个函数分别对应流式输出和非流式输出。
+可选实现 `chat_with_functions` 和 `chat_with_raw_prompt` 函数，用于调用功能和文本补全。
 
-- `generate()`: 直接返回最终结果
-- `stream_generate()`: 返回一个生成器用于结果的串行生成，在部署应用程序到 Gradio 时可以使用。
+目前我们提供了三个模型服务提供商的实现：dashscope（用于 qwen 系列模型）、zhipu（用于 glm 系列模型）和 openai（用于所有 openai api 格式模型）。您可以直接使用上述服务提供商支持的模型，或者您可以定制您自己的 LLM。
 
-用户还可以使用 ModelScope 或 Huggingface 的开源LLM，并通过 `LLMFactory` 类在本地进行推断。此外，也可以使用用户的数据集对这些模型进行微调或加载您的自定义权重。
+有关更多信息，请参阅`docs/modules/llm.md`
 
-```Python
-# 本地LLM配置
-import os
-from modelscope.utils.config import Config
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.agent import AgentExecutor
-
-model_name = 'modelscope-agent-7b'
-model_cfg = {
-  'modelscope-agent-7b': {
-    'type': 'modelscope',
-    'model_id': 'damo/ModelScope-Agent-7B',
-    'model_revision': 'v1.0.0',
-    'use_raw_generation_config': True,
-    'custom_chat': True
-  }
-}
-
-tool_cfg_file = os.getenv('TOOL_CONFIG_FILE', 'config/cfg_tool_template.json')
-tool_cfg = Config.from_file(tool_cfg_file)
-
-llm = LLMFactory.build_llm(model_name, model_cfg)
-agent = AgentExecutor(llm, tool_cfg)
-```
-
-
+有关本地部署的更多信息，请参阅`docs/local_deploy.md`
 
 ### 自定义工具
 
-为了能支持各类任务应用，我们提供了多个默认的pipeline作为工具以便大模型调用，这些pipeline来自于modelscope，涵盖了多个领域。
-
-此外，用户可以通过继承基础的工具类，并根据定义名称、描述和参数(`names, descriptions, and parameters`)来自定义自己的工具。
-
-同时还可以根据需要实现 `_local_call()` 或 `_remote_call()`。 更多工具类的注册细节可参考[tool](docs/modules/tool.md)和[too_demo](demo/demo_register_new_tool.ipynb)。
-
+我们提供了几种多领域工具，可以在agent中配置和使用。 您也可以通过继承基础工具，并根据预定义的模式设置工具的名称、描述和参数来自定义您的工具。根据您的需要，可以实现 call() 函数。 一个自定义工具的例子提供在
 以下是支持的工具示例：
+[demo_register_new_tool](../demo/demo_register_new_tool.ipynb)
 
-- 文本转语音工具
-
-```python
-from modelscope_agent.tools import ModelscopePipelineTool
-from modelscope.utils.constant import Tasks
-from modelscope_agent.output_wrapper import AudioWrapper
-
-
-class TexttoSpeechTool(ModelscopePipelineTool):
-    default_model = 'damo/speech_sambert-hifigan_tts_zh-cn_16k'
-    description = '文本转语音服务，将文字转换为自然而逼真的语音，可配置男声/女声'
-    name = 'modelscope_speech-generation'
-    parameters: list = [{
-        'name': 'input',
-        'description': '要转成语音的文本',
-        'required': True
-    }, {
-        'name': 'gender',
-        'description': '用户身份',
-        'required': True
-    }]
-    task = Tasks.text_to_speech
-
-    def _remote_parse_input(self, *args, **kwargs):
-        if 'gender' not in kwargs:
-            kwargs['gender'] = 'man'
-        voice = 'zhibei_emo' if kwargs['gender'] == 'man' else 'zhiyan_emo'
-        kwargs['parameters'] = voice
-        kwargs.pop('gender')
-        return kwargs
-
-    def _parse_output(self, origin_result, remote=True):
-        audio = origin_result['output_wav']
-        return {'result': AudioWrapper(audio)}
-```
-
-- 文本地址工具
+您可以将您想要使用的工具名称或配置传递给agent。
 
 ```python
-from modelscope_agent.tools import ModelscopePipelineTool
-from modelscope.utils.constant import Tasks
+# by tool name
+function_list = ['amap_weather', 'image_gen']
+bot = RolePlay(function_list=function_list, ...)
 
-
-class TextAddressTool(ModelscopePipelineTool):
-    default_model = 'damo/mgeo_geographic_elements_tagging_chinese_base'
-    description = '地址解析服务，针对中文地址信息，识别出里面的元素，包括省、市、区、镇、社区、道路、路号、POI、楼栋号、户室号等'
-    name = 'modelscope_text-address'
-    parameters: list = [{
-        'name': 'input',
-        'description': '用户输入的地址信息',
-        'required': True
-    }]
-    task = Tasks.token_classification
-
-    def _parse_output(self, origin_result, *args, **kwargs):
-        final_result = {}
-        for e in origin_result['output']:
-            final_result[e['type']] = e['span']
-        return final_result
-```
-
-此外，如果用户希望使用来自`langchain`的工具，我们也为用户提供了便捷接口。用户可以直接使用 `LangchainTool` 来进行调用。 具体如下：
-
-```Python
-
-from modelscope_agent.tools import LangchainTool
+# by tool configuration
 from langchain.tools import ShellTool
+function_list = [{'terminal':ShellTool()}]
+bot = RolePlay(function_list=function_list, ...)
 
-# 包装 langchain 工具
-shell_tool = LangchainTool(ShellTool())
-
-print(shell_tool(commands=["echo 'Hello World!'", "ls"]))
-
+# by mixture
+function_list = ['amap_weather', {'terminal':ShellTool()}]
+bot = RolePlay(function_list=function_list, ...)
 ```
+
+#### Built-in tools
+- `image_gen`: [Wanx 图像生成](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。
+- `code_interpreter`: [代码解释器](https://jupyter-client.readthedocs.io/en/5.2.2/api/client.html)
+- `web_browser`: [网页浏览](https://python.langchain.com/docs/use_cases/web_scraping)
+- `amap_weather`: [高德天气](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather). AMAP_TOKEN 需要在环境变量中进行配置。
+- `wordart_texture_generation`: [艺术字纹理生成](https://help.aliyun.com/zh/dashscope/developer-reference/wordart). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。
+- `web_search`: [网页搜索](https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/overview). []
+- `qwen_vl`: [Qwen-VL 图像识别](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-qianwen-vl-plus-api). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。
+- `style_repaint`: [字符样式重绘](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang-style-repaint). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。
+- `image_enhancement`: [追影放大镜](https://github.com/dreamoving/Phantom). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。
+- `text-address`: [地理编码](https://www.modelscope.cn/models/iic/mgeo_geographic_elements_tagging_chinese_base/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) 需要在环境变量中进行配置。
+- `speech-generation`: [语音生成](https://www.modelscope.cn/models/iic/speech_sambert-hifigan_tts_zh-cn_16k/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) 需要在环境变量中进行配置。
+- `video-generation`: [视频生成](https://www.modelscope.cn/models/iic/text-to-video-synthesis/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) 需要在环境变量中进行配置。
 
 ## 训练框架
 
