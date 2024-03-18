@@ -174,7 +174,7 @@ LLM 是代理的核心模块，它确保了交互结果的质量。
 - `model`: 特定的模型名称，将直接传递给模型服务提供商。
 - `model_server`: 模型服务的提供商。
 
-`BaseChatModel`作为 LLM 的基类，不能直接初始化和调用。子类需要继承它。它们必须分别实现函数 `_chat_stream` 和 `_chat_no_stream`，这两个函数分别对应流式输出和非流式输出。 
+`BaseChatModel`作为 LLM 的基类，不能直接初始化和调用。子类需要继承它。它们必须分别实现函数 `_chat_stream` 和 `_chat_no_stream`，这两个函数分别对应流式输出和非流式输出。
 可选实现 `chat_with_functions` 和 `chat_with_raw_prompt` 函数，用于调用功能和文本补全。
 
 目前我们提供了三个模型服务提供商的实现：dashscope（用于 qwen 系列模型）、zhipu（用于 glm 系列模型）和 openai（用于所有 openai api 格式模型）。您可以直接使用上述服务提供商支持的模型，或者您可以定制您自己的 LLM。
