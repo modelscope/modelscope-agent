@@ -3,11 +3,13 @@ from typing import Dict, Iterable, List, Union
 
 import json
 from modelscope_agent.schemas import AgentAttr, Message
+from modelscope_agent.utils.tokenization_utils import count_tokens
 from pydantic import ConfigDict
 
 
 class Memory(AgentAttr):
     path: str
+    accumulated_token_count: int = 0
     model_config = ConfigDict(extra='allow')
 
     def save_history(self):
@@ -28,7 +30,9 @@ class Memory(AgentAttr):
 
         with open(self.path, 'w', encoding='utf-8') as file:
             # 使用 Pydantic 的 dict() 方法将模型列表转换为字典列表
-            messages_dict_list = [message.model_dump() for message in history]
+            messages_dict_list = [
+                message.model_dump() for message in self.history
+            ]
             # 使用 json.dump 将字典列表写入文件
             json.dump(messages_dict_list, file, ensure_ascii=False, indent=2)
 
@@ -58,9 +62,15 @@ class Memory(AgentAttr):
 
     def update_history(self, message: Union[Message, Iterable[Message]]):
         if isinstance(message, list):
+            self.accumulated_token_count += sum(
+                count_tokens(msg.content) for msg in message)
             self.history.extend(message)
         else:
+            self.accumulated_token_count += count_tokens(message.content)
             self.history.append(message)
+
+    def get_token_count(self) -> int:
+        return self.accumulated_token_count
 
     def pop_history(self):
         return self.history.pop()
