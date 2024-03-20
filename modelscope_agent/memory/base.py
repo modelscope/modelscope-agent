@@ -9,7 +9,6 @@ from pydantic import ConfigDict
 
 class Memory(AgentAttr):
     path: str
-    accumulated_token_count: int = 0
     model_config = ConfigDict(extra='allow')
 
     def save_history(self):
@@ -62,15 +61,14 @@ class Memory(AgentAttr):
 
     def update_history(self, message: Union[Message, Iterable[Message]]):
         if isinstance(message, list):
-            self.accumulated_token_count += sum(
-                count_tokens(msg.content) for msg in message)
             self.history.extend(message)
         else:
-            self.accumulated_token_count += count_tokens(message.content)
             self.history.append(message)
 
-    def get_token_count(self) -> int:
-        return self.accumulated_token_count
+    def get_history_token_count(self) -> int:
+        history_token_count = sum(
+            count_tokens(message.content) for message in self.history)
+        return history_token_count
 
     def pop_history(self):
         return self.history.pop()

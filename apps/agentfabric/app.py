@@ -432,7 +432,6 @@ with demo:
                 yield {
                     create_chatbot: chatbot,
                 }
-        # print(f'token count of builder agent: {builder_memory.get_token_count()}')
 
     create_chat_input.submit(
         create_send_message,
@@ -615,7 +614,6 @@ with demo:
                 msg = str(e)
             chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
-        # print(f'token count of user agent: {user_memory.get_token_count()}')
 
     preview_chat_input.submit(
         preview_send_message,

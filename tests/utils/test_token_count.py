@@ -23,10 +23,28 @@ def test_memory_with_retrieval_knowledge(temporary_storage):
         name=random_name,
         memory_path=temporary_storage,
     )
-    old_token_count = memory.get_token_count()
-    assert isinstance(old_token_count, int)
-    msg = Message(role='system', content='test token counting')
+    # 1. test get history token count
+    history_token_count_1 = memory.get_history_token_count()
+    assert isinstance(history_token_count_1, int)
+
+    # 2. test update history
+    msg = [
+        Message(role='system', content='test token counting'),
+        Message(role='user', content='test token counting'),
+    ]
     memory.update_history(msg)
-    new_token_count = memory.get_token_count()
-    assert isinstance(new_token_count, int)
-    assert new_token_count > old_token_count
+    history_token_count_2 = memory.get_history_token_count()
+    assert isinstance(history_token_count_2, int)
+    assert history_token_count_2 > history_token_count_1
+
+    # 3. test pop history
+    memory.pop_history()
+    history_token_count_3 = memory.get_history_token_count()
+    assert isinstance(history_token_count_3, int)
+    assert history_token_count_2 > history_token_count_3 > 0
+
+    # 4. test clear history
+    memory.clear_history()
+    history_token_count_4 = memory.get_history_token_count()
+    assert isinstance(history_token_count_4, int)
+    assert history_token_count_4 == 0
