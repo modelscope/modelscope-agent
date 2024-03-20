@@ -6,7 +6,7 @@ jupyter>=1.0.0
 langchain
 langchain-community
 langchain-experimental
-modelscope>=1.9.3
+modelscope >=1.10.0,<=1.12.0
 moviepy
 openai
 opencv-python
