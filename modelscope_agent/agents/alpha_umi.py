@@ -61,6 +61,10 @@ class AlphaUmi(Agent):
             instruction: the system instruction of this agent
             kwargs: other potential parameters
         """
+        try:
+            import vllm
+        except ImportError:
+            sys.exit("The vllm package is not installed. Please make sure GPU env is ready and refer to https://docs.vllm.ai/en/latest/getting_started/installation.html")
         """
         修改：
             1. 同时加载三个llm，要传3个config
