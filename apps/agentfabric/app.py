@@ -371,6 +371,8 @@ with demo:
         suggestion = [[row] for row in prompt_recommend]
         bot_avatar_path = get_avatar_image(bot_avatar, uuid_str)[1]
         save_builder_configuration(builder_cfg, uuid_str)
+        update_builder(uuid_str, _state)
+        init_user(uuid_str, _state)
         _state['configure_updated'] = True
         return {
             create_chatbot:
