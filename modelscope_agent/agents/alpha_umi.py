@@ -65,6 +65,14 @@ class AlphaUmi(Agent):
         修改：
             1. 同时加载三个llm，要传3个config
         """
+        try:
+            import vllm
+        except ImportError:
+            raise ImportError(
+                'The vllm package is not installed.'
+                'Please make sure GPU env is ready.'
+                'Refer to https://docs.vllm.ai/en/latest/getting_started/installation.html'
+            )
         if isinstance(llm_planner, Dict):
             self.llm_config_planner = llm_planner
             self.llm_planner = get_chat_model(**self.llm_config_planner)
