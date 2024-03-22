@@ -18,6 +18,8 @@ such as sandbox environment, artifacts management, which will make ModelScope-Ag
 * Community involve for development, research and testing
 
 ## How to contribution
-Our task will be maintained on GitHub [project](https://github.com/orgs/modelscope/projects/11)
-The branch is on [agentSDE](https://github.com/modelscope/modelscope-agent/tree/agentSDE)
+Our tasks will be maintained on GitHub [project](https://github.com/orgs/modelscope/projects/11).
+
+The branch is on [agentSDE](https://github.com/modelscope/modelscope-agent/tree/agentSDE).
+
 We will discuss all topic in dingtalk group. <img src="https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/dingtalk_QRcode.png"></a>
