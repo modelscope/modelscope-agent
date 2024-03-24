@@ -79,14 +79,14 @@ class DockerInteractive:
 
     def execute(self, cmd: str) -> Tuple[int, str]:
         exit_code, logs = self.container.exec_run(['/bin/bash', '-c', cmd],
-                                                  workdir='/workspace')
+                                                  workdir='/app/workspace')
         return exit_code, logs.decode('utf-8')
 
     def execute_in_background(self, cmd: str) -> None:
         self.log_time = time.time()
         result = self.container.exec_run(['/bin/bash', '-c', cmd],
                                          socket=True,
-                                         workdir='/workspace')
+                                         workdir='/app/workspace')
         self.log_generator = result.output  # socket.SocketIO
         self.log_generator._sock.setblocking(0)
 
@@ -117,12 +117,12 @@ class DockerInteractive:
                 self.container_image,
                 command='tail -f /dev/null',
                 network_mode='host',
-                working_dir='/workspace',
+                working_dir='/app/workspace',
                 name=self.container_name,
                 detach=True,
                 volumes={
                     self.workspace_dir: {
-                        'bind': '/workspace',
+                        'bind': '/app/workspace',
                         'mode': 'rw'
                     }
                 })

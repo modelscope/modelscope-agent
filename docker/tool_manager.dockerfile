@@ -16,5 +16,5 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# docker build -f tool_service/docker/node.dockerfile -t modelscope-agent/toolnode:v0.1 .
+# docker build -f tool_service/docker/tool_node.dockerfile -t modelscope-agent/toolnode:v0.1 .
 # docker push modelscope-agent/toolnode:v0.1
