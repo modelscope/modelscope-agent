@@ -31,11 +31,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY modelscope_agent .
 ENV PYTHONPATH $PYTHONPATH:/app/modelscope_agent
+ENV BASE_TOOL_DIR /app/assets
 
 # install tool_node
 COPY tool_node .
 
 #
-
 # docker build -f tool_service/docker/tool_node.dockerfile -t modelscope-agent/tool-node:v0.1 .
 # docker push modelscope-agent/tool-node:v0.1

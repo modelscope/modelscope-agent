@@ -1,16 +1,24 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Coroutine
 
 import json
-from fastapi import Body, FastAPI, HTTPException
-from modelscope_agent.tools import TOOL_REGISTRY, BaseTool
+from fastapi import FastAPI, HTTPException
+from models import ToolRequest
+from modelscope_agent.tools import TOOL_REGISTRY
+from utils import get_attribute_from_tool_cls
 
-from .models import ToolRequest, ToolResponse
+# Get the path of the current file
+current_file_path = os.path.abspath(__file__)
 
-CONFIG_FILE_PATH = os.path.join('/app/assets', 'configuration.json')
+# Get the directory of the current file
+current_dir = os.path.dirname(current_file_path)
+
+BASE_TOOL_DIR = os.getenv('BASE_TOOL_DIR', os.path.join(current_dir, 'assets'))
+CONFIG_FILE_PATH = os.path.join(BASE_TOOL_DIR, 'configuration.json')
 
 
-def get_tool_configuration():
+def get_tool_configuration(file_path: str):
     """
     Function to get the configuration of the tool.
     Configuration file is defined in the folder,
@@ -27,7 +35,7 @@ def get_tool_configuration():
     """
 
     try:
-        with open(CONFIG_FILE_PATH, 'r') as f:
+        with open(file_path, 'r') as f:
             return json.load(f)
     except Exception:
         return {}
@@ -44,12 +52,15 @@ async def lifespan(app: FastAPI):
         os.system('service docker start')
     except Exception:
         pass
-    configs = get_tool_configuration()
-    tool_name = configs.get('name')
+
     try:
+        configs = get_tool_configuration(CONFIG_FILE_PATH)
+        tool_name = configs.get('name')
         tool_cls = TOOL_REGISTRY.get(tool_name, None)
         tool_config = configs.get(tool_name, {})
-        tool_instance = tool_cls(**tool_config)
+        tool_instance = tool_cls(cfg=tool_config)
+        app.tool_attribute = get_attribute_from_tool_cls(tool_cls)
+        app.tool_cls = tool_cls
         app.tool_instance = tool_instance
         app.tool_name = tool_name
     except Exception as e:
@@ -74,9 +85,24 @@ async def root():
     return {'message': 'Hello World'}
 
 
+# get tool info
+@app.get('/tool_info')
+async def get_tool_info():
+    """
+    Function to get the tool information.
+
+    Returns:
+        dict: A dictionary containing the tool information.
+        including: name, description, parameters
+    """
+    tool_attribute = app.tool_attribute
+    first_key = next(iter(tool_attribute))
+    return tool_attribute[first_key]
+
+
 # execute tool
 @app.post('/execute_tool')
-def call_tool(request: ToolRequest):
+async def execute_tool(request: ToolRequest):
     """
     Function to call the tool with the given tool name and request.
     Args:
@@ -85,7 +111,13 @@ def call_tool(request: ToolRequest):
     Returns:
     """
     tool_instance = app.tool_instance
-    # 创建工具实例，并调用它
+    # call tool
     result = tool_instance.call(request.params)
-
+    if isinstance(result, Coroutine):
+        result = await result
     return result
+
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app=app, host='127.0.0.1', port=7870)
