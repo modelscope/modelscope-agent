@@ -1,5 +1,5 @@
 from .amap_weather import AMAPWeather
-from .base import TOOL_REGISTRY, BaseTool, register_tool
+from .base import TOOL_REGISTRY, BaseTool, ToolServiceProxy, register_tool
 from .code_interpreter import CodeInterpreter
 from .contrib import *  # noqa F403
 from .dashscope_tools.image_enhancement import ImageEnhancement

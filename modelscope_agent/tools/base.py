@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 
 import json
 import json5
+import requests
 from modelscope_agent.utils.utils import has_chinese_chars
 
 TOOL_REGISTRY = {}
@@ -11,10 +12,46 @@ TOOL_REGISTRY = {}
 def register_tool(name):
 
     def decorator(cls):
-        TOOL_REGISTRY[name] = cls
+        if name not in TOOL_REGISTRY:
+            TOOL_REGISTRY[name] = {}
+        TOOL_REGISTRY[name]['class'] = cls
         return cls
 
     return decorator
+
+
+class ToolServiceProxy:
+
+    def __init__(
+        self,
+        tool_name: str,
+        tool_cfg: dict,
+        tenant_id: str = 'default',
+    ):
+        self.tool_service_manager_url = 'http://tool-service-manager:8000'
+        self.tool_name = tool_name
+        self.tool_cfg = tool_cfg
+        self.tenant_id = tenant_id
+
+    def _get_tool_api_endpoint(self, tenant_id: str):
+        # get tool node endpoint by tool service
+        response = requests.get(
+            f'{self.tool_service_manager_url}/get_tool',
+            params={
+                'tool_name': self.tool_name,
+                'tenant_id': tenant_id,
+                'tool_cfg': self.tool_cfg
+            })
+        response.raise_for_status()
+        tool_info = response.json()
+        return tool_info['api_endpoint']
+
+    def call(self, params: str, **kwargs):
+        # visit tool node to call tool
+        api_endpoint = self._get_tool_api_endpoint(self.tenant_id)
+        response = requests.post(api_endpoint, json={'params': params})
+        response.raise_for_status()
+        return response.json()
 
 
 class BaseTool(ABC):

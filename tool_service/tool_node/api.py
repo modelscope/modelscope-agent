@@ -57,6 +57,8 @@ async def lifespan(app: FastAPI):
         configs = get_tool_configuration(CONFIG_FILE_PATH)
         tool_name = configs.get('name')
         tool_cls = TOOL_REGISTRY.get(tool_name, None)
+        if isinstance(tool_cls, dict):
+            tool_cls = tool_cls['class']
         tool_config = configs.get(tool_name, {})
         tool_instance = tool_cls(cfg=tool_config)
         app.tool_attribute = get_attribute_from_tool_cls(tool_cls)
