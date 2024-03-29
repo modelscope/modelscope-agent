@@ -1,116 +1,176 @@
-import uuid
-from typing import Optional
+import os
+from contextlib import asynccontextmanager
 
-from docker import DockerClient
-from fastapi import Depends, FastAPI, HTTPException
-from sqlmodel import Field, Session, SQLModel, create_engine
-
-API_KEY = 'your_api_key'
-API_KEY_NAME = 'access_token'
-
-app = FastAPI()
-docker_client = DockerClient(base_url='unix://var/run/docker.sock')
-
-# 数据库配置
-DATABASE_URL = 'sqlite:///./test.db'
-engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
+from connections import (ToolInstance, ToolRegistration, create_db_and_tables,
+                         engine, get_session)
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from sandbox import (NODE_NETWORK, NODE_PORT, restart_docker_container,
+                     start_docker_container)
+from sqlmodel import Session, select
 
 
-# 数据库模型
-class ToolInstance(SQLModel, table=True):
-    id: Optional[str] = Field(default=None, primary_key=True)
-    name: str
-    image: str
-    container_id: str
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # load tool from modelscope-agent
+    """
+    Startup function to initialize the required services and variables for the application.
+    """
+    try:
+        # start docker service
+        os.system('tool manager service start')
+    except Exception:
+        pass
+    app.containers_info = {}
+    create_db_and_tables()
+    yield
 
 
-# 创建数据库表
-SQLModel.metadata.create_all(engine)
+app = FastAPI(lifespan=lifespan)
 
 
-# 获取数据库 session 的依赖
-def get_session():
+def start_docker_container_and_store_status(tool: ToolRegistration):
     with Session(engine) as session:
-        yield session
+        # 先创建一个记录表示此任务处于 pending 状态
+        tool_container = ToolInstance(name=tool.name, status='pending')
+        session.add(tool_container)
+        session.commit()
+        app.containers_info[tool.name] = {'status': 'pending'}
+
+        try:
+            container = start_docker_container(tool)
+            ip = container.attrs['NetworkSettings'][NODE_NETWORK]['IPAddress']
+            port = NODE_PORT
+            tool_container.container_id = container.id
+            tool_container.status = container.status
+            tool_container.ip = ip
+            tool_container.port = port
+            app.containers_info[tool.name] = {
+                'status': container.status,
+                'container_id': container.id
+            }
+            session.add(tool_container)
+            session.commit()
+        except Exception as e:
+            # if docker start failed, record the error
+            tool_container.status = 'failed'
+            tool_container.error = str(e)
+            app.containers_info[tool.name] = {
+                'status': 'failed',
+                'error': str(e)
+            }
+            session.add(tool_container)
+            session.commit()
 
 
-# 同步 Docker 容器与数据库的状态
-def sync_docker_containers_with_db():
+def restart_docker_container_and_update_status(tool: ToolRegistration):
     with Session(engine) as session:
-        containers = docker_client.containers.list(all=True)
-        for container in containers:
-            tool_instance = session.query(ToolInstance).filter(
-                ToolInstance.container_id == container.id).first()
-            if not tool_instance:
-                # 如果容器在数据库中没有记录，停止并移除该容器
-                container.remove(force=True)
+        tool_container = session.exec(
+            select(ToolInstance).where(
+                ToolInstance.name == tool.name)).first()
+        if not tool_container:
+            raise HTTPException(status_code=404, detail='Tool not found')
+        try:
+            container = restart_docker_container(tool)
+            ip = container.attrs['NetworkSettings'][NODE_NETWORK]['IPAddress']
+            port = NODE_PORT
+            tool_container.container_id = container.id
+            tool_container.status = container.status
+            tool_container.ip = ip
+            tool_container.port = port
+            app.containers_info[tool.name] = {
+                'status': container.status,
+                'container_id': container.id
+            }
+            session.add(tool_container)
+            session.commit()
+        except Exception as e:
+            # if docker start failed, record the error
+            tool_container.status = 'failed'
+            tool_container.error = str(e)
+            app.containers_info[tool.name] = {
+                'status': 'failed',
+                'error': str(e)
+            }
+            session.add(tool_container)
+            session.commit()
 
 
-@app.on_event('startup')
-async def startup_event():
-    sync_docker_containers_with_db()
-
-
-@app.post('/register_tool/')
-async def register_tool(tool_name: str,
-                        tool_image: str,
-                        session: Session = Depends(get_session)):
-    # 从 Docker 镜像库拉取镜像并创建新的容器实例
-    container = docker_client.containers.run(tool_image, detach=True)
-    tool_id = str(uuid.uuid4())
-    tool_instance = ToolInstance(
-        id=tool_id,
-        name=tool_name,
+@app.post('/create_tool_service/')
+async def create_tool_service(
+    tool_name: str,
+    background_tasks: BackgroundTasks,
+    tenant_id: str = 'default',
+    tool_image: str = 'xxx',
+):
+    tool_node_name = f'{tool_name}_{tenant_id}'
+    tool_register = ToolRegistration(
+        name=tool_node_name,
+        tenant_id=tenant_id,
         image=tool_image,
-        container_id=container.id)
-    session.add(tool_instance)
-    session.commit()
-    return {'tool_id': tool_id}
+        workspace_dir=os.getcwd(),
+    )
+    background_tasks.add_task(start_docker_container_and_store_status,
+                              tool_register)
+
+    return {'tool_node_name': tool_node_name, 'status': 'pending'}
 
 
-@app.post('/run_tool/')
-async def run_tool(tool_id: str,
-                   payload: dict,
-                   session: Session = Depends(get_session)):
-    # 在指定的工具实例容器中执行命令
-    tool_instance = session.query(ToolInstance).filter(
-        ToolInstance.id == tool_id).first()
-    if not tool_instance:
-        raise HTTPException(status_code=404, detail='Tool not found')
+@app.post('/update_tool_service/')
+async def update_tool_service(
+    tool_name: str,
+    background_tasks: BackgroundTasks,
+    tenant_id: str = 'default',
+    tool_image: str = 'xxx',
+):
+    tool_node_name = f'{tool_name}_{tenant_id}'
+    tool_register = ToolRegistration(
+        name=tool_node_name,
+        tenant_id=tenant_id,
+        image=tool_image,
+        workspace_dir=os.getcwd(),
+    )
+    background_tasks.add_task(restart_docker_container_and_update_status,
+                              tool_register)
 
-    container = docker_client.containers.get(tool_instance.container_id)
-    exec_result = container.exec_run('echo Hello World')
-    return {'result': exec_result.output.decode('utf-8')}
+    return {'tool_node_name': tool_node_name, 'status': 'pending'}
 
 
-@app.post('/deregister_tool/')
+@app.post('/remove_tool/')
 async def deregister_tool(tool_id: str,
                           session: Session = Depends(get_session)):
-    # 注销工具实例并移除对应的 Docker 容器
-    tool_instance = session.query(ToolInstance).filter(
-        ToolInstance.id == tool_id).first()
-    if not tool_instance:
-        raise HTTPException(status_code=404, detail='Tool not found')
 
-    container = docker_client.containers.get(tool_instance.container_id)
-    container.remove(force=True)
-    session.delete(tool_instance)
-    session.commit()
     return {'message': 'Tool deregistered successfully'}
 
 
 @app.get('/tools/')
-async def list_tools(session: Session = Depends(get_session)):
-    # 列出所有注册的工具实例
-    tools = session.query(ToolInstance).all()
+async def list_tools(tenant_id: str = 'default'):
+    with Session(engine) as session:
+        statement = select(ToolInstance).where(
+            ToolInstance.tenant_id == tenant_id)
+        tools = session.exec(statement)
     return tools
 
 
-@app.post('/get_tool/')
-async def get_tool(tool_id: str, session: Session = Depends(get_session)):
-    # 根据 ID 获取特定工具实例的详细信息
-    tool_instance = session.query(ToolInstance).filter(
-        ToolInstance.id == tool_id).first()
+@app.post('/get_tool_service_url/')
+async def get_tool_service_url(tool_name: str, tenant_id: str = 'default'):
+
+    # get tool instance
+    with Session(engine) as session:
+        statement = select(ToolInstance).where(
+            ToolInstance.name == f'{tool_name}_{tenant_id}')
+        results = session.exec(statement)
+        tool_instance = results.first()
     if not tool_instance:
         raise HTTPException(status_code=404, detail='Tool not found')
-    return tool_instance
+
+    # get tool service url
+    try:
+        tool_service_url = 'http://' + tool_instance.ip + ':' + str(
+            tool_instance.port) + '/execute_tool'
+        return tool_service_url
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=
+            f'Failed to get tool service url, with error {tool_instance.error}'
+        )

@@ -33,6 +33,9 @@ class ToolServiceProxy:
         self.tool_cfg = tool_cfg
         self.tenant_id = tenant_id
 
+    def _register_tool(self):
+        pass
+
     def _get_tool_api_endpoint(self, tenant_id: str):
         # get tool node endpoint by tool service
         response = requests.get(

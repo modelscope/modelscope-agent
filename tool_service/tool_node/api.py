@@ -97,9 +97,14 @@ async def get_tool_info():
         dict: A dictionary containing the tool information.
         including: name, description, parameters
     """
-    tool_attribute = app.tool_attribute
-    first_key = next(iter(tool_attribute))
-    return tool_attribute[first_key]
+    try:
+        tool_attribute = app.tool_attribute
+        first_key = next(iter(tool_attribute))
+        return tool_attribute[first_key]
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get tool info for '{app.tool_name}'")
 
 
 # execute tool
@@ -114,10 +119,15 @@ async def execute_tool(request: ToolRequest):
     """
     tool_instance = app.tool_instance
     # call tool
-    result = tool_instance.call(request.params)
-    if isinstance(result, Coroutine):
-        result = await result
-    return result
+    try:
+        result = tool_instance.call(request.params)
+        if isinstance(result, Coroutine):
+            result = await result
+        return result
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to execute tool '{app.tool_name}'")
 
 
 if __name__ == '__main__':
