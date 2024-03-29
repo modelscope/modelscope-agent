@@ -132,4 +132,4 @@ async def execute_tool(request: ToolRequest):
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app=app, host='127.0.0.1', port=7870)
+    uvicorn.run(app=app, host='127.0.0.1', port=31513)

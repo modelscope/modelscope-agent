@@ -2,6 +2,7 @@ import os
 from typing import Optional
 
 import docker
+import Enum
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine
 
@@ -44,7 +45,16 @@ class ToolInstance(SQLModel, table=True):
     port: int = 31513
 
 
-class ToolRegistration(BaseModel):
+class ToolRegisterInfo(BaseModel):
     name: str
     image: str = ''
     workspace_dir: str = os.getcwd()
+    tenant_id: str
+    config: dict = {}
+
+
+class ContainerStatus(Enum):
+    pending = 'pending'
+    running = 'running'
+    exited = 'exited'
+    failed = 'failed'
