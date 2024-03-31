@@ -1,7 +1,6 @@
 import logging
 from typing import List, Union
 
-import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent import Agent
 from modelscope_agent.agents_registry import AgentRegistry
@@ -15,17 +14,21 @@ class TaskCenter:
 
     def __init__(self, remote=False):
         if remote:
-            if ray.is_initialized:
-                ray.shutdown()
-            ray.init(logging_level=logging.ERROR)
+            from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+            self.task_executor = RayTaskExecutor()
+        else:
+            from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
+            self.task_executor = LocalTaskExecutor()
         self.env = create_component(Environment, 'env', remote)
         self.agent_registry = create_component(AgentRegistry, 'agent_center',
                                                remote)
+        self.task_executor.set_env(self.env)
+        self.task_executor.set_agent_registry(self.agent_registry)
         self.remote = remote
 
     def __del__(self):
         if self.remote:
-            ray.shutdown()
+            self.task_executor.shutdown()
 
     def add_agents(self, agents: List[Agent]):
         """
@@ -38,33 +41,18 @@ class TaskCenter:
         """
         roles = []
         for agent in agents:
-            if self.remote:
-                agent_role = ray.get(agent.role.remote())
-            else:
-                agent_role = agent.role()
+            agent_role = self.task_executor.get_agent_role(agent)
             logger.info(f'Adding agent to task center: {agent_role}')
             roles.append(agent_role)
-        if self.remote:
-            ray.get(self.env.register_roles.remote(roles))
-            ray.get(
-                self.agent_registry.register_agents.remote(agents, self.env))
-        else:
-            self.env.register_roles(roles)
-            self.agent_registry.register_agents(agents, self.env)
+        self.task_executor.register_agents_and_roles(agents, roles)
 
     def disable_agent(self, agent):
         pass
 
     def is_user_agent_present(self, roles: List[str] = []):
-        if self.remote:
-            if len(roles) == 0:
-                roles = ray.get(self.env.get_notified_roles.remote())
-            user_roles = ray.get(
-                self.agent_registry.get_user_agents_role_name.remote())
-        else:
-            if len(roles) == 0:
-                roles = self.env.get_notified_roles()
-            user_roles = self.agent_registry.get_user_agents_role_name()
+        if len(roles) == 0:
+            roles = self.task_executor.get_notified_roles()
+        user_roles = self.task_executor.get_user_roles()
         notified_user_roles = list(set(roles) & set(user_roles))
 
         return notified_user_roles
@@ -93,22 +81,13 @@ class TaskCenter:
             send_to=send_to,
             sent_from=send_from,
         )
-        if self.remote:
-            ray.get(
-                self.env.store_message_from_role.remote(send_from, message))
-        else:
-            self.env.store_message_from_role(send_from, message)
+        self.task_executor.store_message_from_role(message, send_from)
         logger.info(f'Send init task, {task} to {send_to}')
 
     def reset_env(self):
-        if self.remote:
-            ray.get(self.env.reset_env_queues.remote())
-        else:
-            self.env.reset_env_queues()
+        self.task_executor.reset_queue()
 
-    @staticmethod
-    @ray.remote
-    def step(task_center,
+    def step(self,
              task=None,
              round: int = 1,
              send_to: Union[str, list] = DEFAULT_SEND_TO,
@@ -118,7 +97,6 @@ class TaskCenter:
         """
         Core step to make sure
         Args:
-            task_center: the task_center object
             task: additional task in current step
             round: current step might have multi round
             send_to: manually define the message send to which role
@@ -136,15 +114,14 @@ class TaskCenter:
 
         # get current steps' agent from env or from input
         if len(allowed_roles) == 0:
-            roles = ray.get(task_center.env.get_notified_roles.remote())
+            roles = self.task_executor.get_notified_roles()
         else:
             roles = allowed_roles
 
         if len(roles) == 0:
             return
 
-        agents = ray.get(
-            task_center.agent_registry.get_agents_by_role.remote(roles))
+        agents = self.task_executor.get_agents_by_role_names(roles)
 
         for _ in range(round):
             # create a list to hold the futures of all notified agents
@@ -159,7 +136,8 @@ class TaskCenter:
                 for future in futures:
                     try:
                         # try to get the next result from the agent
-                        result = ray.get(next(future))
+                        result = self.task_executor.get_generator_result(
+                            future)
                         yield result
                     except StopIteration:
                         # if the agent has no more results, break
@@ -168,3 +146,9 @@ class TaskCenter:
                 #  the number of finish flag equals to the num of agents
                 if len(finish_flag.keys()) == len(futures):
                     break
+
+
+class LocalTaskExecutor:
+
+    def __init__(self):
+        self.task_center = TaskCenter(remote=False)

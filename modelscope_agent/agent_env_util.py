@@ -3,14 +3,15 @@ import time
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
-import ray
+# import ray
 from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
-from ray._raylet import ObjectRefGenerator
-from ray.util.client.common import ClientActorHandle, ClientObjectRef
+
+# from ray._raylet import ObjectRefGenerator
+# from ray.util.client.common import ClientActorHandle, ClientObjectRef
 
 
 class AgentEnvMixin:

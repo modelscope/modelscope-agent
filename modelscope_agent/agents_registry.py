@@ -1,6 +1,6 @@
 from typing import List, Union
 
-import ray
+# import ray
 from modelscope_agent.agent import Agent
 from modelscope_agent.environment import Environment
 from ray.util.client.common import ClientActorHandle
