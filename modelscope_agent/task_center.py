@@ -1,4 +1,3 @@
-import logging
 from typing import List, Union
 
 from modelscope_agent import create_component
@@ -15,20 +14,19 @@ class TaskCenter:
     def __init__(self, remote=False):
         if remote:
             from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
-            self.task_executor = RayTaskExecutor()
+            self.task_executor = RayTaskExecutor
+            self.task_executor.init_ray()
         else:
             from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
-            self.task_executor = LocalTaskExecutor()
+            self.task_executor = LocalTaskExecutor
         self.env = create_component(Environment, 'env', remote)
         self.agent_registry = create_component(AgentRegistry, 'agent_center',
                                                remote)
-        self.task_executor.set_env(self.env)
-        self.task_executor.set_agent_registry(self.agent_registry)
         self.remote = remote
 
     def __del__(self):
         if self.remote:
-            self.task_executor.shutdown()
+            self.task_executor.shutdown_ray()
 
     def add_agents(self, agents: List[Agent]):
         """
@@ -44,15 +42,17 @@ class TaskCenter:
             agent_role = self.task_executor.get_agent_role(agent)
             logger.info(f'Adding agent to task center: {agent_role}')
             roles.append(agent_role)
-        self.task_executor.register_agents_and_roles(agents, roles)
+        self.task_executor.register_agents_and_roles(self.env,
+                                                     self.agent_registry,
+                                                     agents, roles)
 
     def disable_agent(self, agent):
         pass
 
     def is_user_agent_present(self, roles: List[str] = []):
         if len(roles) == 0:
-            roles = self.task_executor.get_notified_roles()
-        user_roles = self.task_executor.get_user_roles()
+            roles = self.task_executor.get_notified_roles(self.env)
+        user_roles = self.task_executor.get_user_roles(self.agent_registry)
         notified_user_roles = list(set(roles) & set(user_roles))
 
         return notified_user_roles
@@ -81,11 +81,12 @@ class TaskCenter:
             send_to=send_to,
             sent_from=send_from,
         )
-        self.task_executor.store_message_from_role(message, send_from)
+        self.task_executor.store_message_from_role(self.env, message,
+                                                   send_from)
         logger.info(f'Send init task, {task} to {send_to}')
 
     def reset_env(self):
-        self.task_executor.reset_queue()
+        self.task_executor.reset_queue(self.env)
 
     def step(self,
              task=None,
@@ -114,14 +115,15 @@ class TaskCenter:
 
         # get current steps' agent from env or from input
         if len(allowed_roles) == 0:
-            roles = self.task_executor.get_notified_roles()
+            roles = self.task_executor.get_notified_roles(self.env)
         else:
             roles = allowed_roles
 
         if len(roles) == 0:
             return
 
-        agents = self.task_executor.get_agents_by_role_names(roles)
+        agents = self.task_executor.get_agents_by_role_names(
+            self.agent_registry, roles)
 
         for _ in range(round):
             # create a list to hold the futures of all notified agents

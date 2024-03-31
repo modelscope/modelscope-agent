@@ -1,6 +1,5 @@
 from typing import List, Union
 
-# import ray
 from modelscope_agent.agent import Agent
 from modelscope_agent.environment import Environment
 from ray.util.client.common import ClientActorHandle
@@ -12,6 +11,12 @@ class AgentRegistry:
         self._agents = {}
         self._agents_state = {}
         self.remote = remote
+        if self.remote:
+            from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+            self.executor_cls = RayTaskExecutor
+        else:
+            from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
+            self.executor_cls = LocalTaskExecutor
 
     def register_agent(self,
                        agent: Union[Agent, ClientActorHandle],
@@ -24,19 +29,14 @@ class AgentRegistry:
         Returns: None
 
         """
-        if isinstance(agent, Agent):
-            role = agent.role()
-        else:
-            role = ray.get(agent.role.remote())
+
+        role = self.executor_cls.get_agent_role(agent)
         self._agents[role] = agent
         self._agents_state[role] = True
 
         # set up the env_context
         if env_context:
-            if isinstance(agent, Agent):
-                agent.set_env_context(env_context)
-            else:
-                ray.get(agent.set_env_context.remote(env_context))
+            self.executor_cls.set_agent_env(agent, env_context)
 
     def get_agents_by_role(self, roles: list) -> List:
         agents = {}
@@ -57,29 +57,21 @@ class AgentRegistry:
     def get_user_agents_role_name(self, agents: List[Agent] = None):
         if not agents:
             agents = self._agents.values()
-        if self.remote:
-            return [
-                ray.get(agent.role.remote()) for agent in agents
-                if ray.get(agent.is_user_agent.remote())
-            ]
-        else:
-            return [agent.role() for agent in agents if agent.is_user_agent()]
+        return [
+            self.executor_cls.get_agent_role(agent) for agent in agents
+            if self.executor_cls.is_user_agent(agent)
+        ]
 
     def set_user_agent(self, role: str, human_input_mode: str = 'ON'):
         agent = self._agents.get(role)
         if agent:
-            if self.remote:
-                ray.get(agent.set_human_input_mode.remote(human_input_mode))
-            else:
-                agent.set_human_input_mode(human_input_mode)
+            self.executor_cls.set_agent_human_input_mode(
+                agent, human_input_mode)
 
     def unset_user_agent(self, role: str):
         agent = self._agents.get(role)
         if agent:
-            if self.remote:
-                ray.get(agent.set_human_input_mode.remote('CLOSE'))
-            else:
-                agent.set_human_input_mode('CLOSE')
+            self.executor_cls.set_agent_human_input_mode(agent, 'CLOSE')
 
     def register_agents(self,
                         agents: List[Agent],

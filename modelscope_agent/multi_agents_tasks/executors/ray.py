@@ -2,29 +2,123 @@ import logging
 from typing import List
 
 import ray
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
 from ray._raylet import ObjectRefGenerator
 
 
 class RayTaskExecutor:
 
-    def __init__(self, env=None, agent_registry=None):
+    @staticmethod
+    def init_ray():
         if ray.is_initialized:
             ray.shutdown()
         ray.init(logging_level=logging.ERROR)
-        self.env = env
-        self.agent_registry = agent_registry
 
-    def set_env(self, env):
-        self.env = env
-
-    def set_agent_registry(self, agent_registry):
-        self.agent_registry = agent_registry
-
-    def shutdown(self):
+    @staticmethod
+    def shutdown_ray():
         ray.shutdown()
 
-    def get_agent_role(self, agent) -> str:
+    @staticmethod
+    def get_agents_by_role_names(agent_registry: AgentRegistry,
+                                 role_names: list) -> list:
+        """
+        get agents by role names
+        Args:
+            agent_registry: the agent_resgistry instance
+            role_names: list of role names in string
+
+        Returns: list of agent instance
+
+        """
+        agents = ray.get(agent_registry.get_agents_by_role.remote(role_names))
+        return agents
+
+    @staticmethod
+    def register_agents_and_roles(env: Environment,
+                                  agent_registry: AgentRegistry, agents: list,
+                                  roles: list):
+        """
+        register agent information to env and agent_registry
+        Args:
+            env: the environment instance
+            agent_registry: the agent_registry instance
+            agents: list of agents instance
+            roles: list of roles names
+
+        Returns: None
+
+        """
+        ray.get(env.register_roles.remote(roles))
+        ray.get(agent_registry.register_agents.remote(agents, env))
+
+    @staticmethod
+    def get_notified_roles(env) -> list:
+        """
+        get notified role from env
+        Args:
+            env: the environment instance
+        Returns: role name list
+
+        """
+        notified_roles = ray.get(env.get_notified_roles.remote())
+        return notified_roles
+
+    @staticmethod
+    def get_user_roles(agent_registry: AgentRegistry) -> list:
+        """
+        get user role from agent registry
+         Args:
+            agent_registry: the agent_registr instance
+        Returns: user role name list
+
+        """
+        user_roles = ray.get(agent_registry.get_user_agents_role_name.remote())
+        return user_roles
+
+    @staticmethod
+    def store_message_from_role(env: Environment,
+                                message: Message,
+                                send_from: str = 'human'):
+        """
+        store message from roles
+        Args:
+            env: the environment instance
+            message: the message
+            send_from: role name of the message sender
+
+        Returns: None
+
+        """
+        ray.get(env.store_message_from_role.remote(send_from, message))
+
+    @staticmethod
+    def reset_queue(env: Environment):
+        """
+        reset the queues in env
+        Args:
+            env: the environment instance
+
+        Returns: None
+
+        """
+        ray.get(env.reset_queue.remote())
+
+    @staticmethod
+    def get_generator_result(generator: ObjectRefGenerator):
+        """
+        get the result from a generator
+        Args:
+            generator:
+
+        Returns: the next string result from generator
+
+        """
+        return ray.get(next(generator))
+
+    @staticmethod
+    def get_agent_role(agent) -> str:
         """
         used to get role name from agent
         Args:
@@ -35,80 +129,70 @@ class RayTaskExecutor:
         """
         return ray.get(agent.role.remote())
 
-    def get_agents_by_role_names(self, role_names) -> list:
+    @staticmethod
+    def is_user_agent(agent) -> bool:
         """
-        get agents by role names
+        To decide if is the agent a user
         Args:
-            role_names: list of role names in string
+            agent: an agent instance
 
-        Returns: list of agent instance
+        Returns: if is the agent a user return True, else False
 
         """
-        agents = ray.get(
-            self.agent_registry.get_agents_by_role.remote(role_names))
-        return agents
+        return ray.get(agent.is_user_agent.remote())
 
-    def register_agents_and_roles(self, agents: list, roles: list):
+    @staticmethod
+    def set_agent_human_input_mode(agent, human_input_mode: str):
         """
-        register agent information to env and agent_registry with ray get
+
         Args:
-            agents: list of agents instance
-            roles: list of roles names
+            agent: the agent instance
+            human_input_mode: ON, CLOSE or TERMINAL
 
         Returns: None
 
         """
-        ray.get(self.env.register_roles.remote(roles))
-        ray.get(self.agent_registry.register_agents.remote(agents, self.env))
+        ray.get(agent.set_human_input_mode.remote(human_input_mode))
 
-    def get_notified_roles(self):
+    @staticmethod
+    def set_agent_env(agent, env_context: Environment):
         """
-        get notified role from env
-        Returns: role name list
-
-        """
-        notified_roles = ray.get(self.env.get_notified_roles.remote())
-        return notified_roles
-
-    def get_user_roles(self):
-        """
-        get user role from agent registry
-        Returns: user role name list
-
-        """
-        user_roles = ray.get(
-            self.agent_registry.get_user_agents_role_name.remote())
-        return user_roles
-
-    def store_message_from_role(self,
-                                message: Message,
-                                send_from: str = 'human'):
-        """
-        store message from roles
+        set env context in agent
         Args:
-            message: the message
-            send_from: role name of the message sender
+            agent: the agent instance
+            env_context: the env instance
 
         Returns: None
 
         """
-        ray.get(self.env.store_message_from_role.remote(send_from, message))
+        ray.get(agent.set_env_context.remote(env_context))
 
-    def reset_queue(self):
+    @staticmethod
+    def extract_message_by_role_from_env(env_context: Environment,
+                                         role: str) -> list:
         """
-        reset the queues in env
-        Returns: None
-
-        """
-        ray.get(self.env.reset_queue.remote())
-
-    def get_generator(self, generator: ObjectRefGenerator):
-        """
-        get the result from a generator
+        extract message by role from env
         Args:
-            generator:
+            env_context: env context
+            role: role name in string
 
-        Returns: the next string result from generator
+        Returns: The messages that role has seen
 
         """
-        return ray.get(next(generator))
+        received_messages = ray.get(
+            env_context.extract_message_by_role.remote(role))
+        return received_messages
+
+    @staticmethod
+    def extract_all_message_from_env(env_context: Environment) -> list:
+        """
+        extract all message from env
+        Args:
+            env_context: env context
+
+        Returns: All messages in last round
+
+        """
+        received_messages = ray.get(
+            env_context.extract_all_history_message.remote())
+        return received_messages

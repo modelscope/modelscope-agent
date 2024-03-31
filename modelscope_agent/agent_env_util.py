@@ -3,22 +3,18 @@ import time
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
-# import ray
 from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 
-# from ray._raylet import ObjectRefGenerator
-# from ray.util.client.common import ClientActorHandle, ClientObjectRef
-
 
 class AgentEnvMixin:
 
     def __init__(self,
                  role: str = 'default_role',
-                 env: Union[Environment, ClientActorHandle] = None,
+                 env: Union[Environment] = None,
                  storage_path: Union[str, Path] = DEFAULT_AGENT_ROOT,
                  is_watcher: bool = False,
                  use_history: bool = True,
@@ -64,6 +60,12 @@ class AgentEnvMixin:
             memory_path=memory_path,
             use_cache=False,
         )
+        if self.remote:
+            from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+            self.executor_cls = RayTaskExecutor
+        else:
+            from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
+            self.executor_cls = LocalTaskExecutor
 
     def set_env_context(self, env_context):
         if env_context:
@@ -83,7 +85,7 @@ class AgentEnvMixin:
         return self._role
 
     def step(self,
-             messages: Union[str, dict, ObjectRefGenerator] = None,
+             messages: Union[str, dict] = None,
              send_to: Union[str, list] = DEFAULT_SEND_TO,
              user_response: str = None,
              **kwargs):
@@ -109,20 +111,7 @@ class AgentEnvMixin:
 
         # get message from other agent or env by generator
         prompt = ''
-        if isinstance(messages, ObjectRefGenerator):
-            remote_input = {}
-            try:
-                ref = next(messages)
-                input_frame = AgentEnvMixin.extract_frame(ray.get(ref))
-                if input_frame['agent'] not in remote_input:
-                    remote_input[input_frame['agent']] = input_frame['content']
-                else:
-                    remote_input[
-                        input_frame['agent']] += input_frame['content']
-            except StopIteration:
-                pass
-            prompt = remote_input[input_frame['agent']]
-        elif isinstance(messages, dict):
+        if isinstance(messages, dict):
             prompt = messages['content']
         elif messages is None:
             prompt = ''
@@ -251,13 +240,8 @@ class AgentEnvMixin:
 
         """
         if not self.is_watcher:
-            if self.remote:
-                received_messages = self.env_context.extract_message_by_role.remote(
-                    self._role)
-                received_messages = ray.get(received_messages)
-            else:
-                received_messages = self.env_context.extract_message_by_role(
-                    self._role)
+            received_messages = self.executor_cls.extract_message_by_role_from_env(
+                self.env_context, self._role)
             if received_messages and len(received_messages) > 0:
                 cur_step_env_prompt = self.parse_env_prompt_function(
                     received_messages)
@@ -265,13 +249,10 @@ class AgentEnvMixin:
             else:
                 return ''
         else:
-            if self.remote:
-                received_messages = self.env_context.extract_all_history_message.remote(
-                )
-                received_messages = ray.get(received_messages)
-            else:
-                received_messages = self.env_context.extract_all_history_message(
-                )
+            # watcher could see all message
+            received_messages = self.executor_cls.extract_all_message_from_env(
+                self.env_context)
+
             if received_messages and len(received_messages) > 0:
                 conversation_history = ''
                 for item in received_messages:

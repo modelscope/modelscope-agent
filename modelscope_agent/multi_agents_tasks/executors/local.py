@@ -1,3 +1,5 @@
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
 
 
@@ -7,20 +9,105 @@ class LocalTaskExecutor:
 
     """
 
-    def __init__(self, env=None, agent_registry=None):
-        self.env = env
-        self.agent_registry = agent_registry
+    @staticmethod
+    def get_agents_by_role_names(agent_registry: AgentRegistry,
+                                 role_names: list) -> list:
+        """
+        get agents by role names
+        Args:
+            agent_registry: the agent_resgistry instance
+            role_names: list of role names in string
 
-    def set_env(self, env):
-        self.env = env
+        Returns: list of agent instance
 
-    def set_agent_registry(self, agent_registry):
-        self.agent_registry = agent_registry
+        """
+        agents = agent_registry.get_agents_by_role(role_names)
+        return agents
 
-    def shutdown(self):
-        pass
+    @staticmethod
+    def register_agents_and_roles(env: Environment,
+                                  agent_registry: AgentRegistry, agents: list,
+                                  roles: list):
+        """
+        register agent information to env and agent_registry
+        Args:
+            env: the environment instance
+            agent_registry: the agent_registry instance
+            agents: list of agents instance
+            roles: list of roles names
 
-    def get_agent_role(self, agent):
+        Returns: None
+
+        """
+        env.register_roles(roles)
+        agent_registry.register_agents(agents, env)
+
+    @staticmethod
+    def get_notified_roles(env) -> list:
+        """
+        get notified role from env
+        Args:
+            env: the environment instance
+        Returns: role name list
+
+        """
+        notified_roles = env.get_notified_roles()
+        return notified_roles
+
+    @staticmethod
+    def get_user_roles(agent_registry: AgentRegistry) -> list:
+        """
+        get user role from agent registry
+         Args:
+            agent_registry: the agent_registr instance
+        Returns: user role name list
+
+        """
+        user_roles = agent_registry.get_user_agents_role_name()
+        return user_roles
+
+    @staticmethod
+    def store_message_from_role(env: Environment,
+                                message: Message,
+                                send_from: str = 'human'):
+        """
+        store message from roles
+        Args:
+            env: the environment instance
+            message: the message
+            send_from: role name of the message sender
+
+        Returns: None
+
+        """
+        env.store_message_from_role(send_from, message)
+
+    @staticmethod
+    def reset_queue(env: Environment):
+        """
+        reset the queues in env
+        Args:
+            env: the environment instance
+
+        Returns: None
+
+        """
+        env.reset_env_queues()
+
+    @staticmethod
+    def get_generator_result(generator) -> str:
+        """
+        get the result from a generator
+        Args:
+            generator:
+
+        Returns: the next string result from generator
+
+        """
+        return next(generator)
+
+    @staticmethod
+    def get_agent_role(agent):
         """
         used to get role name from agent
         Args:
@@ -31,78 +118,68 @@ class LocalTaskExecutor:
         """
         return agent.role()
 
-    def get_agents_by_role_names(self, role_names) -> list:
+    @staticmethod
+    def is_user_agent(agent) -> bool:
         """
-        get agents by role names
+        To decide if is the agent a user
         Args:
-            role_names: list of role names in string
+            agent: an agent instance
 
-        Returns: list of agent instance
+        Returns: if is the agent a user return True, else False
 
         """
-        agents = self.agent_registry.get_agents_by_role(role_names)
-        return agents
+        return agent.is_user_agent.remote()
 
-    def register_agents_and_roles(self, agents, roles):
+    @staticmethod
+    def set_agent_human_input_mode(agent, human_input_mode: str):
         """
-        register agent information to env and agent_registry
+
         Args:
-            agents: list of agents instance
-            roles: list of roles names
+            agent: the agent instance
+            human_input_mode: ON, CLOSE or TERMINAL
 
         Returns: None
 
         """
-        self.env.register_roles(roles)
-        self.agent_registry.register_agents(agents, self.env)
+        agent.set_human_input_mode(human_input_mode)
 
-    def get_notified_roles(self) -> list:
+    @staticmethod
+    def set_agent_env(agent, env_context: Environment):
         """
-        get notified role from env
-        Returns: role name list
-
-        """
-        notified_roles = self.env.get_notified_roles()
-        return notified_roles
-
-    def get_user_roles(self) -> list:
-        """
-        get user role from agent registry
-        Returns: user role name list
-
-        """
-        user_roles = self.agent_registry.get_user_agents_role_name()
-        return user_roles
-
-    def store_message_from_role(self,
-                                message: Message,
-                                send_from: str = 'human'):
-        """
-        store message from roles
+        set env context in agent
         Args:
-            message: the message
-            send_from: role name of the message sender
+            agent: the agent instance
+            env_context: the env instance
 
         Returns: None
 
         """
-        self.env.store_message_from_role(send_from, message)
+        agent.set_env_context(env_context)
 
-    def reset_queue(self):
+    @staticmethod
+    def extract_message_by_role_from_env(env_context: Environment,
+                                         role: str) -> list:
         """
-        reset the queues in env
-        Returns: None
-
-        """
-        self.env.reset_env_queues()
-
-    def get_generator_result(self, generator) -> str:
-        """
-        get the result from a generator
+        extract message by role from env
         Args:
-            generator:
+            env_context: env context
+            role: role name in string
 
-        Returns: the next string result from generator
+        Returns: The messages that role has seen
 
         """
-        return next(generator)
+        received_messages = env_context.extract_message_by_role(role)
+        return received_messages
+
+    @staticmethod
+    def extract_all_message_from_env(env_context: Environment) -> list:
+        """
+        extract all message from env
+        Args:
+            env_context: env context
+
+        Returns: All messages in last round
+
+        """
+        received_messages = env_context.extract_all_history_message()
+        return received_messages
