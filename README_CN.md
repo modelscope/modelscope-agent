@@ -13,7 +13,7 @@
 
 <p align="center">
 <img src="https://img.shields.io/badge/python-%E2%89%A53.8-5be.svg">
-<a href="https://github.com/modelscope/modelscope-agent/"><img src="https://img.shields.io/badge/modelscope-%E2%89%A51.9.3-5D91D4.svg"></a>
+<a href="https://github.com/modelscope/modelscope-agent/"><img src="https://img.shields.io/badge/modelscope-%E2%89%A51.10.0%20%26%20%E2%89%A41.12.0-5D91D4.svg"></a>
 <a href="https://github.com/modelscope/modelscope-agent/actions?query=branch%3Amaster+workflow%3Acitest++"><img src="https://img.shields.io/github/actions/workflow/status/modelscope/modelscope-agent/citest.yaml?branch=master&logo=github&label=CI
 "></a>
 <a href="https://github.com/modelscope/modelscope-agent/blob/main/LICENSE"><img src="https://img.shields.io/github/license/modelscope/modelscope-agent"></a>
