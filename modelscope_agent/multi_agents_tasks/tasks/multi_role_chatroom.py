@@ -8,8 +8,6 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.agents_registry import AgentRegistry
-from modelscope_agent.environment import Environment
 from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
@@ -127,11 +125,6 @@ def init_all_agents():
 
 task_center = create_component(
     TaskCenter, name='task_center', remote=REMOTE_MODE)
-
-env = create_component(Environment, 'env', REMOTE_MODE)
-agent_registry = create_component(AgentRegistry, 'agent_center', REMOTE_MODE)
-ray.get(task_center.set_env.remote(env))
-ray.get(task_center.set_agent_registry.remote(agent_registry))
 
 logging.warning(msg=f'time:{time.time()} done create task center')
 

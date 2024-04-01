@@ -94,17 +94,14 @@ such as: `task_center`, `environment`, `agent_registry` and `agent`.
 Task center will use `environment` and `agent_registry` to step forward the task, and manage the task process.
 The `remote` is used to allow *Ray* to run a core role in this process.
 The user don't need to care about the distribution or multi-processes stuff.
-Before running the task, we have to initialize the *Ray*, and convert `environment` and `agent_registry` into actor on ray,
-if we want to run the task on multi-processes.
+Before running the task in multi processes mode, we have to initialize the *Ray*, and convert the `task_center` into a ray actor
+inside the `task_center`, the `environment` and `agent_registry` will be converted into actor on ray automatically.
 
-The following code is the initialization of the task center, env and agent_registry.
-Note that, the `ray.get()` used to make sure the operation is sync.
+The following code is the initialization of the task center.
 ```python3
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.task_center import TaskCenter
-from modelscope_agent.environment import Environment
-from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 
 REMOTE_MODE = True
@@ -116,13 +113,6 @@ task_center = create_component(
     TaskCenter,
     name='task_center',
     remote=REMOTE_MODE)
-env = create_component(Environment, 'env', REMOTE_MODE)
-agent_registry = create_component(
-    AgentRegistry,
-    'agent_center',
-    REMOTE_MODE)
-ray.get(task_center.set_env.remote(env))
-ray.get(task_center.set_agent_registry.remote(agent_registry))
 
 ```
 

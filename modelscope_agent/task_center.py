@@ -1,5 +1,6 @@
 from typing import List, Union
 
+from modelscope_agent import create_component
 from modelscope_agent.agent import Agent
 from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.constants import DEFAULT_SEND_TO
@@ -14,22 +15,13 @@ class TaskCenter:
         if remote:
             from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
             self.task_executor = RayTaskExecutor
-            # self.task_executor.init_ray()
         else:
             from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
             self.task_executor = LocalTaskExecutor
+        self.env = create_component(Environment, 'env', remote)
+        self.agent_registry = create_component(AgentRegistry, 'agent_center',
+                                               remote)
         self.remote = remote
-
-    # def __del__(self):
-    #     if self.remote:
-    #         from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
-    #         RayTaskExecutor.shutdown_ray()
-
-    def set_env(self, env: Environment):
-        self.env = env
-
-    def set_agent_registry(self, agent_registry: AgentRegistry):
-        self.agent_registry = agent_registry
 
     def add_agents(self, agents: List[Agent]):
         """
@@ -49,7 +41,7 @@ class TaskCenter:
                                                      self.agent_registry,
                                                      agents, roles)
 
-    def disable_agent(self, agent):
+    def disable_agent(self, agent: Agent):
         pass
 
     def is_user_agent_present(self, roles: List[str] = []):
@@ -61,13 +53,13 @@ class TaskCenter:
         return notified_user_roles
 
     def send_task_request(self,
-                          task,
+                          task: str,
                           send_to: Union[str, list] = DEFAULT_SEND_TO,
                           send_from: str = 'human'):
         """
         Send the task request by send the message to the environment
         Args:
-            task: the task from user
+            task: the task from user in string
             send_to: send to the message to whom
             send_from: the message might from other than human
 
@@ -151,9 +143,3 @@ class TaskCenter:
                 #  the number of finish flag equals to the num of agents
                 if len(finish_flag.keys()) == len(futures):
                     break
-
-
-class LocalTaskExecutor:
-
-    def __init__(self):
-        self.task_center = TaskCenter(remote=False)

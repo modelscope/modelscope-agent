@@ -1,5 +1,3 @@
-import ray
-
 from .agent import Agent
 
 
@@ -16,6 +14,8 @@ def _create_remote(cls, name, max_concurrency=1, *args, **kwargs):
     Returns:
 
     '''
+    import ray
+
     return ray.remote(
         name=name,
         max_concurrency=max_concurrency)(cls).remote(*args, **kwargs)

@@ -93,17 +93,15 @@
 
 任务中心(`task_center`)将使用 `environment` 和 `agent_registry` 两个组件来推进任务，并管理任务过程。
 其中 `remote=True` 被用来允许*Ray*在此过程中扮演核心角色,用户不需要关心分布式或多进程的细节。
-在运行任务之前，如果我们想在多进程中运行任务，必须先初始化*Ray*，
-并将`environment`和`agent_registry`转换为*Ray*上的 actor。
+在运行任务之前，如果我们想在多进程中运行任务，必须先初始化*Ray*， 并将`task_center`转换为*Ray*上的 actor。
+在`task_center`中，`environment`和`agent_registry`也会被自动转换为*Ray*上的 actor。
 
-以下代码是`task_center`，`env` 和 `agent_registry` 的初始化。请注意，使用`ray.get()`确保初始化操作是同步的。
+以下代码是`task_center`的初始化。请注意，使用`ray.get()`确保初始化操作是同步的。
 
 ```python3
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.task_center import TaskCenter
-from modelscope_agent.environment import Environment
-from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 
 REMOTE_MODE = True
@@ -115,13 +113,6 @@ task_center = create_component(
     TaskCenter,
     name='task_center',
     remote=REMOTE_MODE)
-env = create_component(Environment, 'env', REMOTE_MODE)
-agent_registry = create_component(
-    AgentRegistry,
-    'agent_center',
-    REMOTE_MODE)
-ray.get(task_center.set_env.remote(env))
-ray.get(task_center.set_agent_registry.remote(agent_registry))
 ```
 
 ### Agents

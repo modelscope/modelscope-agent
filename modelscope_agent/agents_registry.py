@@ -31,7 +31,12 @@ class AgentRegistry:
         """
 
         role = self.executor_cls.get_agent_role(agent)
-        self._agents[role] = agent
+        if role in self._agents:
+            pass
+            # todo: not raise error for now, need to handle this case later
+            # raise ValueError(f'Role {role} already registered')
+        else:
+            self._agents[role] = agent
         self._agents_state[role] = True
 
         # set up the env_context
