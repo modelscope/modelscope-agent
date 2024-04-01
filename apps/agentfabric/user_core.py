@@ -3,7 +3,7 @@ import os.path
 from typing import List
 
 import json
-from config_utils import (DEFAULT_UUID_HISTORY, get_user_dir,
+from config_utils import (get_user_preview_history_dir,
                           parse_configuration)
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
@@ -32,6 +32,7 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     function_list = parse_tool_cfg(tool_cfg)
     function_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, function_list)
+
     llm_config = copy.deepcopy(model_cfg[builder_cfg.model])
     llm_config['model_server'] = llm_config.pop('type')
     instruction = {
@@ -46,9 +47,9 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
         uuid_str=uuid_str)
 
     # build memory
-    storage_path = get_user_dir(uuid_str)
-    memory_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
-                                       session + '_user.json')
+    preview_history_dir = get_user_preview_history_dir(uuid_str, session)
+    storage_path = preview_history_dir
+    memory_history_path = os.path.join(preview_history_dir, session + '_user.json')
     memory_agent_name = uuid_str + '_' + session + '_memory'
     memory = MemoryWithRetrievalKnowledge(
         storage_path=storage_path,

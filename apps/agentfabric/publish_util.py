@@ -5,6 +5,7 @@ import shutil
 import zipfile
 from configparser import ConfigParser
 from urllib.parse import unquote, urlparse
+from server_logging import logger
 
 import json
 import oss2
@@ -25,11 +26,35 @@ def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 上传文件到阿里云OSS
     bucket.put_object_from_file(oss_file_path, local_file_path)
 
-    # 设置文件的公共读权限
-    bucket.put_object_acl(oss_file_path, oss2.OBJECT_ACL_PUBLIC_READ)
+    # # 设置文件的公共读权限
+    # bucket.put_object_acl(oss_file_path, oss2.OBJECT_ACL_PUBLIC_READ)
+    #
+    # # 获取文件的公共链接
+    # file_url = f"https://{bucket.bucket_name}.{bucket.endpoint.replace('http://', '')}/{oss_file_path}"
 
-    # 获取文件的公共链接
-    file_url = f"https://{bucket.bucket_name}.{bucket.endpoint.replace('http://', '')}/{oss_file_path}"
+    # 指定Header。
+    headers = dict()
+    # 指定Accept-Encoding。
+    headers['Accept-Encoding'] = 'gzip'
+
+    # 指定HTTP查询参数。
+    params = dict()
+    # 设置单链接限速，单位为bit，例如限速100 KB/s。
+    # params['x-oss-traffic-limit'] = str(100 * 1024 * 8)
+    # 指定IP地址或者IP地址段。
+    # params['x-oss-ac-source-ip'] = "127.0.0.1"
+    # 指定子网掩码中1的个数。
+    # params['x-oss-ac-subnet-mask'] = "32"
+    # 指定VPC ID。
+    # params['x-oss-ac-vpc-id'] = "vpc-t4nlw426y44rd3iq4****"
+    # 指定是否允许转发请求。
+    # params['x-oss-ac-forward-allow'] = "true"
+
+    # 生成上传文件的签名URL，有效时间为60秒。
+    # 生成签名URL时，OSS默认会对Object完整路径中的正斜线（/）进行转义，从而导致生成的签名URL无法直接使用。
+    # 设置slash_safe为True，OSS不会对Object完整路径中的正斜线（/）进行转义，此时生成的签名URL可以直接使用。
+    file_url = bucket.sign_url('GET', oss_file_path, 1800, slash_safe=True, headers=headers, params=params)
+
     return file_url
 
 
@@ -123,9 +148,9 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
         # 找到所有的图片文件
         image_files = glob.glob(directory + '*.png') + \
-            glob.glob(directory + '*.jpg') + \
-            glob.glob(directory + '*.jpeg') + \
-            glob.glob(directory + '*.gif')  # 根据需要可以添加更多图片格式
+                      glob.glob(directory + '*.jpg') + \
+                      glob.glob(directory + '*.jpeg') + \
+                      glob.glob(directory + '*.gif')  # 根据需要可以添加更多图片格式
 
         return json_files + image_files
 
@@ -151,8 +176,11 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 复制.py文件到新目录
     for file in os.listdir(local_file):
-        if file.endswith('.py'):
+        if file.endswith('.py') and file != "app.py":
             shutil.copy(f'{local_file}/{file}', new_directory)
+
+    # add app.py
+    shutil.copy(f'{local_file}/appBot.py', os.path.join(new_directory, "app.py"))
 
     # 打包新目录
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)
@@ -165,6 +193,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 获取必须设置的envs
     envs_required = {}
+    logger.info(f"builder_cfg is {builder_cfg}")
     for t, t_cfg in builder_cfg.tools.items():
         if t == 'amap_weather' and t_cfg['is_active'] and t_cfg['use']:
             envs_required['AMAP_TOKEN'] = 'Your-AMAP-TOKEN'
@@ -268,6 +297,46 @@ def reload_agent_zip(agent_url, dst_dir, uuid_str, state):
         json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
 
     return agent_name
+
+
+def reload_agent_dir(temp_extract_dir, dst_dir, uuid_str):
+    # 解析version信息
+    version = parse_version_from_file(
+        os.path.join(temp_extract_dir, 'version.py'))
+    print(f'agent fabric version: {version}')
+    # 创建目标config路径
+    target_config_path = os.path.join(dst_dir, 'config', uuid_str)
+    if os.path.exists(target_config_path):
+        shutil.rmtree(target_config_path)
+    os.makedirs(target_config_path)
+
+    # 复制config目录
+    # 兼容老版本配置放到local_user目录下，以及新版本直接放在config目录下
+    if os.path.exists(os.path.join(temp_extract_dir, 'config', 'local_user')):
+        config_source_path = os.path.join(temp_extract_dir, 'config',
+                                          'local_user')
+    elif os.path.exists(os.path.join(temp_extract_dir, 'config')):
+        config_source_path = os.path.join(temp_extract_dir, 'config')
+    else:
+        raise RuntimeError('未找到正确的配置文件信息')
+
+    if os.path.exists(config_source_path):
+        for item in os.listdir(config_source_path):
+            s = os.path.join(config_source_path, item)
+            d = os.path.join(target_config_path, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
+
+    # 修改知识库路径 config/xxx  to /tmp/agentfabric/config/$uuid/xxx
+    target_conf = os.path.join(target_config_path, 'builder_config.json')
+    builder_cfg = Config.from_file(target_conf)
+    builder_cfg.knowledge = [f.split('/')[-1]
+        for f in builder_cfg.knowledge
+    ]
+    with open(target_conf, 'w') as f:
+        json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
 
 
 if __name__ == '__main__':

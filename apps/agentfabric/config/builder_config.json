@@ -15,7 +15,7 @@
     "image_gen": {
       "name": "Wanx Image Generation",
       "is_active": true,
-      "use": true
+      "use": false
     },
     "code_interpreter": {
       "name": "Code Interpreter",
