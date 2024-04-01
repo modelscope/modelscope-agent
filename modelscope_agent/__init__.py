@@ -41,8 +41,8 @@ def create_component(cls,
                      max_concurrency=1,
                      *args,
                      **kwargs):
+    kwargs['remote'] = remote
     if remote:
         return _create_remote(cls, name, max_concurrency, *args, **kwargs)
     else:
-        kwargs['remote'] = remote
         return _create_local(cls, *args, **kwargs)

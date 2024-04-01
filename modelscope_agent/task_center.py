@@ -1,6 +1,5 @@
 from typing import List, Union
 
-from modelscope_agent import create_component
 from modelscope_agent.agent import Agent
 from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.constants import DEFAULT_SEND_TO
@@ -15,18 +14,22 @@ class TaskCenter:
         if remote:
             from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
             self.task_executor = RayTaskExecutor
-            self.task_executor.init_ray()
+            # self.task_executor.init_ray()
         else:
             from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
             self.task_executor = LocalTaskExecutor
-        self.env = create_component(Environment, 'env', remote)
-        self.agent_registry = create_component(AgentRegistry, 'agent_center',
-                                               remote)
         self.remote = remote
 
-    def __del__(self):
-        if self.remote:
-            self.task_executor.shutdown_ray()
+    # def __del__(self):
+    #     if self.remote:
+    #         from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+    #         RayTaskExecutor.shutdown_ray()
+
+    def set_env(self, env: Environment):
+        self.env = env
+
+    def set_agent_registry(self, agent_registry: AgentRegistry):
+        self.agent_registry = agent_registry
 
     def add_agents(self, agents: List[Agent]):
         """

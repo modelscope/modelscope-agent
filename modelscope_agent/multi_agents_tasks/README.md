@@ -91,16 +91,39 @@ During initialization stage, Ray will covert all classes into actor by a sync op
 such as: `task_center`, `environment`, `agent_registry` and `agent`.
 
 ### Task Center
-Task center will initialize the *Ray*, and convert `environment` and `agent_registry` into actor on ray.
-The variable `remote` are assign to `True`, meaning the task will be a multi-processes ray task,
-which could run on a single machine or on a cluster. (Currently only single machine tested, will be on cluster soon.)
+Task center will use `environment` and `agent_registry` to step forward the task, and manage the task process.
+The `remote` is used to allow *Ray* to run a core role in this process.
+The user don't need to care about the distribution or multi-processes stuff.
+Before running the task, we have to initialize the *Ray*, and convert `environment` and `agent_registry` into actor on ray,
+if we want to run the task on multi-processes.
 
-If the `remote = False`, then it will be a single process task without ray.
-
+The following code is the initialization of the task center, env and agent_registry.
+Note that, the `ray.get()` used to make sure the operation is sync.
 ```python3
+import ray
+from modelscope_agent import create_component
 from modelscope_agent.task_center import TaskCenter
+from modelscope_agent.environment import Environment
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 
-task_center = TaskCenter(remote=True)
+REMOTE_MODE = True
+
+if REMOTE_MODE:
+    RayTaskExecutor.init_ray()
+
+task_center = create_component(
+    TaskCenter,
+    name='task_center',
+    remote=REMOTE_MODE)
+env = create_component(Environment, 'env', REMOTE_MODE)
+agent_registry = create_component(
+    AgentRegistry,
+    'agent_center',
+    REMOTE_MODE)
+ray.get(task_center.set_env.remote(env))
+ray.get(task_center.set_agent_registry.remote(agent_registry))
+
 ```
 
 ### Agents
@@ -147,7 +170,7 @@ Those agents will then be registered to `task_center` by `add_agents` method.
 ```python
 
 # register agents
-task_center.add_agents([role_play1, role_play2])
+ray.get(task_center.add_agents.remote([role_play1, role_play2]))
 ```
 
 All the operations so far are in a sync manner, in order to make sure all the actors are correctly initialized.
@@ -157,11 +180,11 @@ We could start a new task by calling `send_task_request`, and send the task to t
 
 ```python
 task = 'what is the best solution to land on moon?'
-task_center.send_task_request(task)
+ray.get(task_center.send_task_request.remote(task))
 ```
 also we could send task request only to specific agents by passing the input `send_to` with role name of agent.
 ```python
-task_center.send_task_request(task, send_to=['role_play1'])
+ray.get(task_center.send_task_request.remote(task, send_to=['role_play1']))
 ```
 
 Then, we could code our multi-agent procedure logic with task_center's static method `step`
@@ -171,7 +194,7 @@ import ray
 n_round = 10
 while n_round > 0:
 
-    for frame in TaskCenter.step.remote(task_center):
+    for frame in task_center.step.remote():
         print(ray.get(frame))
 
 

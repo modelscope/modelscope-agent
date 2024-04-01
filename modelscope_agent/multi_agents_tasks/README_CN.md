@@ -91,14 +91,37 @@
 
 ### 任务中心
 
-任务中心将初始化*Ray*所需要的环境， 并将`environment`和`agent_registry`转换为*Ray*上的actor。
-变量`remote`被设置为`True`，这意味着任务将是一个多进程的*Ray*任务，可以在单台机器上运行，也可以在集群上运行。（目前只在单机上测试过，不久将在集群上测试）
-如果`remote = False`，那么它将是一个没有Ray的单进程任务, 和普通的类没有区别。
+任务中心(`task_center`)将使用 `environment` 和 `agent_registry` 两个组件来推进任务，并管理任务过程。
+其中 `remote=True` 被用来允许*Ray*在此过程中扮演核心角色,用户不需要关心分布式或多进程的细节。
+在运行任务之前，如果我们想在多进程中运行任务，必须先初始化*Ray*，
+并将`environment`和`agent_registry`转换为*Ray*上的 actor。
+
+以下代码是`task_center`，`env` 和 `agent_registry` 的初始化。请注意，使用`ray.get()`确保初始化操作是同步的。
 
 ```python3
+import ray
+from modelscope_agent import create_component
 from modelscope_agent.task_center import TaskCenter
+from modelscope_agent.environment import Environment
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 
-task_center = TaskCenter(remote=True)
+REMOTE_MODE = True
+
+if REMOTE_MODE:
+    RayTaskExecutor.init_ray()
+
+task_center = create_component(
+    TaskCenter,
+    name='task_center',
+    remote=REMOTE_MODE)
+env = create_component(Environment, 'env', REMOTE_MODE)
+agent_registry = create_component(
+    AgentRegistry,
+    'agent_center',
+    REMOTE_MODE)
+ray.get(task_center.set_env.remote(env))
+ray.get(task_center.set_agent_registry.remote(agent_registry))
 ```
 
 ### Agents
@@ -145,7 +168,7 @@ role_play2 = create_component(
 
 ```python
 # register agents
-task_center.add_agents([role_play1, role_play2])
+ray.get(task_center.add_agents.remote([role_play1, role_play2]))
 ```
 
 值得注意的是，目前为主以上所有操作都是以同步方式进行的，以确保所有的actor都正确初始化。
@@ -155,11 +178,11 @@ task_center.add_agents([role_play1, role_play2])
 我们可以通过调用`send_task_request`来启动一个新的任务，并将任务发送到`environment`。
 ```python
 task = 'what is the best solution to land on moon?'
-task_center.send_task_request(task)
+ray.get(task_center.send_task_request.remote(task))
 ```
 另外，我们也可以通过参数`send_to`传入agent的角色名称，以向特定的agent发送任务请求。
 ```python
-task_center.send_task_request(task, send_to=['role_play1'])
+ray.get(task_center.send_task_request.remote(task, send_to=['role_play1']))
 ```
 然后，我们可以使用task_center的静态方法`step`来编写我们的multi-agent流程逻辑。
 ```python
@@ -167,7 +190,7 @@ import ray
 n_round = 10
 while n_round > 0:
 
-    for frame in TaskCenter.step.remote(task_center):
+    for frame in task_center.step.remote():
         print(ray.get(frame))
 
 

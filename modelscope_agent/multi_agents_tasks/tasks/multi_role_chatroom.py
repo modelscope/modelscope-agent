@@ -8,7 +8,15 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import RolePlay
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.environment import Environment
+from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
+
+REMOTE_MODE = True
+
+if REMOTE_MODE:
+    RayTaskExecutor.init_ray()
 
 ROLE_INSTRUCTION_PROMPT = """你是{role}，请你根据对话情节设定、对话角色设定，继续当前的对话，推动剧情发展。
 
@@ -106,7 +114,7 @@ def init_all_agents():
         agent = create_component(
             RolePlay,
             name=role,
-            remote=True,
+            remote=REMOTE_MODE,
             role=role,
             description=ROLES_MAP[role],
             llm=llm_config,
@@ -117,7 +125,14 @@ def init_all_agents():
     return agents
 
 
-task_center = TaskCenter(remote=True)
+task_center = create_component(
+    TaskCenter, name='task_center', remote=REMOTE_MODE)
+
+env = create_component(Environment, 'env', REMOTE_MODE)
+agent_registry = create_component(AgentRegistry, 'agent_center', REMOTE_MODE)
+ray.get(task_center.set_env.remote(env))
+ray.get(task_center.set_agent_registry.remote(agent_registry))
+
 logging.warning(msg=f'time:{time.time()} done create task center')
 
 roles = init_all_agents()
@@ -127,7 +142,7 @@ role_names = ROLES_MAP.keys()
 chat_room = create_component(
     RolePlay,
     name='chat_room',
-    remote=True,
+    remote=REMOTE_MODE,
     role='chat_room',
     llm=llm_config,
     function_list=function_list,
@@ -136,12 +151,12 @@ chat_room = create_component(
     is_watcher=True,
     use_history=False)
 
-task_center.add_agents(roles)
-task_center.add_agents([chat_room])
+ray.get(task_center.add_agents.remote(roles))
+ray.get(task_center.add_agents.remote([chat_room]))
 
 # start the chat by send chat message to env
 chat = '@顾易 要不要来我家吃饭？'
-task_center.send_task_request(chat, send_from='林乐清')
+ray.get(task_center.send_task_request.remote(chat, send_from='林乐清'))
 
 # limit the round to n_round
 n_round = 50
@@ -150,8 +165,8 @@ while n_round > 0:
 
     # decide the next speakers
     chat_room_result = ''
-    for frame in TaskCenter.step.remote(
-            task_center, allowed_roles=['chat_room'], **kwargs):
+    for frame in task_center.step.remote(
+            allowed_roles=['chat_room'], **kwargs):
         remote_result = ray.get(frame)
         print(remote_result)
         raw_result = AgentEnvMixin.extract_frame(remote_result)
@@ -175,7 +190,8 @@ while n_round > 0:
         next_agent_names = []
 
     if len(next_agent_names) > 0:
-        user_agent_names = task_center.is_user_agent_present(next_agent_names)
+        user_agent_names = ray.get(
+            task_center.is_user_agent_present.remote(next_agent_names))
 
         if len(user_agent_names) == 1:
             # only one user agent in this case
@@ -183,8 +199,7 @@ while n_round > 0:
                 f'You are {user_agent_names}. Press enter to skip and use auto-reply, '
                 f'or input any information to talk with other roles: ')
 
-        for frame in TaskCenter.step.remote(
-                task_center,
+        for frame in task_center.step.remote(
                 allowed_roles=next_agent_names,
                 user_response=user_response,
                 **kwargs):

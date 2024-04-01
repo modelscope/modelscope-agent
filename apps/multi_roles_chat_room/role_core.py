@@ -8,6 +8,9 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import RolePlay
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.environment import Environment
+from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
 REMOTE_MODE = True
@@ -166,13 +169,20 @@ def change_user_role(user_role, state):
 
 
 def init_all_remote_actors(_roles, user_role, _state):
-
+    RayTaskExecutor.init_ray()
     # if initialized, just change the user role
     if 'init' in _state and _state['init']:
         state = change_user_role(user_role, _state)
         return state
 
-    task_center = TaskCenter(remote=REMOTE_MODE)
+    task_center = create_component(
+        TaskCenter, name='Task_Center', remote=REMOTE_MODE)
+
+    env = create_component(Environment, 'env', REMOTE_MODE)
+    agent_registry = create_component(AgentRegistry, 'agent_center',
+                                      REMOTE_MODE)
+    ray.get(task_center.set_env.remote(env))
+    ray.get(task_center.set_agent_registry.remote(agent_registry))
 
     # init all agents and task center
     role_agents = []
@@ -198,8 +208,8 @@ def init_all_remote_actors(_roles, user_role, _state):
 
     logging.warning(msg=f'time:{time.time()} done create task center')
 
-    task_center.add_agents(role_agents)
-    task_center.add_agents([chat_room])
+    ray.get(task_center.add_agents.remote(role_agents))
+    ray.get(task_center.add_agents.remote([chat_room]))
 
     _state['agents'] = role_agents
     _state['task_center'] = task_center
@@ -212,7 +222,7 @@ def init_all_remote_actors(_roles, user_role, _state):
 
 def start_chat_with_topic(from_user, topic, _state):
     task_center = _state['task_center']
-    task_center.send_task_request(topic, send_from=from_user)
+    ray.get(task_center.send_task_request.remote(topic, send_from=from_user))
     _state['task_center'] = task_center
     return _state
 
@@ -225,8 +235,7 @@ def chat_progress(user_response, _state):
     while True:
         # get last round roles with user in order to process message from input
         if len(last_round_roles) > 0:
-            for frame in TaskCenter.step.remote(
-                    task_center,
+            for frame in task_center.step.remote(
                     allowed_roles=last_round_roles,
                     user_response=user_response,
                     **kwargs):
@@ -237,8 +246,8 @@ def chat_progress(user_response, _state):
 
         # chat_room decide the next speakers
         chat_room_result = ''
-        for frame in TaskCenter.step.remote(
-                task_center, allowed_roles=['chat_room'], **kwargs):
+        for frame in task_center.step.remote(
+                allowed_roles=['chat_room'], **kwargs):
             remote_result = ray.get(frame)
             print(remote_result)
             raw_result = AgentEnvMixin.extract_frame(remote_result)
@@ -262,8 +271,8 @@ def chat_progress(user_response, _state):
             next_agent_names = []
 
         if len(next_agent_names) > 0:
-            user_agent_names = task_center.is_user_agent_present(
-                next_agent_names)
+            user_agent_names = ray.get(
+                task_center.is_user_agent_present.remote(next_agent_names))
 
             # only none user agent could send message here
             if len(user_agent_names) == 1:
@@ -272,8 +281,7 @@ def chat_progress(user_response, _state):
 
             # only if other agent than user run into this logic
             if len(next_agent_names) > 0:
-                for frame in TaskCenter.step.remote(
-                        task_center,
+                for frame in task_center.step.remote(
                         allowed_roles=next_agent_names,
                         user_response=user_response,
                         **kwargs):

@@ -5,7 +5,15 @@ import time
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.agents import RolePlay
+from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.environment import Environment
+from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
+
+REMOTE_MODE = True
+
+if REMOTE_MODE:
+    RayTaskExecutor.init_ray()
 
 llm_config = {
     'model': 'qwen-max',
@@ -14,13 +22,20 @@ llm_config = {
 }
 function_list = []
 
-task_center = TaskCenter(remote=True)
+task_center = create_component(
+    TaskCenter, name='task_center', remote=REMOTE_MODE)
+
+env = create_component(Environment, 'env', REMOTE_MODE)
+agent_registry = create_component(AgentRegistry, 'agent_center', REMOTE_MODE)
+ray.get(task_center.set_env.remote(env))
+ray.get(task_center.set_agent_registry.remote(agent_registry))
+
 logging.warning(msg=f'time:{time.time()} done create task center')
 
 role_play1 = create_component(
     RolePlay,
     name='role_play1',
-    remote=True,
+    remote=REMOTE_MODE,
     role='role_play1',
     llm=llm_config,
     function_list=function_list)
@@ -28,19 +43,19 @@ role_play1 = create_component(
 role_play2 = create_component(
     RolePlay,
     name='role_play2',
-    remote=True,
+    remote=REMOTE_MODE,
     role='role_play2',
     llm=llm_config,
     function_list=function_list)
 
-task_center.add_agents([role_play1, role_play2])
+ray.get(task_center.add_agents.remote([role_play1, role_play2]))
 
 n_round = 2
 task = 'who are u'
-task_center.send_task_request(task)
+ray.get(task_center.send_task_request.remote(task))
 while n_round > 0:
 
-    for frame in TaskCenter.step.remote(task_center):
+    for frame in task_center.step.remote():
         print(ray.get(frame))
 
     time.sleep(3)
