@@ -23,6 +23,18 @@
     "is_active": true,
     "use": false
   },
+  "paraformer_asr": {
+    "name": "Paraformer语音识别",
+    "is_active": true,
+    "use": false,
+    "is_remote_tool": true
+  },
+  "sambert_tts": {
+    "name": "Sambert语音合成",
+    "is_active": true,
+    "use": false,
+    "is_remote_tool": true
+  },
   "wordart_texture_generation": {
     "name": "艺术字纹理生成",
     "is_active": true,
@@ -44,6 +56,11 @@
     "is_active": true,
     "use": false
   },
+  "image_enhancement": {
+    "name": "追影-放大镜",
+    "is_active": true,
+    "use": false
+  },
   "text-address": {
     "name": "地址解析",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/mgeo_geographic_elements_tagging_chinese_base",
@@ -55,7 +72,7 @@
     "name": "命名实体识别",
     "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_raner_named-entity-recognition_chinese-base-cmeee",
     "use": false,
-    "is_active": true,
+    "is_active": false,
     "is_remote_tool": true
   },
   "speech-generation": {
@@ -83,7 +100,7 @@
       "name": "中译英",
       "url": "https://api-inference.modelscope.cn/api-inference/v1/models/damo/nlp_csanmt_translation_zh2en",
       "use": false,
-      "is_active": true,
+      "is_active": false,
       "is_remote_tool": true
   }
 }

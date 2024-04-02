@@ -1,1 +1,3 @@
-recursive-include modelscope_agent/tools/code_interpreter_utils *.ttf
+recursive-include modelscope_agent/tools/code_interpreter *.ttf
+recursive-include modelscope_agent/utils *.tiktoken
+recursive-include modelscope_agent/utils/nltk *.zip

@@ -26,7 +26,7 @@ i18n = {
     'form_model': ['模型', 'Model'],
     'form_agent_language': ['Agent 语言', 'Agent Language'],
     'form_prompt_suggestion':
-    ['推荐提示词，双击行可修改', 'prompt suggestion，double click to modify'],
+    ['推荐提示词，双击行可修改', 'agents suggestion，double click to modify'],
     'form_knowledge': ['知识库', 'Knowledge Base'],
     'form_capabilities': ['内置能力', 'Capabilities'],
     'form_update_button': ['更新配置', 'Update Configuration'],
@@ -51,11 +51,13 @@ i18n = {
         """#### 注意：Agent实际发布时需要配置相关API的key。
 - 千问、万相、艺术字等 DashScope API 所需： [申请入口](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key)
 - 高德天气 API： [申请入口](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)
-- Web Searching API： [申请入口](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api)""",
+- Web Searching API： [申请入口](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api)
+- ModelScope 语音生成、视频生成 API：[申请入口](https://modelscope.cn/my/myaccesstoken)""",
         """#### Note: The key of the relevant API needs to be configured when the Agent is actually released.
 - Qwen,Wanx,WordArt,etc DashScope API: [Application entrance](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key)
 - Amap Weather API: [Application entrance](https://lbs.amap.com/api/javascript-api-v2/guide/services/weather)
 - Web Searching API： [Application entrance](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api)
+- ModelScope speech-generation,video-generation API: [Application entrance](https://modelscope.cn/my/myaccesstoken)
 """
     ],
     'header': [

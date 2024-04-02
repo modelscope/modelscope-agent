@@ -1,41 +1,20 @@
-import os
-import ssl
+import copy
+import os.path
+from typing import List
 
-import gradio as gr
-import nltk
-from config_utils import parse_configuration
-from custom_prompt import CustomPromptGenerator
-from custom_prompt_zh import ZhCustomPromptGenerator
-from langchain.embeddings import ModelScopeEmbeddings
-from langchain.vectorstores import FAISS
-from modelscope_agent import prompt_generator_register
-from modelscope_agent.agent import AgentExecutor
-from modelscope_agent.agent_types import AgentType
-from modelscope_agent.llm import LLMFactory
-from modelscope_agent.retrieve import KnowledgeRetrieval
+import json
+from config_utils import (DEFAULT_UUID_HISTORY, get_user_dir,
+                          parse_configuration)
+from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.memory import MemoryWithRetrievalKnowledge
+from modelscope_agent.tools.base import TOOL_REGISTRY
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
 from modelscope_agent.utils.logger import agent_logger as logger
 
-prompts = {
-    'CustomPromptGenerator': CustomPromptGenerator,
-    'ZhCustomPromptGenerator': ZhCustomPromptGenerator,
-}
-prompt_generator_register(prompts)
-
-# try:
-#     _create_unverified_https_context = ssl._create_unverified_context
-# except AttributeError:
-#     pass
-# else:
-#     ssl._create_default_https_context = _create_unverified_https_context
-#
-# nltk.download('punkt')
-# nltk.download('averaged_perceptron_tagger')
-
 
 # init user chatbot_agent
-def init_user_chatbot_agent(uuid_str=''):
-    builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list = parse_configuration(
+def init_user_chatbot_agent(uuid_str='', session='default'):
+    builder_cfg, model_cfg, tool_cfg, _, plugin_cfg, _ = parse_configuration(
         uuid_str)
     # set top_p and stop_words for role play
     if 'generate_cfg' not in model_cfg[builder_cfg.model]:
@@ -44,78 +23,63 @@ def init_user_chatbot_agent(uuid_str=''):
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
     # build model
-    logger.info(
+    logger.query_info(
         uuid=uuid_str,
         message=f'using model {builder_cfg.model}',
-        content={'model_config': model_cfg[builder_cfg.model]})
+        details={'model_config': model_cfg[builder_cfg.model]})
 
-    # # check configuration
-    # if builder_cfg.model in ['qwen-max', 'qwen-72b-api', 'qwen-14b-api', 'qwen-plus']:
-    #     if 'DASHSCOPE_API_KEY' not in os.environ:
-    #         raise gr.Error('DASHSCOPE_API_KEY should be set via setting environment variable')
-
-    try:
-        llm = LLMFactory.build_llm(builder_cfg.model, model_cfg)
-    except Exception as e:
-        raise gr.Error(str(e))
-
-    # build prompt with zero shot react template
-    prompt_generator = builder_cfg.get('prompt_generator', None)
-    if builder_cfg.model.startswith('qwen') and not prompt_generator:
-        prompt_generator = 'CustomPromptGenerator'
-        language = builder_cfg.get('language', 'en')
-        if language == 'zh':
-            prompt_generator = 'ZhCustomPromptGenerator'
-
-    prompt_cfg = {
-        'prompt_generator':
-        prompt_generator,
-        'add_addition_round':
-        True,
-        'knowledge_file_name':
-        os.path.basename(builder_cfg.knowledge[0]
-                         if len(builder_cfg.knowledge) > 0 else ''),
-        'uuid_str':
-        uuid_str
+    # update function_list
+    function_list = parse_tool_cfg(tool_cfg)
+    function_list = add_openapi_plugin_to_additional_tool(
+        plugin_cfg, function_list)
+    llm_config = copy.deepcopy(model_cfg[builder_cfg.model])
+    llm_config['model_server'] = llm_config.pop('type')
+    instruction = {
+        'name': builder_cfg.name,
+        'description': builder_cfg.description,
+        'instruction': builder_cfg.instruction
     }
+    agent = RolePlay(
+        function_list=function_list,
+        llm=llm_config,
+        instruction=instruction,
+        uuid_str=uuid_str)
 
-    # get knowledge
-    # 开源版本的向量库配置
-    model_id = 'damo/nlp_gte_sentence-embedding_chinese-base'
-    embeddings = ModelScopeEmbeddings(model_id=model_id)
-    available_knowledge_list = []
-    for item in builder_cfg.knowledge:
-        # if isfile and end with .txt, .md, .pdf, support only those file
-        if os.path.isfile(item) and item.endswith(('.txt', '.md', '.pdf')):
-            available_knowledge_list.append(item)
-    if len(available_knowledge_list) > 0:
-        knowledge_retrieval = KnowledgeRetrieval.from_file(
-            available_knowledge_list, embeddings, FAISS)
-    else:
-        knowledge_retrieval = None
+    # build memory
+    storage_path = get_user_dir(uuid_str)
+    memory_history_path = os.path.join(DEFAULT_UUID_HISTORY, uuid_str,
+                                       session + '_user.json')
+    memory_agent_name = uuid_str + '_' + session + '_memory'
+    memory = MemoryWithRetrievalKnowledge(
+        storage_path=storage_path,
+        name=memory_agent_name,
+        memory_path=memory_history_path,
+        use_knowledge_cache=False,
+    )
 
-    additional_tool_list = add_openapi_plugin_to_additional_tool(
-        plugin_cfg, available_plugin_list)
-    # build agent
-    agent = AgentExecutor(
-        llm,
-        additional_tool_list=additional_tool_list,
-        tool_cfg=tool_cfg,
-        agent_type=AgentType.MRKL,
-        knowledge_retrieval=knowledge_retrieval,
-        tool_retrieval=False,
-        **prompt_cfg)
-    agent.set_available_tools(available_tool_list + available_plugin_list)
-    return agent
+    # memory knowledge
+    memory.run(
+        query=None,
+        url=json.dumps(builder_cfg.knowledge, ensure_ascii=False),
+        uuid=uuid_str)
+
+    return agent, memory
 
 
-def add_openapi_plugin_to_additional_tool(plugin_cfgs, available_plugin_list):
-    additional_tool_list = {}
-    for name, cfg in plugin_cfgs.items():
+def parse_tool_cfg(tool_cfg):
+    tool_cfg_in_dict = tool_cfg.to_dict()
+    function_list = [
+        key for key, value in tool_cfg_in_dict.items()
+        if value.get('use') and value.get('is_active')
+    ]
+    return function_list
+
+
+def add_openapi_plugin_to_additional_tool(plugin_cfgs, function_list):
+    if plugin_cfgs is None or plugin_cfgs == {}:
+        return function_list
+    for name, _ in plugin_cfgs.items():
         openapi_plugin_object = OpenAPIPluginTool(name=name, cfg=plugin_cfgs)
-        additional_tool_list[name] = openapi_plugin_object
-    return additional_tool_list
-
-
-def user_chatbot_single_run(query, agent):
-    agent.run(query)
+        TOOL_REGISTRY[name] = openapi_plugin_object
+        function_list.append(name)
+    return function_list
