@@ -239,6 +239,7 @@ with demo:
                 elem_classes=['markdown-body'],
                 avatar_images=get_avatar_image('', uuid_str),
                 height=650,
+                latex_delimiters=[],
                 show_label=False,
                 visible=False,
                 show_copy_button=True,

@@ -46,7 +46,7 @@ def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 指定子网掩码中1的个数。
     # params['x-oss-ac-subnet-mask'] = "32"
     # 指定VPC ID。
-    # params['x-oss-ac-vpc-id'] = "vpc-t4nlw426y44rd3iq4****"
+    # params['x-oss-ac-vpc-id'] = "vpc-*********************"
     # 指定是否允许转发请求。
     # params['x-oss-ac-forward-allow'] = "true"
 
