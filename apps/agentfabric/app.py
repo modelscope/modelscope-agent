@@ -239,7 +239,6 @@ with demo:
                 elem_classes=['markdown-body'],
                 avatar_images=get_avatar_image('', uuid_str),
                 height=650,
-                latex_delimiters=[],
                 show_label=False,
                 visible=False,
                 show_copy_button=True,
@@ -580,6 +579,7 @@ with demo:
         user_agent = _state['user_agent']
         append_files = []
         for file in input.files:
+            print(f'====> {file}')
             file_name = os.path.basename(file.path)
             # covert xxx.json to xxx_uuid_str.json
             file_name = file_name.replace('.', f'_{uuid_str}.')
