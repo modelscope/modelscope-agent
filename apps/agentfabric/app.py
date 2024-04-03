@@ -579,7 +579,6 @@ with demo:
         user_agent = _state['user_agent']
         append_files = []
         for file in input.files:
-            print(f'====> {file}')
             file_name = os.path.basename(file.path)
             # covert xxx.json to xxx_uuid_str.json
             file_name = file_name.replace('.', f'_{uuid_str}.')
