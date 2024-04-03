@@ -7,7 +7,5 @@ COPY requirements.txt /home/workspace/requirements.txt
 RUN pip install -r /home/workspace/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 COPY . /home/workspace
-RUN chmod +x /home/workspace/entrypoint.sh
 
 WORKDIR /home/workspace/apps/agentfabric
-ENTRYPOINT ["bash", "/home/workspace/entrypoint.sh"]
