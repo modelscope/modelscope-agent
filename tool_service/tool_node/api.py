@@ -4,9 +4,9 @@ from typing import Coroutine
 
 import json
 from fastapi import FastAPI, HTTPException
-from models import ToolRequest
 from modelscope_agent.tools import TOOL_REGISTRY
-from utils import get_attribute_from_tool_cls
+from tool_service.tool_node.models import ToolRequest
+from tool_service.tool_node.utils import get_attribute_from_tool_cls
 
 # Get the path of the current file
 current_file_path = os.path.abspath(__file__)

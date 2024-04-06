@@ -1,21 +1,24 @@
 import os
+from enum import Enum
 from typing import Optional
 
 import docker
-import Enum
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine
 
-API_KEY = 'your_api_key'
-API_KEY_NAME = 'access_token'
+# database setting
+DATABASE_DIR = os.getenv('DATABASE_DIR', './test.db')
+DATABASE_URL = os.path.join('sqlite:///', DATABASE_DIR)
 
-# 数据库配置
-DATABASE_URL = 'sqlite:///./test.db'
-engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
+engine = create_engine(DATABASE_URL, echo=True)
 
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+
+
+def drop_db_and_tables():
+    SQLModel.metadata.drop_all(engine)
 
 
 def get_docker_client():
@@ -35,22 +38,25 @@ def get_session():
 
 
 class ToolInstance(SQLModel, table=True):
-    id: Optional[str] = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     name: str
-    image: str
-    tenant_id: str
-    status: str  # including "pending", "running", "exited", "failed"
-    container_id: str
-    ip: str
-    port: int = 31513
+    status: Optional[str]  # including "pending", "running", "exited", "failed"
+    image: Optional[str] = None
+    tenant_id: Optional[str] = None
+    container_id: Optional[str] = None
+    ip: Optional[str] = None
+    port: Optional[int] = 31513
+    error: Optional[str] = None
 
 
 class ToolRegisterInfo(BaseModel):
-    name: str
+    node_name: str
     image: str = ''
     workspace_dir: str = os.getcwd()
+    tool_name: str
     tenant_id: str
     config: dict = {}
+    port: Optional[int] = 31513
 
 
 class ContainerStatus(Enum):
