@@ -159,11 +159,21 @@ role_play2 = create_component(
 Those agents will then be registered to `task_center` by `add_agents` method.
 ```python
 
-# register agents
+# register agents in remote = True mode
 ray.get(task_center.add_agents.remote([role_play1, role_play2]))
+```
+If you want to run the multi-agent in a single process without *Ray*, you could set `remote=False` in the agent initialization.
+We have to slightly modify the `add_agents` method to support the single process mode.
+
+```python
+
+# register agents in remote = False mode
+task_center.add_agents([role_play1, role_play2])
 ```
 
 All the operations so far are in a sync manner, in order to make sure all the actors are correctly initialized.
+No Matter in *Ray* mode or not.
+
 
 ### Task Process
 We could start a new task by calling `send_task_request`, and send the task to the `environment`.
@@ -175,6 +185,15 @@ ray.get(task_center.send_task_request.remote(task))
 also we could send task request only to specific agents by passing the input `send_to` with role name of agent.
 ```python
 ray.get(task_center.send_task_request.remote(task, send_to=['role_play1']))
+```
+
+The `remote=False` mode would be like this:
+```python
+task_center.send_task_request(task)
+```
+and
+```python
+task_center.send_task_request(task, send_to=['role_play1'])
 ```
 
 Then, we could code our multi-agent procedure logic with task_center's static method `step`
@@ -193,11 +212,24 @@ while n_round > 0:
 The `step` method should be converted to a `task` function in ray as `step.remote`, so we have to make it static,
 and pass in the `task_center` as input, in order to let this step function have the information about this task.
 
-In side the `step` task method, it will call each agent's `step` method parallely, for those agents who should response in this step.
+Inside the `step` task method, it will call each agent's `step` method parallely, for those agents who should response in this step.
 The response will be a distributed generator so-called `object reference generator` in ray, which is a memory shared object among the ray cluster.
 So we have to call `ray.get(frame)` to extract this object as normal generator.
 
 For detail understanding of ray, please refer the Ray introduction [document](https://docs.ray.io/en/latest/ray-core/key-concepts.html)
+
+
+The `remote=False` mode will be much easier:
+```python
+n_round = 10
+while n_round > 0:
+
+    for frame in task_center.step():
+        print(frame)
+
+    n_round -= 1
+```
+
 
 ### Summary
 
@@ -207,6 +239,8 @@ So far, we have built a multi-agent system with two agents, and  let then discus
 With the increasing number of agents, the efficiency of this multi-agent on ray will be revealed.
 
 This is a very simple task, and we hope developers could explore more tasks with more complicated conditions, so as we will do.
+
+And for the local mode without ray, only should we remove all of the `ray.get()`, `.remote()` and `ray` in the code.
 
 ## Future works
 

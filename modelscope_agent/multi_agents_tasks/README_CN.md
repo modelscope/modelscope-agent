@@ -158,11 +158,16 @@ role_play2 = create_component(
 这些agent随后将通过task_center的`add_agents`方法进行注册。
 
 ```python
-# register agents
+# register agents in remote = True mode
 ray.get(task_center.add_agents.remote([role_play1, role_play2]))
 ```
 
-值得注意的是，目前为主以上所有操作都是以同步方式进行的，以确保所有的actor都正确初始化。
+如果先要不用ray，只用`remote=False`，则不需要使用`ray.get()`，我们可以把这段代码换成如下：
+```python
+# register agents in remote = False mode
+task_center.add_agents([role_play1, role_play2]))
+```
+值得注意的是，目前为主以上所有操作都是以同步方式进行的，以确保所有的actor都正确初始化。 不管remote mode状态如何
 
 ### 任务处理
 
@@ -175,6 +180,16 @@ ray.get(task_center.send_task_request.remote(task))
 ```python
 ray.get(task_center.send_task_request.remote(task, send_to=['role_play1']))
 ```
+
+对应的`remote=False`的情况，我们可以直接调用`send_task_request`方法，而不需要使用`ray.get()`。
+```python
+task_center.send_task_request(task)
+```
+以及
+```python
+task_center.send_task_request(task, send_to=['role_play1'])
+```
+
 然后，我们可以使用task_center的静态方法`step`来编写我们的multi-agent流程逻辑。
 ```python
 import ray
@@ -195,6 +210,20 @@ while n_round > 0:
 因此，我们必须调用`ray.get(frame)`来将这个对象提取为正常的生成器。
 
 要详细了解ray，请参考Ray介绍[文档](https://docs.ray.io/en/latest/ray-core/key-concepts.html)。
+
+
+在 `remote=False` 的情况下，我们可以直接调用`step`方法，而不需要使用`ray.get()`。
+```python
+n_round = 10
+while n_round > 0:
+
+    for frame in task_center.step():
+        print(frame)
+
+    n_round -= 1
+```
+这里返回的是一个标准的python生成器，我们可以直接使用。
+
 
 ### 总结
 

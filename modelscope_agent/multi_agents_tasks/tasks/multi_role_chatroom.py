@@ -192,7 +192,7 @@ while n_round > 0:
                 f'You are {user_agent_names}. Press enter to skip and use auto-reply, '
                 f'or input any information to talk with other roles: ')
 
-        for frame in task_center.step.remote(
+        for frame in task_center.step(
                 allowed_roles=next_agent_names,
                 user_response=user_response,
                 **kwargs):

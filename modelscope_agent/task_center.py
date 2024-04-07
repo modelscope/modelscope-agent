@@ -123,7 +123,8 @@ class TaskCenter:
         for _ in range(round):
             # create a list to hold the futures of all notified agents
             futures = [
-                agent.step.remote(task, send_to, user_response, **kwargs)
+                self.task_executor.get_agent_step_future(
+                    agent, task, send_to, user_response, **kwargs)
                 for agent in agents.values()
             ]
 

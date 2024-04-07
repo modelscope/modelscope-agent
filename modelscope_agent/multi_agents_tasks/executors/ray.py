@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Union
 
 import ray
 from modelscope_agent.agents_registry import AgentRegistry
@@ -116,6 +116,29 @@ class RayTaskExecutor:
 
         """
         return ray.get(next(generator))
+
+    @staticmethod
+    def get_agent_step_future(agent,
+                              messages: Union[str, dict],
+                              send_to: Union[str, list],
+                              user_response: str = None,
+                              **kwargs):
+        """
+        get the future from agent step, the method referred to AgentEnvMixin.step.
+        Args:
+            agent: an agent instance
+            messages: the message that send to the current agent as input
+            send_to: the message that allows to send to other agents
+            user_response: the output from user, could be treated as LLM output's alternative
+                sort of the step function's output if human input mode is on
+            kwargs: additional keywords, such as runtime llm setting
+
+
+        Returns: the next string result from agent step
+
+        """
+
+        return agent.step.remote(messages, send_to, user_response, **kwargs)
 
     @staticmethod
     def get_agent_role(agent) -> str:
