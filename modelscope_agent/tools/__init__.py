@@ -1,5 +1,7 @@
-from .amap_weather import AMAPWeather
 from .base import TOOL_REGISTRY, BaseTool, register_tool
+
+"""
+from .amap_weather import AMAPWeather
 from .code_interpreter import CodeInterpreter
 from .contrib import *  # noqa F403
 from .dashscope_tools.image_enhancement import ImageEnhancement
@@ -42,13 +44,45 @@ from .similarity_search import SimilaritySearch
 from .storage_proxy_tool import Storage
 from .web_browser import WebBrowser
 from .web_search import WebSearch
+"""
 
+import sys
 
+from ..utils import (
+    _LazyModule
+)
+
+_import_structure = {
+    "amap_weather": ["AMAPWeather"],
+    "code_interpreter": ["CodeInterpreter"],
+    "contrib": ["AliyunRenewInstanceTool"],
+    "dashscope_tools": ["ImageEnhancement", "TextToImageTool","ParaformerAsrTool", "QWenVL", "SambertTtsTool", "StyleRepaint", "WordArtTexture"],
+    "doc_parser": ["DocParser"],
+    "hf_tool": ["HFTool"],
+    "langchain_proxy_tool": ["LangchainTool"],
+    "modelscope_tools": ["ImageChatTool", "ModelscopePipelineTool", "TextAddressTool", "TextInfoExtractTool", "TextNerTool", "TexttoSpeechTool", "TextToVideoTool", "TranslationEn2ZhTool", "TranslationZh2EnTool"],
+    "openapi_plugin": ["OpenAPIPluginTool"],
+    "rapidapi_tools": ["ListquotesForCurrentExchange", "exchange_for_current_exchange", "TextinfoextracttoolForAlphaUmi", "GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload", "GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload", "GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload", "GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload", "SearchTorrentsForMovieTvMusicSearchAndDownload", "GetDataFactForNumbers,", "GetMathFactForNumbers", "GetYearFactForNumbers", "DetectForGoogleTranslate", "LanguagesForGoogleTranslate", "TranslateForGoogleTranslate"],
+    "similarity_search": ["SimilaritySearch"],
+    "storage_proxy_tool": ["Storage"],
+    "web_browser": ["WebBrowser"],
+    "web_search": ["WebSearch"],
+    "base": ["TOOL_REGISTRY", "BaseTool", "register_tool"],
+}
+
+sys.modules[__name__] = _LazyModule(
+    __name__,
+    globals()["__file__"],
+    _import_structure,
+    module_spec=__spec__,
+)
+
+"""
 def call_tool(plugin_name: str, plugin_args: str) -> str:
     if plugin_name in TOOL_REGISTRY:
         return TOOL_REGISTRY[plugin_name].call(plugin_args)
     else:
         raise NotImplementedError
+"""
 
-
-__all__ = ['BaseTool', 'TOOL_REGISTRY', 'register_tool']
+#__all__ = ['BaseTool', 'TOOL_REGISTRY', 'register_tool']
