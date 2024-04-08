@@ -59,6 +59,18 @@ class ToolRegisterInfo(BaseModel):
     port: Optional[int] = 31513
 
 
+class CreateTool(BaseModel):
+    tool_name: str
+    tenant_id: str = 'default'
+    tool_cfg: dict = {}
+    tool_image: str = 'modelscope-agent/tool-node:v0.4'
+
+
+class GetToolUrl(BaseModel):
+    tool_name: str
+    tenant_id: str = 'default'
+
+
 class ContainerStatus(Enum):
     pending = 'pending'
     running = 'running'

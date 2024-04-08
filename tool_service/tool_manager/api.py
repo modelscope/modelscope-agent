@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from sqlmodel import Session, select
-from tool_service.tool_manager.connections import (ContainerStatus,
-                                                   ToolInstance,
+from tool_service.tool_manager.connections import (ContainerStatus, CreateTool,
+                                                   GetToolUrl, ToolInstance,
                                                    ToolRegisterInfo,
                                                    create_db_and_tables,
                                                    engine)
@@ -183,21 +183,16 @@ async def root():
 
 
 @app.post('/create_tool_service/')
-async def create_tool_service(
-    tool_name: str,
-    background_tasks: BackgroundTasks,
-    tool_cfg: dict = {},
-    tenant_id: str = 'default',
-    tool_image: str = 'modelscope-agent/tool-node:v0.4',
-):
+async def create_tool_service(tool_info: CreateTool,
+                              background_tasks: BackgroundTasks):
     # todo: the tool name might be the repo dir for the tool, need to parse in this situation.
-    tool_node_name = f'{tool_name}_{tenant_id}'
+    tool_node_name = f'{tool_info.tool_name}_{tool_info.tenant_id}'
     tool_register_info = ToolRegisterInfo(
         node_name=tool_node_name,
-        tool_name=tool_name,
-        config=tool_cfg,
-        tenant_id=tenant_id,
-        image=tool_image,
+        tool_name=tool_info.tool_name,
+        config=tool_info.tool_cfg,
+        tenant_id=tool_info.tenant_id,
+        image=tool_info.tool_image,
         workspace_dir=os.getcwd(),
     )
     background_tasks.add_task(start_docker_container_and_store_status,
@@ -285,12 +280,13 @@ async def list_tools(tenant_id: str = 'default'):
 
 
 @app.post('/get_tool_service_url/')
-async def get_tool_service_url(tool_name: str, tenant_id: str = 'default'):
+async def get_tool_service_url(get_tool_url: GetToolUrl):
 
     # get tool instance
     with Session(engine) as session:
         statement = select(ToolInstance).where(
-            ToolInstance.name == f'{tool_name}_{tenant_id}')
+            ToolInstance.name ==  # noqa W504
+            f'{get_tool_url.tool_name}_{get_tool_url.tenant_id}')
         results = session.exec(statement)
         tool_instance = results.first()
     if not tool_instance:
