@@ -1,14 +1,19 @@
-from .Finance.current_exchage import (ListquotesForCurrentExchange,
-                                      exchange_for_current_exchange)
-from .Modelscope.text_ie_tool import TextinfoextracttoolForAlphaUmi
-from .Movies.movie_tv_music_search_and_download import (
-    GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload,
-    GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload,
-    GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload,
-    GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload,
-    SearchTorrentsForMovieTvMusicSearchAndDownload)
-from .Number.numbers import (GetDataFactForNumbers, GetMathFactForNumbers,
-                             GetYearFactForNumbers)
-from .Translate.google_translate import (DetectForGoogleTranslate,
-                                         LanguagesForGoogleTranslate,
-                                         TranslateForGoogleTranslate)
+import sys
+from ...utils import (
+    _LazyModule
+)
+
+_import_structure = {
+    "Finance": ["ListquotesForCurrentExchange", "exchange_for_current_exchange"],
+    "Modelscope": ["TextinfoextracttoolForAlphaUmi"],
+    "Movies": ["GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload", "GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload", "GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload", "GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload", "SearchTorrentsForMovieTvMusicSearchAndDownload"],
+    "Number": ["GetDataFactForNumbers", "GetMathFactForNumbers", "GetYearFactForNumbers"],
+    "Translate": ["DetectForGoogleTranslate", "LanguagesForGoogleTranslate", "TranslateForGoogleTranslate"]
+}
+
+sys.modules[__name__] = _LazyModule(
+    __name__,
+    globals()["__file__"],
+    _import_structure,
+    module_spec=__spec__,
+)

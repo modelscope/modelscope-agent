@@ -1,8 +1,22 @@
-from .image_chat_tool import ImageChatTool
-from .text_address_tool import TextAddressTool
-from .text_ie_tool import TextInfoExtractTool
-from .text_ner_tool import TextNerTool
-from .text_to_speech_tool import TexttoSpeechTool
-from .text_to_video_tool import TextToVideoTool
-from .translation_en2zh_tool import TranslationEn2ZhTool
-from .translation_zh2en_tool import TranslationZh2EnTool
+import sys
+from ...utils import (
+    _LazyModule
+)
+
+_import_structure = {
+    "image_chat_tool": ["ImageChatTool"],
+    "text_address_tool": ["TextAddressTool"],
+    "text_ie_tool": ["TextInfoExtractTool"],
+    "text_ner_tool": ["TextNerTool"],
+    "text_to_speech_tool": ["TexttoSpeechTool"],
+    "text_to_video_tool": ["TextToVideoTool"],
+    "translation_en2zh_tool": ["TranslationEn2ZhTool"],
+    "translation_zh2en_tool": ["TranslationZh2EnTool"],
+}
+
+sys.modules[__name__] = _LazyModule(
+    __name__,
+    globals()["__file__"],
+    _import_structure,
+    module_spec=__spec__,
+)

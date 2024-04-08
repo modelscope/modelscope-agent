@@ -9,6 +9,8 @@ _import_structure = {
     "qwen_vl": ["QWenVL"],
     "style_repaint": ["StyleRepaint"],
     "wordart_tool": ["WordArtTexture"],
+    "sambert_tts_tool": ["SambertTtsTool"],
+    "paraformer_asr_tool": ["ParaformerAsrTool"]
 }
 
 sys.modules[__name__] = _LazyModule(
