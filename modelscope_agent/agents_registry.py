@@ -2,7 +2,6 @@ from typing import List, Union
 
 from modelscope_agent.agent import Agent
 from modelscope_agent.environment import Environment
-from ray.util.client.common import ClientActorHandle
 
 
 class AgentRegistry:
@@ -18,9 +17,7 @@ class AgentRegistry:
             from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
             self.executor_cls = LocalTaskExecutor
 
-    def register_agent(self,
-                       agent: Union[Agent, ClientActorHandle],
-                       env_context: Environment = None):
+    def register_agent(self, agent: Agent, env_context: Environment = None):
         """
         Add an agent to the register center
         Args:

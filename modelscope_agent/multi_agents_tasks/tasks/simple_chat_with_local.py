@@ -4,13 +4,9 @@ import time
 
 from modelscope_agent import create_component
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
 REMOTE_MODE = False
-
-if REMOTE_MODE:
-    RayTaskExecutor.init_ray()
 
 llm_config = {
     'model': 'qwen-max',
