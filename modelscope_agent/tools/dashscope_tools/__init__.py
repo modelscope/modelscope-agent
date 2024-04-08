@@ -1,5 +1,19 @@
-from .image_enhancement import ImageEnhancement
-from .image_generation import TextToImageTool
-from .qwen_vl import QWenVL
-from .style_repaint import StyleRepaint
-from .wordart_tool import WordArtTexture
+import sys
+from ...utils import (
+    _LazyModule
+)
+
+_import_structure = {
+    "image_enhancement": ["ImageEnhancement"],
+    "image_generation": ["TextToImageTool"],
+    "qwen_vl": ["QWenVL"],
+    "style_repaint": ["StyleRepaint"],
+    "wordart_tool": ["WordArtTexture"],
+}
+
+sys.modules[__name__] = _LazyModule(
+    __name__,
+    globals()["__file__"],
+    _import_structure,
+    module_spec=__spec__,
+)

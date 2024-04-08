@@ -8,13 +8,6 @@ from typing import Any
 from modelscope_agent.utils.logger import agent_logger as logger
 
 
-def import_from_register(path: str):
-    try:
-        os.system(f'import {path}')
-    except Exception as e:
-        logger.warning(f'import {path} error, detail: {e}')
-
-
 class _LazyModule(ModuleType):
     """
     Module class that surfaces all objects but only performs associated imports when the objects are requested.
