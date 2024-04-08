@@ -1,57 +1,63 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union
 
-import os
 import json
 import json5
 from modelscope_agent.utils.utils import has_chinese_chars
 
 # ast?
 register_map = {
-    "amap_weather": "AMAPWeather",
-    "storage": "Storage",
-    "web_search": "WebSearch",
-    "image_gen": "TextToImageTool",
-    "image_enhancement": "ImageEnhancement",
-    "qwen_vl": "QWenVL",
-    "style_repaint": "StyleRepaint",
-    "paraformer_asr": "ParaformerAsrTool",
-    "sambert_tts": "SambertTtsTool",
-    "wordart_texture_generation": "WordArtTexture",
-    "detect_for_google_translate": "DetectForGoogleTranslate",
-    "languages_for_google_translate": "LanguagesForGoogleTranslate",
-    "translate_for_google_translate": "TranslateForGoogleTranslate",
-    "get_data_fact_for_numbers": "GetDataFactForNumbers",
-    "get_math_fact_for_numbers": "GetMathFactForNumbers",
-    "get_year_fact_for_numbers": "GetYearFactForNumbers",
-    "model_scope_text_ie": "TextinfoextracttoolForAlphaUmi",
-    "search_torrents_for_movie_tv_music_search_and_download": "SearchTorrentsForMovieTvMusicSearchAndDownload",
-    "get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download": "GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload",
-    "get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download": "GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload",
-    "get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download": "GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload",
-    "get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download": "GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload",
-    "listquotes_for_current_exchange": "ListquotesForCurrentExchange",
-    "exchange_for_current_exchange": "exchange_for_current_exchange",
-    "similarity_search": "SimilaritySearch",
-    "hf-tool": "HFTool",
-    "RenewInstance": "AliyunRenewInstanceTool",
-    "web_browser": "WebBrowser",
-    "text-address": "TextAddressTool",
-    "image-chat": "ImageChatTool",
-    "text-ner": "TextNerTool",
-    "speech-generation": "TexttoSpeechTool",
-    "video-generation": "TextToVideoTool",
-    "text-ie": "TextInfoExtractTool",
-    "openapi_plugin": "OpenAPIPluginTool",
-    "langchain_tool": "LangchainTool",
-    "code_interpreter": "CodeInterpreter",
-    "doc_parser": "DocParser"
+    'amap_weather': 'AMAPWeather',
+    'storage': 'Storage',
+    'web_search': 'WebSearch',
+    'image_gen': 'TextToImageTool',
+    'image_enhancement': 'ImageEnhancement',
+    'qwen_vl': 'QWenVL',
+    'style_repaint': 'StyleRepaint',
+    'paraformer_asr': 'ParaformerAsrTool',
+    'sambert_tts': 'SambertTtsTool',
+    'wordart_texture_generation': 'WordArtTexture',
+    'detect_for_google_translate': 'DetectForGoogleTranslate',
+    'languages_for_google_translate': 'LanguagesForGoogleTranslate',
+    'translate_for_google_translate': 'TranslateForGoogleTranslate',
+    'get_data_fact_for_numbers': 'GetDataFactForNumbers',
+    'get_math_fact_for_numbers': 'GetMathFactForNumbers',
+    'get_year_fact_for_numbers': 'GetYearFactForNumbers',
+    'model_scope_text_ie': 'TextinfoextracttoolForAlphaUmi',
+    'search_torrents_for_movie_tv_music_search_and_download':
+        'SearchTorrentsForMovieTvMusicSearchAndDownload',
+    'get_monthly_top_100_music_torrents_for_movie_tv_music_search_and_download':
+        'GetMonthlyTop100MusicTorrentsForMovieTvMusicSearchAndDownload',
+    'get_monthly_top_100_games_torrents_for_movie_tv_music_search_and_download':
+        'GetMonthlyTop100GamesTorrentsForMovieTvMusicSearchAndDownload',
+    'get_monthly_top_100_tv_shows_torrents_for_movie_tv_music_search_and_download':
+        'GetMonthlyTop100TvShowsTorrentsForMovieTvMusicSearchAndDownload',
+    'get_monthly_top_100_movies_torrents_torrents_for_movie_tv_music_search_and_download':
+        'GetMonthlyTop100MoviesTorrentsTorrentsForMovieTvMusicSearchAndDownload',
+    'listquotes_for_current_exchange': 'ListquotesForCurrentExchange',
+    'exchange_for_current_exchange': 'exchange_for_current_exchange',
+    'similarity_search': 'SimilaritySearch',
+    'hf-tool': 'HFTool',
+    'RenewInstance': 'AliyunRenewInstanceTool',
+    'web_browser': 'WebBrowser',
+    'text-address': 'TextAddressTool',
+    'image-chat': 'ImageChatTool',
+    'text-ner': 'TextNerTool',
+    'speech-generation': 'TexttoSpeechTool',
+    'video-generation': 'TextToVideoTool',
+    'text-ie': 'TextInfoExtractTool',
+    'openapi_plugin': 'OpenAPIPluginTool',
+    'langchain_tool': 'LangchainTool',
+    'code_interpreter': 'CodeInterpreter',
+    'doc_parser': 'DocParser'
 }
 
-def import_from_register(key):
 
+def import_from_register(key):
     value = register_map[key]
     exec(f'from . import {value}')
+
 
 class ToolRegistry(dict):
     def _import_key(self, key):
@@ -62,13 +68,12 @@ class ToolRegistry(dict):
 
     def __getitem__(self, key):
         if key not in self.keys():
-            self._import_key(key)     
+            self._import_key(key)
         return super().__getitem__(key)
 
     def __contains__(self, key):
         self._import_key(key)
         return super().__contains__(key)
-    
 
 
 TOOL_REGISTRY = ToolRegistry()

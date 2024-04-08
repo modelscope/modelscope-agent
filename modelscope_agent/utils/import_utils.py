@@ -1,10 +1,11 @@
 # Inspired by diffusers repo
 # https://github.com/huggingface/diffusers/blob/main/src/diffusers/utils/import_utils.py
-import os
 import importlib.util
+import os
 from itertools import chain
 from types import ModuleType
 from typing import Any
+
 from modelscope_agent.utils.logger import agent_logger as logger
 
 
@@ -15,7 +16,12 @@ class _LazyModule(ModuleType):
 
     # Very heavily inspired by optuna.integration._IntegrationModule
     # https://github.com/optuna/optuna/blob/master/optuna/integration/__init__.py
-    def __init__(self, name, module_file, import_structure, module_spec=None, extra_objects=None):
+    def __init__(self,
+                 name,
+                 module_file,
+                 import_structure,
+                 module_spec=None,
+                 extra_objects=None):
         super().__init__(name)
         self._modules = set(import_structure.keys())
         self._class_to_module = {}
@@ -52,19 +58,19 @@ class _LazyModule(ModuleType):
             value = getattr(module, name)
         else:
             raise AttributeError(
-                f"module {self.__name__} has no attribute {name}")
+                f'module {self.__name__} has no attribute {name}')
 
         setattr(self, name, value)
         return value
 
     def _get_module(self, module_name: str):
         try:
-            return importlib.import_module("." + module_name, self.__name__)
+            return importlib.import_module('.' + module_name, self.__name__)
         except Exception as e:
             raise RuntimeError(
-                f"Failed to import {self.__name__}.{module_name} because of the following error (look up to see its"
-                f" traceback):\n{e}"
-            ) from e
+                f'Failed to import {self.__name__}.{module_name} because of the following error (look up to see its'
+                f' traceback):\n{e}') from e
 
     def __reduce__(self):
-        return (self.__class__, (self._name, self.__file__, self._import_structure))
+        return (self.__class__, (self._name, self.__file__,
+                                 self._import_structure))
