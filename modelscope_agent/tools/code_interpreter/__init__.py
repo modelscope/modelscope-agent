@@ -1,6 +1,6 @@
 import sys
 
-from ...utils import _LazyModule
+from modelscope_agent.utils import _LazyModule
 
 _import_structure = {
     'code_interpreter': ['CodeInterpreter'],
