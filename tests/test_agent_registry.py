@@ -10,7 +10,7 @@ from modelscope_agent.environment import Environment
 
 @pytest.fixture
 def agent_registry():
-    return AgentRegistry()
+    return AgentRegistry(remote=False)
 
 
 @pytest.fixture
