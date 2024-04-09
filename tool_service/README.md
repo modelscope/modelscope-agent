@@ -91,3 +91,19 @@ POST /execute_tool
 RESPONSE
 "json string"
 ```
+
+## Testing the tool service mode
+
+1. start the tool manager server
+2. init modelscope agent tool node service by calling
+```python
+from modelscope_agent.tools import ToolServiceProxy
+
+tool_service = ToolServiceProxy(tool_name='RenewInstance', tool_cfg={'test': 'xxx'})
+```
+3. call the tool service by
+```python
+result = tool_service.call( "{\"instance_id\": 123, \"period\": \"mon\"}")
+```
+
+## Running the tool service in agent
