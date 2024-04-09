@@ -72,7 +72,6 @@ with demo:
                     elem_classes=['markdown-body'],
                     avatar_images=avatar_pairs,
                     height=600,
-                    latex_delimiters=[],
                     show_label=False,
                     show_copy_button=True,
                     llm_thinking_presets=[
