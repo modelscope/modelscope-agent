@@ -22,20 +22,20 @@ def register_tool(name):
 
 class ToolServiceProxy:
 
-    def __init__(
-        self,
-        tool_name: str,
-        tool_cfg: dict,
-        tenant_id: str = 'default',
-    ):
+    def __init__(self,
+                 tool_name: str,
+                 tool_cfg: dict,
+                 tenant_id: str = 'default',
+                 tool_service_manager_url: str = 'http://localhost:31511'):
         """
         Tool service proxy class
         Args:
             tool_name: tool name might be the name of tool or the address of tool artifacts
-            tool_cfg:
-            tenant_id:
+            tool_cfg: the configuration of tool
+            tenant_id: the tenant id that the tool belongs to, defalut to 'default'
+            tool_service_manager_url: the url of tool service manager, default to 'http://localhost:31511'
         """
-        self.tool_service_manager_url = 'http://tool-service-manager:8000'
+        self.tool_service_manager_url = tool_service_manager_url
         self.tool_name = tool_name
         self.tool_cfg = tool_cfg
         self.tenant_id = tenant_id
@@ -44,29 +44,33 @@ class ToolServiceProxy:
     def _register_tool(self):
         response = requests.post(
             f'{self.tool_service_manager_url}/create_tool_service',
-            params={
+            json={
                 'tool_name': self.tool_name,
                 'tenant_id': self.tenant_id,
                 'tool_cfg': self.tool_cfg
             })
         response.raise_for_status()
         result = response.json()
-        if 'tool_node_name' not in result:
+        if 'status' not in result:
             raise Exception(
                 'Failed to register tool, the tool service might be done, please use local version'
+            )
+        if result['status'] not in ['pending', 'running']:
+            raise Exception(
+                'Failed to register tool, the tool service might be done, please use local version.'
             )
 
     def _get_tool_api_endpoint(self):
         # get tool node endpoint by tool service
-        response = requests.get(
+        response = requests.post(
             f'{self.tool_service_manager_url}/get_tool_service_url',
-            params={
+            json={
                 'tool_name': self.tool_name,
                 'tenant_id': self.tenant_id
             })
         response.raise_for_status()
         tool_info = response.json()
-        return tool_info['api_endpoint']
+        return tool_info
 
     def call(self, params: str, **kwargs):
         # visit tool node to call tool
