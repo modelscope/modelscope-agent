@@ -1,7 +1,7 @@
 from modelscope_agent.tools import ToolServiceProxy
 
 
-def test_init_tool_service():
+def test_tool_service():
     try:
         tool_service = ToolServiceProxy('RenewInstance', {'test': 'xxx'})
 
@@ -10,4 +10,4 @@ def test_init_tool_service():
     except Exception as e:
         assert False, f'Failed to initialize tool service with error: {e}'
 
-    assert result == {'result': '已完成ECS实例ID为123的续费，续费时长mon月'}
+    assert result == "{'result': '已完成ECS实例ID为123的续费，续费时长mon月'}"

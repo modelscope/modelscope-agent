@@ -4,8 +4,8 @@ from typing import List, Tuple
 
 import docker
 from docker.models.containers import Container
-from tool_service.tool_manager.connections import (ToolRegisterInfo,
-                                                   get_docker_client)
+from tool_service.tool_manager.connections import get_docker_client
+from tool_service.tool_manager.models import ToolRegisterInfo
 
 TIMEOUT = 120
 NODE_NETWORK = 'host'

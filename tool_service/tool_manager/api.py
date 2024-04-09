@@ -3,11 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from sqlmodel import Session, select
-from tool_service.tool_manager.connections import (ContainerStatus, CreateTool,
-                                                   GetToolUrl, ToolInstance,
-                                                   ToolRegisterInfo,
-                                                   create_db_and_tables,
-                                                   engine)
+from tool_service.tool_manager.connections import create_db_and_tables, engine
+from tool_service.tool_manager.models import (ContainerStatus, CreateTool,
+                                              GetToolUrl, ToolInstance,
+                                              ToolRegisterInfo)
 from tool_service.tool_manager.sandbox import (NODE_NETWORK,
                                                remove_docker_container,
                                                restart_docker_container,
@@ -56,16 +55,17 @@ def start_docker_container_and_store_status(tool: ToolRegisterInfo,
             session.add(result)
             session.commit()
             session.refresh(result)
+            tool.port = result.port
         else:
             # record the pending status
             session.add(tool_container)
             session.commit()
+            tool_container.port = next(app_instance.node_port_generator)
+            tool.port = tool_container.port
 
         app_instance.containers_info[tool.node_name] = {
             'status': ContainerStatus.pending.value
         }
-        tool_container.port = next(app_instance.node_port_generator)
-        tool.port = tool_container.port
 
         try:
             container = start_docker_container(tool)
