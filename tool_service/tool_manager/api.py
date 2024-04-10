@@ -45,17 +45,22 @@ def start_docker_container_and_store_status(tool: ToolRegisterInfo,
             ToolInstance.name == tool.node_name)
         result = session.exec(statement).first()
         if result is not None:
-            # make sure the container restarted when this function called
-            if result.status != ContainerStatus.pending.value:
+            # make sure the container restarted if the container was existed or failed
+            if result.status in [
+                    ContainerStatus.exited.value, ContainerStatus.failed.value
+            ]:
                 try:
                     remove_docker_container(tool)
                 except Exception:
                     pass
-            result.status = ContainerStatus.pending.value
-            session.add(result)
-            session.commit()
-            session.refresh(result)
-            tool.port = result.port
+                result.status = ContainerStatus.pending.value
+                session.add(result)
+                session.commit()
+                session.refresh(result)
+                tool.port = result.port
+            else:
+                # make sure the container keep running or pending status
+                return
         else:
             # record the pending status
             session.add(tool_container)
