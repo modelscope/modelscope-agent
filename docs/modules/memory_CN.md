@@ -28,7 +28,7 @@ memory可以通过读取本地文件来创建Langchain VectorStore来实现调�
 
 下载本地语料库
 ```shell
-wget -P /root/you_data/ https://modelscope.oss-cn-beijing.aliyuncs.com/resource/agent/modelscope_qa.txt 
+wget -P /root/you_data/ https://modelscope.oss-cn-beijing.aliyuncs.com/resource/agent/modelscope_qa.txt
 ```
 
 agent实现调用本地知识库进行回答
@@ -44,7 +44,7 @@ from modelscope_agent.agents import RolePlay
 role_template = '你扮演一个python专家，需要给出解决方案'
 
 llm_config = {
-    'model': 'qwen-max', 
+    'model': 'qwen-max',
     'model_server': 'dashscope',
     }
 
@@ -81,7 +81,7 @@ from modelscope_agent.agents import RolePlay
 role_template = '你扮演一个历史人物专家，了解从古至今的历史人物'
 
 llm_config = {
-    'model': 'qwen-max', 
+    'model': 'qwen-max',
     'model_server': 'dashscope',
     }
 
@@ -134,7 +134,7 @@ from modelscope_agent.agents import RolePlay
 role_template = '你扮演一个明星人物专家，了解从古至今的电影明星'
 
 llm_config = {
-    'model': 'qwen-max', 
+    'model': 'qwen-max',
     'model_server': 'dashscope',
     }
 
@@ -165,7 +165,7 @@ memory.save_history()
 role_template = '你扮演一个电影专家，了解从古至今的电影'
 
 llm_config = {
-    'model': 'qwen-max', 
+    'model': 'qwen-max',
     'model_server': 'dashscope',
     }
 

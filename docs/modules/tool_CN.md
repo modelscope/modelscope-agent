@@ -49,7 +49,7 @@ TOOL_REGISTRY['terminal'] = LangchainTool
 role_template = '你是一个助手，试图用工具帮助人类解决问题。'
 
 llm_config = {
-    'model': 'qwen-max', 
+    'model': 'qwen-max',
     'model_server': 'dashscope',
     }
 
