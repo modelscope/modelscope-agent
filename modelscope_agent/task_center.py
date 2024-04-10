@@ -3,7 +3,7 @@ from typing import List, Union
 from modelscope_agent import create_component
 from modelscope_agent.agent import Agent
 from modelscope_agent.agents_registry import AgentRegistry
-from modelscope_agent.constants import DEFAULT_SEND_TO
+from modelscope_agent.constants import DEFAULT_SEND_TO, USER_REQUIREMENT
 from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
@@ -55,7 +55,7 @@ class TaskCenter:
     def send_task_request(self,
                           task: str,
                           send_to: Union[str, list] = DEFAULT_SEND_TO,
-                          send_from: str = 'human'):
+                          send_from: str = USER_REQUIREMENT):
         """
         Send the task request by send the message to the environment
         Args:
@@ -95,8 +95,8 @@ class TaskCenter:
         Args:
             task: additional task in current step
             round: current step might have multi round
-            send_to: manually define the message send to which role
-            allowed_roles: make sure only the notified role can be step
+            send_to: manually define who should the message generated in this step be sent to (default to all)
+            allowed_roles: make sure only the notified role can be step in this round
             user_response: using the user response to replace the llm output from user_agent,
                 if user_agent is in this step
             kwargs: additional keywords, such as runtime llm setting

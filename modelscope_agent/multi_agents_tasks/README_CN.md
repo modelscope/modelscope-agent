@@ -224,6 +224,237 @@ while n_round > 0:
 ```
 这里返回的是一个标准的python生成器，我们可以直接使用。
 
+## 使用案例
+
+### 对比基于利用多个单agent进行任务构建
+原始的ModelScope-Agent设计用于单个agent执行任务，并允许用户实例化多个agent并让它们相互通信。
+在这种情况下，用户也可以使用原始的ModelScope-Agent让多个agent共同完成一个任务，但用户必须处理agent之间的通信以及任务的进展，
+此外，agent必须在单个进程上运行。以下代码展示了如何运行两个代理在原始的ModelScope-Agent上讨论一个主题的场景。
+```python
+from modelscope_agent.agents import RolePlay
+from modelscope_agent.memory import Memory
+from modelscope_agent.schemas import Message
+
+role_template_joe = 'you are the president of the United States Joe Biden, and you are debating with former president Donald Trump with couple of topics'
+role_template_trump = 'you are the former president of the United States Donald Trump, and you are debating with current president Joe Biden with couple of topics'
+llm_config = {
+    'model': 'qwen-max',
+    'model_server': 'dashscope',
+    }
+
+# initialize the memory for each agent
+joe_memory = Memory(path="/root/you_data/you_config/joe_biden.json")
+trump_memory = Memory(path="/root/you_data/you_config/joe_biden.json")
+
+# initialize the agents
+
+joe_biden = RolePlay(llm=llm_config, instruction=role_template_joe)
+trump = RolePlay(llm=llm_config, instruction=role_template_joe)
+
+# start the task
+task = 'what is the best solution to land on moon?'
+round = 3
+
+trump_response = ''
+joe_response = ''
+
+# assume joe always the first to response
+for i in range(round):
+
+    # joe round
+    joe_history = joe_memory.get_history()
+    trump_history = trump_memory.get_history()
+    cur_joe_prompt = f'with topic {task},  in last round trump said, {trump_response}'
+    joe_response_stream = joe_biden.run(cur_joe_prompt, history=joe_history)
+    joe_response = ''
+    for chunk in joe_response_stream:
+       joe_response += chunk
+    print(joe_response)
+    joe_memory.update_history([
+       Message(role='user', content=cur_joe_prompt),
+       Message(role='assistant', content=joe_response),
+    ])
+
+    # trump round
+    cur_trump_prompt = f'with topic {task}, in this round joe said, {joe_response}'
+    trump_response_stream = trump.run(cur_trump_prompt, history=trump_history)
+    trump_response = ''
+    for chunk in trump_response_stream:
+       trump_response += chunk
+    print(trump_response)
+    trump_memory.update_history([
+       Message(role='user', content=cur_trump_prompt),
+       Message(role='assistant', content=trump_response),
+    ])
+```
+正如我们所看到的，用户必须负责处理agent之间的通信以及任务的推进，而这只是两个agent的场景。
+如果我们有更多的agent，代码将会更加复杂。
+使用multi-agent模式，用户只需关心任务的推进，agent之间的通信将由agent_registry、environment和task_center自动处理。
+
+代码将像如下重复上述多agent交互的案例。
+
+```python
+import os
+from modelscope_agent import create_component
+from modelscope_agent.agents import RolePlay
+from modelscope_agent.task_center import TaskCenter
+
+REMOTE_MODE = False
+
+llm_config = {
+    'model': 'qwen-max',
+    'api_key': os.getenv('DASHSCOPE_API_KEY'),
+    'model_server': 'dashscope'
+}
+function_list = []
+
+task_center = create_component(
+    TaskCenter, name='task_center', remote=REMOTE_MODE)
+
+role_template_joe = 'you are the president of the United States Joe Biden, and you are debating with former president Donald Trump with couple of topics'
+role_template_trump = 'you are the former president of the United States Donald Trump, and you are debating with current president Joe Biden with couple of topics'
+
+joe_biden = create_component(
+    RolePlay,
+    name='joe_biden',
+    remote=REMOTE_MODE,
+    role='joe_biden',
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_joe)
+
+donald_trump = create_component(
+    RolePlay,
+    name='donald_trump',
+    remote=REMOTE_MODE,
+    role='donald_trump',
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_trump)
+
+
+task_center.add_agents([joe_biden, donald_trump])
+
+n_round = 6 # 3 round for each agent
+task = 'what is the best solution to land on moon?'
+task_center.send_task_request(task, send_to='joe_biden')
+while n_round > 0:
+
+    for frame in task_center.step():
+        print(frame)
+
+    n_round -= 1
+
+```
+从上述代码中，我们可以看到multi-agent模式比原始ModelScope-Agent的single agent模式更高效且更易于使用。
+
+### [`Task Center`](../task_center.py)的使用
+`task_center`是multi-agent的核心，它将管理任务进程和agent之间的通信。在task_center中提供了两个核心的API：
+* `send_task_request`：向environment发送一个任务，以开始一个新任务，或者用来自外部系统（用户输入）的额外信息继续任务
+* `step`：推进任务进程，并让每个agent根据设置在此步骤中做出响应
+
+#### *send_task_request()*
+
+`send_task_request`会将一个任务发送到环境中，通过输入参数send_to来指定哪个代理应该在这一步骤中做出响应，他的参数包括：
+* `task`: 任务或输入或信息
+* `send_to`：可以是agent的名称的列表，或一个单独的agent名称，默认为`all`，表示让所有agent响应。
+* `send_from`:可以用来指定发送此任务请求的代理，默认为`user_requirement`, 表示任务来自外部用户输入。
+
+我们可以对上述例子做如下调整：
+```python
+task_center.send_task_request(task, send_to='joe_biden')
+```
+这意味着内容为task的消息只会发送给角色名称为`joe_biden`的agent， `joe_biden`将会在这一步骤中做出响应。
+我们也可以指定`send_from`，以便让agent知道是谁发送了这个任务请求,如下
+```python
+task_center.send_task_request('I dont agree with you about the landing project', send_to='joe_biden', send_from='donald_trump')
+```
+
+#### *step()*
+step方法将使每个agent在这一步骤中作出响应，响应将是一个生成器，在ray中是一个分布式生成器。step方法中的输入包括：
+* `task`：当前步骤中的附加任务或输入或信息
+* `round`：在某些情况下，任务是基于轮次的，需要传入轮次s数，大多数情况下，轮次数为1
+* `send_to`：指定在这一步骤中生成的消息应发送给谁（默认发送给所有人）
+* `allowed_roles`：指定在这一步骤中应响应的agent，如果未指定，则只有在上一步骤中收到消息的代理会在这一步骤中响应
+* `user_response`：外部用户作为human在这一步骤中的响应，如果任务是聊天机器人模式，用户的响应将在此步骤中传入，以替换llm的输出，如果本步骤中有`user-agent`
+
+有了以上的参数，step方法可以在不同场景的multi-agent中使用。
+例如，在一个三人辩论场景中，step方法可以像这样使用：
+```python
+# initialize the agents
+task_center.add_agents([joe_biden, donald_trump, hillary_clinton])
+
+# let joe_biden start the topic
+task_center.send_task_request('what is the best solution to land on moon?', send_to='joe_biden')
+
+# in 1st step, let joe_biden only send his opinion to hillary_clinton(considering as whisper), the message will print out
+for frame in task_center.step(send_to='hillary_clinton'):
+    print(frame)
+
+# in 2nd step, allow only donald_trump to response the topic
+for frame in task_center.step(allower_roles='donald_trump'):
+    print(frame)
+```
+
+上述案例展示了如何在multi-agent任务中使用step方法中的send_to和allowed_roles来控制agent之间的通信。
+在另一个情况下，在聊天机器人模式中，如果本步骤中包含user-agent，可以使用user_response让用户在这一步骤中进行输入，以取代LLM（大型语言模型）的输出。
+示例如下：
+
+```python
+# initialize a new user
+user = create_component(
+    RolePlay,
+    name='user',
+    remote=REMOTE_MODE,
+    role='user',
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_joe,
+    human_input_mode='ON'
+)
+# initialize the agents
+task_center.add_agents([joe_biden, donald_trump, hillary_clinton, user])
+
+# let joe_biden start the topic
+task_center.send_task_request('what is the best solution to land on moon?', send_to='joe_biden')
+
+# in 1st step, let joe_biden send his opinion to all agents.
+for frame in task_center.step():
+    print(frame)
+
+# in 2nd step, allow only user to response the topic, with user_response
+for frame in task_center.step(allower_roles='user', user_response='I dont agree with you about the landing project'):
+    print(frame)
+assert frame == 'I dont agree with you about the landing project'
+```
+可以看到，用户的响应将在这个步骤中被使用，以取代大型语言模型（LLM）的输出，因为名为`user`的agent 是一个user-agent。
+
+
+### [agent_env_util](../agent_env_util.py) 的详细信息
+agent_env_mixin是一个mixin类，用来处理代理之间的通信，以及从环境获取信息。
+agent_env_mixin中的主要方法是`step`，它包含以下步骤：
+
+* 调用`pull`方法，从环境中提取发送给角色的消息
+* 将消息转换为提示符(prompt)， 用户可以自定义转换行为
+* 将提示符发送到原始代理的`run`方法
+* 调用`publish`,将响应消息发布到环境，消息中包含了哪些角色应该接收消息的信息。
+
+
+### [environment](../environment.py)详细信息
+environment用来管理消息中心，它维护了以下信息：
+
+*在队列中存储发送给每个agent的消息，并且这些消息会在下一个步骤中从队列中弹出，并被每个agent拉取。
+*在列表中存储来自所有agent的消息的完整历史，观察者(watcher)角色将被允许读取消息的完整历史记录。
+*在列表中存储user_requirement，user_requirement是来自外部系统的任务或输入，所有用户都将被允许读取这些消息，但只有任务中心（task_center）能够写入。
+
+
+### [agents_registry](../Fagents_registry.py)详细信息
+agent_registry用来管理所有agent信息，它维护以下信息：
+
+* 在系统中注册agent，并更新agent状态
+* 允许任务中心获取agent信息，以及通过role name获取agent等查询功能
+
+上述这些组件一起工作，构成了多代理系统中的消息传递和任务管理框架。通过这样的结构化方式，可以在多个代理之间有效地分配任务、同步通信，并跟踪整个系统的状态变化。
 
 ### 总结
 

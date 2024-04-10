@@ -1,6 +1,7 @@
 from typing import Union
 
 from modelscope_agent.agents_registry import AgentRegistry
+from modelscope_agent.constants import USER_REQUIREMENT
 from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
 
@@ -71,7 +72,7 @@ class LocalTaskExecutor:
     @staticmethod
     def store_message_from_role(env: Environment,
                                 message: Message,
-                                send_from: str = 'human'):
+                                send_from: str = USER_REQUIREMENT):
         """
         store message from roles
         Args:

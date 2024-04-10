@@ -242,6 +242,252 @@ This is a very simple task, and we hope developers could explore more tasks with
 
 And for the local mode without ray, only should we remove all of the `ray.get()`, `.remote()` and `ray` in the code.
 
+
+## Use Case
+
+### Comparison with original ModelScope-Agent single mode
+The original ModelScope-Agent is designed for a single agent to work on a task, and allow user to
+instantiate multi-agents and let them communicate with each other as well.
+
+In such case, user could also let multi-agents work on a task by using the original ModelScope-Agent,
+but the user has to take care of the communication between agents, and the task step forward,
+moreover, the agents have to run on a single process.
+
+The following code show how to run two agents work on a topic discuss scenario with original ModelScope-Agent.
+
+```python
+from modelscope_agent.agents import RolePlay
+from modelscope_agent.memory import Memory
+from modelscope_agent.schemas import Message
+
+role_template_joe = 'you are the president of the United States Joe Biden, and you are debating with former president Donald Trump with couple of topics'
+role_template_trump = 'you are the former president of the United States Donald Trump, and you are debating with current president Joe Biden with couple of topics'
+llm_config = {
+    'model': 'qwen-max',
+    'model_server': 'dashscope',
+    }
+
+# initialize the memory for each agent
+joe_memory = Memory(path="/root/you_data/you_config/joe_biden.json")
+trump_memory = Memory(path="/root/you_data/you_config/joe_biden.json")
+
+# initialize the agents
+
+joe_biden = RolePlay(llm=llm_config, instruction=role_template_joe)
+trump = RolePlay(llm=llm_config, instruction=role_template_joe)
+
+# start the task
+task = 'what is the best solution to land on moon?'
+round = 3
+
+trump_response = ''
+joe_response = ''
+
+# assume joe always the first to response
+for i in range(round):
+
+    # joe round
+    joe_history = joe_memory.get_history()
+    trump_history = trump_memory.get_history()
+    cur_joe_prompt = f'with topic {task},  in last round trump said, {trump_response}'
+    joe_response_stream = joe_biden.run(cur_joe_prompt, history=joe_history)
+    joe_response = ''
+    for chunk in joe_response_stream:
+       joe_response += chunk
+    print(joe_response)
+    joe_memory.update_history([
+       Message(role='user', content=cur_joe_prompt),
+       Message(role='assistant', content=joe_response),
+    ])
+
+    # trump round
+    cur_trump_prompt = f'with topic {task}, in this round joe said, {joe_response}'
+    trump_response_stream = trump.run(cur_trump_prompt, history=trump_history)
+    trump_response = ''
+    for chunk in trump_response_stream:
+       trump_response += chunk
+    print(trump_response)
+    trump_memory.update_history([
+       Message(role='user', content=cur_trump_prompt),
+       Message(role='assistant', content=trump_response),
+    ])
+```
+As we can see, the user has to take care of the communication between agents, and the task step forward,
+and this is the only two agents scenario, if we have more agents, the code will be more complicated.
+
+With the multi-agent mode, the user only need to take care of the task step forward, and the communication between agents
+will be handled by the `agent_registry`, `environment` and `task_center` automatically.
+
+A code will be like this to repeat the above case in multi-agents mode.
+
+```python
+import os
+from modelscope_agent import create_component
+from modelscope_agent.agents import RolePlay
+from modelscope_agent.task_center import TaskCenter
+
+REMOTE_MODE = False
+
+llm_config = {
+    'model': 'qwen-max',
+    'api_key': os.getenv('DASHSCOPE_API_KEY'),
+    'model_server': 'dashscope'
+}
+function_list = []
+
+task_center = create_component(
+    TaskCenter, name='task_center', remote=REMOTE_MODE)
+
+role_template_joe = 'you are the president of the United States Joe Biden, and you are debating with former president Donald Trump with couple of topics'
+role_template_trump = 'you are the former president of the United States Donald Trump, and you are debating with current president Joe Biden with couple of topics'
+
+joe_biden = create_component(
+    RolePlay,
+    name='joe_biden',
+    remote=REMOTE_MODE,
+    role='joe_biden',
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_joe)
+
+donald_trump = create_component(
+    RolePlay,
+    name='donald_trump',
+    remote=REMOTE_MODE,
+    role='donald_trump',
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_trump)
+
+
+task_center.add_agents([joe_biden, donald_trump])
+
+n_round = 6 # 3 round for each agent
+task = 'what is the best solution to land on moon?'
+task_center.send_task_request(task, send_to='joe_biden')
+while n_round > 0:
+
+    for frame in task_center.step():
+        print(frame)
+
+    n_round -= 1
+
+```
+
+From the above code, the multi-agent mode is more efficient and easier to use than the original ModelScope-Agent single agent mode.
+
+
+### Details in Task Center
+The `task_center` is the core of the multi-agent system, it will manage the task process, and the communication between agents.
+Two API are provided in the `task_center`:
+* `send_task_request`: send a task to the `environment` to start a new task, or continue the task with additional information from outside system (user input)
+* `step`: step forward the task, and let each agent response in this step
+
+#### *send_task_request()*
+The `send_task_request` will send a `task` to the `environment`, with the input `send_to` to specify which agent should respond in this step.
+The input in the `send_task_request` include:
+* `task`: the task or input or information
+* `send_to` could be a list of agent role name, or a single agent role name, or `all` to let all agents response in this step.
+* `send_from` could be used to specify the agent who send this task request, default as `user_requirement`
+
+In the above case,
+```python
+task_center.send_task_request(task, send_to='joe_biden')
+```
+meaning that a message with `task` as content is only sent to the agent with role name `joe_biden`, and the agent `joe_biden` will response in this step.
+
+we could also speicify the `send_from` to let the agent know who send this task request
+
+```python
+task_center.send_task_request('I dont agree with you about the landing project', send_to='joe_biden', send_from='donald_trump')
+```
+
+#### *step()*
+
+The `step` method will let each agent response in this step, and the response will be a generator, which is a distributed generator in ray.
+
+The inputs in the `step` method include:
+* `task`:  additional task or input or information in current step
+* `round`: in some case the task is a round based task, and the round number is needed to be passed in, most of the time, the round number is 1
+* `send_to`: specify who should the message generated in this step be sent to (default to all)
+* `allowed_roles`: specify which agent should respond **in** this step, if not specified, only those who recieved  message from last step will respond in this step
+* `user_response`: the user response in this step, if the task is a chatbot mode, the user response will be passed in this step to replace the llm output, if user_agent is in this step
+
+With the above inputs, the step could be used in different scenarios of multi-agent task.
+
+For example, in a three-man debate scenario, the `step` method could be used like this:
+```python
+# initialize the agents
+task_center.add_agents([joe_biden, donald_trump, hillary_clinton])
+
+# let joe_biden start the topic
+task_center.send_task_request('what is the best solution to land on moon?', send_to='joe_biden')
+
+# in 1st step, let joe_biden only send his opinion to hillary_clinton(considering as whisper), the message will print out
+for frame in task_center.step(send_to='hillary_clinton'):
+    print(frame)
+
+# in 2nd step, allow only donald_trump to response the topic
+for frame in task_center.step(allower_roles='donald_trump'):
+    print(frame)
+```
+The above case show how to use `send_to` and `allowed_roles` in the `step` method to control the communication between agents in a multi-agent task.
+
+There is another case, in a chatbot mode, the `user_response` could be used to let the user response in this step to replace the llm output, if user_agent is in this step.
+
+```python
+# initialize a new user
+user = create_component(
+    RolePlay,
+    name='user',
+    remote=REMOTE_MODE,
+    role='user',
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_joe,
+    human_input_mode='ON'
+)
+# initialize the agents
+task_center.add_agents([joe_biden, donald_trump, hillary_clinton, user])
+
+# let joe_biden start the topic
+task_center.send_task_request('what is the best solution to land on moon?', send_to='joe_biden')
+
+# in 1st step, let joe_biden send his opinion to all agents.
+for frame in task_center.step():
+    print(frame)
+
+# in 2nd step, allow only user to response the topic, with user_response
+for frame in task_center.step(allower_roles='user', user_response='I dont agree with you about the landing project'):
+    print(frame)
+assert frame == 'I dont agree with you about the landing project'
+
+```
+The user response will be used in this step to replace the llm output, because `user` is a human agent.
+
+### Details in Agent Env Mixin
+The `agent_env_mixin` is a mixin class to handle the communication between agents, and get the information from the `environment`.
+
+The main method in the `agent_env_mixin` is `step`, which consist of the following steps:
+* pull the message send to the role from the `environment`
+* convert the message into a prompt
+* send the prompt to the original agent's `run` method
+* publish the response message to the `environment`, the message includes the info that which roles should receive the message.
+
+
+### Details in Environment
+The `environment` is a class to manage the message hub, it maintains following information:
+* store the message that send to each agent in queue, and the message will be popped from queue and pulled by each agent in the next step.
+* store the entire history of the message from all roles in a list, `watcher` role will allow to read the entire history of the message
+* store the user_requirement in a list, the user requirement are the tasks or inputs from outside system, this message will allow all user to read, but only the `task_center` could write.
+
+
+### Details in Agent Registry
+The `agent_registry` is a class to manage the agent information, it maintains following information:
+* register the agent in the system, and update the agent status
+* allow task_center to get the agent information, and get the agent by role name
+
+
 ## Future works
 
 Even though, we have designed such multi-agent system, it still has many challenges to get into production environment.
