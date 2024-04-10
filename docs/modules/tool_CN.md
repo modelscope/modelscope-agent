@@ -43,7 +43,7 @@ from modelscope_agent.tools.langchain_proxy_tool import LangchainTool
 from modelscope_agent.agents import RolePlay
 from modelscope_agent.tools import TOOL_REGISTRY
 
-# All LangchainTool should be registered in such way, terminal is the tool name that will change by task
+# 所有LangchainTool都应该以这种方式注册，terminal是将根据任务更改的工具名称
 TOOL_REGISTRY['terminal'] = LangchainTool
 
 role_template = '你是一个助手，试图用工具帮助人类解决问题。'
@@ -53,9 +53,30 @@ llm_config = {
     'model_server': 'dashscope',
     }
 
-# ShellTool() use to initialize the terminal tool
+# ShellTool() 用于初始化终端工具
 function_list = ["code_interpreter", {'terminal':ShellTool()}]
 bot = RolePlay(function_list=function_list,llm=llm_config,instruction=role_template)
+# 执行agent
+response = bot.run("请输出查看环境中git的版本号", remote=False, print_info=True)
+text = ''
+for chunk in response:
+    text += chunk
+print(text)
+```
+
+结果
+- Terminal 运行
+```shell
+# 第一次调用llm的输出
+要查看环境中Git的版本号，我们可以使用Git自带的`--version`选项来获取该信息。接下来，我将通过终端（Terminal）执行相应的Git命令并显示版本号。
+
+工具调用
+Action: terminal
+Action Input: {"commands": "git --version"}
+# 第二次调用llm的输出
+Observation: <result>git version 2.37.1 (Apple Git-137.1)
+</result>
+Answer:当前环境中安装的Git版本号为 **2.37.1**。这是Apple提供的Git版本，具体标识为“Apple Git-137.1”。
 ```
 
 ## 常用工具
