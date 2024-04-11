@@ -8,7 +8,7 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
 
-DEFAULT_AGENT_DIR = '/tmp/agentfabric'
+DEFAULT_AGENT_DIR = os.getenv('DEFAULT_AGENT_DIR', '/tmp/agentfabric')
 DEFAULT_BUILDER_CONFIG_DIR = os.path.join(DEFAULT_AGENT_DIR, 'config')
 DEFAULT_BUILDER_CONFIG_FILE = os.path.join(DEFAULT_BUILDER_CONFIG_DIR,
                                            'builder_config.json')
@@ -19,6 +19,7 @@ DEFAULT_TOOL_CONFIG_FILE = './config/tool_config.json'
 DEFAULT_CODE_INTERPRETER_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR',
                                          '/tmp/ci_workspace')
 DEFAULT_UUID_HISTORY = os.path.join(DEFAULT_AGENT_DIR, 'history')
+DEFAULT_PREVIEW_HISTORY = os.path.join(DEFAULT_AGENT_DIR, 'preview_history')
 
 
 def get_user_dir(uuid_str=''):
@@ -27,6 +28,18 @@ def get_user_dir(uuid_str=''):
 
 def get_ci_dir():
     return DEFAULT_CODE_INTERPRETER_DIR
+
+
+def get_user_ci_dir(uuid_str='', session_str=''):
+    return os.path.join(DEFAULT_CODE_INTERPRETER_DIR, uuid_str, session_str)
+
+
+def get_user_builder_history_dir(uuid_str='', session_str=''):
+    return os.path.join(DEFAULT_UUID_HISTORY, uuid_str, session_str)
+
+
+def get_user_preview_history_dir(uuid_str='', session_str=''):
+    return os.path.join(DEFAULT_UUID_HISTORY, uuid_str, 'preview', session_str)
 
 
 def get_user_cfg_file(uuid_str=''):
@@ -152,6 +165,7 @@ def parse_configuration(uuid_str=''):
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}
     available_plugin_list = []
+    openapi_plugin_cfg_file_temp = './config/openapi_plugin_config.json'
     if os.path.exists(openapi_plugin_file):
         openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
         try:
@@ -171,5 +185,10 @@ def parse_configuration(uuid_str=''):
                     'error_details':
                     'The format of the plugin config file is incorrect.'
                 })
+    elif not os.path.exists(openapi_plugin_file):
+        if os.path.exists(openapi_plugin_cfg_file_temp):
+            os.makedirs(os.path.dirname(openapi_plugin_file), exist_ok=True)
+            if openapi_plugin_cfg_file_temp != openapi_plugin_file:
+                shutil.copy(openapi_plugin_cfg_file_temp, openapi_plugin_file)
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list

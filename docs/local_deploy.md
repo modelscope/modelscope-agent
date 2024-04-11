@@ -55,11 +55,10 @@ sudo docker exec -ti CONTAINER_ID bash
 在容器中进行后续操作
 
 #### 下载代码
-拉取modelscope-agent最新master代码 (当前修复代码在[PR](https://github.com/modelscope/modelscope-agent/pull/301)中， 分支feat/qwen_vllm)
+拉取modelscope-agent最新master代码
 ```shell
 git clone https://github.com/modelscope/modelscope-agent.git
 cd modelscope-agent/
-git checkout -b qwen_vllm origin/feat/qwen_vllm
 ```
 
 #### 拉起agent gradio
