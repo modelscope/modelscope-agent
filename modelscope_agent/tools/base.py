@@ -157,13 +157,15 @@ class BaseTool(ABC):
         """
         try:
             params_json = json5.loads(params)
-            for param in self.parameters:
-                if 'required' in param and param['required']:
-                    if param['name'] not in params_json:
-                        return params
-            return params_json
         except Exception:
-            return params
+            params = params.replace('\r', '\\r').replace('\n', '\\n')
+            params_json = json5.loads(params)
+
+        for param in self.parameters:
+            if 'required' in param and param['required']:
+                if param['name'] not in params_json:
+                    raise ValueError(f'param `{param["name"]}` is required')
+        return params_json
 
     def _build_function(self):
         """

@@ -5,8 +5,8 @@ domain: #领域：cv/nlp/audio/multi-modal/AutoML
 tags: #自定义标签
   - agent
   - AgentFabric
-
 ## 启动文件(若SDK为Gradio/Streamlit，默认为app.py, 若为Static HTML, 默认为index.html)
+
 deployspec:
   entry_file: app.py
 
