@@ -36,6 +36,7 @@ def set_request_id():
 
 
 def with_request_id(func):
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         request_id = request_id_var.get('')
@@ -47,8 +48,10 @@ def with_request_id(func):
             response[0].headers['X-Modelscope-Request-Id'] = request_id
             return response
         else:
-            logger.error(f'with_request_id: unexpected response type {response}')
+            logger.error(
+                f'with_request_id: unexpected response type {response}')
             return response
+
     return wrapper
 
 
@@ -71,7 +74,8 @@ def builder_chat(uuid_str):
 
     def generate():
         try:
-            builder_agent, builder_memory = app.session_manager.get_builder_bot(uuid_str)
+            builder_agent, builder_memory = app.session_manager.get_builder_bot(
+                uuid_str)
             builder_memory.history = builder_memory.load_history()
 
             logger.info(f'input_content: {input_content}')
@@ -88,7 +92,8 @@ def builder_chat(uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 step_result = frame.get('step', '')
-                logger.info('frame, {}'.format(str(frame).replace('\n', '\\n')))
+                logger.info('frame, {}'.format(
+                    str(frame).replace('\n', '\\n')))
                 if len(exec_result) != 0:
                     if isinstance(exec_result, dict):
                         exec_result = exec_result['result']
@@ -96,11 +101,13 @@ def builder_chat(uuid_str):
                         builder_cfg = exec_result.to_dict()
                         save_builder_configuration(builder_cfg, uuid_str)
                         # app.session_manager.clear_user_bot(uuid_str)
-                        res = json.dumps({
-                            'data': response,
-                            'config': builder_cfg,
-                            'is_final': is_final,
-                        }, ensure_ascii=False)
+                        res = json.dumps(
+                            {
+                                'data': response,
+                                'config': builder_cfg,
+                                'is_final': is_final,
+                            },
+                            ensure_ascii=False)
                         logger.info(f'res: {res}')
                         yield f'data: {res}\n\n'
                 else:
@@ -117,22 +124,26 @@ def builder_chat(uuid_str):
                     res = json.dumps({
                         'data': response,
                         'is_final': is_final,
-                    }, ensure_ascii=False)
+                    },
+                                     ensure_ascii=False)  # noqa E126
                     logger.info(f'res: {res}')
                     yield f'data: {res}\n\n'
 
-            final_res = json.dumps({
-                'data': response,
-                'is_final': True,
-                'request_id': request_id_var.get('')
-            }, ensure_ascii=False)
+            final_res = json.dumps(
+                {
+                    'data': response,
+                    'is_final': True,
+                    'request_id': request_id_var.get('')
+                },
+                ensure_ascii=False)
             yield f'data: {final_res}\n\n'
 
             builder_memory.save_history()
         except Exception as e:
             stack_trace = traceback.format_exc()
             stack_trace = stack_trace.replace('\n', '\\n')
-            logger.error(f'builder_chat_generate_error: {str(e)}, {stack_trace}')
+            logger.error(
+                f'builder_chat_generate_error: {str(e)}, {stack_trace}')
             raise e
 
     return Response(generate(), mimetype='text/event-stream')
@@ -144,10 +155,7 @@ def delete_builder_chat(uuid_str):
     logger.info(f'delete_builder_chat: uuid_str_{uuid_str}')
     app.session_manager.clear_builder_bot(uuid_str)
     logger.info(f'delete_builder_chat: {uuid_str}')
-    return jsonify({
-        'success': True,
-        'request_id': request_id_var.get('')
-    })
+    return jsonify({'success': True, 'request_id': request_id_var.get('')})
 
 
 @app.route('/builder/chat/<uuid_str>', methods=['GET'])
@@ -166,7 +174,8 @@ def get_builder_chat_history(uuid_str):
             pattern=r'([\s\S]+)Config: ([\s\S]+)\nRichConfig')
         res = re_pattern_config.search(content)
         if res:
-            item['content'] = res.group(1) + CONFIG_UPDATED_STEP + LOGO_UPDATED_STEP
+            item['content'] = res.group(
+                1) + CONFIG_UPDATED_STEP + LOGO_UPDATED_STEP
 
     return jsonify({
         'history': history,
@@ -210,10 +219,7 @@ def import_builder(uuid_str):
     logger.info(f'archive_dir: {archive_dir}')
     reload_agent_dir(archive_dir, DEFAULT_AGENT_DIR, uuid_str)
 
-    return jsonify({
-        'success': True,
-        'request_id': request_id_var.get('')
-    })
+    return jsonify({'success': True, 'request_id': request_id_var.get('')})
 
 
 # 获取用户当前builder config
@@ -242,7 +248,8 @@ def get_builder_config(uuid_str):
 @app.route('/builder/config_files/<uuid_str>/<file_name>', methods=['GET'])
 @with_request_id
 def get_builder_file(uuid_str, file_name):
-    logger.info(f'get_builder_file: uuid_str_{uuid_str} file_name: {file_name}')
+    logger.info(
+        f'get_builder_file: uuid_str_{uuid_str} file_name: {file_name}')
     as_attachment = request.args.get('as_attachment') == 'true'
     directory = get_user_dir(uuid_str)
     try:
@@ -294,7 +301,9 @@ def save_builder_config(uuid_str):
             except json.decoder.JSONDecodeError:
                 schema_dict = yaml.safe_load(openapi_schema)
             except Exception as e:
-                logger.error(f'OpenAPI schema format error, should be one of json and yaml: {e}')
+                logger.error(
+                    f'OpenAPI schema format error, should be one of json and yaml: {e}'
+                )
 
             openapi_plugin_cfg = {
                 'schema': schema_dict,
@@ -306,8 +315,8 @@ def save_builder_config(uuid_str):
                 'privacy_policy': ''
             }
             if is_valid_plugin_configuration(openapi_plugin_cfg):
-                save_plugin_configuration(openapi_plugin_cfg=openapi_plugin_cfg,
-                                          uuid_str=uuid_str)
+                save_plugin_configuration(
+                    openapi_plugin_cfg=openapi_plugin_cfg, uuid_str=uuid_str)
         except Exception as e:
             logger.query_error(
                 uuid=uuid_str,
@@ -316,10 +325,7 @@ def save_builder_config(uuid_str):
     save_builder_configuration(builder_cfg=builder_config, uuid_str=uuid_str)
     # app.session_manager.clear_user_bot(uuid_str)
 
-    return jsonify({
-        'success': True,
-        'request_id': request_id_var.get('')
-    })
+    return jsonify({'success': True, 'request_id': request_id_var.get('')})
 
 
 # 获取用户发布包
@@ -330,16 +336,16 @@ def preview_publish_get_zip(uuid_str):
 
     name = f'publish_{uuid_str}'
     env_params = {}
-    env_params.update(
-        pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
+    env_params.update(pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
     output_url, envs_required = prepare_agent_zip(name, DEFAULT_AGENT_DIR,
                                                   uuid_str, None)
     env_params.update(envs_required)
-    return jsonify({'success': True,
-                    'output_url': output_url,
-                    'envs_required': envs_required,
-                    'request_id': request_id_var.get(''),
-                    })
+    return jsonify({
+        'success': True,
+        'output_url': output_url,
+        'envs_required': envs_required,
+        'request_id': request_id_var.get(''),
+    })
 
 
 # 预览对话接口
@@ -365,15 +371,19 @@ def preview_chat(uuid_str, session_str):
         try:
             start_time = time.time()
             seed = random.randint(0, 1000000000)
-            user_agent, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
+            user_agent, user_memory = app.session_manager.get_user_bot(
+                uuid_str, session_str)
             user_agent.seed = seed
-            logger.info(f'get method: time consumed {time.time() - start_time}')
+            logger.info(
+                f'get method: time consumed {time.time() - start_time}')
 
             # get chat history from memory
             user_memory.load_history()
             history = user_memory.get_history()
 
-            logger.info(f'load history method: time consumed {time.time() - start_time}')
+            logger.info(
+                f'load history method: time consumed {time.time() - start_time}'
+            )
 
             # get knowledge from memory, currently get one file
             uploaded_file = None
@@ -381,40 +391,49 @@ def preview_chat(uuid_str, session_str):
                 uploaded_file = file_paths[0]
             ref_doc = user_memory.run(
                 query=input_content, url=uploaded_file, checked=True)
-            logger.info(f'load knowledge method: time consumed {time.time() - start_time}, the uplodated_file name is {uploaded_file}') # noqa
+            logger.info(
+                f'load knowledge method: time consumed {time.time() - start_time}, '
+                f'the uploaded_file name is {uploaded_file}')  # noqa
 
             response = ''
 
             logger.info(f'input_content: {input_content}')
-            res = json.dumps({
-                'data': '',
-                'is_final': False,
-                'request_id': request_id_var.get('')
-            }, ensure_ascii=False)
+            res = json.dumps(
+                {
+                    'data': '',
+                    'is_final': False,
+                    'request_id': request_id_var.get('')
+                },
+                ensure_ascii=False)
             for frame in user_agent.run(
                     input_content,
                     history=history,
                     ref_doc=ref_doc,
                     append_files=file_paths,
                     uuid_str=uuid_str):
-                logger.info('frame, {}'.format(str(frame).replace('\n', '\\n')))
+                logger.info('frame, {}'.format(
+                    str(frame).replace('\n', '\\n')))
                 # important! do not change this
                 response += frame
-                res = json.dumps({
-                    'data': response,
-                    'is_final': False,
-                    'request_id': request_id_var.get('')
-                }, ensure_ascii=False)
+                res = json.dumps(
+                    {
+                        'data': response,
+                        'is_final': False,
+                        'request_id': request_id_var.get('')
+                    },
+                    ensure_ascii=False)
                 yield f'data: {res}\n\n'
 
             if len(history) == 0:
                 user_memory.update_history(
                     Message(role='system', content=user_agent.system_prompt))
-            res = json.dumps({
-                'data': response,
-                'is_final': True,
-                'request_id': request_id_var.get('')
-            }, ensure_ascii=False)
+            res = json.dumps(
+                {
+                    'data': response,
+                    'is_final': True,
+                    'request_id': request_id_var.get('')
+                },
+                ensure_ascii=False)
             logger.info(f'response: {res}')
             user_memory.update_history([
                 Message(role='user', content=input_content),
@@ -426,7 +445,8 @@ def preview_chat(uuid_str, session_str):
         except Exception as e:
             stack_trace = traceback.format_exc()
             stack_trace = stack_trace.replace('\n', '\\n')
-            logger.error(f'preview_chat_generate_error: {str(e)}, {stack_trace}')
+            logger.error(
+                f'preview_chat_generate_error: {str(e)}, {stack_trace}')
             raise e
 
     return Response(generate(), mimetype='text/event-stream')
@@ -436,7 +456,8 @@ def preview_chat(uuid_str, session_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['DELETE'])
 @with_request_id
 def delete_preview_chat(uuid_str, session_str):
-    logger.info(f'delete_preview_chat: uuid_str_{uuid_str}_session_str_{session_str}')
+    logger.info(
+        f'delete_preview_chat: uuid_str_{uuid_str}_session_str_{session_str}')
 
     app.session_manager.clear_user_bot(uuid_str, session_str)
     return jsonify({'success': True, 'request_id': request_id_var.get('')})
@@ -445,7 +466,9 @@ def delete_preview_chat(uuid_str, session_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['GET'])
 @with_request_id
 def get_preview_chat_history(uuid_str, session_str):
-    logger.info(f'get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}')
+    logger.info(
+        f'get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}'
+    )
 
     _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
     return jsonify({
@@ -458,7 +481,9 @@ def get_preview_chat_history(uuid_str, session_str):
 @app.route('/preview/chat_file/<uuid_str>/<session_str>', methods=['GET'])
 @with_request_id
 def get_preview_chat_file(uuid_str, session_str):
-    logger.info(f'get_preview_chat_file: uuid_str_{uuid_str}_session_str_{session_str}')
+    logger.info(
+        f'get_preview_chat_file: uuid_str_{uuid_str}_session_str_{session_str}'
+    )
 
     file_path = request.args.get('file_path')
     logger.info(f'uuid_str: {uuid_str} session_str: {session_str}')
@@ -488,11 +513,12 @@ def handle_error(error):
     stack_trace = stack_trace.replace('\n', '\\n')
     logger.error(f'{str(error)}, {stack_trace}')
     # 处理错误并返回统一格式的错误信息
-    error_message = {'success': False,
-                     'message': str(error),
-                     'status': 500,
-                     'request_id': request_id_var.get('')
-                     }
+    error_message = {
+        'success': False,
+        'message': str(error),
+        'status': 500,
+        'request_id': request_id_var.get('')
+    }
     return jsonify(error_message), 500
 
 

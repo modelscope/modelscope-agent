@@ -53,7 +53,13 @@ def upload_to_oss(bucket, local_file_path, oss_file_path):
     # 生成上传文件的签名URL，有效时间为60秒。
     # 生成签名URL时，OSS默认会对Object完整路径中的正斜线（/）进行转义，从而导致生成的签名URL无法直接使用。
     # 设置slash_safe为True，OSS不会对Object完整路径中的正斜线（/）进行转义，此时生成的签名URL可以直接使用。
-    file_url = bucket.sign_url('GET', oss_file_path, 1800, slash_safe=True, headers=headers, params=params)
+    file_url = bucket.sign_url(
+        'GET',
+        oss_file_path,
+        1800,
+        slash_safe=True,
+        headers=headers,
+        params=params)
 
     return file_url
 
@@ -147,7 +153,9 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
         ]
 
         # 找到所有的图片文件
-        image_files = glob.glob(directory + '*.png') + glob.glob(directory + '*.jpg') + glob.glob(directory + '*.jpeg') + glob.glob(directory + '*.gif')  # noqa
+        image_files = glob.glob(directory + '*.png') + glob.glob(
+            directory + '*.jpg') + glob.glob(directory + '*.jpeg') + glob.glob(
+                directory + '*.gif')  # noqa
 
         return json_files + image_files
 
@@ -177,7 +185,8 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
             shutil.copy(f'{local_file}/{file}', new_directory)
 
     # add app.py
-    shutil.copy(f'{local_file}/appBot.py', os.path.join(new_directory, 'app.py'))
+    shutil.copy(f'{local_file}/appBot.py',
+                os.path.join(new_directory, 'app.py'))
 
     # 打包新目录
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)

@@ -134,8 +134,9 @@ class CodeInterpreter(BaseTool):
                     try_times += 1
                     pass
             if try_times >= max_retry:
-                raise (f'kernel process PID {kernel_process.pid} s config json {connection_file}'
-                       f'has been deleted by other process. please try again.')
+                raise (
+                    f'kernel process PID {kernel_process.pid} s config json {connection_file}'
+                    f'has been deleted by other process. please try again.')
 
         # Client
         kc = BlockingKernelClient(connection_file=connection_file)
