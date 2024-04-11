@@ -8,7 +8,7 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
 REMOTE_MODE = True
@@ -113,7 +113,6 @@ def init_all_agents():
             RolePlay,
             name=role,
             remote=REMOTE_MODE,
-            role=role,
             description=ROLES_MAP[role],
             llm=llm_config,
             function_list=function_list,
@@ -136,7 +135,6 @@ chat_room = create_component(
     RolePlay,
     name='chat_room',
     remote=REMOTE_MODE,
-    role='chat_room',
     llm=llm_config,
     function_list=function_list,
     instruction=CHATROOM_INSTRUCTION_PROMPT.format(

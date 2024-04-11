@@ -11,10 +11,10 @@ class AgentRegistry:
         self._agents_state = {}
         self.remote = remote
         if self.remote:
-            from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+            from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
             self.executor_cls = RayTaskExecutor
         else:
-            from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
+            from modelscope_agent.multi_agents_utils.executors.local import LocalTaskExecutor
             self.executor_cls = LocalTaskExecutor
 
     def register_agent(self, agent: Agent, env_context: Environment = None):

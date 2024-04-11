@@ -5,7 +5,7 @@ import time
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
 REMOTE_MODE = True
@@ -29,7 +29,6 @@ role_play1 = create_component(
     RolePlay,
     name='role_play1',
     remote=REMOTE_MODE,
-    role='role_play1',
     llm=llm_config,
     function_list=function_list)
 
@@ -37,7 +36,6 @@ role_play2 = create_component(
     RolePlay,
     name='role_play2',
     remote=REMOTE_MODE,
-    role='role_play2',
     llm=llm_config,
     function_list=function_list)
 

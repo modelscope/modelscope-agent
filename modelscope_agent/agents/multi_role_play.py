@@ -1,10 +1,10 @@
 import os
 import re
 from typing import Dict, List, Optional, Tuple, Union
-from modelscope_agent.agents.role_play import RolePlay
 
 from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
+from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
@@ -115,13 +115,12 @@ ARGS_TOKEN = 'Action Input:'
 OBSERVATION_TOKEN = 'Observation:'
 ANSWER_TOKEN = 'Answer:'
 
+
 class MultiRolePlay(RolePlay):
 
-    def __init__(self,
-                 **kwargs):
-        
-        super().__init__(**kwargs)
+    def __init__(self, **kwargs):
 
+        super().__init__(**kwargs)
 
     def _run(self,
              user_request,
@@ -191,7 +190,7 @@ class MultiRolePlay(RolePlay):
 
         # Concat the system as one round of dialogue
         messages = [{'role': 'system', 'content': self.system_prompt}]
-        print ("history: ", history)
+        print('history: ', history)
         if history:
             assert history[-1][
                 'role'] != 'user', 'The history should not include the latest user query.'
@@ -204,7 +203,7 @@ class MultiRolePlay(RolePlay):
             'role': 'user',
             'content': self.query_prefix + user_request
         })
-        print ("user_request", user_request)
+        print('user_request', user_request)
         planning_prompt = ''
         if self.llm.support_raw_prompt():
             planning_prompt = self.llm.build_multi_role_raw_prompt(messages)
@@ -273,4 +272,5 @@ class MultiRolePlay(RolePlay):
             # limit the length of the planning prompt if exceed the length by calling the build_raw_prompt
             if not self.llm.check_max_length(planning_prompt):
                 if self.llm.support_raw_prompt():
-                    planning_prompt = self.llm.build_multi_role_raw_prompt(messages)
+                    planning_prompt = self.llm.build_multi_role_raw_prompt(
+                        messages)

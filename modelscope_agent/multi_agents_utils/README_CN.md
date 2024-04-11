@@ -102,7 +102,7 @@
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.task_center import TaskCenter
-from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 
 REMOTE_MODE = True
 
@@ -142,7 +142,6 @@ role_play1 = create_component(
     RolePlay,
     name='role_play1',
     remote=True,
-    role='role_play1',
     llm=llm_config,
     function_list=function_list)
 
@@ -150,7 +149,6 @@ role_play2 = create_component(
     RolePlay,
     name='role_play2',
     remote=True,
-    role='role_play2',
     llm=llm_config,
     function_list=function_list)
 ```
@@ -318,7 +316,6 @@ joe_biden = create_component(
     RolePlay,
     name='joe_biden',
     remote=REMOTE_MODE,
-    role='joe_biden',
     llm=llm_config,
     function_list=function_list,
     instruction=role_template_joe)
@@ -327,7 +324,6 @@ donald_trump = create_component(
     RolePlay,
     name='donald_trump',
     remote=REMOTE_MODE,
-    role='donald_trump',
     llm=llm_config,
     function_list=function_list,
     instruction=role_template_trump)
@@ -346,6 +342,7 @@ while n_round > 0:
     n_round -= 1
 
 ```
+`task_center.step()`做了什么事，会在下面章节具体讲解。
 从上述代码中，我们可以看到multi-agent模式比原始ModelScope-Agent的single agent模式更高效且更易于使用。
 
 ### [`Task Center`](../task_center.py)的使用
@@ -406,7 +403,6 @@ user = create_component(
     RolePlay,
     name='user',
     remote=REMOTE_MODE,
-    role='user',
     llm=llm_config,
     function_list=function_list,
     instruction=role_template_joe,
@@ -429,14 +425,26 @@ assert frame == 'I dont agree with you about the landing project'
 ```
 可以看到，用户的响应将在这个步骤中被使用，以取代大型语言模型（LLM）的输出，因为名为`user`的agent 是一个user-agent。
 
+#### 消息传递
+当`send_task_request()` 被调用的时候，一条包含`send_to`和`send_from`的Message会被记录到 `Environment` 中。
+具体的存储方式是，在环境中每一个role都会维护一个独立的独立，当 `send_to` 中包含某个role的时候，该条Message则会被存到对应role的消息队列中。
+
+当`step()` 方法被调用的时候，首先会根据allower_roles判断谁在当前step需要处理信息，如果没有指定，则去获取role的消息队列中有还有消息待处理的role进行本轮的step.
+这些还有待处理消息的role，接下来会进入到具体的消息执行环节，其中每一个role会有如下流程，多个role会去并行进行处理：
+1. 首先会调用`pull`方法，把待处理的消息拿出来，准备处理。
+2. 将这些message处理成prompt，准备作为llm的输入
+3. 调用原始single agent的`run`方法，进行生成反馈这些消息
+4. 根据当前轮是否有`send_to`判断，将生成的结果`publish`到环境中对应的role，默认全体role都能收到,这一过程同上一步`send_task_request()`所做相同。
+
+
 
 ### [agent_env_util](../agent_env_util.py) 的详细信息
 agent_env_mixin是一个mixin类，用来处理代理之间的通信，以及从环境获取信息。
 agent_env_mixin中的主要方法是`step`，它包含以下步骤：
 
 * 调用`pull`方法，从环境中提取发送给角色的消息
-* 将消息转换为提示符(prompt)， 用户可以自定义转换行为
-* 将提示符发送到原始代理的`run`方法
+* 将消息转换为提示词(prompt)， 用户可以自定义转换行为
+* 将提示词发送到原始agent的`run`方法
 * 调用`publish`,将响应消息发布到环境，消息中包含了哪些角色应该接收消息的信息。
 
 

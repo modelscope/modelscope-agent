@@ -11,12 +11,12 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 class TaskCenter:
 
-    def __init__(self, remote=False):
+    def __init__(self, remote=False, **kwargs):
         if remote:
-            from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+            from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
             self.task_executor = RayTaskExecutor
         else:
-            from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
+            from modelscope_agent.multi_agents_utils.executors.local import LocalTaskExecutor
             self.task_executor = LocalTaskExecutor
         self.env = create_component(Environment, 'env', remote)
         self.agent_registry = create_component(AgentRegistry, 'agent_center',
@@ -71,7 +71,6 @@ class TaskCenter:
             send_to = [send_to]
 
         message = Message(
-            role=send_from,
             content=task,
             send_to=send_to,
             sent_from=send_from,

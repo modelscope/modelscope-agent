@@ -102,7 +102,7 @@ The following code is the initialization of the task center.
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.task_center import TaskCenter
-from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 
 REMOTE_MODE = True
 
@@ -143,7 +143,6 @@ role_play1 = create_component(
     RolePlay,
     name='role_play1',
     remote=True,
-    role='role_play1',
     llm=llm_config,
     function_list=function_list)
 
@@ -151,7 +150,6 @@ role_play2 = create_component(
     RolePlay,
     name='role_play2',
     remote=True,
-    role='role_play2',
     llm=llm_config,
     function_list=function_list)
 ```
@@ -345,7 +343,6 @@ joe_biden = create_component(
     RolePlay,
     name='joe_biden',
     remote=REMOTE_MODE,
-    role='joe_biden',
     llm=llm_config,
     function_list=function_list,
     instruction=role_template_joe)
@@ -354,7 +351,6 @@ donald_trump = create_component(
     RolePlay,
     name='donald_trump',
     remote=REMOTE_MODE,
-    role='donald_trump',
     llm=llm_config,
     function_list=function_list,
     instruction=role_template_trump)
@@ -373,7 +369,7 @@ while n_round > 0:
     n_round -= 1
 
 ```
-
+In the next sector, we will discuss how does `task_center.step()` work.
 From the above code, the multi-agent mode is more efficient and easier to use than the original ModelScope-Agent single agent mode.
 
 
@@ -441,7 +437,6 @@ user = create_component(
     RolePlay,
     name='user',
     remote=REMOTE_MODE,
-    role='user',
     llm=llm_config,
     function_list=function_list,
     instruction=role_template_joe,
@@ -464,6 +459,24 @@ assert frame == 'I dont agree with you about the landing project'
 
 ```
 The user response will be used in this step to replace the llm output, because `user` is a human agent.
+
+#### Message flow
+When `send_task_request()` is called, a Message containing `send_to` and `send_from` is recorded into the Environment.
+Specifically, each role in the environment maintains an independent message queue, and when `send_to` includes a certain role,
+that Message will be stored in the corresponding role's message queue.
+
+When the `step()` method is called, it first determines which roles need to deal with information in the current step based on `allowed_roles`.
+If not specified, it retrieves roles from the message queue that have messages pending processing for this round's step.
+
+These roles with pending messages then enter the specific message execution phase,
+where each role follows the below process:
+
+1. First, the `pull` method is called to take out the pending messages for environment message queue.
+2. These messages are then processed into prompts, ready to be inputs for the llm.
+3. The original single agent's `run` method is invoked to generate feedback for these messages.
+4. Depending on whether there’s a specified `send_to` for the current round, the generated results are published into the environment's corresponding role.
+By default, all roles can receive it. This process is similar to what was done in the previous step `send_task_request()`.
+
 
 ### Details in Agent Env Mixin
 The `agent_env_mixin` is a mixin class to handle the communication between agents, and get the information from the `environment`.

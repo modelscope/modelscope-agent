@@ -8,7 +8,7 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import MultiRolePlay
-from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
 REMOTE_MODE = True
@@ -91,11 +91,12 @@ roles = {
     '雷军': '小米创始人，最近发布了小米SU7，投资界之王，有很强的人缘，投资了很多公司。小米SU7的口号是【人车合一，我心澎湃】',
     '李想': '理想汽车，是由李想在2015年7月创立的新能源汽车公司，公司最初命名为“车和家，卖的最好的是理想L系列”',
     '李斌': '蔚来汽车创始人、董事长，也是新能源的早期创始人之一，之前做易车网',
-    '何小鹏': '何小鹏同时担任小鹏汽车的董事长。小鹏汽车成立于2014年，小鹏汽车最热销的系列是小鹏P7，受影响最大，所以此次小米发布价格对其冲击很大'
+    '何小鹏':
+    '何小鹏同时担任小鹏汽车的董事长。小鹏汽车成立于2014年，小鹏汽车最热销的系列是小鹏P7，受影响最大，所以此次小米发布价格对其冲击很大'
 }
 
 llm_config = {
-    #'model': 'qwen-max',
+    # 'model': 'qwen-max',
     'model': 'qwen-spark-plus',
     'api_key': os.getenv('DASHSCOPE_API_KEY'),
     'model_server': 'dashscope'
@@ -148,7 +149,6 @@ def upsert_role(new_user, user_char, human_input_mode):
         MultiRolePlay,
         name=new_user,
         remote=REMOTE_MODE,
-        role=new_user,
         description=user_char,
         llm=llm_config,
         function_list=function_list,
@@ -202,7 +202,6 @@ def init_all_remote_actors(_roles, user_role, _state):
         MultiRolePlay,
         name='chat_room',
         remote=True,
-        role='chat_room',
         llm=llm_config,
         function_list=function_list,
         instruction=CHATROOM_INSTRUCTION_PROMPT.format(

@@ -24,7 +24,6 @@ role_play1 = create_component(
     RolePlay,
     name='role_play1',
     remote=REMOTE_MODE,
-    role='role_play1',
     llm=llm_config,
     function_list=function_list)
 
@@ -32,7 +31,6 @@ role_play2 = create_component(
     RolePlay,
     name='role_play2',
     remote=REMOTE_MODE,
-    role='role_play2',
     llm=llm_config,
     function_list=function_list)
 

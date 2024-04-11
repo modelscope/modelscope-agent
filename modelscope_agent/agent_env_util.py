@@ -54,10 +54,10 @@ class AgentEnvMixin:
 
         self.memory = Memory(path=memory_path, )
         if self.remote:
-            from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
+            from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
             self.executor_cls = RayTaskExecutor
         else:
-            from modelscope_agent.multi_agents_tasks.executors.local import LocalTaskExecutor
+            from modelscope_agent.multi_agents_utils.executors.local import LocalTaskExecutor
             self.executor_cls = LocalTaskExecutor
 
     def set_env_context(self, env_context):
