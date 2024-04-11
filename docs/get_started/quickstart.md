@@ -34,7 +34,7 @@ for chunk in response:
 ```
 
 result
-- Terminal 
+- Terminal
 
 ```shell
 # The output from the first call to the LLM.

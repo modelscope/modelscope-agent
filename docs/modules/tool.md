@@ -64,7 +64,7 @@ print(text)
 ```
 
 result
-- Terminal 
+- Terminal
 
 ```shell
 # The output from the first call to the LLM.
