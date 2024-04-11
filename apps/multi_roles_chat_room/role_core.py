@@ -7,56 +7,58 @@ import json
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
-from modelscope_agent.agents import RolePlay
+from modelscope_agent.agents import MultiRolePlay
 from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 
 REMOTE_MODE = True
 
 # instruction prompt
-ROLE_INSTRUCTION_PROMPT = """你是{role}，请你根据对话情节设定、对话角色设定，继续当前的对话，推动剧情发展。
+ROLE_INSTRUCTION_PROMPT = """<|im_start|>system
+你是{role}，请你根据对话情节设定、对话角色设定，继续当前的对话，推动剧情发展。
 
-# 对话情节设定
+【对话情节设定】
 {story}
 
-# 所有对话角色设定
+【所有对话角色设定】
 {all_roles_info}
 
-# 你的角色设定：
+【你的角色设定】
 {role_description}
 
-# 注意事项
+【注意事项】
 1. 这是聊天室，不要发送私信给任何人
-2. 仅代表你个人说话,不要扮演其他人
+2. 仅代表你个人说话,不要扮演其他人，只根据对话历史进行回复
 3. 长话短说，不要说太多话，不要超过50字
-4. 返回结果的时候不要在最开始加上名字
 
+<|im_end|>
 """
 
-CHATROOM_INSTRUCTION_PROMPT = """你是一个小说作家，请你根据对话场景、人物介绍及最近的对话记录，选择继续对话的下一个角色。
+CHATROOM_INSTRUCTION_PROMPT = """<|im_start|>system
+你是一个小说作家，请你根据对话场景、人物介绍及最近的对话记录，选择继续对话的下一个角色。注意，对话历史是以群聊的形式展现，因此角色可能会@某个人表示对这个人说话。
 
-# 对话场景
+【对话场景】
 {story}
 
-# 人物介绍
+【人物介绍】
 {all_roles_info}
 
-# 注意事项
-1. 所有角色不区分主角和配角，你需要让每个角色有平等的对话机会，要求情节充满戏剧性。
-2. 当上一个角色已经连发多条消息，你需要让另一个角色接话。
-3. 当主角明确@某个角色，你需要让被@的角色接话。
-4. 允许下一个角色可以是多个人，不要超过3个，可以是1到3人，随机一些
-5. 不要生成人物介绍以外的角色参与讨论
+【对话记录】
+chat_records
 
-# 回复格式
-请用json格式回复，字段包括
+【最新对话】
+recent_records
+
+【注意事项】
+根据对话记录和最新对话
+1. 当主角明确@某个角色，你需要让被@的角色接话。
+2. 尽量不要选【最新对话】里的角色发言
+3. 所有角色不区分主角和配角，你需要让每个角色有平等的对话机会，避免只有两个人持续的交流，要求情节充满戏剧性。
+
+【回复格式】
+请用json格式回复，内容用中文，从上文提到的角色里选，只写名字即可，字段包括：
 * next_speakers: <next speakers>
-
-
-# 最近对话历史
-最近的对话历史会通过用户信息展示。
-
-**不要返回任何json格式以外信息，包括```json ```这个格式，不要试图续写**
+<|im_end|>
 """
 
 STORY = """用户是男主角顾易，与六位长相、性格都大相径庭的美女相识，包括魅惑魔女郑梓妍、知性姐姐李云思、清纯女生肖鹿、刁蛮大小姐沈彗星、性感辣妈林乐清、冷艳总裁钟甄。
@@ -74,7 +76,7 @@ STORY = """用户是男主角顾易，与六位长相、性格都大相径庭的
 #     '钟甄': '钟甄，32岁， 狮子座，AB型血，负责任的女总裁，高贵冷艳的霸道女总，职业：会计事务所合伙人'
 # }
 
-STORY = """用户是男主角顾易，与多位长相、性格都大相径庭的美女相识，这几位美女都喜欢顾易，相互之间争风吃醋，展开一段轻喜甜蜜的恋爱之旅。
+STORY = """用户是男主角顾易，与多位长相、性格都大相径庭的美女相识，这几位美女都喜欢顾易，相互之间争风吃醋，展开一段轻喜甜蜜的恋爱之旅，除了顾易之外，其他几个角色之间一定要互相冲突打击对方。
 """
 
 roles = {
@@ -83,8 +85,18 @@ roles = {
     '李云思': '李云思，27岁，摩羯座，O型血，趣味相投的知音，温婉大气，职业：策展人',
 }
 
+STORY = """用户是男主角雷军，小米创始人，最近发布了小米SU7，与多位新能源的创始人都认识，大家都在竞争卖车，雷军公布价格后，他们都很慌，害怕自己的车卖不出去。"""
+
+roles = {
+    '雷军': '小米创始人，最近发布了小米SU7，投资界之王，有很强的人缘，投资了很多公司。小米SU7的口号是【人车合一，我心澎湃】',
+    '李想': '理想汽车，是由李想在2015年7月创立的新能源汽车公司，公司最初命名为“车和家，卖的最好的是理想L系列”',
+    '李斌': '蔚来汽车创始人、董事长，也是新能源的早期创始人之一，之前做易车网',
+    '何小鹏': '何小鹏同时担任小鹏汽车的董事长。小鹏汽车成立于2014年，小鹏汽车最热销的系列是小鹏P7，受影响最大，所以此次小米发布价格对其冲击很大'
+}
+
 llm_config = {
-    'model': 'qwen-max',
+    #'model': 'qwen-max',
+    'model': 'qwen-spark-plus',
     'api_key': os.getenv('DASHSCOPE_API_KEY'),
     'model_server': 'dashscope'
 }
@@ -96,8 +108,8 @@ kwargs = {
 function_list = []
 
 all_roles_info = ''
-for cur_role in roles:
-    all_roles_info += f'* {cur_role}\n {roles[cur_role]}\n\n'
+for ctx, cur_role in enumerate(roles):
+    all_roles_info += f'* 角色{ctx}: {cur_role}, {roles[cur_role]}\n'
 
 
 def get_avatar_by_name(role_name):
@@ -133,7 +145,7 @@ def generate_role_instruction(role):
 
 def upsert_role(new_user, user_char, human_input_mode):
     role = create_component(
-        RolePlay,
+        MultiRolePlay,
         name=new_user,
         remote=REMOTE_MODE,
         role=new_user,
@@ -187,7 +199,7 @@ def init_all_remote_actors(_roles, user_role, _state):
         role_agents.append(role_agent)
 
     chat_room = create_component(
-        RolePlay,
+        MultiRolePlay,
         name='chat_room',
         remote=True,
         role='chat_room',

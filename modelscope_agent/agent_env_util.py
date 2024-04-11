@@ -244,8 +244,10 @@ class AgentEnvMixin:
 
         """
         if not self.is_watcher:
-            received_messages = self.executor_cls.extract_message_by_role_from_env(
-                self.env_context, self._role)
+            # received_messages = self.executor_cls.extract_message_by_role_from_env(
+            #    self.env_context, self._role)
+            received_messages = self.executor_cls.extract_all_message_from_env(
+                self.env_context)
             if received_messages and len(received_messages) > 0:
                 cur_step_env_prompt = self.parse_env_prompt_function(
                     received_messages)
@@ -260,21 +262,18 @@ class AgentEnvMixin:
             if received_messages and len(received_messages) > 0:
                 conversation_history = ''
                 for item in received_messages:
-                    conversation_history += f'{item.sent_from}\n{item.content}\n'
+                    conversation_history += f'{item.sent_from}: {item.content}\n'
                 return conversation_history
             else:
                 return ''
 
     def convert_to_string(self, messages: List[Message]):
-        prompt_template = """
-        . In last round, you get the following information from environment:
-        {conversation_history}
-        """
+        prompt_template = """{conversation_history}"""
         conversation_history = ''
         for item in messages:
             conversation_history += f'{item.sent_from}: {item.content}\n'
         return prompt_template.format(
-            conversation_history=conversation_history)
+            conversation_history=conversation_history.strip())
 
     def _check_env_ready(self):
         if self.env_context:

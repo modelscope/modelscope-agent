@@ -95,8 +95,10 @@ with gr.Blocks() as demo:
                     value=list(origin_roles.keys())[1])
                 start_topic_input = gr.Textbox(
                     label='Topic to be discussed',
-                    placeholder='@顾易 要不要来我家吃饭？',
-                    value='@顾易 要不要来我家吃饭？')
+                    placeholder='@雷军 雷总啊，你这定价太狠了，发布直接21.49万，兄弟们都不好卖车了啊',
+                    value='@雷军 雷总啊，你这定价太狠了，发布直接21.49万，兄弟们都不好卖车了啊')
+                    # placeholder='@顾易 要不要来我家吃饭？',
+                    # value='@顾易 要不要来我家吃饭？')
                 user_select = gr.Dropdown(
                     label='Role playing',
                     choices=list(origin_roles.keys()),
