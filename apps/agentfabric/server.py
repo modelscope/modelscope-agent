@@ -307,7 +307,7 @@ def save_builder_config(uuid_str):
             }
             if is_valid_plugin_configuration(openapi_plugin_cfg):
                 save_plugin_configuration(openapi_plugin_cfg=openapi_plugin_cfg,
-                                        uuid_str=uuid_str)
+                                          uuid_str=uuid_str)
         except Exception as e:
             logger.query_error(
                 uuid=uuid_str,
@@ -381,7 +381,7 @@ def preview_chat(uuid_str, session_str):
                 uploaded_file = file_paths[0]
             ref_doc = user_memory.run(
                 query=input_content, url=uploaded_file, checked=True)
-            logger.info(f'load knowledge method: time consumed {time.time() - start_time}, the uplodated_file name is {uploaded_file}')
+            logger.info(f'load knowledge method: time consumed {time.time() - start_time}, the uplodated_file name is {uploaded_file}') # noqa
 
             response = ''
 
@@ -421,7 +421,7 @@ def preview_chat(uuid_str, session_str):
                 Message(role='assistant', content=response),
             ])
             user_memory.save_history()
-            logger.info(f'user_memory save_history complete.')
+            logger.info('user_memory save_history complete.')
             yield f'data: {res}\n\n'
         except Exception as e:
             stack_trace = traceback.format_exc()

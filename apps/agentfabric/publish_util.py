@@ -147,10 +147,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
         ]
 
         # 找到所有的图片文件
-        image_files = glob.glob(directory + '*.png') + \
-                      glob.glob(directory + '*.jpg') + \
-                      glob.glob(directory + '*.jpeg') + \
-                      glob.glob(directory + '*.gif')  # 根据需要可以添加更多图片格式
+        image_files = glob.glob(directory + '*.png') + glob.glob(directory + '*.jpg') + glob.glob(directory + '*.jpeg') + glob.glob(directory + '*.gif')  # noqa
 
         return json_files + image_files
 
@@ -332,9 +329,7 @@ def reload_agent_dir(temp_extract_dir, dst_dir, uuid_str):
     # 修改知识库路径 config/xxx  to /tmp/agentfabric/config/$uuid/xxx
     target_conf = os.path.join(target_config_path, 'builder_config.json')
     builder_cfg = Config.from_file(target_conf)
-    builder_cfg.knowledge = [f.split('/')[-1]
-        for f in builder_cfg.knowledge
-    ]
+    builder_cfg.knowledge = [f.split('/')[-1] for f in builder_cfg.knowledge]
     with open(target_conf, 'w') as f:
         json.dump(builder_cfg.to_dict(), f, indent=2, ensure_ascii=False)
 

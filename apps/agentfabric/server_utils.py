@@ -21,6 +21,7 @@ STATIC_FOLDER = 'statics'
 
 IMPORT_ZIP_TEMP_DIR = '/tmp/import_zip/'
 
+
 def static_file(source_path):
     file_name = os.path.basename(source_path)
     target_path = os.path.join(STATIC_FOLDER, file_name)
@@ -41,6 +42,7 @@ def unzip_with_folder(zip_filepath):
             shutil.move(os.path.join(inner_dir, file), dest_path)
         os.rmdir(inner_dir)
     return dest_path
+
 
 class ExpiringDict(OrderedDict):
     def __init__(self, max_age, cleanup_interval):
