@@ -97,8 +97,8 @@ with gr.Blocks() as demo:
                     label='Topic to be discussed',
                     placeholder='@雷军 雷总啊，你这定价太狠了，发布直接21.49万，兄弟们都不好卖车了啊',
                     value='@雷军 雷总啊，你这定价太狠了，发布直接21.49万，兄弟们都不好卖车了啊')
-                    # placeholder='@顾易 要不要来我家吃饭？',
-                    # value='@顾易 要不要来我家吃饭？')
+                # placeholder='@顾易 要不要来我家吃饭？',
+                # value='@顾易 要不要来我家吃饭？')
                 user_select = gr.Dropdown(
                     label='Role playing',
                     choices=list(origin_roles.keys()),
@@ -123,8 +123,10 @@ with gr.Blocks() as demo:
         bot_messages = {key: '' for key in _state['role_names']}
 
         new_round = False
+        use_init = True
 
         for frame_text in chat_progress(None, _state):
+            print(frame_text)
             role, content = get_frame_data(frame_text)
             if role in bot_messages:
                 bot_messages[role] += content
@@ -138,7 +140,10 @@ with gr.Blocks() as demo:
                         })
 
                 if not new_round:
-                    _chatbot[-1][1] = init_chat + output
+                    if use_init:
+                        _chatbot[-1][1] = init_chat + output
+                    else:
+                        _chatbot[-1][1] = output
                 else:
                     _chatbot.append([None, output])
                     new_round = False
@@ -148,6 +153,7 @@ with gr.Blocks() as demo:
 
             if frame_text == 'new_round':
                 new_round = True
+                use_init = False
                 bot_messages = {key: '' for key in _state['role_names']}
                 continue
 
@@ -233,8 +239,5 @@ with gr.Blocks() as demo:
             user_chatbot, preview_chat_input
         ],
         outputs=[user_chatbot, preview_chat_input, role_info, state])
-
-    # # end chat btn
-    # end_chat_btn.click(fn=end_topic, inputs=[], outputs=[chat_box, role_info])
 
 demo.launch()
