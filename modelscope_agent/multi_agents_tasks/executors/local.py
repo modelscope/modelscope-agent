@@ -170,6 +170,19 @@ class LocalTaskExecutor:
         agent.set_human_input_mode(human_input_mode)
 
     @staticmethod
+    def update_agent_memory(agent, messages: list):
+        """
+        update agent memory
+        Args:
+            agent:  the agent instance
+            messages: the message history
+
+        Returns:
+
+        """
+        agent.update_memory(messages)
+
+    @staticmethod
     def set_agent_env(agent, env_context: Environment):
         """
         set env context in agent

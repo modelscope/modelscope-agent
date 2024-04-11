@@ -101,7 +101,7 @@ class Environment:
 
         return messages_to_role
 
-    def extract_all_history_message(self, limit: int = None):
+    def extract_all_history_message(self, limit: int = 20):
         if limit and limit > 0:
             return self.message_history[-limit:]
         else:

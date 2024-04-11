@@ -4,7 +4,7 @@ from typing import Callable, List, Optional, Union
 
 from modelscope_agent.constants import DEFAULT_AGENT_ROOT, DEFAULT_SEND_TO
 from modelscope_agent.environment import Environment
-from modelscope_agent.memory import MemoryWithRetrievalKnowledge
+from modelscope_agent.memory import Memory
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 
@@ -50,15 +50,9 @@ class AgentEnvMixin:
             self.parse_env_prompt_function = parse_env_prompt_function
         assert isinstance(self.parse_env_prompt_function, Callable)
 
-        knowledge_path = os.path.join(storage_path, role, 'knowledge')
         memory_path = os.path.join(storage_path, role, 'memory')
 
-        self.memory = MemoryWithRetrievalKnowledge(
-            storage_path=knowledge_path,
-            name=role + '_memory',
-            memory_path=memory_path,
-            use_cache=False,
-        )
+        self.memory = Memory(path=memory_path, )
         if self.remote:
             from modelscope_agent.multi_agents_tasks.executors.ray import RayTaskExecutor
             self.executor_cls = RayTaskExecutor
@@ -69,6 +63,18 @@ class AgentEnvMixin:
     def set_env_context(self, env_context):
         if env_context:
             self.env_context = env_context
+
+    def update_memory(self, messages: List[Message]):
+        """
+        update memory with messages
+        Args:
+            messages: list of messages
+
+        Returns: None
+
+        """
+        if self.use_history:
+            self.memory.update_history(messages)
 
     def set_remote(self, remote):
         self.remote = remote

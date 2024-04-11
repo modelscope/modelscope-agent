@@ -166,6 +166,19 @@ class RayTaskExecutor:
         return ray.get(agent.is_user_agent.remote())
 
     @staticmethod
+    def update_agent_memory(agent, messages: list):
+        """
+        update agent memory
+        Args:
+            agent:  the agent instance
+            messages: the message history
+
+        Returns:
+
+        """
+        ray.get(agent.update_memory.remote(messages))
+
+    @staticmethod
     def set_agent_human_input_mode(agent, human_input_mode: str):
         """
 

@@ -78,6 +78,28 @@ class TaskCenter:
         )
         self.task_executor.store_message_from_role(self.env, message,
                                                    send_from)
+        if send_from != USER_REQUIREMENT:
+            # should save the message to the agent's memory if send_from specified
+            agents = self.task_executor.get_agents_by_role_names(
+                self.agent_registry, [send_from])
+            sender_agent = agents[send_from]
+            history_messages = [
+                Message(
+                    role='user',
+                    content='You are starting a task or topic with other roles',
+                    send_to=send_to,
+                    sent_from=send_from,
+                ),
+                Message(
+                    role='assistant',
+                    content=task,
+                    send_to=send_to,
+                    sent_from=send_from,
+                ),
+            ]
+            self.task_executor.update_agent_memory(sender_agent,
+                                                   history_messages)
+
         logger.info(f'Send init task, {task} to {send_to}')
 
     def reset_env(self):
