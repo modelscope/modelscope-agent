@@ -155,11 +155,21 @@ role_play2 = create_component(
 ```
 
 Those agents will then be registered to `task_center` by `add_agents` method.
+
+Notice that when turning a class into a ray actor in the initialization method `create_component()`,
+to be able to access information from a specific method within that actor in the ray cluster, we need to append `.remote()`
+to the method call, as follows:
+
+
 ```python
 
 # register agents in remote = True mode
 ray.get(task_center.add_agents.remote([role_play1, role_play2]))
 ```
+
+When `ray.get()` is used to retrieve the result of a remote method, this indicates a synchronous process.
+This is to ensure that the value from this step has completed its operation before proceeding with subsequent actions.
+
 If you want to run the multi-agent in a single process without *Ray*, you could set `remote=False` in the agent initialization.
 We have to slightly modify the `add_agents` method to support the single process mode.
 

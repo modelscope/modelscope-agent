@@ -154,17 +154,21 @@ role_play2 = create_component(
 ```
 
 这些agent随后将通过task_center的`add_agents`方法进行注册。
+值得注意的是，当在上一步的初始化方法`create_component()`把一个类变成了ray的actor后，为了能够在ray集群中获得这个actor中某个method的信息，
+我们需要在该method后面添加`.remote()`才能访问到，如下：
 
 ```python
 # register agents in remote = True mode
 ray.get(task_center.add_agents.remote([role_play1, role_play2]))
 ```
+如果使用`ray.get()`去获取一个remote的method的结果，则说明这里是一个同步的过程。为了确保在后续的操作中，这一步的值已经完成操作。
 
-如果先要不用ray，只用`remote=False`，则不需要使用`ray.get()`，我们可以把这段代码换成如下：
+如果想要不用ray，只用`remote=False`，则不需要使用`ray.get()`，我们可以把这段代码换成如下：
 ```python
 # register agents in remote = False mode
 task_center.add_agents([role_play1, role_play2]))
 ```
+
 值得注意的是，目前为主以上所有操作都是以同步方式进行的，以确保所有的actor都正确初始化。 不管remote mode状态如何
 
 ### 任务处理
