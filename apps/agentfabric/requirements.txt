@@ -1,10 +1,10 @@
 dashscope
 faiss-cpu
 gradio==4.8
-modelscope_studio
 langchain
 markdown-cjk-spacing
 mdx_truly_sane_lists
+modelscope_studio
 pymdown-extensions
 python-slugify
 unstructured

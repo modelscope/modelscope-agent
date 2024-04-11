@@ -1,24 +1,28 @@
 import os
-import re
 import random
-
-import json
+import re
+import time
 import traceback
 from functools import wraps
 
+import json
 import requests
-import time
-from builder_core import beauty_output, gen_response_and_process, CONFIG_UPDATED_STEP, LOGO_UPDATED_STEP
-from config_utils import (DEFAULT_AGENT_DIR, Config, get_user_ci_dir, get_user_dir,
-                          parse_configuration, save_builder_configuration, get_ci_dir,
-                          is_valid_plugin_configuration,save_plugin_configuration)
+import yaml
+from builder_core import (CONFIG_UPDATED_STEP, LOGO_UPDATED_STEP,
+                          beauty_output, gen_response_and_process)
+from config_utils import (DEFAULT_AGENT_DIR, Config, get_ci_dir,
+                          get_user_ci_dir, get_user_dir,
+                          is_valid_plugin_configuration, parse_configuration,
+                          save_builder_configuration,
+                          save_plugin_configuration)
 from flask import (Flask, Response, jsonify, make_response, request,
                    send_from_directory)
-from publish_util import pop_user_info_from_config, prepare_agent_zip, reload_agent_dir
-from server_utils import STATIC_FOLDER, IMPORT_ZIP_TEMP_DIR, SessionManager, unzip_with_folder
-from server_logging import request_id_var, logger
 from modelscope_agent.schemas import Message
-import yaml
+from publish_util import (pop_user_info_from_config, prepare_agent_zip,
+                          reload_agent_dir)
+from server_logging import logger, request_id_var
+from server_utils import (IMPORT_ZIP_TEMP_DIR, STATIC_FOLDER, SessionManager,
+                          unzip_with_folder)
 
 app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 
@@ -34,7 +38,7 @@ def set_request_id():
 def with_request_id(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        request_id = request_id_var.get("")
+        request_id = request_id_var.get('')
         response = func(*args, **kwargs)
         if isinstance(response, app.response_class):
             response.headers['X-Modelscope-Request-Id'] = request_id
@@ -43,7 +47,7 @@ def with_request_id(func):
             response[0].headers['X-Modelscope-Request-Id'] = request_id
             return response
         else:
-            logger.error(f"with_request_id: unexpected response type {response}")
+            logger.error(f'with_request_id: unexpected response type {response}')
             return response
     return wrapper
 
@@ -52,7 +56,7 @@ def with_request_id(func):
 @app.route('/builder/chat/<uuid_str>', methods=['POST'])
 @with_request_id
 def builder_chat(uuid_str):
-    logger.info(f"builder_chat: uuid_str_{uuid_str}")
+    logger.info(f'builder_chat: uuid_str_{uuid_str}')
     params_str = request.form.get('params')
     params = json.loads(params_str)
     input_content = params.get('content')
@@ -61,7 +65,7 @@ def builder_chat(uuid_str):
     for file in files:
         ci_dir = get_user_ci_dir()
         os.makedirs(ci_dir, exist_ok=True)
-        file_path = os.path.join(ci_dir, uuid_str + "_" + file.filename)
+        file_path = os.path.join(ci_dir, uuid_str + '_' + file.filename)
         file.save(file_path)
         file_paths.append(file_path)
 
@@ -84,7 +88,7 @@ def builder_chat(uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 step_result = frame.get('step', '')
-                logger.info("frame, {}".format(str(frame).replace("\n", "\\n")))
+                logger.info('frame, {}'.format(str(frame).replace('\n', '\\n')))
                 if len(exec_result) != 0:
                     if isinstance(exec_result, dict):
                         exec_result = exec_result['result']
@@ -120,15 +124,15 @@ def builder_chat(uuid_str):
             final_res = json.dumps({
                 'data': response,
                 'is_final': True,
-                'request_id': request_id_var.get("")
+                'request_id': request_id_var.get('')
             }, ensure_ascii=False)
             yield f'data: {final_res}\n\n'
 
             builder_memory.save_history()
         except Exception as e:
             stack_trace = traceback.format_exc()
-            stack_trace = stack_trace.replace("\n", "\\n")
-            logger.error(f"builder_chat_generate_error: {str(e)}, {stack_trace}")
+            stack_trace = stack_trace.replace('\n', '\\n')
+            logger.error(f'builder_chat_generate_error: {str(e)}, {stack_trace}')
             raise e
 
     return Response(generate(), mimetype='text/event-stream')
@@ -137,22 +141,22 @@ def builder_chat(uuid_str):
 @app.route('/builder/chat/<uuid_str>', methods=['DELETE'])
 @with_request_id
 def delete_builder_chat(uuid_str):
-    logger.info(f"delete_builder_chat: uuid_str_{uuid_str}")
+    logger.info(f'delete_builder_chat: uuid_str_{uuid_str}')
     app.session_manager.clear_builder_bot(uuid_str)
-    logger.info(f"delete_builder_chat: {uuid_str}")
+    logger.info(f'delete_builder_chat: {uuid_str}')
     return jsonify({
         'success': True,
-        'request_id': request_id_var.get("")
+        'request_id': request_id_var.get('')
     })
 
 
 @app.route('/builder/chat/<uuid_str>', methods=['GET'])
 @with_request_id
 def get_builder_chat_history(uuid_str):
-    logger.info(f"get_builder_chat_history: uuid_str_{uuid_str}")
+    logger.info(f'get_builder_chat_history: uuid_str_{uuid_str}')
     _, builder_memory = app.session_manager.get_builder_bot(uuid_str)
     history = builder_memory.get_history()
-    logger.info(f"history: {json.dumps(history)}")
+    logger.info(f'history: {json.dumps(history)}')
 
     for item in history:
         if item['role'] == 'system' or item['role'] == 'user':
@@ -167,7 +171,7 @@ def get_builder_chat_history(uuid_str):
     return jsonify({
         'history': history,
         'success': True,
-        'request_id': request_id_var.get("")
+        'request_id': request_id_var.get('')
     })
 
 
@@ -175,7 +179,7 @@ def get_builder_chat_history(uuid_str):
 @app.route('/builder/import/<uuid_str>', methods=['POST'])
 @with_request_id
 def import_builder(uuid_str):
-    logger.info(f"import_builder: uuid_str_{uuid_str}")
+    logger.info(f'import_builder: uuid_str_{uuid_str}')
 
     # 检查是否有文件被上传
     if 'file' in request.files:
@@ -193,7 +197,7 @@ def import_builder(uuid_str):
         archive_dir = unzip_with_folder(file_path)
         # return jsonify({'message': 'File uploaded successfully', 'path': file_path}), 201
     else:
-        url = request.get_json().get("url")
+        url = request.get_json().get('url')
         # 发起请求获取数据
         response = requests.get(url)
 
@@ -203,12 +207,12 @@ def import_builder(uuid_str):
         with open(file_path, 'wb') as f:
             f.write(response.content)
         archive_dir = unzip_with_folder(file_path)
-    logger.info(f"archive_dir: {archive_dir}")
+    logger.info(f'archive_dir: {archive_dir}')
     reload_agent_dir(archive_dir, DEFAULT_AGENT_DIR, uuid_str)
 
     return jsonify({
         'success': True,
-        'request_id': request_id_var.get("")
+        'request_id': request_id_var.get('')
     })
 
 
@@ -216,7 +220,7 @@ def import_builder(uuid_str):
 @app.route('/builder/config/<uuid_str>')
 @with_request_id
 def get_builder_config(uuid_str):
-    logger.info(f"get_builder_config: uuid_str_{uuid_str}")
+    logger.info(f'get_builder_config: uuid_str_{uuid_str}')
 
     builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
         uuid_str)
@@ -226,11 +230,11 @@ def get_builder_config(uuid_str):
         'tool_config': tool_cfg.to_dict(),
         'available_tool_list': available_tool_list,
     }
-    logger.info(f"preview_config: {json.dumps(data, ensure_ascii=False)}")
+    logger.info(f'preview_config: {json.dumps(data, ensure_ascii=False)}')
     return jsonify({
         'success': True,
         'data': data,
-        'request_id': request_id_var.get("")
+        'request_id': request_id_var.get('')
     })
 
 
@@ -238,12 +242,12 @@ def get_builder_config(uuid_str):
 @app.route('/builder/config_files/<uuid_str>/<file_name>', methods=['GET'])
 @with_request_id
 def get_builder_file(uuid_str, file_name):
-    logger.info(f"get_builder_file: uuid_str_{uuid_str} file_name: {file_name}")
+    logger.info(f'get_builder_file: uuid_str_{uuid_str} file_name: {file_name}')
     as_attachment = request.args.get('as_attachment') == 'true'
     directory = get_user_dir(uuid_str)
     try:
         if '../' in file_name:
-            raise Exception("Access not allowed.")
+            raise Exception('Access not allowed.')
         if os.path.exists(os.path.join(directory, file_name)):
             response = make_response(
                 send_from_directory(
@@ -251,14 +255,14 @@ def get_builder_file(uuid_str, file_name):
         else:
             response = make_response(
                 send_from_directory(
-                    "./config", file_name, as_attachment=as_attachment))
+                    './config', file_name, as_attachment=as_attachment))
         return response
     except Exception as e:
         return jsonify({
             'success': False,
             'status': 404,
             'message': str(e),
-            'request_id': request_id_var.get("")
+            'request_id': request_id_var.get('')
         }), 404
 
 
@@ -266,14 +270,14 @@ def get_builder_file(uuid_str, file_name):
 @app.route('/builder/update/<uuid_str>', methods=['POST'])
 @with_request_id
 def save_builder_config(uuid_str):
-    logger.info(f"save_builder_config: uuid_str_{uuid_str}")
+    logger.info(f'save_builder_config: uuid_str_{uuid_str}')
 
     builder_config_str = request.form.get('builder_config')
     builder_config = json.loads(builder_config_str)
-    if "knowledge" in builder_config:
-        builder_config["knowledge"] = [
+    if 'knowledge' in builder_config:
+        builder_config['knowledge'] = [
             os.path.join(get_user_dir(uuid_str), os.path.basename(k))
-            for k in builder_config["knowledge"]
+            for k in builder_config['knowledge']
         ]
     files = request.files.getlist('files')
     upload_dir = get_user_dir(uuid_str)
@@ -281,25 +285,25 @@ def save_builder_config(uuid_str):
         os.makedirs(upload_dir)
     for file in files:
         file.save(os.path.join(upload_dir, file.filename))
-    if len(builder_config["openAPIConfigs"]) > 0:
-        openapi_config = builder_config["openAPIConfigs"][0]
-        openapi_schema = openapi_config.get("schema", "")
+    if len(builder_config['openAPIConfigs']) > 0:
+        openapi_config = builder_config['openAPIConfigs'][0]
+        openapi_schema = openapi_config.get('schema', '')
         try:
             try:
                 schema_dict = json.loads(openapi_schema)
             except json.decoder.JSONDecodeError:
                 schema_dict = yaml.safe_load(openapi_schema)
             except Exception as e:
-                logger.error(f"OpenAPI schema format error, should be one of json and yaml: {e}")
+                logger.error(f'OpenAPI schema format error, should be one of json and yaml: {e}')
 
             openapi_plugin_cfg = {
                 'schema': schema_dict,
                 'auth': {
-                    'type': openapi_config.get("authenticationType"),
-                    'apikey': openapi_config.get("apiKey"),
-                    'apikey_type': openapi_config.get("apiKeyType")
+                    'type': openapi_config.get('authenticationType'),
+                    'apikey': openapi_config.get('apiKey'),
+                    'apikey_type': openapi_config.get('apiKeyType')
                 },
-                'privacy_policy': ""
+                'privacy_policy': ''
             }
             if is_valid_plugin_configuration(openapi_plugin_cfg):
                 save_plugin_configuration(openapi_plugin_cfg=openapi_plugin_cfg,
@@ -314,7 +318,7 @@ def save_builder_config(uuid_str):
 
     return jsonify({
         'success': True,
-        'request_id': request_id_var.get("")
+        'request_id': request_id_var.get('')
     })
 
 
@@ -322,9 +326,9 @@ def save_builder_config(uuid_str):
 @app.route('/builder/publish/zip/<uuid_str>', methods=['GET'])
 @with_request_id
 def preview_publish_get_zip(uuid_str):
-    logger.info(f"preview_publish_get_zip: uuid_str_{uuid_str}")
+    logger.info(f'preview_publish_get_zip: uuid_str_{uuid_str}')
 
-    name = f"publish_{uuid_str}"
+    name = f'publish_{uuid_str}'
     env_params = {}
     env_params.update(
         pop_user_info_from_config(DEFAULT_AGENT_DIR, uuid_str))
@@ -334,7 +338,7 @@ def preview_publish_get_zip(uuid_str):
     return jsonify({'success': True,
                     'output_url': output_url,
                     'envs_required': envs_required,
-                    'request_id': request_id_var.get(""),
+                    'request_id': request_id_var.get(''),
                     })
 
 
@@ -342,7 +346,7 @@ def preview_publish_get_zip(uuid_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['POST'])
 @with_request_id
 def preview_chat(uuid_str, session_str):
-    logger.info(f"preview_chat: uuid_str_{uuid_str}_session_str_{session_str}")
+    logger.info(f'preview_chat: uuid_str_{uuid_str}_session_str_{session_str}')
 
     params_str = request.form.get('params')
     params = json.loads(params_str)
@@ -352,10 +356,10 @@ def preview_chat(uuid_str, session_str):
     for file in files:
         ci_dir = get_user_ci_dir()
         os.makedirs(ci_dir, exist_ok=True)
-        file_path = os.path.join(ci_dir, uuid_str + "_" + file.filename)
+        file_path = os.path.join(ci_dir, uuid_str + '_' + file.filename)
         file.save(file_path)
         file_paths.append(file_path)
-    logger.info(f"/preview/chat/{uuid_str}/{session_str}: files: {file_paths}")
+    logger.info(f'/preview/chat/{uuid_str}/{session_str}: files: {file_paths}')
 
     def generate():
         try:
@@ -383,9 +387,9 @@ def preview_chat(uuid_str, session_str):
 
             logger.info(f'input_content: {input_content}')
             res = json.dumps({
-                'data': "",
+                'data': '',
                 'is_final': False,
-                'request_id': request_id_var.get("")
+                'request_id': request_id_var.get('')
             }, ensure_ascii=False)
             for frame in user_agent.run(
                     input_content,
@@ -393,13 +397,13 @@ def preview_chat(uuid_str, session_str):
                     ref_doc=ref_doc,
                     append_files=file_paths,
                     uuid_str=uuid_str):
-                logger.info("frame, {}".format(str(frame).replace("\n", "\\n")))
+                logger.info('frame, {}'.format(str(frame).replace('\n', '\\n')))
                 # important! do not change this
                 response += frame
                 res = json.dumps({
                     'data': response,
                     'is_final': False,
-                    'request_id': request_id_var.get("")
+                    'request_id': request_id_var.get('')
                 }, ensure_ascii=False)
                 yield f'data: {res}\n\n'
 
@@ -409,20 +413,20 @@ def preview_chat(uuid_str, session_str):
             res = json.dumps({
                 'data': response,
                 'is_final': True,
-                'request_id': request_id_var.get("")
+                'request_id': request_id_var.get('')
             }, ensure_ascii=False)
-            logger.info(f"response: {res}")
+            logger.info(f'response: {res}')
             user_memory.update_history([
                 Message(role='user', content=input_content),
                 Message(role='assistant', content=response),
             ])
             user_memory.save_history()
-            logger.info(f"user_memory save_history complete.")
+            logger.info(f'user_memory save_history complete.')
             yield f'data: {res}\n\n'
         except Exception as e:
             stack_trace = traceback.format_exc()
-            stack_trace = stack_trace.replace("\n", "\\n")
-            logger.error(f"preview_chat_generate_error: {str(e)}, {stack_trace}")
+            stack_trace = stack_trace.replace('\n', '\\n')
+            logger.error(f'preview_chat_generate_error: {str(e)}, {stack_trace}')
             raise e
 
     return Response(generate(), mimetype='text/event-stream')
@@ -432,36 +436,36 @@ def preview_chat(uuid_str, session_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['DELETE'])
 @with_request_id
 def delete_preview_chat(uuid_str, session_str):
-    logger.info(f"delete_preview_chat: uuid_str_{uuid_str}_session_str_{session_str}")
+    logger.info(f'delete_preview_chat: uuid_str_{uuid_str}_session_str_{session_str}')
 
     app.session_manager.clear_user_bot(uuid_str, session_str)
-    return jsonify({'success': True, 'request_id': request_id_var.get("")})
+    return jsonify({'success': True, 'request_id': request_id_var.get('')})
 
 
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['GET'])
 @with_request_id
 def get_preview_chat_history(uuid_str, session_str):
-    logger.info(f"get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}")
+    logger.info(f'get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}')
 
     _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
     return jsonify({
         'history': user_memory.get_history(),
         'success': True,
-        'request_id': request_id_var.get("")
+        'request_id': request_id_var.get('')
     })
 
 
 @app.route('/preview/chat_file/<uuid_str>/<session_str>', methods=['GET'])
 @with_request_id
 def get_preview_chat_file(uuid_str, session_str):
-    logger.info(f"get_preview_chat_file: uuid_str_{uuid_str}_session_str_{session_str}")
+    logger.info(f'get_preview_chat_file: uuid_str_{uuid_str}_session_str_{session_str}')
 
     file_path = request.args.get('file_path')
     logger.info(f'uuid_str: {uuid_str} session_str: {session_str}')
     as_attachment = request.args.get('as_attachment') == 'true'
     try:
-        if not file_path.startswith(get_ci_dir()) or "../" in file_path:
-            raise Exception("Access not allowed.")
+        if not file_path.startswith(get_ci_dir()) or '../' in file_path:
+            raise Exception('Access not allowed.')
         response = make_response(
             send_from_directory(
                 os.path.dirname(file_path),
@@ -473,7 +477,7 @@ def get_preview_chat_file(uuid_str, session_str):
             'success': False,
             'status': 404,
             'message': str(e),
-            'request_id': request_id_var.get("")
+            'request_id': request_id_var.get('')
         }), 404
 
 
@@ -481,17 +485,17 @@ def get_preview_chat_file(uuid_str, session_str):
 @with_request_id
 def handle_error(error):
     stack_trace = traceback.format_exc()
-    stack_trace = stack_trace.replace("\n", "\\n")
-    logger.error(f"{str(error)}, {stack_trace}")
+    stack_trace = stack_trace.replace('\n', '\\n')
+    logger.error(f'{str(error)}, {stack_trace}')
     # 处理错误并返回统一格式的错误信息
     error_message = {'success': False,
                      'message': str(error),
                      'status': 500,
-                     'request_id': request_id_var.get("")
+                     'request_id': request_id_var.get('')
                      }
     return jsonify(error_message), 500
 
 
 if __name__ == '__main__':
-    port = int(os.getenv("PORT", "5001"))
+    port = int(os.getenv('PORT', '5001'))
     app.run(host='0.0.0.0', port=port, debug=False)

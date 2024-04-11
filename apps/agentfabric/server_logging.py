@@ -2,14 +2,15 @@ import logging
 import os
 from contextvars import ContextVar
 
-request_id_var = ContextVar("request_id", default="")
+request_id_var = ContextVar('request_id', default='')
 
 
 # 创建一个日志过滤器，用于加入request_id到日志记录中
 class RequestIDLogFilter(logging.Filter):
+
     def filter(self, record):
-        record.request_id = request_id_var.get("")
-        record.ip_addr = os.getenv("ALIYUN_ECI_ETH0_IP", "")
+        record.request_id = request_id_var.get('')
+        record.ip_addr = os.getenv('ALIYUN_ECI_ETH0_IP', '')
         return True
 
 

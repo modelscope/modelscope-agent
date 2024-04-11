@@ -181,12 +181,12 @@ def parse_configuration(uuid_str=''):
                 error=str(e),
                 content={
                     'error_traceback':
-                        traceback.format_exc(),
+                    traceback.format_exc(),
                     'error_details':
-                        'The format of the plugin config file is incorrect.'
+                    'The format of the plugin config file is incorrect.'
                 })
     elif not os.path.exists(openapi_plugin_file):
-        if  os.path.exists(openapi_plugin_cfg_file_temp):
+        if os.path.exists(openapi_plugin_cfg_file_temp):
             os.makedirs(os.path.dirname(openapi_plugin_file), exist_ok=True)
             if openapi_plugin_cfg_file_temp != openapi_plugin_file:
                 shutil.copy(openapi_plugin_cfg_file_temp, openapi_plugin_file)

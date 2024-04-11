@@ -16,14 +16,12 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_avatar_image,
                           save_plugin_configuration)
 from gradio_utils import format_cover_html, format_goto_publish_html
 from i18n import I18n
-
+from modelscope_agent.schemas import Message
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_zip)
 from user_core import init_user_chatbot_agent
-
-from modelscope_agent.schemas import Message
-from modelscope_agent.utils.logger import agent_logger as logger
 
 
 def init_user(uuid_str, state):

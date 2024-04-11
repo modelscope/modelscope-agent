@@ -1,17 +1,21 @@
-import os
+import ctypes
 import gc
+import os
 import platform
 import shutil
-import time
 import threading
+import time
 import zipfile
-import ctypes
 from collections import OrderedDict
+from typing import Tuple
 
-from config_utils import get_user_builder_history_dir, get_user_preview_history_dir
-from builder_core import init_builder_chatbot_agent, AgentBuilder, MemoryWithRetrievalKnowledge
-from user_core import init_user_chatbot_agent, RolePlay, MemoryWithRetrievalKnowledge
+from builder_core import AgentBuilder, init_builder_chatbot_agent
+from config_utils import (get_user_builder_history_dir,
+                          get_user_preview_history_dir)
+from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from server_logging import logger
+from user_core import init_user_chatbot_agent
 
 STATIC_FOLDER = 'statics'
 
@@ -25,7 +29,7 @@ def static_file(source_path):
 
 
 def unzip_with_folder(zip_filepath):
-    dest_path = os.path.join(os.path.dirname(zip_filepath), "archive")
+    dest_path = os.path.join(os.path.dirname(zip_filepath), 'archive')
     shutil.rmtree(dest_path, ignore_errors=True)
     with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
         zip_ref.extractall(dest_path)
@@ -66,10 +70,10 @@ class ExpiringDict(OrderedDict):
                 del self[key]
                 del self.last_access[key]
                 gc.collect()
-                if platform.uname()[0] != "Darwin":
-                    libc = ctypes.cdll.LoadLibrary("libc.{}".format("so.6"))
+                if platform.uname()[0] != 'Darwin':
+                    libc = ctypes.cdll.LoadLibrary('libc.{}'.format('so.6'))
                     libc.malloc_trim(0)
-                logger.info(f"Done deleting the key {key}")
+                logger.info(f'Done deleting the key {key}')
 
     def _start_cleanup_thread(self):
         self.cleanup_thread = threading.Timer(self.cleanup_interval, self._cleanup)
@@ -85,8 +89,8 @@ class ExpiringDict(OrderedDict):
             for key in keys_to_delete:
                 del self[key]
                 del self.last_access[key]
-            logger.info(f"expiring_dict_clean_up: keys_and_age {keys_and_age}, keys_to_delete {keys_to_delete}, "
-                        f"remaining keys {self.keys()}")
+            logger.info(f'expiring_dict_clean_up: keys_and_age {keys_and_age}, keys_to_delete {keys_to_delete}, '
+                        f'remaining keys {self.keys()}')
 
         # 重新启动定时器
         self._start_cleanup_thread()
@@ -102,10 +106,10 @@ class SessionManager:
         self.builder_bots = ExpiringDict(max_age=3600, cleanup_interval=60)
         self.user_bots = ExpiringDict(max_age=3600, cleanup_interval=60)
 
-    def get_builder_bot(self, builder_id, renew=False) -> (AgentBuilder, MemoryWithRetrievalKnowledge):
+    def get_builder_bot(self, builder_id, renew=False) -> Tuple[AgentBuilder, MemoryWithRetrievalKnowledge]:
         builder_agent = self.builder_bots[builder_id]
         if renew or builder_agent is None:
-            logger.info(f"init_builder_chatbot_agent: {builder_id} ")
+            logger.info(f'init_builder_chatbot_agent: {builder_id} ')
             builder_agent = init_builder_chatbot_agent(builder_id)
             self.builder_bots[builder_id] = builder_agent
         return builder_agent
@@ -116,17 +120,17 @@ class SessionManager:
             self.builder_bots.delete_key(builder_id)
         shutil.rmtree(get_user_builder_history_dir(builder_id), ignore_errors=True)
 
-    def get_user_bot(self, builder_id, session, renew=False) -> (RolePlay, MemoryWithRetrievalKnowledge):
-        unique_id = builder_id + "_" + session
+    def get_user_bot(self, builder_id, session, renew=False) -> Tuple[RolePlay, MemoryWithRetrievalKnowledge]:
+        unique_id = builder_id + '_' + session
         user_agent = self.user_bots[unique_id]
         if renew or user_agent is None:
-            logger.info(f"init_user_chatbot_agent: {builder_id} {session}")
+            logger.info(f'init_user_chatbot_agent: {builder_id} {session}')
             user_agent = init_user_chatbot_agent(builder_id, session)
             self.user_bots[unique_id] = user_agent
         return user_agent
 
     def clear_user_bot(self, builder_id, session):
-        unique_id = builder_id + "_" + session
+        unique_id = builder_id + '_' + session
         user_agent = self.user_bots[unique_id]
         if user_agent is not None:
             self.user_bots.delete_key(unique_id)

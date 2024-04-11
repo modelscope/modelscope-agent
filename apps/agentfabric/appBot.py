@@ -12,7 +12,7 @@ from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
 from user_core import init_user_chatbot_agent
 
-dir_need_to_rm = "/tmp/agentfabric/config/local_user/"
+dir_need_to_rm = '/tmp/agentfabric/config/local_user/'
 if os.path.exists(dir_need_to_rm):
     shutil.rmtree(dir_need_to_rm, ignore_errors=True)
 

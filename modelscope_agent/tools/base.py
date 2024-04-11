@@ -157,7 +157,7 @@ class BaseTool(ABC):
         """
         try:
             params_json = json5.loads(params)
-        except Exception as e:
+        except Exception:
             params = params.replace('\r', '\\r').replace('\n', '\\n')
             params_json = json5.loads(params)
 

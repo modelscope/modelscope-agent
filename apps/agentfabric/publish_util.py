@@ -5,11 +5,11 @@ import shutil
 import zipfile
 from configparser import ConfigParser
 from urllib.parse import unquote, urlparse
-from server_logging import logger
 
 import json
 import oss2
 import requests
+from server_logging import logger
 from version import __ms_version__ as MS_VERSION
 
 from modelscope.utils.config import Config
@@ -176,11 +176,11 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 复制.py文件到新目录
     for file in os.listdir(local_file):
-        if file.endswith('.py') and file != "app.py":
+        if file.endswith('.py') and file != 'app.py':
             shutil.copy(f'{local_file}/{file}', new_directory)
 
     # add app.py
-    shutil.copy(f'{local_file}/appBot.py', os.path.join(new_directory, "app.py"))
+    shutil.copy(f'{local_file}/appBot.py', os.path.join(new_directory, 'app.py'))
 
     # 打包新目录
     archive_path = shutil.make_archive(new_directory, 'zip', new_directory)
@@ -193,7 +193,7 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
 
     # 获取必须设置的envs
     envs_required = {}
-    logger.info(f"builder_cfg is {builder_cfg}")
+    logger.info(f'builder_cfg is {builder_cfg}')
     for t, t_cfg in builder_cfg.tools.items():
         if t == 'amap_weather' and t_cfg['is_active'] and t_cfg['use']:
             envs_required['AMAP_TOKEN'] = 'Your-AMAP-TOKEN'

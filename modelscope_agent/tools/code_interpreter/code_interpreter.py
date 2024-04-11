@@ -136,7 +136,7 @@ class CodeInterpreter(BaseTool):
             if try_times >= max_retry:
                 raise (f'kernel process PID {kernel_process.pid} s config json {connection_file}'
                        f'has been deleted by other process. please try again.')
-                
+
         # Client
         kc = BlockingKernelClient(connection_file=connection_file)
         asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
