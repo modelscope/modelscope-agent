@@ -245,7 +245,7 @@ class AgentEnvMixin:
         """
         if not self.is_watcher:
             received_messages = self.executor_cls.extract_message_by_role_from_env(
-               self.env_context, self._role)
+                self.env_context, self._role)
             # received_messages = self.executor_cls.extract_all_message_from_env(
             #     self.env_context)
             if received_messages and len(received_messages) > 0:
