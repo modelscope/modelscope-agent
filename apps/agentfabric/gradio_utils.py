@@ -7,7 +7,6 @@ from typing import Dict, Tuple
 from urllib import parse
 
 import json
-import html
 
 ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
 
