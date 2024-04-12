@@ -4,18 +4,22 @@ import shutil
 import traceback
 
 import gradio as gr
-import modelscope_gradio_components as mgr
+import modelscope_studio as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
-from modelscope_gradio_components.components.Chatbot.llm_thinking_presets import \
-    qwen
+from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
 from user_core import init_user_chatbot_agent
+
+dir_need_to_rm = '/tmp/agentfabric/config/local_user/'
+if os.path.exists(dir_need_to_rm):
+    shutil.rmtree(dir_need_to_rm, ignore_errors=True)
 
 uuid_str = 'local_user'
 builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
     uuid_str)
+prologue = builder_cfg.get('prologue', '尝试问我一点什么吧～')
 suggests = builder_cfg.get('prompt_recommend', [])
 avatar_pairs = get_avatar_image(builder_cfg.get('avatar', ''), uuid_str)
 
@@ -54,7 +58,7 @@ def init_user(state):
 demo = gr.Blocks(css='assets/appBot.css', theme=customTheme)
 with demo:
     gr.Markdown(
-        '# <center> \N{fire} AgentFabric powered by Modelscope-agent ([github star](https://github.com/modelscope/modelscope-agent/tree/main))</center>'  # noqa E501
+        '# <center class="agent_title"> \N{fire} AgentFabric powered by Modelscope-agent [github star](https://github.com/modelscope/modelscope-agent/tree/main)</center>'  # noqa E501
     )
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed})
@@ -63,12 +67,11 @@ with demo:
             with gr.Column():
                 # Preview
                 user_chatbot = mgr.Chatbot(
-                    value=[[None, '尝试问我一点什么吧～']],
+                    value=[[None, prologue]],
                     elem_id='user_chatbot',
                     elem_classes=['markdown-body'],
                     avatar_images=avatar_pairs,
                     height=600,
-                    latex_delimiters=[],
                     show_label=False,
                     show_copy_button=True,
                     llm_thinking_presets=[

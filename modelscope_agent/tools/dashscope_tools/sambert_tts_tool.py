@@ -2,7 +2,6 @@ import os
 
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
-from pydantic import ValidationError
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
@@ -43,6 +42,6 @@ class SambertTtsTool(BaseTool):
                 f.write(response.get_audio_data())
         else:
             raise ValueError(
-                f'call sambert tts failed, request id: {response.get_response().request_id}'
+                f'call sambert tts failed, request id: {response.get_response()}'
             )
         return str(AudioWrapper(wav_file))
