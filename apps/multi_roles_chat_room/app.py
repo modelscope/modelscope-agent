@@ -155,15 +155,37 @@ with demo:
 
     def choose_story(chosen_id):
         return {
-            entry: gr.update(visible=False),
-            content: gr.update(visible=True),
-            story_state: chosen_id,
+            entry:
+            gr.update(visible=False),
+            content:
+            gr.update(visible=True),
+            story_state:
+            chosen_id,
+            all_roles:
+            gr.update(
+                value=render_json_as_markdown(
+                    get_story_by_id(chosen_id)['roles'])),
+            start_topic_from:
+            gr.update(
+                choices=list(get_story_by_id(chosen_id)['roles'].keys()),
+                value=list(get_story_by_id(chosen_id)['roles'].keys())[1]),
+            start_topic_input:
+            gr.update(
+                placeholder=get_story_by_id(chosen_id)['default_topic'],
+                value=get_story_by_id(chosen_id)['default_topic']),
+            user_select:
+            gr.update(
+                choices=list(get_story_by_id(chosen_id)['roles'].keys()),
+                value=list(get_story_by_id(chosen_id)['roles'].keys())[0]),
         }
 
     entry_btn.click(
         fn=choose_story,
         inputs=[entry_btn],
-        outputs=[entry, content, story_state],
+        outputs=[
+            entry, content, story_state, all_roles, start_topic_from,
+            start_topic_input, user_select
+        ],
         js='get_story_id')
 
     def back():
