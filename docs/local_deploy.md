@@ -26,7 +26,7 @@ docker save > modelscope-agent.tar registry.cn-hangzhou.aliyuncs.com/modelscope-
 启动容器：
 
 ```shell
-docker run -ti -v /data/work:/data/work registry.cn-hangzhou.aliyuncs.com/modelscope/modelscope-agent:v0.3.0 bash
+docker run -ti -v /data/work:/data/work registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0 bash
 ```
 
 > 其中 `-v /data/work:/data/work` 把本地 `/data/work` 目录挂载到容器中的相同路径。执行命令此命令后已进入容器，后续操作都将在容器中进行。
@@ -88,7 +88,7 @@ ModelScope 提供模型 [本地启动服务](https://modelscope.cn/docs/%E6%9C%A
 
 ```shell
 # 创建并进入容器
-nvidia-docker run -ti --net host -v /data/work:/data/work registry.cn-hangzhou.aliyuncs.com/modelscope/modelscope-agent:v0.3.0 bash
+nvidia-docker run -ti --net host -v /data/work:/data/work registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0 bash
 ```
 
 从容器中进入到工作目录：
@@ -174,6 +174,8 @@ index c6f9fdc..29f518a 100644
 ```shell
 GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 ```
+
+> 启动时如遇 `ModuleNotFoundError: No module named 'modelscope_studio'` 报错，请将 `modelscope-agent` 仓库回滚至 `8deef6d4`（`git checkout 8deef6d4`），因为后面的 `68c7dd7f` 提交修改了依赖，导致镜像中缺少新增的依赖。
 
 > 如需更改默认配置文件路径，可修改 `modelscope-agent/apps/agentfabric/config_utils.py` 中的 `DEFAULT_AGENT_DIR` 和通过环境变量指定 `CODE_INTERPRETER_WORK_DIR`，如：
 > ```shell
