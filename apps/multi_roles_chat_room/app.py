@@ -198,7 +198,7 @@ with demo:
 
     def start_chat(username, from_user, topic, _state, _chatbot, _input,
                    _story_state, select_model):
-        roles = get_story_by_id(story_state.value)['roles']
+        roles = get_story_by_id(_story_state)['roles']
         _state = init_all_remote_actors(roles, username, _state, _story_state,
                                         select_model)
         _state = start_chat_with_topic(from_user, topic, _state)
