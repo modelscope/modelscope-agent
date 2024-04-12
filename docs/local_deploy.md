@@ -47,7 +47,7 @@ python -c "from modelscope import snapshot_download; snapshot_download('qwen/Qwe
 
 ### 3. 下载 Embedding 模型
 
-在容器工作目录中下载 ModelScope-Agent 使用的 Embedding 模型 
+在容器工作目录中下载 ModelScope-Agent 使用的 Embedding 模型
 [damo/nlp_gte_sentence-embedding_chinese-base](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/storage/vector_storage.py#L31)，
 
 也可换成其他模型:
