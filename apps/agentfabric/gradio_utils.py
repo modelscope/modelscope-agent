@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 from urllib import parse
 
 import json
+import html
 
 ALREADY_CONVERTED_MARK = '<!-- ALREADY CONVERTED BY PARSER. -->'
 
@@ -78,8 +79,8 @@ def format_cover_html(configuration, bot_avatar_path):
     <div class="bot_avatar">
         <img src="{image_src}" />
     </div>
-    <div class="bot_name">{configuration.get("name", "")}</div>
-    <div class="bot_desp">{configuration.get("description", "")}</div>
+    <div class="bot_name">{html.escape(configuration.get("name", ""))}</div>
+    <div class="bot_desp">{html.escape(configuration.get("description", ""))}</div>
 </div>
 """
 
