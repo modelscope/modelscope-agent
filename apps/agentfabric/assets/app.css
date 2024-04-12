@@ -128,10 +128,6 @@
   filter: grayscale(30%);
 }
 
-.markdown-body .message {
-  white-space: pre-wrap;
-}
-
 .markdown-body details {
   white-space: nowrap;
 }
