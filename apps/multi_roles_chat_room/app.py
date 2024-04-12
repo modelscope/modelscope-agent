@@ -3,9 +3,9 @@ import re
 import gradio as gr
 import json
 import modelscope_studio as mgr
-from role_core import chat_progress, get_avatar_by_name, init_all_remote_actors
-from role_core import roles as origin_roles
-from role_core import start_chat_with_topic
+from role_core import (chat_progress, init_all_remote_actors,
+                       start_chat_with_topic)
+from story_holder import get_avatar_by_name, get_story_by_id, stories
 
 chat_history = []
 
@@ -48,31 +48,10 @@ def upsert_user(new_user, user_char, _state):
         ), f'User {new_user} updated', render_json_as_markdown(roles)
 
 
-# start topic
-
-
 # end topic
 def end_topic():
     chat_history.clear()
     return '', 'topic ended。'
-
-
-storys = [
-    {
-        'id': '1',
-        'cover':
-        '//img.alicdn.com/imgextra/i1/O1CN01UHwXNQ2780lrVHY6n_!!6000000007751-0-tps-1024-512.jpg',
-        'title': '我被美女包围了',
-        'description': '用户是男主角顾易，与多位长相、性格都大相径庭的美女相识'
-    },
-    {
-        'id': '2',
-        'cover':
-        '//img.alicdn.com/imgextra/i1/O1CN01UHwXNQ2780lrVHY6n_!!6000000007751-0-tps-1024-512.jpg',
-        'title': '我是雷军，雷中有“电”，军下有“车”',
-        'description': '用户是男主角雷军，小米创始人，最近发布了小米SU7'
-    },
-]
 
 
 def format_entry_html():
@@ -80,7 +59,7 @@ def format_entry_html():
     <div class="container story-cardlist">
       <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-2 g-4">
     '''
-    for card in storys:
+    for card in stories:
         card_html = f'''
         <div class="col-md-4 gy-4" onclick="window.js_choose_story({card['id']})">
           <div class="card h-100">
@@ -105,11 +84,11 @@ demo = gr.Blocks(
     css='assets/app.css',
     js='assets/app.js',
     head='''
-    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous"/>
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous"/>  # noqa E501
     ''')
 with demo:
-    state = gr.State({'roles': origin_roles})
-    story_state = gr.State()
+    state = gr.State({})
+    story_state = gr.State()  # default value
     with gr.Column(visible=True) as entry:
         gr.Markdown('##  选择一个场景进入聊天吧～')
         entry_btn = gr.Button(
@@ -144,32 +123,36 @@ with demo:
                     placeholder='input role characters ...')
                 new_user_btn = gr.Button('Add/Update role infos')
                 role_info = gr.Textbox(label='Result', interactive=False)
-                all_roles = mgr.Markdown(render_json_as_markdown(origin_roles))
+                all_roles = mgr.Markdown(
+                    render_json_as_markdown(
+                        get_story_by_id(story_state.value)['roles']))
 
             with gr.Group('Chat Room'):
                 start_topic_from = gr.Dropdown(
                     label='The role who start the topic',
-                    choices=list(origin_roles.keys()),
-                    value=list(origin_roles.keys())[1])
+                    choices=list(
+                        get_story_by_id(story_state.value)['roles'].keys()),
+                    value=list(
+                        get_story_by_id(story_state.value)['roles'].keys())[1])
                 start_topic_input = gr.Textbox(
                     label='Topic to be discussed',
-                    placeholder='@雷军 雷总啊，你这定价太狠了，发布直接21.49万，兄弟们都不好卖车了啊',
-                    value='@雷军 雷总啊，你这定价太狠了，发布直接21.49万，兄弟们都不好卖车了啊')
-                # placeholder='@顾易 要不要来我家吃饭？',
-                # value='@顾易 要不要来我家吃饭？')
+                    placeholder=get_story_by_id(
+                        story_state.value)['default_topic'],
+                    value=get_story_by_id(story_state.value)['default_topic'])
                 user_select = gr.Dropdown(
                     label='Role playing',
-                    choices=list(origin_roles.keys()),
-                    value=list(origin_roles.keys())[0])
+                    choices=list(
+                        get_story_by_id(story_state.value)['roles'].keys()),
+                    value=list(
+                        get_story_by_id(story_state.value)['roles'].keys())[0])
                 start_chat_btn = gr.Button('Start new chat')
                 # end_chat_btn = gr.Button("End chat")
 
-    def choose_story(choosed_id):
-        print('choosed_id:', choosed_id)
+    def choose_story(chosen_id):
         return {
             entry: gr.update(visible=False),
             content: gr.update(visible=True),
-            story_state: choosed_id,
+            story_state: chosen_id,
         }
 
     entry_btn.click(
@@ -186,10 +169,11 @@ with demo:
 
     back_btn.click(fn=back, inputs=[], outputs=[entry, content])
 
-    def start_chat(username, from_user, topic, _state, _chatbot, _input):
+    def start_chat(username, from_user, topic, _state, _chatbot, _input,
+                   _story_state):
         roles = _state['roles']
-        _state = init_all_remote_actors(roles, username, _state)
-        _state = start_chat_with_topic(from_user, topic, _state)
+        _state = init_all_remote_actors(roles, username, _state, _story_state)
+        _state = start_chat_with_topic(from_user, topic, _state, _story_state)
 
         init_chat = [{
             'avatar': get_avatar_by_name(from_user),
