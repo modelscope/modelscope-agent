@@ -20,17 +20,12 @@ ROLE_INSTRUCTION_PROMPT = """<|im_start|>system
 【对话情节设定】
 {story}
 
-【所有对话角色设定】
-{all_roles_info}
+【注意事项】
+1. 根据user的历史对话回复时，不要重复说历史对话里的句子，要保持生成内容的有趣，丰富度，多样性
+2. 长话短说，不要说太多话，不要超过50字
 
 【你的角色设定】
 {role_description}
-
-【注意事项】
-1. 这是聊天室，不要发送私信给任何人
-2. 仅代表你个人说话,不要扮演其他人，只根据对话历史进行回复
-3. 长话短说，不要说太多话，不要超过50字
-
 <|im_end|>
 """
 
@@ -49,14 +44,18 @@ chat_records
 【最新对话】
 recent_records
 
+【当前对话主角】
+{user_role}
+
 【注意事项】
 根据对话记录和最新对话
 1. 当主角明确@某个角色，你需要让被@的角色接话。
-2. 尽量不要选【最新对话】里的角色发言
-3. 所有角色不区分主角和配角，你需要让每个角色有平等的对话机会，避免只有两个人持续的交流，要求情节充满戏剧性。
+2. 不要选【最新对话】里的角色发言
+3. 要让每个角色有平等的对话机会，多选一些【对话记录里】没有出现的角色，要求情节充满戏剧性。
+4. 尽量多的选择主角，让主角参与其中，当前对话的主角是{user_role}
 
 【回复格式】
-请用json格式回复，内容用中文，从上文提到的角色里选，只写名字即可，字段包括：
+请用json格式回复，从上文提到的角色里选，只写名字即可，字段包括：
 * next_speakers: <next speakers>
 <|im_end|>
 """
@@ -91,12 +90,11 @@ roles = {
     '雷军': '小米创始人，最近发布了小米SU7，投资界之王，有很强的人缘，投资了很多公司。小米SU7的口号是【人车合一，我心澎湃】',
     '李想': '理想汽车，是由李想在2015年7月创立的新能源汽车公司，公司最初命名为“车和家，卖的最好的是理想L系列”',
     '李斌': '蔚来汽车创始人、董事长，也是新能源的早期创始人之一，之前做易车网',
-    '何小鹏':
-    '何小鹏同时担任小鹏汽车的董事长。小鹏汽车成立于2014年，小鹏汽车最热销的系列是小鹏P7，受影响最大，所以此次小米发布价格对其冲击很大'
+    '何小鹏': '何小鹏同时担任小鹏汽车的董事长。小鹏汽车成立于2014年，小鹏汽车最热销的系列是小鹏P7，受影响最大，所以此次小米发布价格对其冲击很大'
 }
 
 llm_config = {
-    # 'model': 'qwen-max',
+    #'model': 'qwen-max',
     'model': 'qwen-spark-plus',
     'api_key': os.getenv('DASHSCOPE_API_KEY'),
     'model_server': 'dashscope'
@@ -138,7 +136,7 @@ def generate_role_instruction(role):
     role_description = roles[role]
     instruction = ROLE_INSTRUCTION_PROMPT.format(
         role=role,
-        all_roles_info=all_roles_info,
+        #all_roles_info=all_roles_info,
         role_description=role_description,
         story=STORY)
     return instruction
@@ -149,6 +147,7 @@ def upsert_role(new_user, user_char, human_input_mode):
         MultiRolePlay,
         name=new_user,
         remote=REMOTE_MODE,
+        role=new_user,
         description=user_char,
         llm=llm_config,
         function_list=function_list,
@@ -202,10 +201,11 @@ def init_all_remote_actors(_roles, user_role, _state):
         MultiRolePlay,
         name='chat_room',
         remote=True,
+        role='chat_room',
         llm=llm_config,
         function_list=function_list,
         instruction=CHATROOM_INSTRUCTION_PROMPT.format(
-            all_roles_info=all_roles_info, story=STORY),
+            all_roles_info=all_roles_info, story=STORY, user_role=user_role),
         is_watcher=True,
         use_history=False)
 
