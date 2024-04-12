@@ -57,11 +57,68 @@ def end_topic():
     return '', 'topic ended。'
 
 
+storys = [
+    {
+        'id': '1',
+        'cover':
+        '//img.alicdn.com/imgextra/i1/O1CN01UHwXNQ2780lrVHY6n_!!6000000007751-0-tps-1024-512.jpg',
+        'title': '我被美女包围了',
+        'description': '用户是男主角顾易，与多位长相、性格都大相径庭的美女相识'
+    },
+    {
+        'id': '2',
+        'cover':
+        '//img.alicdn.com/imgextra/i1/O1CN01UHwXNQ2780lrVHY6n_!!6000000007751-0-tps-1024-512.jpg',
+        'title': '我是雷军，雷中有“电”，军下有“车”',
+        'description': '用户是男主角雷军，小米创始人，最近发布了小米SU7'
+    },
+]
+
+
+def format_entry_html():
+    base_html = '''
+    <div class="container story-cardlist">
+      <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-2 g-4">
+    '''
+    for card in storys:
+        card_html = f'''
+        <div class="col-md-4 gy-4" onclick="window.js_choose_story({card['id']})">
+          <div class="card h-100">
+            <img class="card-img-top" src={card['cover']}>
+            <div class="card-body">
+              <h5 class="card-title">{card['title']}</h5>
+              <p class="card-text">{card['description']}</p>
+            </div>
+          </div>
+        </div>
+        '''
+        base_html += card_html
+    base_html += '''
+      </div>
+    </div>
+    '''
+    return base_html
+
+
 # 创建Gradio界面
-with gr.Blocks() as demo:
+demo = gr.Blocks(
+    css='assets/app.css',
+    js='assets/app.js',
+    head='''
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous"/>
+    ''')
+with demo:
     state = gr.State({'roles': origin_roles})
-    with gr.Row():
+    story_state = gr.State()
+    with gr.Column(visible=True) as entry:
+        gr.Markdown('##  选择一个场景进入聊天吧～')
+        entry_btn = gr.Button(
+            elem_id='entry_fake_btn', visible=False, value='empty')
+        gr.HTML(format_entry_html())
+
+    with gr.Row(visible=False) as content:
         with gr.Column(scale=2):
+
             user_chatbot = mgr.Chatbot(
                 value=[[None, None]],
                 elem_id='user_chatbot',
@@ -78,6 +135,7 @@ with gr.Blocks() as demo:
                 placeholder='输入你的消息',
                 submit_button_props=dict(label='发送（role 加载中...）'))
         with gr.Column(scale=1):
+            back_btn = gr.Button('返回重新选择场景')
             with gr.Group('Roles'):
                 new_user_name = gr.Textbox(
                     label='Role name', placeholder='input role name ...')
@@ -105,6 +163,28 @@ with gr.Blocks() as demo:
                     value=list(origin_roles.keys())[0])
                 start_chat_btn = gr.Button('Start new chat')
                 # end_chat_btn = gr.Button("End chat")
+
+    def choose_story(choosed_id):
+        print('choosed_id:', choosed_id)
+        return {
+            entry: gr.update(visible=False),
+            content: gr.update(visible=True),
+            story_state: choosed_id,
+        }
+
+    entry_btn.click(
+        fn=choose_story,
+        inputs=[entry_btn],
+        outputs=[entry, content, story_state],
+        js='get_story_id')
+
+    def back():
+        return {
+            entry: gr.update(visible=True),
+            content: gr.update(visible=False),
+        }
+
+    back_btn.click(fn=back, inputs=[], outputs=[entry, content])
 
     def start_chat(username, from_user, topic, _state, _chatbot, _input):
         roles = _state['roles']
