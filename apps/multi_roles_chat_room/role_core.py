@@ -92,7 +92,7 @@ def generate_role_instruction(role, story_info):
     return instruction
 
 
-def upsert_role(new_user, user_char, human_input_mode, story_info):
+def upsert_role(new_user, user_char, human_input_mode, story_info, llm_config):
     role = create_component(
         MultiRolePlay,
         name=new_user,
@@ -127,10 +127,12 @@ def change_user_role(user_role, state):
         return state
 
 
-def init_all_remote_actors(_roles, user_role, _state, _story_state):
+def init_all_remote_actors(_roles, user_role, _state, _story_state,
+                           select_model):
     RayTaskExecutor.init_ray()
 
     story_info = get_story_by_id(_story_state)
+    llm_config['model'] = select_model
 
     # if initialized, just change the user role
     if 'init' in _state and _state['init']:
@@ -147,7 +149,7 @@ def init_all_remote_actors(_roles, user_role, _state, _story_state):
         if role == user_role:
             human_input_mode = 'ON'
         role_agent = upsert_role(role, _roles[role], human_input_mode,
-                                 story_info)
+                                 story_info, llm_config)
 
         role_agents.append(role_agent)
 

@@ -88,7 +88,7 @@ demo = gr.Blocks(
     ''')
 with demo:
     state = gr.State({})
-    story_state = gr.State()  # default value
+    story_state = gr.State('1')  # default value
     with gr.Column(visible=True) as entry:
         gr.Markdown('##  选择一个场景进入聊天吧～')
         entry_btn = gr.Button(
@@ -112,17 +112,22 @@ with demo:
                 interactive=False,
                 label='输入',
                 placeholder='输入你的消息',
-                submit_button_props=dict(label='发送（role 加载中...）'))
+                submit_button_props=dict(label='发送'))
         with gr.Column(scale=1):
             back_btn = gr.Button('返回重新选择场景')
+            with gr.Group('Models'):
+                select_model = gr.Dropdown(
+                    label='The model that use as LLM core',
+                    choices=list(['qwen-max', 'qwen-spark-plus']),
+                    value='qwen-spark-plus')
             with gr.Group('Roles'):
-                new_user_name = gr.Textbox(
-                    label='Role name', placeholder='input role name ...')
-                new_user_char = gr.Textbox(
-                    label='Role characters',
-                    placeholder='input role characters ...')
-                new_user_btn = gr.Button('Add/Update role infos')
-                role_info = gr.Textbox(label='Result', interactive=False)
+                # new_user_name = gr.Textbox(
+                #     label='Role name', placeholder='input role name ...')
+                # new_user_char = gr.Textbox(
+                #     label='Role characters',
+                #     placeholder='input role characters ...')
+                # new_user_btn = gr.Button('Add/Update role infos')
+                # role_info = gr.Textbox(label='Result', interactive=False)
                 all_roles = mgr.Markdown(
                     render_json_as_markdown(
                         get_story_by_id(story_state.value)['roles']))
@@ -170,10 +175,11 @@ with demo:
     back_btn.click(fn=back, inputs=[], outputs=[entry, content])
 
     def start_chat(username, from_user, topic, _state, _chatbot, _input,
-                   _story_state):
-        roles = _state['roles']
-        _state = init_all_remote_actors(roles, username, _state, _story_state)
-        _state = start_chat_with_topic(from_user, topic, _state, _story_state)
+                   _story_state, select_model):
+        roles = get_story_by_id(story_state.value)['roles']
+        _state = init_all_remote_actors(roles, username, _state, _story_state,
+                                        select_model)
+        _state = start_chat_with_topic(from_user, topic, _state)
 
         init_chat = [{
             'avatar': get_avatar_by_name(from_user),
@@ -290,18 +296,18 @@ with demo:
         outputs=[user_chatbot, preview_chat_input, state])
 
     # add or update role btn
-    new_user_btn.click(
-        fn=upsert_user,
-        inputs=[new_user_name, new_user_char, state],
-        outputs=[user_select, role_info, all_roles])
+    # new_user_btn.click(
+    #     fn=upsert_user,
+    #     inputs=[new_user_name, new_user_char, state],
+    #     outputs=[user_select, role_info, all_roles])
 
     # start new chat btn
     start_chat_btn.click(
         fn=start_chat,
         inputs=[
             user_select, start_topic_from, start_topic_input, state,
-            user_chatbot, preview_chat_input
+            user_chatbot, preview_chat_input, story_state, select_model
         ],
-        outputs=[user_chatbot, preview_chat_input, role_info, state])
+        outputs=[user_chatbot, preview_chat_input, state])
 
 demo.launch()
