@@ -3,7 +3,7 @@ from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm import BaseChatModel
 from modelscope_agent.tools import TOOL_REGISTRY, BaseTool
 
-from .utils import MockTool
+from .ut_utils import MockTool
 
 
 class MockTool1(MockTool):
