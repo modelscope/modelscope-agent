@@ -6,7 +6,7 @@ function init() {
       btn.click();
     }
   }
-  
+
   window.get_story_id = function(){
     return [document.getElementById('entry_fake_btn').getAttribute('data-stroy')]
   }
