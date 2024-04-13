@@ -20,13 +20,15 @@ docker pull registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v
 导出镜像文件：
 
 ```shell
-docker save > modelscope-agent.tar registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0
+docker save > modelscope-agent.tar \
+registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0
 ```
 
 启动容器：
 
 ```shell
-docker run -ti -v /data/work:/data/work registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0 bash
+docker run -ti -v /data/work:/data/work \
+registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0 bash
 ```
 
 > 其中 `-v /data/work:/data/work` 把本地 `/data/work` 目录挂载到容器中的相同路径。执行命令此命令后已进入容器，后续操作都将在容器中进行。
@@ -42,14 +44,13 @@ cd /data/work
 在容器工作目录中下载模型到本地：以 qwen/Qwen1.5-7B-Chat 模型为例，可以换成其他微调的模型：
 
 ```shell
-python -c "from modelscope import snapshot_download; snapshot_download('qwen/Qwen1.5-7B-Chat', cache_dir='qwen1.5-7b-chat')
+python -c "from modelscope import snapshot_download; snapshot_download('qwen/Qwen1.5-7B-Chat', cache_dir='qwen1.5-7b-chat')"
 ```
 
 ### 3. 下载 Embedding 模型
 
 在容器工作目录中下载 ModelScope-Agent 使用的 Embedding 模型
 [damo/nlp_gte_sentence-embedding_chinese-base](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/storage/vector_storage.py#L31)，
-
 也可换成其他模型:
 
 ```shell
@@ -88,7 +89,8 @@ ModelScope 提供模型 [本地启动服务](https://modelscope.cn/docs/%E6%9C%A
 
 ```shell
 # 创建并进入容器
-nvidia-docker run -ti --net host -v /data/work:/data/work registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0 bash
+nvidia-docker run -ti --net host -v /data/work:/data/work \
+registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope-agent:v0.3.0 bash
 ```
 
 从容器中进入到工作目录：
@@ -137,14 +139,24 @@ sudo docker exec -ti CONTAINER_ID bash
 
 编辑 `modelscope-agent/apps/agentfabric/config/model_config.json`， 增加如下配置：
 
-```json
-    "qwen1.5-7b-chat": {
-        "type": "openai",
-        "model": "qwen/Qwen1.5-7B-Chat",
-        "api_base": "http://localhost:8000/v1",
-        "is_chat": true,
-        "is_function_call": false
-    }
+```diff
+diff --git a/apps/agentfabric/config/model_config.json b/apps/agentfabric/config/model_config.json
+index 4db68ce..be7fbf3 100644
+--- a/apps/agentfabric/config/model_config.json
++++ b/apps/agentfabric/config/model_config.json
+@@ -124,5 +124,12 @@
+         "api_base": "http://localhost:8000/v1",
+         "is_chat": true,
+         "is_function_call": false
++    },
++    "qwen1.5-7b-chat": {
++        "type": "openai",
++        "model": "qwen/Qwen1.5-7B-Chat",
++        "api_base": "http://localhost:8000/v1",
++        "is_chat": true,
++        "is_function_call": false
+     }
+ }
 ```
 
 ### 编辑 Embedding 模型 model_id
@@ -179,12 +191,13 @@ GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 
 > 如需更改默认配置文件路径，可修改 `modelscope-agent/apps/agentfabric/config_utils.py` 中的 `DEFAULT_AGENT_DIR` 和通过环境变量指定 `CODE_INTERPRETER_WORK_DIR`，如：
 > ```shell
-> CODE_INTERPRETER_WORK_DIR=/data/work/agentfabric/ci_workspace GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
+> CODE_INTERPRETER_WORK_DIR=/data/work/agentfabric/ci_workspace \
+> GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 > ```
 
 然后在浏览器中输入 http://内网服务器IP:7860 打开即可看到如下界面。
 
-![Alt text](resource/local_deploy.png)
+![AgentFabric](resource/local_deploy.png)
 
 
 四、内网环境发布使用 AgentFabric 构建的 Agent
