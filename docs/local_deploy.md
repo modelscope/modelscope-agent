@@ -187,7 +187,7 @@ index c6f9fdc..29f518a 100644
 GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 ```
 
-> 启动时如遇 `ModuleNotFoundError: No module named 'modelscope_studio'` 报错，请将 `modelscope-agent` 仓库回滚至 `8deef6d4`（`git checkout 8deef6d4`），因为后面的 `68c7dd7f` 提交修改了依赖，导致镜像中缺少新增的依赖。
+> 启动时如遇 `ModuleNotFoundError: No module named 'modelscope_studio'` 报错，请将 `modelscope-agent` 仓库回滚至 `8deef6d4`（`git checkout 8deef6d4`），因为后面的 [68c7dd7f](https://github.com/modelscope/modelscope-agent/commit/68c7dd7ffae0a1f93938ac3fa3fed7bfdfcdfb2b#diff-8544efbeb959a409d00730a025fd51bf9da42cd560aa4d2bd5e24f6ddbd8c9f5R7) 提交修改了依赖，导致镜像中缺少新增的依赖。
 
 > 如需更改默认配置文件路径，可修改 `modelscope-agent/apps/agentfabric/config_utils.py` 中的 `DEFAULT_AGENT_DIR` 和通过环境变量指定 `CODE_INTERPRETER_WORK_DIR`，如：
 > ```shell
