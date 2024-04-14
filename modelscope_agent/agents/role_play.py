@@ -272,8 +272,10 @@ class RolePlay(Agent, AgentEnvMixin):
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation
+
+                # for next turn
                 format_observation = self._limit_observation_length(
-                    format_observation)
+                    observation)
                 if self.llm.support_function_calling():
                     messages.append({'role': 'tool', 'content': observation})
                 else:
@@ -299,21 +301,10 @@ class RolePlay(Agent, AgentEnvMixin):
         Returns:
 
         """
-        if self.llm.get_max_length() / 2 >= count_tokens(observation):
-            return observation
-
-        # get actual observation length
-        pattern = r'<result>(.*?)<\/result>'
-        match = re.search(pattern, observation)
-
-        actual_observation = match.group(1) if match else None
-
-        if actual_observation:
-            reasonable_length = int(self.llm.get_max_length() / 2)
-            limited_observation = actual_observation[:reasonable_length]
-            format_observation = DEFAULT_EXEC_TEMPLATE.format(
-                exec_result=limited_observation)
-            return format_observation
+        reasonable_length = self.llm.get_max_length() / 2 - count_tokens(
+            DEFAULT_EXEC_TEMPLATE.format(exec_result=' '))
+        limited_observation = str(observation)[:int(reasonable_length)]
+        return DEFAULT_EXEC_TEMPLATE.format(exec_result=limited_observation)
 
     def _detect_tool(self, message: Union[str,
                                           dict]) -> Tuple[bool, str, str, str]:

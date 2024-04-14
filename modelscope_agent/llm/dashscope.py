@@ -71,7 +71,7 @@ class DashScopeLLM(BaseChatModel):
     def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
         self.max_length = kwargs.get(
-            'max_length', int(os.getenv('DASHSCOPE_MAX_LENGTH', default=5700)))
+            'max_length', int(os.getenv('DASHSCOPE_MAX_LENGTH', default=5650)))
         dashscope.api_key = kwargs.get(
             'api_key', os.getenv('DASHSCOPE_API_KEY', default='')).strip()
         assert dashscope.api_key, 'DASHSCOPE_API_KEY is required.'

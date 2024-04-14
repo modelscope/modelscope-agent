@@ -174,7 +174,7 @@ For more information please refer to `docs/modules/llm.md`
 We provide several multi-domain tools that can be configured and used in the agent.
 
 You can also customize your tools with set the tool's name, description, and parameters based on a predefined pattern by inheriting the base tool. Depending on your needs, call() can be implemented.
-An example of a custom tool is provided in [demo_register_new_tool](../demo/demo_register_new_tool.ipynb)
+An example of a custom tool is provided in [demo_register_new_tool](/demo/demo_register_new_tool.ipynb)
 
 You can pass the tool name or configuration you want to use to the agent.
 ```python
