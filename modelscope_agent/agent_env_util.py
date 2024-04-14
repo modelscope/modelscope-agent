@@ -247,7 +247,7 @@ class AgentEnvMixin:
             # received_messages = self.executor_cls.extract_message_by_role_from_env(
             #    self.env_context, self._role)
             received_messages = self.executor_cls.extract_all_message_from_env(
-                 self.env_context)
+                self.env_context)
             if received_messages and len(received_messages) > 0:
                 cur_step_env_prompt = self.parse_env_prompt_function(
                     received_messages)
