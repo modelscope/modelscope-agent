@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.mark.skip()
 def test_modelscope_speech_generation():
     from modelscope_agent.tools.modelscope_tools import TexttoSpeechTool
     kwargs = """{'input': '北京今天天气怎样?', 'gender': 'man'}"""

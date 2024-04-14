@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Dict, Iterable, List, Union
 
 import json
@@ -8,7 +9,7 @@ from pydantic import ConfigDict
 
 
 class Memory(AgentAttr):
-    path: str
+    path: Union[str, Path]
     model_config = ConfigDict(extra='allow')
 
     def save_history(self):

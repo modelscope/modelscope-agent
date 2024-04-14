@@ -1,4 +1,5 @@
 import os
+import re
 from http import HTTPStatus
 from typing import Dict, Iterator, List, Optional, Union
 
@@ -10,6 +11,8 @@ from .base import BaseChatModel, register_llm
 
 
 def stream_output(response, **kwargs):
+    im_start = '<|im_start|>'
+    im_end = '<|im_end|>'
     last_len = 0
     delay_len = 5
     in_delay = False
@@ -17,12 +20,16 @@ def stream_output(response, **kwargs):
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
             # logger at the first for the request_id, and the last time for whole output
-            if not text or trunk.output.choices[0].finish_reason != 'null':
+            if not text:  # or trunk.output.choices[0].finish_reason != 'null':
                 logger.info(
                     f'call dashscope generation api success, '
                     f'request_id: { trunk.request_id}, output: { trunk.output}'
                 )
-            text = trunk.output.choices[0].message.content
+            try:
+                text = trunk.output.choices[0].message.content
+            except Exception:
+                text = trunk.output.text
+            text = text.split(im_end)[0].split(im_start)[0]
             if (len(text) - last_len) <= delay_len:
                 in_delay = True
                 continue
@@ -74,6 +81,7 @@ class DashScopeLLM(BaseChatModel):
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
         stop = stop or []
+        stop.append('<|im_end|>')
         generation_input = {
             'model': self.model,
             'messages': messages,  # noqa
@@ -90,6 +98,10 @@ class DashScopeLLM(BaseChatModel):
             uuid=kwargs.get('uuid_str', ''),
             details=generation_input,
             message='call dashscope generation api')
+        if kwargs.get('temperature', None):
+            generation_input['temperature'] = kwargs.get('temperature')
+        if kwargs.get('seed', None):
+            generation_input['seed'] = kwargs.get('seed')
         response = dashscope.Generation.call(**generation_input)
         return stream_output(response, **kwargs)
 
@@ -160,6 +172,40 @@ class QwenChatAtDS(DashScopeLLM):
             )
             return err
 
+    def _chat_stream(self,
+                     messages: List[Dict],
+                     stop: Optional[List[str]] = None,
+                     **kwargs) -> Iterator[str]:
+        stop = stop or []
+        stop.append('<|im_end|>')
+        generation_input = {
+            'model': self.model,
+            'prompt': messages[0]['content'],
+            'stop_words': [{
+                'stop_str': word,
+                'mode': 'exclude'
+            } for word in stop],
+            'top_p': kwargs.get('top_p', 0.8),
+            'result_format': 'message',
+            'stream': True,
+            'use_raw_prompt': True,
+        }
+
+        logger.query_info(
+            uuid=kwargs.get('uuid_str', ''),
+            details=generation_input,
+            message='call dashscope generation api')
+        if kwargs.get('temperature', None):
+            generation_input['temperature'] = kwargs.get('temperature')
+        if kwargs.get('seed', None):
+            generation_input['seed'] = kwargs.get('seed')
+        logger.info(f'######## input{generation_input}')
+
+        response = dashscope.Generation.call(**generation_input)
+        logger.info(f'######## response{response}')
+
+        return stream_output(response, **kwargs)
+
     def build_raw_prompt(self, messages: list):
         prompt = ''
         messages.append({'role': 'assistant', 'content': ''})
@@ -195,4 +241,34 @@ class QwenChatAtDS(DashScopeLLM):
         if not prompt.endswith(f'\n{im_start}assistant\n{im_end}'):
             prompt += f'\n{im_start}assistant\n{im_end}'
         prompt = prompt[:-len(f'{im_end}')]
+        return prompt
+
+    def build_multi_role_raw_prompt(self, messages: list):
+        prompt = ''
+        im_start = '<|im_start|>'
+        im_end = '<|im_end|>'
+        print('build_raw_prompt', messages)
+        if messages[0]['role'] == 'system':
+            system_prompt = messages[0]['content']
+        else:
+            system_prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
+
+        # select user
+        if 'chat_records' in system_prompt:
+            chat_records = messages[-1]['content'].strip()
+            recent_records = chat_records.split('\n')[-1]
+            prompt = f'{system_prompt.replace("chat_records", chat_records).replace("recent_records", recent_records)}<|im_start|>assistant\n'  # noqa E501
+        else:
+            try:
+                re_pattern_config = re.compile(pattern=r'你是([\s\S]+)，请你根据对话')
+                res = re_pattern_config.search(system_prompt)
+                cur_role_name = res.group(1).strip()
+            except Exception:
+                cur_role_name = 'assistant'
+            print('cur_role_name: ', cur_role_name)
+            prompt = system_prompt
+            content = messages[-1]['content'].lstrip('\n').rstrip()
+            prompt = f'{prompt}<im_start>user\n{content}<|im_end|>\n<|im_start|>assistant\n{cur_role_name}: '
+
+        print('prompt: ', [prompt])
         return prompt
