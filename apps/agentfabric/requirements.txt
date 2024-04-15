@@ -2,9 +2,9 @@ dashscope
 faiss-cpu
 gradio==4.8
 langchain
-modelscope-agent==0.4.0
 markdown-cjk-spacing
 mdx_truly_sane_lists
+modelscope-agent==0.4.0
 modelscope_studio
 pymdown-extensions
 python-slugify

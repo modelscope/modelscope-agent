@@ -212,6 +212,7 @@ class QwenChatAtDS(DashScopeLLM):
 
 @register_llm('dashscope_qwen_spark')
 class QwenSparkAtDS(DashScopeLLM):
+
     def _chat_stream(self,
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
@@ -245,7 +246,6 @@ class QwenSparkAtDS(DashScopeLLM):
         logger.info(f'######## response{response}')
 
         return stream_output(response, **kwargs)
-
 
     def build_multi_role_raw_prompt(self, messages: list):
         prompt = ''

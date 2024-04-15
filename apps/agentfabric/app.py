@@ -447,7 +447,10 @@ with demo:
                 if isinstance(llm_result, dict):
                     content = llm_result.get('content', None)
                     if not content:
-                        content = llm_result.get('error', 'llm result is invalid, please reset and try again.')
+                        content = llm_result.get(
+                            'error',
+                            'llm result is invalid, please reset and try again.'
+                        )
                 else:
                     content = llm_result
                 frame_text = content
