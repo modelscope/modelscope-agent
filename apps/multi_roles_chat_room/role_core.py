@@ -90,7 +90,8 @@ def generate_role_instruction(role, story_info):
     return instruction
 
 
-def upsert_role(new_user, user_char, human_input_mode, story_info, llm_config):
+def upsert_role(new_user, user_char, human_input_mode, story_info, llm_config,
+                _uid):
     role = create_component(
         MultiRolePlay,
         name=new_user,
@@ -100,7 +101,8 @@ def upsert_role(new_user, user_char, human_input_mode, story_info, llm_config):
         llm=llm_config,
         function_list=function_list,
         instruction=generate_role_instruction(new_user, story_info),
-        human_input_mode=human_input_mode)
+        human_input_mode=human_input_mode,
+        prefix_name=_uid)
     return role
 
 
@@ -145,7 +147,7 @@ def init_all_remote_actors(_roles, user_role, _state, _story_state,
         if role == user_role:
             human_input_mode = 'ON'
         role_agent = upsert_role(role, _roles[role], human_input_mode,
-                                 story_info, llm_config)
+                                 story_info, llm_config, _uid)
 
         role_agents.append(role_agent)
 
