@@ -1,13 +1,19 @@
 from .agent import Agent
 
 
-def _create_remote(cls, name, max_concurrency=1, *args, **kwargs):
+def _create_remote(cls,
+                   name,
+                   max_concurrency=1,
+                   force_new=False,
+                   *args,
+                   **kwargs):
     '''
     Create a remote actor by ray
     Args:
         cls: the class to be created
         name: the name of ray actor, also the role name
         max_concurrency: max concurrency of the actor
+        focus_new: force to create a new actor
         *args:
         **kwargs:
 
@@ -15,7 +21,16 @@ def _create_remote(cls, name, max_concurrency=1, *args, **kwargs):
 
     '''
     import ray
-
+    try:
+        # try to get an existing actor
+        ray_actor = ray.get_actor(name)
+        if force_new:
+            ray.kill(ray_actor)
+        else:
+            return ray_actor
+    except ValueError:
+        pass
+    # if failed, create a new actor
     return ray.remote(
         name=name,
         max_concurrency=max_concurrency)(cls).remote(*args, **kwargs)

@@ -217,9 +217,10 @@ with demo:
                    _story_state, select_model, _uuid):
         # get uuid
         _uuid = check_uuid(_uuid)
+        user_task_id = f'{_uuid[:6]}_{_story_state}'
         roles = get_story_by_id(_story_state)['roles']
         _state = init_all_remote_actors(roles, username, _state, _story_state,
-                                        select_model, _uuid)
+                                        select_model, user_task_id)
         _state = start_chat_with_topic(from_user, topic, _state)
 
         init_chat = [{
