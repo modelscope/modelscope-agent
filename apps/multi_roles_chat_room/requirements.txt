@@ -1,1 +1,3 @@
 gradio==4.8
+modelscope-agent==0.4.0
+modelscope_studio
