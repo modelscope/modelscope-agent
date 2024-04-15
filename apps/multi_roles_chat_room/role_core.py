@@ -8,7 +8,6 @@ import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.agents import MultiRolePlay
-from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 from modelscope_agent.task_center import TaskCenter
 from story_holder import get_story_by_id
 
@@ -127,9 +126,7 @@ def change_user_role(user_role, state):
 
 
 def init_all_remote_actors(_roles, user_role, _state, _story_state,
-                           select_model):
-    RayTaskExecutor.init_ray()
-
+                           select_model, _uid):
     story_info = get_story_by_id(_story_state)
     llm_config['model'] = select_model
 
@@ -139,7 +136,7 @@ def init_all_remote_actors(_roles, user_role, _state, _story_state,
         return state
 
     task_center = create_component(
-        TaskCenter, name='Task_Center', remote=REMOTE_MODE)
+        TaskCenter, name='Task_Center', remote=REMOTE_MODE, prefix_name=_uid)
 
     # init all agents and task center
     role_agents = []
@@ -164,7 +161,8 @@ def init_all_remote_actors(_roles, user_role, _state, _story_state,
             story=story_info['story'],
             user_role=user_role),
         is_watcher=True,
-        use_history=False)
+        use_history=False,
+        prefix_name=_uid)
 
     logging.warning(msg=f'time:{time.time()} done create task center')
 

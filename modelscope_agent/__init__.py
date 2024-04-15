@@ -39,11 +39,14 @@ def create_component(cls,
                      name,
                      remote=False,
                      max_concurrency=1,
+                     prefix_name=None,
                      *args,
                      **kwargs):
     kwargs['remote'] = remote
     kwargs['role'] = name
     if remote:
+        if prefix_name is not None:
+            name = f'{prefix_name}_{name}'
         return _create_remote(cls, name, max_concurrency, *args, **kwargs)
     else:
         return _create_local(cls, *args, **kwargs)

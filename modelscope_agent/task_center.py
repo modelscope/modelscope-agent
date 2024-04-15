@@ -3,7 +3,8 @@ from typing import List, Union
 from modelscope_agent import create_component
 from modelscope_agent.agent import Agent
 from modelscope_agent.agents_registry import AgentRegistry
-from modelscope_agent.constants import DEFAULT_SEND_TO, USER_REQUIREMENT
+from modelscope_agent.constants import (AGENT_REGISTRY_NAME, DEFAULT_SEND_TO,
+                                        ENVIRONMENT_NAME, USER_REQUIREMENT)
 from modelscope_agent.environment import Environment
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
@@ -11,16 +12,24 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 class TaskCenter:
 
-    def __init__(self, remote=False, **kwargs):
+    def __init__(self, remote=False, prefix=None, **kwargs):
         if remote:
             from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
             self.task_executor = RayTaskExecutor
         else:
             from modelscope_agent.multi_agents_utils.executors.local import LocalTaskExecutor
             self.task_executor = LocalTaskExecutor
-        self.env = create_component(Environment, 'env', remote)
-        self.agent_registry = create_component(AgentRegistry, 'agent_center',
-                                               remote)
+        # used to create the environment and agent registry with specific prefix
+        self.env = create_component(
+            cls=Environment,
+            name=ENVIRONMENT_NAME,
+            remote=remote,
+            prefix_name=prefix)
+        self.agent_registry = create_component(
+            cls=AgentRegistry,
+            name=AGENT_REGISTRY_NAME,
+            remote=remote,
+            prefix_name=prefix)
         self.remote = remote
 
     def add_agents(self, agents: List[Agent]):
