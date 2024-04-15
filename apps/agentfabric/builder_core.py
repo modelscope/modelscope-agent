@@ -91,14 +91,15 @@ def gen_response_and_process(agent,
             uuid=uuid_str,
             error='llm result is not valid',
             details=traceback.format_exc())
-        yield {'error': f'llm result is not valid: {e}'}
+        yield {'error': f'llm result is not valid: {e}. Please reset and try again.'}
 
     try:
         re_pattern_config = re.compile(
             pattern=r'Config: ([\s\S]+)\nRichConfig')
         res = re_pattern_config.search(llm_result)
         if res is None:
-            yield {'error': 'llm result is not valid. parse RichConfig error'}
+            yield {'error': 'llm result is not valid. parse RichConfig error. Please reset and try again.'}
+            logger.query_error(uuid=uuid_str, error='parse RichConfig error')
             return
         config = res.group(1).strip()
         agent.last_assistant_structured_response['config_str'] = config
@@ -108,7 +109,7 @@ def gen_response_and_process(agent,
         try:
             answer = json.loads(rich_config)
         except Exception:
-            yield {'error': 'llm result is not valid. parse RichConfig error'}
+            yield {'error': 'llm result is not valid. parse RichConfig error. Please reset and try again.'}
             logger.query_error(uuid=uuid_str, error='parse RichConfig error')
             return
         agent.last_assistant_structured_response['rich_config_dict'] = answer
