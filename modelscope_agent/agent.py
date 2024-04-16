@@ -3,7 +3,7 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.tools import TOOL_REGISTRY
+from modelscope_agent.tools.base import TOOL_REGISTRY
 from modelscope_agent.utils.utils import has_chinese_chars
 
 
