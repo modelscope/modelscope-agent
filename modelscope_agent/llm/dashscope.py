@@ -199,11 +199,7 @@ class QwenChatAtDS(DashScopeLLM):
             generation_input['temperature'] = kwargs.get('temperature')
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
-        logger.info(f'######## input{generation_input}')
-
         response = dashscope.Generation.call(**generation_input)
-        logger.info(f'######## response{response}')
-
         return stream_output(response, **kwargs)
 
     def build_raw_prompt(self, messages: list):

@@ -155,7 +155,6 @@ def init_all_remote_actors(_roles, user_role, _state, _story_state,
         MultiRolePlay,
         name='chat_room',
         remote=True,
-        role='chat_room',
         llm=llm_config,
         function_list=function_list,
         instruction=CHATROOM_INSTRUCTION_PROMPT.format(
@@ -166,7 +165,8 @@ def init_all_remote_actors(_roles, user_role, _state, _story_state,
         use_history=False,
         prefix_name=_uid)
 
-    logging.warning(msg=f'time:{time.time()} done create task center')
+    logging.warning(
+        msg=f'time:{time.time()} done create task center with uid: {_uid}')
 
     ray.get(task_center.add_agents.remote(role_agents))
     ray.get(task_center.add_agents.remote([chat_room]))

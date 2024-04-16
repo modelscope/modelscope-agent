@@ -156,9 +156,6 @@ class AgentEnvMixin:
             history = []
             if self.use_history:
                 history = self.memory.get_history()
-            logger.info(
-                f'reach here 2 {result}, self.human_input_mode {self.human_input_mode}'
-            )
             # run generation
             for frame in self.run(
                     prompt,

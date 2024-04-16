@@ -59,6 +59,7 @@ def create_component(cls,
                      **kwargs):
     kwargs['remote'] = remote
     kwargs['role'] = name
+    kwargs['prefix_name'] = prefix_name
     if remote:
         if prefix_name is not None:
             name = f'{prefix_name}_{name}'

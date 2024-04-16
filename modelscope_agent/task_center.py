@@ -12,7 +12,7 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 class TaskCenter:
 
-    def __init__(self, remote=False, prefix=None, **kwargs):
+    def __init__(self, remote=False, prefix_name=None, **kwargs):
         if remote:
             from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
             self.task_executor = RayTaskExecutor
@@ -24,12 +24,12 @@ class TaskCenter:
             cls=Environment,
             name=ENVIRONMENT_NAME,
             remote=remote,
-            prefix_name=prefix)
+            prefix_name=prefix_name)
         self.agent_registry = create_component(
             cls=AgentRegistry,
             name=AGENT_REGISTRY_NAME,
             remote=remote,
-            prefix_name=prefix)
+            prefix_name=prefix_name)
         self.remote = remote
 
     def add_agents(self, agents: List[Agent]):
