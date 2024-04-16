@@ -382,6 +382,17 @@ step方法将使每个agent在这一步骤中作出响应，响应将是一个�
 有了以上的参数，step方法可以在不同场景的multi-agent中使用。
 例如，在一个三人辩论场景中，step方法可以像这样使用：
 ```python
+# add new role
+role_template_hillary = 'you are the former secretary of state Hillary Clinton, and you are debating with former president Donald Trump and current president Joe Biden with couple of topics'
+
+hillary_clinton = create_component(
+    RolePlay,
+    name='hillary_clinton',
+    remote=REMOTE_MODE,
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_hillary)
+
 # initialize the agents
 task_center.add_agents([joe_biden, donald_trump, hillary_clinton])
 
@@ -393,9 +404,13 @@ for frame in task_center.step(send_to='hillary_clinton'):
     print(frame)
 
 # in 2nd step, allow only donald_trump to response the topic
-for frame in task_center.step(allower_roles='donald_trump'):
+for frame in task_center.step(allowed_roles='donald_trump'):
     print(frame)
 ```
+*请注意*，在`frame`中只会显示来自不同agent的消息，并且格式为`<[role_name]>: [message stream]`。
+用户需要根据自己的业务需求在step方法中处理future输出的格式。
+
+
 
 上述案例展示了如何在multi-agent任务中使用step方法中的send_to和allowed_roles来控制agent之间的通信。
 在另一个情况下，在聊天机器人模式中，如果本步骤中包含user-agent，可以使用user_response让用户在这一步骤中进行输入，以取代LLM（大型语言模型）的输出。
@@ -423,9 +438,13 @@ for frame in task_center.step():
     print(frame)
 
 # in 2nd step, allow only user to response the topic, with user_response
-for frame in task_center.step(allower_roles='user', user_response='I dont agree with you about the landing project'):
-    print(frame)
-assert frame == 'I dont agree with you about the landing project'
+result = ''
+for frame in task_center.step(allowed_roles='user', user_response='I dont agree with you about the landing project'):
+   result += frame
+   print(frame)
+
+# the input from outside will not print out here as the user_response is set
+assert result == ''
 ```
 可以看到，用户的响应将在这个步骤中被使用，以取代大型语言模型（LLM）的输出，因为名为`user`的agent 是一个user-agent。
 

@@ -142,6 +142,8 @@ class TaskCenter:
         if len(allowed_roles) == 0:
             roles = self.task_executor.get_notified_roles(self.env)
         else:
+            if isinstance(allowed_roles, str):
+                allowed_roles = [allowed_roles]
             roles = allowed_roles
 
         if len(roles) == 0:

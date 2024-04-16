@@ -423,6 +423,17 @@ With the above inputs, the step could be used in different scenarios of multi-ag
 
 For example, in a three-man debate scenario, the `step` method could be used like this:
 ```python
+# add new role
+role_template_hillary = 'you are the former secretary of state Hillary Clinton, and you are debating with former president Donald Trump and current president Joe Biden with couple of topics'
+
+hillary_clinton = create_component(
+    RolePlay,
+    name='hillary_clinton',
+    remote=REMOTE_MODE,
+    llm=llm_config,
+    function_list=function_list,
+    instruction=role_template_hillary)
+
 # initialize the agents
 task_center.add_agents([joe_biden, donald_trump, hillary_clinton])
 
@@ -434,9 +445,12 @@ for frame in task_center.step(send_to='hillary_clinton'):
     print(frame)
 
 # in 2nd step, allow only donald_trump to response the topic
-for frame in task_center.step(allower_roles='donald_trump'):
+for frame in task_center.step(allowed_roles='donald_trump'):
     print(frame)
 ```
+Notice that the `frame` will only show the message from different agents with format `<[role_name]>: [message stream]`
+user should take care of the message format in the `step` method.
+
 The above case show how to use `send_to` and `allowed_roles` in the `step` method to control the communication between agents in a multi-agent task.
 
 There is another case, in a chatbot mode, the `user_response` could be used to let the user response in this step to replace the llm output, if user_agent is in this step.
@@ -456,17 +470,20 @@ user = create_component(
 task_center.add_agents([joe_biden, donald_trump, hillary_clinton, user])
 
 # let joe_biden start the topic
-task_center.send_task_request('what is the best solution to land on moon?', send_to='joe_biden')
+task_center.send_task_request('what is the best solution to land on moon, in one sentence?', send_to='joe_biden')
 
 # in 1st step, let joe_biden send his opinion to all agents.
 for frame in task_center.step():
     print(frame)
 
 # in 2nd step, allow only user to response the topic, with user_response
-for frame in task_center.step(allower_roles='user', user_response='I dont agree with you about the landing project'):
-    print(frame)
-assert frame == 'I dont agree with you about the landing project'
+result = ''
+for frame in task_center.step(allowed_roles='user', user_response='I dont agree with you about the landing project'):
+   result += frame
+   print(frame)
 
+# the input from outside will not print out here as the user_response is set
+assert result == ''
 ```
 The user response will be used in this step to replace the llm output, because `user` is a human agent.
 
