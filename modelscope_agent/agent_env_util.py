@@ -263,10 +263,10 @@ class AgentEnvMixin:
             else:
                 return ''
 
-    def convert_to_string(self, messages: List[Message], max_turn=5):
+    def convert_to_string(self, messages: List[Message], max_turn=15):
         prompt_template = """{conversation_history}"""
         conversation_history = ''
-        for item in messages[:max_turn]:
+        for item in messages[-1*max_turn:]:
             conversation_history += f'{item.sent_from}: {item.content}\n'
         return prompt_template.format(
             conversation_history=conversation_history.strip())

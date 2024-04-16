@@ -15,22 +15,21 @@ REMOTE_MODE = True
 
 # instruction prompt
 ROLE_INSTRUCTION_PROMPT = """<|im_start|>system
-你是{role}，请你根据对话情节设定，和你的对话角色设定，继续当前的对话，说话要符合你的角色设定
-
-【你的角色设定】
-{role_description}
-
-【对话情节设定】
-{story}
+你是{role}，请你根据对话情节设定，当前的对话记录和你的对话角色设定，继续当前的对话，说话要符合你的角色设定，不要重复chat history中的内容
 
 【注意事项】
 1. 根据user的历史对话回复时，不要重复说历史对话里的句子，要保持生成内容的有趣，丰富度，多样性
 2. 长话短说，不要说太多话，不要超过50字
+3. 符合当前对话情节设定，围绕对话情节，你是{role}，不要模仿其他角色，也不要重复chat history中的内容
+
+【对话场景】
+{story}
+
+【chat history】
+chat_records
 
 【你的角色设定】
-{role_description}
-<|im_end|>
-"""
+{role_description}<|im_end|>"""
 
 CHATROOM_INSTRUCTION_PROMPT = """<|im_start|>system
 你是一个小说作家，请你根据对话场景、人物介绍及最近的对话记录，选择继续对话的下一个角色。注意，对话历史是以群聊的形式展现，因此角色可能会@某个人表示对这个人说话。
@@ -41,17 +40,17 @@ CHATROOM_INSTRUCTION_PROMPT = """<|im_start|>system
 【人物介绍】
 {all_roles_info}
 
-【对话记录】
+【chat history】
 chat_records
 
 【最新对话】
 recent_records
 
 【注意事项】
-根据对话记录和最新对话
+根据chat history和最新对话
 1. 当主角{user_role}说话中提到某个角色，你需要只让提到的角色接话。
 2. 不要选【最新对话】里的角色发言
-3. 要让每个角色有平等的对话机会，多选一些【对话记录】没有出现的角色，要求情节充满戏剧性。
+3. 要让每个角色有平等的对话机会，多选一些chat history没有出现的角色，要求情节充满戏剧性。
 4. 只写角色名字即可，每次最多选两个角色，尽量多的选择主角，当前对话的主角是{user_role}
 
 【回复格式】
