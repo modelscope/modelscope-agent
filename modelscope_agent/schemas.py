@@ -1,5 +1,6 @@
-from typing import List, Set, Union
+from typing import List, Union
 
+from modelscope_agent.constants import DEFAULT_SEND_TO
 from pydantic import BaseModel
 
 
@@ -10,7 +11,7 @@ class Message(BaseModel):
     role: str = 'user'  # user, assistant, system, tool
     content: str = ''
     sent_from: str = ''
-    send_to: Union[str, Set[str]] = {'all'}
+    send_to: Union[str, List[str]] = DEFAULT_SEND_TO
 
 
 class Document(BaseModel):

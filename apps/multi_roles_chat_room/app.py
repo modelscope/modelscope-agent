@@ -1,13 +1,17 @@
+import os
 import re
+from typing import Optional
 
 import gradio as gr
 import json
 import modelscope_studio as mgr
+from modelscope_agent.multi_agents_utils.executors.ray import RayTaskExecutor
 from role_core import (chat_progress, init_all_remote_actors,
                        start_chat_with_topic)
 from story_holder import get_avatar_by_name, get_story_by_id, stories
 
 chat_history = []
+RayTaskExecutor.init_ray()
 
 # 发送消息的函数
 
@@ -54,6 +58,17 @@ def end_topic():
     return '', 'topic ended。'
 
 
+def check_uuid(uid: Optional[str]) -> str:
+    """Checks whether a UUID is provided or generates a default one."""
+    if not uid or uid == '':
+        if os.getenv('MODELSCOPE_ENVIRONMENT') == 'studio':
+            import gradio as gr
+
+            raise gr.Error('Please login first')
+        uid = 'local_user'
+    return uid
+
+
 def format_entry_html():
     base_html = '''
     <div class="container story-cardlist">
@@ -89,6 +104,8 @@ demo = gr.Blocks(
 with demo:
     state = gr.State({})
     story_state = gr.State('1')  # default value
+    uuid = gr.Textbox(label='modelscope_uuid', visible=False)
+
     with gr.Column(visible=True) as entry:
         gr.Markdown('##  选择一个场景进入聊天吧～')
         entry_btn = gr.Button(
@@ -197,10 +214,13 @@ with demo:
     back_btn.click(fn=back, inputs=[], outputs=[entry, content])
 
     def start_chat(username, from_user, topic, _state, _chatbot, _input,
-                   _story_state, select_model):
+                   _story_state, select_model, _uuid):
+        # get uuid
+        _uuid = check_uuid(_uuid)
+        user_task_id = f'{_uuid[:6]}_{_story_state}'
         roles = get_story_by_id(_story_state)['roles']
         _state = init_all_remote_actors(roles, username, _state, _story_state,
-                                        select_model)
+                                        select_model, user_task_id)
         _state = start_chat_with_topic(from_user, topic, _state)
 
         init_chat = [{
@@ -328,7 +348,7 @@ with demo:
         fn=start_chat,
         inputs=[
             user_select, start_topic_from, start_topic_input, state,
-            user_chatbot, preview_chat_input, story_state, select_model
+            user_chatbot, preview_chat_input, story_state, select_model, uuid
         ],
         outputs=[user_chatbot, preview_chat_input, state])
 

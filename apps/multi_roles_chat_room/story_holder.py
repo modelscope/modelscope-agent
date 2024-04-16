@@ -31,8 +31,7 @@ ROLES_2 = {
 stories = [
     {
         'id': '1',
-        'cover':
-        '//img.alicdn.com/imgextra/i1/O1CN01UHwXNQ2780lrVHY6n_!!6000000007751-0-tps-1024-512.jpg',
+        'cover': '//s21.ax1x.com/2024/04/16/pFxG1zj.jpg',
         'title': '我被美女包围了',
         'description': '用户是男主角顾易，与多位长相、性格都大相径庭的美女相识',
         'roles': ROLES_1,
@@ -41,8 +40,7 @@ stories = [
     },
     {
         'id': '2',
-        'cover':
-        '//img.alicdn.com/imgextra/i1/O1CN01UHwXNQ2780lrVHY6n_!!6000000007751-0-tps-1024-512.jpg',
+        'cover': '//s21.ax1x.com/2024/04/16/pFxGgw6.png',
         'title': '我是雷军，雷中有“电”，军下有“车”',
         'description': '用户是男主角雷军，小米创始人，最近发布了小米SU7',
         'roles': ROLES_2,

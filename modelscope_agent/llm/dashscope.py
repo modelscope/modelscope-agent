@@ -209,44 +209,6 @@ class QwenChatAtDS(DashScopeLLM):
         prompt = prompt[:-len(f'{im_end}')]
         return prompt
 
-
-@register_llm('dashscope_qwen_spark')
-class QwenSparkAtDS(DashScopeLLM):
-
-    def _chat_stream(self,
-                     messages: List[Dict],
-                     stop: Optional[List[str]] = None,
-                     **kwargs) -> Iterator[str]:
-        stop = stop or []
-        stop.append('<|im_end|>')
-        generation_input = {
-            'model': self.model,
-            'prompt': messages[0]['content'],
-            'stop_words': [{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
-            'top_p': kwargs.get('top_p', 0.8),
-            'result_format': 'message',
-            'stream': True,
-            'use_raw_prompt': True,
-        }
-
-        logger.query_info(
-            uuid=kwargs.get('uuid_str', ''),
-            details=generation_input,
-            message='call dashscope generation api')
-        if kwargs.get('temperature', None):
-            generation_input['temperature'] = kwargs.get('temperature')
-        if kwargs.get('seed', None):
-            generation_input['seed'] = kwargs.get('seed')
-        logger.info(f'######## input{generation_input}')
-
-        response = dashscope.Generation.call(**generation_input)
-        logger.info(f'######## response{response}')
-
-        return stream_output(response, **kwargs)
-
     def build_multi_role_raw_prompt(self, messages: list):
         prompt = ''
         im_start = '<|im_start|>'
@@ -258,7 +220,7 @@ class QwenSparkAtDS(DashScopeLLM):
             system_prompt = f'{im_start}system\nYou are a helpful assistant.{im_end}'
 
         # select user
-        if 'chat_records' in system_prompt:
+        if 'recent_records' in system_prompt and 'chat_records' in system_prompt:
             chat_records = messages[-1]['content'].strip()
             recent_records = chat_records.split('\n')[-1]
             prompt = f'{system_prompt.replace("chat_records", chat_records).replace("recent_records", recent_records)}<|im_start|>assistant\n'  # noqa E501
@@ -272,7 +234,51 @@ class QwenSparkAtDS(DashScopeLLM):
             print('cur_role_name: ', cur_role_name)
             prompt = system_prompt
             content = messages[-1]['content'].lstrip('\n').rstrip()
-            prompt = f'{prompt}<im_start>user\n{content}<|im_end|>\n<|im_start|>assistant\n{cur_role_name}: '
+            if 'chat_records' in prompt:
+                prompt = f'{prompt.replace("chat_records", content)}\n<|im_start|>{cur_role_name}\n'
+            else:
+                prompt = f'{prompt}<im_start>user\n{content}<|im_end|>\n<|im_start|>assistant\n{cur_role_name}: '
 
         print('prompt: ', [prompt])
         return prompt
+
+    def _chat_stream(self,
+                     messages: List[Dict],
+                     stop: Optional[List[str]] = None,
+                     **kwargs) -> Iterator[str]:
+        if self.model == 'qwen-spark-plus':
+            return self._chat_stream_with_raw_prompt(messages, stop, **kwargs)
+        else:
+            return super()._chat_stream(messages, stop, **kwargs)
+
+    def _chat_stream_with_raw_prompt(self,
+                                     messages: List[Dict],
+                                     stop: Optional[List[str]] = None,
+                                     **kwargs) -> Iterator[str]:
+        stop = stop or []
+        stop.append('<|im_end|>')
+        generation_input = {
+            'model': self.model,
+            'prompt': messages[0]['content'],
+            'stop_words': [{
+                'stop_str': word,
+                'mode': 'exclude'
+            } for word in stop],
+            'top_p': kwargs.get('top_p', 0.95),
+            'temperature': kwargs.get('temperature', 0.92),
+            'result_format': 'message',
+            'stream': True,
+            'use_raw_prompt': True,
+            'max_length': 100
+        }
+
+        logger.query_info(
+            uuid=kwargs.get('uuid_str', ''),
+            details=generation_input,
+            message='call dashscope generation api')
+        if kwargs.get('temperature', None):
+            generation_input['temperature'] = kwargs.get('temperature')
+        if kwargs.get('seed', None):
+            generation_input['seed'] = kwargs.get('seed')
+        response = dashscope.Generation.call(**generation_input)
+        return stream_output(response, **kwargs)
