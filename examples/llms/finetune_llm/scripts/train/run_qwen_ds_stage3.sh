@@ -23,4 +23,4 @@ torchrun \
     --use_flash_attn false \
     --ddp_backend nccl \
     --gradient_accumulation_steps $(expr 16 / $nproc_per_node) \
-    --deepspeed 'scripts/train/ds_stage_2.json' \
+    --deepspeed 'scripts/ds_stage_3.json' \

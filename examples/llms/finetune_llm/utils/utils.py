@@ -246,7 +246,7 @@ def evaluate(refs, preds):
 
     rouge = Rouge()
     rouge_score = rouge.get_scores(hyps=pred_seqs, refs=ref_seqs, avg=True)
-    rougel = rouge_score["rouge-l"]["f"]
+    rougel = rouge_score['rouge-l']['f']
 
     return {
         'action_em': sum(action_em) / len(action_em),

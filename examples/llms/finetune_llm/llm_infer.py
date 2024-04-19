@@ -145,5 +145,5 @@ if __name__ == '__main__':
     print(res)
 
     # 打开文件并将数据写入 JSON 格式
-    with open(res_dir, "w") as file:
+    with open(res_dir, 'w') as file:
         json.dump(res, file, ensure_ascii=False)

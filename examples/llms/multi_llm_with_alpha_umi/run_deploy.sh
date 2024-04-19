@@ -1,6 +1,6 @@
 export PYTHONPATH=./
 
-export VLLM_USE_MODELSCOPE=True  
+export VLLM_USE_MODELSCOPE=True
 python -m vllm.entrypoints.openai.api_server \
  --model=iic/alpha-umi-planner-7b \
  --revision=v1.0.0 --trust-remote-code \
@@ -21,4 +21,3 @@ python -m vllm.entrypoints.openai.api_server \
  --port 8092 \
  --dtype float16 \
  --gpu-memory-utilization 0.3 > summarizer.log &
-

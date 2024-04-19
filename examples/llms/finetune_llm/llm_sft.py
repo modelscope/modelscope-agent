@@ -295,8 +295,8 @@ def llm_sft(args: SftArguments) -> None:
 
     # save metrics
     metrics = train_result.metrics
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
+    trainer.log_metrics('train', metrics)
+    trainer.save_metrics('train', metrics)
     # ### Visualization
     # if is_master():
     # images_dir = os.path.join(output_dir, 'images')

@@ -28,9 +28,9 @@ llm_configs = {
 
 def test_alpha_umi():
     function_list = [
-        "get_data_fact_for_numbers", "get_math_fact_for_numbers",
-        "get_year_fact_for_numbers", "listquotes_for_current_exchange",
-        "exchange_for_current_exchange"
+        'get_data_fact_for_numbers', 'get_math_fact_for_numbers',
+        'get_year_fact_for_numbers', 'listquotes_for_current_exchange',
+        'exchange_for_current_exchange'
     ]
 
     bot = AlphaUmi(
