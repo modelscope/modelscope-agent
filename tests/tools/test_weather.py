@@ -4,7 +4,10 @@ from modelscope_agent.agents.role_play import RolePlay  # NOQA
 def test_weather_role():
     role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
 
-    llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+    llm_config = {
+        'model': 'meta/llama-2-70b-chat',
+        'model_server': 'replicate'
+    }
 
     # input tool name
     function_list = ['amap_weather']
@@ -19,3 +22,6 @@ def test_weather_role():
         text += chunk
     print(text)
     assert isinstance(text, str)
+
+
+test_weather_role()

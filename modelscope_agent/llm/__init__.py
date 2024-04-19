@@ -4,6 +4,7 @@ from .base import LLM_REGISTRY, BaseChatModel
 from .dashscope import DashScopeLLM, QwenChatAtDS
 from .modelscope import ModelScopeChatGLM, ModelScopeLLM
 from .openai import OpenAi
+from .replicate import ReplicateModel
 from .zhipu import GLM4, ZhipuLLM
 
 
