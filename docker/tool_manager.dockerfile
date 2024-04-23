@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+WORKDIR /app
+
 # install basic packages
 RUN apt-get update && apt-get install -y \
     curl \
@@ -16,5 +18,15 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# docker build -f tool_service/docker/tool_node.dockerfile -t modelscope-agent/toolnode:v0.1 .
-# docker push modelscope-agent/toolnode:v0.1
+# file ready
+RUN rm -rf /tmp/* /var/tmp/*
+RUN mkdir -p assets
+RUN mkdir -p workspace
+
+# install dependency
+ENV PYTHONPATH $PYTHONPATH:/app/tool_service
+RUN pip install fastapi pydantic uvicorn docker sqlmodel
+
+COPY tool_service /app/tool_service
+
+#ENTRYPOINT exec uvicorn tool_service.tool_manager.api:app --host 0.0.0.0 --port 31511
