@@ -63,6 +63,7 @@ def stream_output(response, **kwargs):
 
 
 @register_llm('dashscope')
+@register_llm('dashscope_llama3')
 class DashScopeLLM(BaseChatModel):
     """
     Universal LLM model interface on dashscope
@@ -85,10 +86,7 @@ class DashScopeLLM(BaseChatModel):
         generation_input = {
             'model': self.model,
             'messages': messages,  # noqa
-            'stop_words': [{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            'stop': [word for word in stop],
             'top_p': kwargs.get('top_p', 0.8),
             'result_format': 'message',
             'stream': True,
