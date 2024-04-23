@@ -3,7 +3,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (AsyncChromiumLoader,
                                                   AsyncHtmlLoader)
 from langchain_community.document_transformers import BeautifulSoupTransformer
-from modelscope_agent.tools import BaseTool, register_tool
+from modelscope_agent.tools.base import BaseTool, register_tool
 
 
 @register_tool('web_browser')

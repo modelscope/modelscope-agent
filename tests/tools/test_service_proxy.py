@@ -1,4 +1,4 @@
-from modelscope_agent.tools import ToolServiceProxy
+from modelscope_agent.tools.base import ToolServiceProxy
 
 
 def test_tool_service():

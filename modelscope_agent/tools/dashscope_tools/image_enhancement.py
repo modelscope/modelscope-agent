@@ -2,9 +2,8 @@ import os
 import time
 
 import json
-import pandas as pd
 import requests
-from modelscope_agent.tools import register_tool
+from modelscope_agent.tools.base import register_tool
 from modelscope_agent.utils.utils import get_upload_url
 from requests.exceptions import RequestException, Timeout
 

@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from modelscope_agent.tools import register_tool
+from modelscope_agent.tools.base import register_tool
 
 from modelscope.utils.constant import Tasks
 from .pipeline_tool import ModelscopePipelineTool

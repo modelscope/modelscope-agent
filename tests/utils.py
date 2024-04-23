@@ -1,4 +1,4 @@
-from modelscope_agent.tools import BaseTool
+from modelscope_agent.tools.base import BaseTool
 
 
 class MockTool(BaseTool):

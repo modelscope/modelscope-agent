@@ -1,9 +1,6 @@
 import os
-import re
 
-import cv2
 import dashscope
-import json
 from dashscope import ImageSynthesis
 from modelscope_agent.tools.base import BaseTool, register_tool
 

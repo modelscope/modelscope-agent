@@ -35,7 +35,7 @@ _import_structure = {
     'storage_proxy_tool': ['Storage'],
     'web_browser': ['WebBrowser'],
     'web_search': ['WebSearch'],
-    'base': ['TOOL_REGISTRY', 'BaseTool', 'register_tool'],
+    'base': ['TOOL_REGISTRY', 'BaseTool', 'register_tool', 'ToolServiceProxy'],
 }
 
 sys.modules[__name__] = _LazyModule(

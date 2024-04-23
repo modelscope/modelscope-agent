@@ -1,11 +1,11 @@
 import re
 
-from modelscope_agent.tools import WebBrowser
+from modelscope_agent.tools.web_browser import WebBrowser
 
 
 def test_web_browsing():
     # test web browsing
-    params = """{'urls': 'https://blog.sina.com.cn/zhangwuchang'}"""
+    params = """{'urls': ['https://www.bing.com/search?q=拜登当选总统的年份']}"""
     web_browser = WebBrowser()
     res = web_browser.call(params=params)
 

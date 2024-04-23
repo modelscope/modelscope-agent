@@ -4,7 +4,6 @@ from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 
 from modelscope_agent.tools.base import BaseTool, register_tool
-from pydantic import ValidationError
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
