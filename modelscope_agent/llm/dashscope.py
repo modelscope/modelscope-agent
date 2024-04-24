@@ -19,8 +19,8 @@ def stream_output(response, **kwargs):
     text = ''
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
-            # logger at the first for the request_id, and the last time for whole output
-            if not text:  # or trunk.output.choices[0].finish_reason != 'null':
+            # logging at the first frame for request_id, and the last frame for the whole output
+            if not text or trunk.output.choices[0].finish_reason != 'null':
                 logger.info(
                     f'call dashscope generation api success, '
                     f'request_id: { trunk.request_id}, output: { trunk.output}'

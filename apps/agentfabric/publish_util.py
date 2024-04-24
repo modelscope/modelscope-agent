@@ -161,6 +161,9 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     new_assets_path = f'{new_directory}/assets'
     shutil.copytree(assets_path, new_assets_path, dirs_exist_ok=True)
 
+    # 复制requirements到新目录
+    shutil.copy(f'{local_file}/requirements.txt', new_directory)
+
     # 复制.py文件到新目录
     for file in os.listdir(local_file):
         if file.endswith('.py') and file != 'app.py':

@@ -1,5 +1,5 @@
 import queue
-from typing import List, Union
+from typing import Dict, List, Union
 
 from modelscope_agent.constants import DEFAULT_SEND_TO, USER_REQUIREMENT
 from modelscope_agent.schemas import Message
@@ -11,8 +11,8 @@ class Environment:
     raw_history: str = ''
     state: Union[str,
                  dict] = ''  # sort of transition state? shall we maintain it?
-    messages_list_map: dict[str, list] = {}
-    messages_queue_map: dict[str, object] = {}
+    messages_list_map: Dict[str, list] = {}
+    messages_queue_map: Dict[str, object] = {}
     message_history: list = []
     roles: list = []
     user_requirement_list: list = []
