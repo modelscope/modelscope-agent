@@ -126,3 +126,6 @@ class BaseKnowledgePipeline(BaseLlamaPack):
         return self.query_engine.query(query, **kwargs)
 
 
+if __name__ == '__main__':
+    knowledge_ppl = BaseKnowledgePipeline('./data')
+    print(knowledge_ppl.run('Agent+API的使用原理是什么？'))
