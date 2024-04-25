@@ -81,8 +81,7 @@ class DashScopeLLM(BaseChatModel):
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
-        stop = stop or []
-        stop.append('<|im_end|>')
+        stop = self._update_stop_word(stop)
         generation_input = {
             'model': self.model,
             'messages': messages,  # noqa
@@ -107,7 +106,7 @@ class DashScopeLLM(BaseChatModel):
                         messages: List[Dict],
                         stop: Optional[List[str]] = None,
                         **kwargs) -> str:
-        stop = stop or []
+        stop = self._update_stop_word(stop)
         top_p = kwargs.get('top_p', 0.8)
 
         response = dashscope.Generation.call(
@@ -115,10 +114,7 @@ class DashScopeLLM(BaseChatModel):
             messages=messages,  # noqa
             result_format='message',
             stream=False,
-            stop_words=[{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            stop=[word for word in stop],
             top_p=top_p,
         )
         if response.status_code == HTTPStatus.OK:
@@ -144,16 +140,13 @@ class QwenChatAtDS(DashScopeLLM):
                              **kwargs) -> str:
         if prompt == '':
             return ''
-        stop = stop or []
+        stop = self._update_stop_word(stop)
         top_p = kwargs.get('top_p', 0.8)
 
         response = dashscope.Generation.call(
             self.model,
             prompt=prompt,  # noqa
-            stop_words=[{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            stop=[word for word in stop],
             top_p=top_p,
             result_format='message',
             stream=False,
@@ -253,15 +246,11 @@ class QwenChatAtDS(DashScopeLLM):
                                      messages: List[Dict],
                                      stop: Optional[List[str]] = None,
                                      **kwargs) -> Iterator[str]:
-        stop = stop or []
-        stop.append('<|im_end|>')
+        stop = self._update_stop_word(stop)
         generation_input = {
             'model': self.model,
             'prompt': messages[0]['content'],
-            'stop_words': [{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            'stop': [word for word in stop],
             'top_p': kwargs.get('top_p', 0.95),
             'temperature': kwargs.get('temperature', 0.92),
             'result_format': 'message',

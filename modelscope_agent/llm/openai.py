@@ -31,6 +31,7 @@ class OpenAi(BaseChatModel):
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
+        stop = self._update_stop_word(stop)
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -48,6 +49,7 @@ class OpenAi(BaseChatModel):
                         messages: List[Dict],
                         stop: Optional[List[str]] = None,
                         **kwargs) -> str:
+        stop = self._update_stop_word(stop)
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
