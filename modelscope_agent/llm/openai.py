@@ -2,6 +2,7 @@ import os
 from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.llm.base import BaseChatModel, register_llm
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
 from openai import OpenAI
 
@@ -32,6 +33,9 @@ class OpenAi(BaseChatModel):
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
         stop = self._update_stop_word(stop)
+        logger.info(
+            f'call openai api, model: {self.model}, messages: {str(messages)}, '
+            f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -43,6 +47,9 @@ class OpenAi(BaseChatModel):
             # sometimes delta.content is None by vllm, we should not yield None
             if hasattr(chunk.choices[0].delta,
                        'content') and chunk.choices[0].delta.content:
+                logger.info(
+                    f'call openai api success, output: {chunk.choices[0].delta.content}'
+                )
                 yield chunk.choices[0].delta.content
 
     def _chat_no_stream(self,
@@ -50,12 +57,18 @@ class OpenAi(BaseChatModel):
                         stop: Optional[List[str]] = None,
                         **kwargs) -> str:
         stop = self._update_stop_word(stop)
+        logger.info(
+            f'call openai api, model: {self.model}, messages: {str(messages)}, '
+            f'stop: {str(stop)}, stream: False, args: {str(kwargs)}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             stop=stop,
             stream=False,
             **kwargs)
+        logger.info(
+            f'call openai api success, output: {response.choices[0].message.content}'
+        )
         # TODO: error handling
         return response.choices[0].message.content
 
