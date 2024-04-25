@@ -4,6 +4,7 @@ __pycache__/
 *.pyi
 *$py.class
 test.py
+ssrf_protect.py
 test/
 # C extensions
 *.so

@@ -12,6 +12,11 @@ from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 
+try:
+    import ssrf_protect
+except ImportError as e:
+    logger.warning('ssrf_protect import failed')
+
 LOGO_TOOL_NAME = 'logo_designer'
 
 UPDATING_CONFIG_STEP = '🚀参数配置更新中...'
