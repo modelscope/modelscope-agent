@@ -18,6 +18,8 @@
 <a href="https://github.com/modelscope/modelscope-agent/actions?query=branch%3Amaster+workflow%3Acitest++"><img src="https://img.shields.io/github/actions/workflow/status/modelscope/modelscope-agent/citest.yaml?branch=master&logo=github&label=CI"></a>
 <a href="https://github.com/modelscope/modelscope-agent/blob/main/LICENSE"><img src="https://img.shields.io/github/license/modelscope/modelscope-agent"></a>
 <a href="https://github.com/modelscope/modelscope-agent/pulls"><img src="https://img.shields.io/badge/PR-welcome-55EB99.svg"></a>
+<a href="https://pypi.org/project/modelscope-agent/"><img src="https://badge.fury.io/py/modelscope-agent.svg"></a>
+<a href="https://pepy.tech/project/modelscope-agent"><img src="https://pepy.tech/badge/modelscope-agent"></a>
 </p>
 
 
@@ -33,7 +35,8 @@ It mainly has the following characteristics:
 
 
 ## 🎉 News
-* 🔥Mar 15, 2024: Modelscope-Agent and the Agentfabric (opensource version for GPTs) is running on the production environment of [modelscope studio](https://modelscope.cn/studios/agent).
+* 🔥Apr 12, 2024: The [Ray](https://docs.ray.io/en/latest/) version of multi-agent solution is on modelscope-agent, please find the [document](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/multi_agents_utils/README.md)
+* Mar 15, 2024: Modelscope-Agent and the [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric) (opensource version for GPTs) is running on the production environment of [modelscope studio](https://modelscope.cn/studios/agent).
 * Feb 10, 2024: In Chinese New year, we upgrade the modelscope agent to version v0.3 to facilitate developers to customize various types of agents more conveniently through coding and make it easier to make multi-agent demos. For more details, you can refer to [#267](https://github.com/modelscope/modelscope-agent/pull/267) and [#293](https://github.com/modelscope/modelscope-agent/pull/293) .
 * Nov 26, 2023: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric) now supports collaborative use in ModelScope's [Creation Space](https://modelscope.cn/studios/modelscope/AgentFabric/summary), allowing for the sharing of custom applications in the Creation Space. The update also includes the latest [GTE](https://modelscope.cn/models/damo/nlp_gte_sentence-embedding_chinese-base/summary) text embedding integration.
 * Nov 17, 2023: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric) released, which is an interactive framework to facilitate creation of agents tailored to various real-world applications.
@@ -204,6 +207,10 @@ bot = RolePlay(function_list=function_list, ...)
 - `text-address`: [Geocoding](https://www.modelscope.cn/models/iic/mgeo_geographic_elements_tagging_chinese_base/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 - `speech-generation`: [Speech generation](https://www.modelscope.cn/models/iic/speech_sambert-hifigan_tts_zh-cn_16k/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
 - `video-generation`: [Video generation](https://www.modelscope.cn/models/iic/text-to-video-synthesis/summary). [MODELSCOPE_API_TOKEN](https://www.modelscope.cn/my/myaccesstoken) needs to be configured in the environment variable.
+
+### Multi-agent
+
+Please refer the multi-agent [readme](modelscope_agent/multi_agents_tasks/README.md).
 
 
 ## Related Tutorials

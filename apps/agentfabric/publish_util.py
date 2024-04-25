@@ -10,16 +10,8 @@ import json
 import oss2
 import requests
 from server_logging import logger
-from version import __ms_version__ as MS_VERSION
 
 from modelscope.utils.config import Config
-
-main_version = MS_VERSION.split('rc')[0]
-sub_version = main_version
-if len(MS_VERSION.split('rc')) > 1:
-    sub_version += 'rc' + MS_VERSION.split('rc')[1]
-
-DEFAULT_MS_PKG = f'https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v{main_version}/modelscope_agent-{sub_version}-py3-none-any.whl'  # noqa E501
 
 
 def upload_to_oss(bucket, local_file_path, oss_file_path):
@@ -169,15 +161,8 @@ def prepare_agent_zip(agent_name, src_dir, uuid_str, state):
     new_assets_path = f'{new_directory}/assets'
     shutil.copytree(assets_path, new_assets_path, dirs_exist_ok=True)
 
-    # 在requirements.txt中添加新的行
-    requirements_file = f'{local_file}/requirements.txt'
-    new_requirements_file = f'{new_directory}/requirements.txt'
-    modelscope_agent_pkg = DEFAULT_MS_PKG.replace('version', MS_VERSION)
-    with open(requirements_file, 'r') as file:
-        content = file.readlines()
-    with open(new_requirements_file, 'w') as file:
-        file.write(modelscope_agent_pkg + '\n')
-        file.writelines(content)
+    # 复制requirements到新目录
+    shutil.copy(f'{local_file}/requirements.txt', new_directory)
 
     # 复制.py文件到新目录
     for file in os.listdir(local_file):

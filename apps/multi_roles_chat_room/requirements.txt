@@ -1,0 +1,3 @@
+gradio==4.8
+modelscope-agent==0.4.1
+modelscope_studio

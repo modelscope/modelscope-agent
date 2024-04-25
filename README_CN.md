@@ -18,6 +18,8 @@
 "></a>
 <a href="https://github.com/modelscope/modelscope-agent/blob/main/LICENSE"><img src="https://img.shields.io/github/license/modelscope/modelscope-agent"></a>
 <a href="https://github.com/modelscope/modelscope-agent/pulls"><img src="https://img.shields.io/badge/PR-welcome-55EB99.svg"></a>
+<a href="https://pypi.org/project/modelscope-agent/"><img src="https://badge.fury.io/py/modelscope-agent.svg"></a>
+<a href="https://pepy.tech/project/modelscope-agent"><img src="https://pepy.tech/badge/modelscope-agent"></a>
 </p>
 
 
@@ -32,6 +34,7 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 
 ## 更新
+* 🔥2024.4.12: 基于[Ray](https://docs.ray.io/en/latest/)的multi-agent方案正式上线，参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/multi_agents_utils/README_CN.md)
 * 2024.3.15: Modelscope-Agent 和 Agentfabric（面向GPT的开源版本）正在[modelscope studio](https://modelscope.cn/studios/agent)的生产环境中运行。
 * 2024.2.10：在中国新年期间，我们将modelscope agent升级到v0.3版本，以便开发者通过编码更方便地定制各类agent，并使创建多agent演示变得更加容易。更多详情，您可以参考[#267](https://github.com/modelscope/modelscope-agent/pull/267) 和 [#293](https://github.com/modelscope/modelscope-agent/pull/293)。
 * 2023.11.26: [AgentFabric](https://github.com/modelscope/modelscope-agent/tree/master/apps/agentfabric)支持ModelScope[创空间](https://modelscope.cn/studios/modelscope/AgentFabric/summary)多人使用，支持分享定制应用到创空间，更新到最新的[GTE](https://modelscope.cn/models/damo/nlp_gte_sentence-embedding_chinese-base/summary) text embedding。
@@ -205,6 +208,9 @@ bot = RolePlay(function_list=function_list, ...)
 function_list = ['amap_weather', {'terminal':ShellTool()}]
 bot = RolePlay(function_list=function_list, ...)
 ```
+
+### Multi-Agent
+请参考相关[文档](modelscope_agent/multi_agents_tasks/README_CN.md)。
 
 #### Built-in tools
 - `image_gen`: [Wanx 图像生成](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。

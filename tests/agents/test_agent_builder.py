@@ -1,3 +1,4 @@
+import pytest
 from modelscope_agent.agents.agent_builder import AgentBuilder
 
 

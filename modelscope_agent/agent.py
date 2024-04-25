@@ -8,6 +8,8 @@ from modelscope_agent.utils.utils import has_chinese_chars
 
 
 class Agent(ABC):
+    function_map: dict = {
+    }  # used to record all the tools' instance, moving here to avoid `del` method crash.
 
     def __init__(self,
                  function_list: Optional[List[Union[str, Dict]]] = None,
@@ -180,6 +182,8 @@ class Agent(ABC):
 
     # del the tools as well while del the agent
     def __del__(self):
-        if self.function_map:
+        try:
             for tool_instance in self.function_map.items():
                 del tool_instance
+        except Exception:
+            pass

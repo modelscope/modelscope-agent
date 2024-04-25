@@ -1,13 +1,15 @@
 import os
+from pathlib import Path
 from typing import Dict, Iterable, List, Union
 
 import json
 from modelscope_agent.schemas import AgentAttr, Message
+from modelscope_agent.utils.tokenization_utils import count_tokens
 from pydantic import ConfigDict
 
 
 class Memory(AgentAttr):
-    path: str
+    path: Union[str, Path]
     model_config = ConfigDict(extra='allow')
 
     def save_history(self):
@@ -63,6 +65,11 @@ class Memory(AgentAttr):
             self.history.extend(message)
         else:
             self.history.append(message)
+
+    def get_history_token_count(self) -> int:
+        history_token_count = sum(
+            count_tokens(message.content) for message in self.history)
+        return history_token_count
 
     def pop_history(self):
         return self.history.pop()
