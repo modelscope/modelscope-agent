@@ -24,12 +24,13 @@ RUN rm -rf /tmp/* /var/tmp/*
 RUN mkdir -p assets
 RUN mkdir -p workspace
 
-# install modelscope_agent
+## install modelscope_agent
+#RUN pip install torch
+#RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install fastapi uvicorn
-RUN pip install torch
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 
 COPY modelscope_agent /app/modelscope_agent
 ENV PYTHONPATH $PYTHONPATH:/app/modelscope_agent:/app/tool_service

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# check if `docker` cmd exists
+if ! command -v docker &> /dev/null
+then
+    echo "Docker could not be found"
+    exit 1
+else
+    echo "Docker is installed"
+    # check if docker dameon is running
+    if ! docker info &> /dev/null; then
+        echo "Docker daemon is not running"
+        exit 1
+    else
+        echo "Docker daemon is running"
+    fi
+fi
+
+
+# use venv
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+else
+    echo "Virtual environment already exists."
+fi
+
+# build tool node image
+echo "Building tool node image, the first time might be token 10 mins."
+docker build -f docker/tool_node.dockerfile -t modelscope-agent/tool-node .
+
+# install dependencies might be done in venv, not much dependencies here
+echo "Installing dependencies from requirements.txt..."
+pip3 install -r tool_service/requirements.txt
+
+# running
+echo "Running fastapi server at port 31511."
+export PYTHONPATH=$PYTHONPATH:tool_service
+uvicorn tool_service.tool_manager.api:app --host 0.0.0.0 --port 31511

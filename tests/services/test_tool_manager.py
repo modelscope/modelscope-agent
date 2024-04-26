@@ -1,18 +1,13 @@
 import os
-import time
-from contextlib import asynccontextmanager
 
 import pytest
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI
 from sqlmodel import Session, select
-from tool_service.tool_manager.api import (
-    remove_docker_container_and_update_status,
-    restart_docker_container_and_update_status,
-    start_docker_container_and_store_status)
-from tool_service.tool_manager.connections import (ToolInstance,
-                                                   ToolRegisterInfo,
-                                                   create_db_and_tables,
+from tool_service.tool_manager.api import \
+    start_docker_container_and_store_status
+from tool_service.tool_manager.connections import (create_db_and_tables,
                                                    drop_db_and_tables, engine)
+from tool_service.tool_manager.models import ToolInstance, ToolRegisterInfo
 from tool_service.tool_manager.sandbox import get_docker_container
 from tool_service.tool_manager.utils import PortGenerator
 
@@ -36,8 +31,9 @@ def setup():
 @pytest.fixture
 def mock_tool_info():
     return ToolRegisterInfo(
-        name='RenewInstance',
-        image='modelscope-agent/tool-node:v0.3',
+        node_name='RenewInstance_default',
+        tool_name='RenewInstance',
+        image='modelscope-agent/tool-node:no-modelscope',
         config={
             'name': 'RenewInstance',
             'RenewInstance': {
@@ -60,10 +56,10 @@ def test_start_docker_container_and_store_status(mock_tool_info):
     with Session(engine) as session:
         tool_container = session.exec(
             select(ToolInstance).where(
-                ToolInstance.name == mock_tool_info.name)).first()
+                ToolInstance.name == mock_tool_info.node_name)).first()
         assert tool_container.status == 'running'
         assert tool_container.container_id == container.id
-        assert tool_container.name == mock_tool_info.name
+        assert tool_container.name == mock_tool_info.node_name
 
-    # if container is not None:
-    #     container.remove(force=True)
+    if container is not None:
+        container.remove(force=True)

@@ -4,7 +4,7 @@ from typing import Coroutine
 
 import json
 from fastapi import FastAPI, HTTPException
-from modelscope_agent.tools import TOOL_REGISTRY
+from modelscope_agent.tools.base import TOOL_REGISTRY
 from tool_service.tool_node.models import ToolRequest
 from tool_service.tool_node.utils import get_attribute_from_tool_cls
 
@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
     try:
         configs = get_tool_configuration(CONFIG_FILE_PATH)
         tool_name = configs.get('name')
-        tool_cls = TOOL_REGISTRY.get(tool_name, None)
+        tool_cls = TOOL_REGISTRY[tool_name]
         if isinstance(tool_cls, dict):
             tool_cls = tool_cls['class']
         tool_config = configs.get(tool_name, {})

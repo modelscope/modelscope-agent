@@ -18,6 +18,7 @@ class Agent(ABC):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
+                 use_api: bool = False,
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -33,6 +34,7 @@ class Agent(ABC):
             name: the name of agent
             description: the description of agent, which is used for multi_agent
             instruction: the system instruction of this agent
+            use_api: whether to use the tool service api, else to use the tool cls instance
             kwargs: other potential parameters
         """
         if isinstance(llm, Dict):
@@ -41,6 +43,7 @@ class Agent(ABC):
         else:
             self.llm = llm
         self.stream = True
+        self.use_api = use_api
 
         self.function_list = []
         self.function_map = {}
@@ -93,8 +96,7 @@ class Agent(ABC):
 
     def _register_tool(self,
                        tool: Union[str, Dict],
-                       tenant_id: str = 'default',
-                       use_api: bool = False):
+                       tenant_id: str = 'default'):
         """
         Instantiate the tool for the agent
 
@@ -104,7 +106,6 @@ class Agent(ABC):
             (1) When str: amap_weather
             (2) When dict: {'amap_weather': {'token': 'xxx'}}
             tenant_id: the tenant_id of the tool is now  for code interpreter that need to keep track of the tenant
-            use_api: whether to use the tool service api, else to use the tool cls instance
         Returns:
 
         """
@@ -126,7 +127,7 @@ class Agent(ABC):
                 return
 
             try:
-                if use_api:
+                if self.use_api:
                     # get service proxy as tool instance, call method will call remote tool service
                     tool_instance = ToolServiceProxy(tool_name, tool_cfg,
                                                      tenant_id)

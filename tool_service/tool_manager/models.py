@@ -32,7 +32,7 @@ class CreateTool(BaseModel):
     tool_name: str
     tenant_id: str = 'default'
     tool_cfg: dict = {}
-    tool_image: str = 'modelscope-agent/tool-node:v0.4'
+    tool_image: str = 'modelscope-agent/tool-node:no-modelscope'
 
 
 class GetToolUrl(BaseModel):

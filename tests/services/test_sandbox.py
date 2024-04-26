@@ -2,7 +2,7 @@ import os
 import time
 
 import pytest
-from tool_service.tool_manager.connections import ToolRegisterInfo
+from tool_service.tool_manager.models import ToolRegisterInfo
 from tool_service.tool_manager.sandbox import (get_docker_container,
                                                get_exec_cmd,
                                                restart_docker_container,
@@ -18,7 +18,7 @@ if not os.path.exists('/tmp/test-tool-node'):
 def mock_tool_info():
     return ToolRegisterInfo(
         name='test-tool',
-        image='modelscope-agent/tool-node:v0.1',
+        image='modelscope-agent/tool-node:no-modelscope',
         config={'config_key': 'config_value'},
         workspace_dir='/tmp/test-tool-node',
         tenant_id='test-tenant')

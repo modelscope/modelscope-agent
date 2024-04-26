@@ -96,6 +96,8 @@ def start_docker_container_and_store_status(tool: ToolRegisterInfo,
             session.commit()
         except Exception as e:
             # if docker start failed, record the error
+            import traceback
+            print(f'error is {traceback.format_exc()}')
             statement = select(ToolInstance).where(
                 ToolInstance.name == tool_container.name)
             results = session.exec(statement)
@@ -235,7 +237,7 @@ async def update_tool_service(
     background_tasks: BackgroundTasks,
     tool_cfg: dict = {},
     tenant_id: str = 'default',
-    tool_image: str = 'modelscope-agent/tool-node:v0.1',
+    tool_image: str = 'modelscope-agent/tool-node',
 ):
     tool_node_name = f'{tool_name}_{tenant_id}'
     tool_register_info = ToolRegisterInfo(
@@ -301,7 +303,12 @@ async def get_tool_service_url(get_tool_url: GetToolUrl):
     try:
         tool_service_url = 'http://' + tool_instance.ip + ':' + str(
             tool_instance.port) + '/execute_tool'
-        return tool_service_url
+        tool_info_url = 'http://' + tool_instance.ip + ':' + str(
+            tool_instance.port) + '/tool_info'
+        return {
+            'tool_service_url': tool_service_url,
+            'tool_info_url': tool_info_url
+        }
     except Exception:
         raise HTTPException(
             status_code=500,
