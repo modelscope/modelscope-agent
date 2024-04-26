@@ -35,7 +35,7 @@ class InferArguments:
         default='alpaca-en,alpaca-zh', metadata={'help': 'dataset'})
     dataset_seed: int = 42
     dataset_sample: int = 20000  # -1: all dataset
-    dataset_test_ratio: float = 0.01
+    dataset_test_size: float = 0.01
     prompt: str = DEFAULT_PROMPT
     max_length: Optional[int] = 1024
 
@@ -102,7 +102,7 @@ def llm_infer(args: InferArguments) -> None:
     logger.info(f'generation_config: {generation_config}')
 
     dataset = get_ms_tool_dataset_test(args.dataset)
-    test_dataset, _ = process_dataset(dataset, args.dataset_test_ratio,
+    test_dataset, _ = process_dataset(dataset, args.dataset_test_size,
                                       args.dataset_sample, args.dataset_seed)
     del dataset
     preds = []
