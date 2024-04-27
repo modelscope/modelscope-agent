@@ -30,7 +30,7 @@ def test_role_play_with():
     is_accessible = check_url(DEFAULT_TOOL_MANAGER_SERVICE_URL)
 
     if not is_accessible:
-        assert False, """Start up the tool manager service by `docker compose -f docker/docker-compose.yaml up`"""
+        assert False, """Start up the tool manager service by `sh scripts/run_tool_manager.sh`"""
 
     bot = RolePlay(function_list=function_list, llm=llm_config, use_api=True)
 

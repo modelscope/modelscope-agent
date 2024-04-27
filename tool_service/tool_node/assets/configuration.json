@@ -1,6 +1,5 @@
 {
-  "name": "RenewInstance",
-  "RenewInstance" : {
-    "key" : "test"
+  "name": "image_gen",
+  "image_gen" : {
   }
 }

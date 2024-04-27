@@ -1,7 +1,10 @@
 import os
 
+import dashscope
 from dashscope import MultiModalConversation
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
+from modelscope_agent.utils.utils import get_api_key
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -26,16 +29,12 @@ class QWenVL(BaseTool):
 
     def call(self, params: str, **kwargs) -> str:
         # 检查环境变量中是否设置DASHSCOPE_API_KEY
-        try:
-            os.environ['DASHSCOPE_API_KEY']
-        except KeyError:
-            raise KeyError(
-                'API_KEY Error: DASHSCOPE_API_KEY environment variable is not set.'
-            )
+
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
         remote_parsed_input = self._remote_parse_input(**params)
+        dashscope.api_key = get_api_key(ApiNames.dashscope_api_key, **kwargs)
         """Sample of use local file.
         linux&mac file schema: file:///home/images/test.png
         windows file schema: file://D:/images/abc.png
