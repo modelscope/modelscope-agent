@@ -18,11 +18,10 @@ messages = [{
 def chat_model(mocker):
     # using mock llm result as output
     llm_config = {
-        'model': 'test_model',
+        'model': 'qwen',
         'model_server': 'openai',
         'api_base': 'http://127.0.0.1:8000/v1',
-        'api_key': 'EMPTY',
-        'stop': ['stop1']
+        'api_key': 'EMPTY'
     }
     chat_model = OpenAi(**llm_config)
     mocker.patch.object(
@@ -35,10 +34,10 @@ def chat_model(mocker):
 def test_chat_stop_word(chat_model):
     stop = chat_model._update_stop_word(['observation'])
     assert isinstance(stop, list)
-    assert stop == ['stop1', 'observation']
+    assert stop == ['<|im_end|>', 'observation']
     stop = chat_model._update_stop_word(None)
     assert isinstance(stop, list)
-    assert stop == ['stop1']
+    assert stop == ['<|im_end|>']
     stop = chat_model._update_stop_word([])
     assert isinstance(stop, list)
-    assert stop == ['stop1']
+    assert stop == ['<|im_end|>']
