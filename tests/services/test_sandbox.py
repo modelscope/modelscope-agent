@@ -2,13 +2,12 @@ import os
 import time
 
 import pytest
+from tests.ut_utils import is_docker_daemon_running
 from tool_service.tool_manager.models import ToolRegisterInfo
 from tool_service.tool_manager.sandbox import (get_docker_container,
                                                get_exec_cmd,
                                                restart_docker_container,
                                                start_docker_container)
-
-from ..ut_utils import is_docker_daemon_running
 
 USE_REAL_DOCKER = os.environ.get('USE_REAL_DOCKER', 'True').lower() == 'true'
 

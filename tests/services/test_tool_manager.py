@@ -3,6 +3,7 @@ import os
 import pytest
 from fastapi import FastAPI
 from sqlmodel import Session, select
+from tests.ut_utils import is_docker_daemon_running
 from tool_service.tool_manager.api import \
     start_docker_container_and_store_status
 from tool_service.tool_manager.connections import (create_db_and_tables,
@@ -10,8 +11,6 @@ from tool_service.tool_manager.connections import (create_db_and_tables,
 from tool_service.tool_manager.models import ToolInstance, ToolRegisterInfo
 from tool_service.tool_manager.sandbox import get_docker_container
 from tool_service.tool_manager.utils import PortGenerator
-
-from ..ut_utils import is_docker_daemon_running
 
 USE_REAL_DOCKER = os.environ.get('USE_REAL_DOCKER', 'True').lower() == 'true'
 

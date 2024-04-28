@@ -4,8 +4,7 @@ import pytest
 import requests
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.constants import DEFAULT_TOOL_MANAGER_SERVICE_URL
-
-from ..ut_utils import is_docker_daemon_running
+from tests.ut_utils import is_docker_daemon_running
 
 
 def check_url(url: str):
