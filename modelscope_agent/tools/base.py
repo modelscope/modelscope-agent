@@ -330,6 +330,10 @@ class ToolServiceProxy(BaseTool):
 
     def call(self, params: str, **kwargs):
         # visit tool node to call tool
-        response = requests.post(self.tool_node_url, json={'params': params})
+        response = requests.post(
+            self.tool_node_url, json={
+                'params': params,
+                'kwargs': kwargs
+            })
         response.raise_for_status()
         return response.json()

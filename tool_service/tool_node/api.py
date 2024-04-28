@@ -120,7 +120,7 @@ async def execute_tool(request: ToolRequest):
     tool_instance = app.tool_instance
     # call tool
     try:
-        result = tool_instance.call(request.params)
+        result = tool_instance.call(request.params, **request.kwargs)
         if isinstance(result, Coroutine):
             result = await result
         return result

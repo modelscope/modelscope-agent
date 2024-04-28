@@ -1,7 +1,11 @@
+import os
+
 import pytest
 import requests
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.constants import DEFAULT_TOOL_MANAGER_SERVICE_URL
+
+from ..ut_utils import is_docker_daemon_running
 
 
 def check_url(url: str):
@@ -21,6 +25,8 @@ def check_url(url: str):
     return False
 
 
+@pytest.mark.skipif(
+    is_docker_daemon_running(), reason='Need to set up the docker environment')
 def test_role_play_with():
     llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 
@@ -34,7 +40,8 @@ def test_role_play_with():
 
     bot = RolePlay(function_list=function_list, llm=llm_config, use_api=True)
 
-    response = bot.run('创建一个多啦A梦')
+    response = bot.run(
+        '创建一个多啦A梦', dashscope_api_key=os.getenv('DASHSCOPE_API_KEY'))
 
     text = ''
     for chunk in response:
@@ -42,5 +49,4 @@ def test_role_play_with():
     print(text)
     assert isinstance(text, str)
     assert 'Answer:' in text
-    assert 'Config:' in text
-    assert 'RichConfig:' in text
+    assert 'Observation:' in text

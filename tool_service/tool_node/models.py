@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class ToolRequest(BaseModel):
     params: str
+    kwargs: dict = {}
     messages: list = []
 
 
