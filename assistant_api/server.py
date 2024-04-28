@@ -8,13 +8,38 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 
+DEFAULT_KNOWLEDGE_PATH = 'knowledges'
+
 app = FastAPI()
 
 
 @app.on_event('startup')
 async def startup_event():
-    if not os.path.exists('knowledges'):
-        os.makedirs('knowledges')
+    if not os.path.exists(DEFAULT_KNOWLEDGE_PATH):
+        os.makedirs(DEFAULT_KNOWLEDGE_PATH)
+
+
+@app.post('/assistant/upload_files')
+async def upload_files(uuid_str: str = Form(...),
+                       files: List[UploadFile] = File(...)):
+    if files:
+        knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
+        if not os.path.exists(knowledge_path):
+            os.makedirs(knowledge_path)
+        memory = MemoryWithRetrievalKnowledge(
+            storage_path=knowledge_path,
+            name=uuid_str,
+            use_knowledge_cache=True,
+            embedding=EmbeddingSingleton().get_embedding())
+        for file in files:
+            save_dir = os.path.join(knowledge_path, file.filename)
+            if os.path.exists(save_dir):
+                continue
+            with open(save_dir, 'wb') as f:
+                f.write(file.file.read())
+            memory.run(None, url=save_dir)
+        return JSONResponse(content={'status': 'upload files success'})
+    return JSONResponse(content={'status': 'upload fiels failed'})
 
 
 @app.post('/assistant/chat')
@@ -34,8 +59,8 @@ async def chat(agent_request: str = Form(...),
     query = message[-1]['content']
 
     ref_doc = None
-    if files:
-        knowledge_path = os.path.join('knowledges', uuid_str)
+    if agent_request.use_knowledge:
+        knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
         if not os.path.exists(knowledge_path):
             os.makedirs(knowledge_path)
         memory = MemoryWithRetrievalKnowledge(
@@ -43,14 +68,6 @@ async def chat(agent_request: str = Form(...),
             name=uuid_str,
             use_knowledge_cache=True,
             embedding=EmbeddingSingleton().get_embedding())
-        for file in files:
-            if os.path.exists(os.path.join(knowledge_path, file.filename)):
-                continue
-            save_dir = os.path.join(knowledge_path, file.filename)
-            print(save_dir)
-            with open(save_dir, 'wb') as f:
-                f.write(file.file.read())
-            memory.run(None, url=save_dir)
         ref_doc = memory.run(query)
 
     agent = RolePlay(
@@ -66,4 +83,4 @@ async def chat(agent_request: str = Form(...),
         response += chunk
 
     del agent
-    return response + ref_doc
+    return response

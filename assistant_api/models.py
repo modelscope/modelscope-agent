@@ -23,5 +23,6 @@ class ChatRequest(BaseModel):
     llm_config: LLMConfig = Field(..., title='LLM config')
     agent_config: AgentConfig = Field(..., title='Agent config')
     stream: bool = Field(False, title='Stream output')
-    # knowledge_path: str = Field(None, title='Knowledge path')
+    use_knowledge: bool = Field(False, title='Whether to use knowledge')
+    files: List[str] = Field([], title='List of files used in knowledge')
     uuid_str: Optional[str] = Field('test', title='UUID string')
