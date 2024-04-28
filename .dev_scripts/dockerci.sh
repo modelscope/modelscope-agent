@@ -12,5 +12,8 @@ echo "${CODE_INTERPRETER_WORK_DIR}"
 cp tests/samples/* "${CODE_INTERPRETER_WORK_DIR}/"
 ls  "${CODE_INTERPRETER_WORK_DIR}"
 
+# install package
+pip install fastapi pydantic uvicorn docker sqlmodel
+
 # run ci
 pytest tests
