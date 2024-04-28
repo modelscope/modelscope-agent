@@ -26,3 +26,16 @@ class ChatRequest(BaseModel):
     use_knowledge: bool = Field(False, title='Whether to use knowledge')
     files: List[str] = Field([], title='List of files used in knowledge')
     uuid_str: Optional[str] = Field('test', title='UUID string')
+
+
+# for upper api
+class AgentModel(BaseModel):
+    uuid: str = Field(..., title='Agent ID')
+    llm_config: LLMConfig = Field(..., title='LLM config')
+    agent_config: AgentConfig = Field(..., title='Agent config')
+
+
+class MemoryModel(BaseModel):
+    uuid: str = Field(..., title='Memory ID')
+    history: List[Dict[str, str]] = Field([], title='List of messages')
+    files: List[str] = Field([], title='List of files used in knowledge')

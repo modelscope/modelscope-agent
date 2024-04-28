@@ -43,9 +43,7 @@ async def upload_files(uuid_str: str = Form(...),
 
 
 @app.post('/assistant/chat')
-async def chat(agent_request: str = Form(...),
-               files: List[UploadFile] = File(...)):
-    agent_request = ChatRequest.parse_raw(agent_request)
+async def chat(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
 
     # agent related config
@@ -76,11 +74,13 @@ async def chat(agent_request: str = Form(...),
         instruction=agent_config['instruction'],
         uuid_str=uuid_str)
     result = agent.run(query, history=history, ref_doc=ref_doc)
-
-    response = ''
-    # current not support streaming
-    for chunk in result:
-        response += chunk
-
     del agent
-    return response
+
+    if agent_request.stream:
+        return StreamingResponse(result)
+    else:
+        response = ''
+        for chunk in result:
+            response += chunk
+
+        return response
