@@ -29,8 +29,12 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             description=description)
 
         # allow vector storage to save knowledge
+        embedding = kwargs.get('embedding', None)
         self.store_knowledge = KnowledgeVector(
-            storage_path, name, use_cache=use_knowledge_cache)
+            storage_path,
+            name,
+            use_cache=use_knowledge_cache,
+            embedding=embedding)
 
     def _run(self,
              query: str = None,
