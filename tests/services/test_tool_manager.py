@@ -47,7 +47,8 @@ def mock_tool_info():
 
 @pytest.mark.usefixtures('setup')
 @pytest.mark.skipif(
-    is_docker_daemon_running(), reason='Need to set up the docker environment')
+    not is_docker_daemon_running(),
+    reason='Need to set up the docker environment')
 def test_start_docker_container_and_store_status(mock_tool_info):
     container = get_docker_container(mock_tool_info)
     if container is not None:

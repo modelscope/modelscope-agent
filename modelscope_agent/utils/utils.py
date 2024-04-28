@@ -307,7 +307,7 @@ def get_api_key(api_enum: ApiNames, key=None, **kwargs):
 
     """
     api_key = ''
-    if key is not None or key != '':
+    if key is not None:
         if kwargs.get(api_enum.name, '') is not None:
             if key != kwargs.get(api_enum.name):
                 # use runtime key instead of init key

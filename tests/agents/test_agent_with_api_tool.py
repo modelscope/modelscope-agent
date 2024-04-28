@@ -25,7 +25,8 @@ def check_url(url: str):
 
 
 @pytest.mark.skipif(
-    is_docker_daemon_running(), reason='Need to set up the docker environment')
+    not is_docker_daemon_running(),
+    reason='Need to set up the docker environment')
 def test_role_play_with():
     llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 
