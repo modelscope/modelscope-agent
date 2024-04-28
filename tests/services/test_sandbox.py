@@ -2,12 +2,13 @@ import os
 import time
 
 import pytest
-from tests.ut_utils import is_docker_daemon_running
 from tool_service.tool_manager.models import ToolRegisterInfo
 from tool_service.tool_manager.sandbox import (get_docker_container,
                                                get_exec_cmd,
                                                restart_docker_container,
                                                start_docker_container)
+
+IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
 
 USE_REAL_DOCKER = os.environ.get('USE_REAL_DOCKER', 'True').lower() == 'true'
 
@@ -26,8 +27,7 @@ def mock_tool_info():
 
 
 @pytest.mark.skipif(
-    not is_docker_daemon_running(),
-    reason='Need to set up the docker environment')
+    IN_GITHUB_ACTIONS, reason='Need to set up the docker environment')
 def test_start_docker_container(mock_tool_info):
     container = get_docker_container(mock_tool_info)
     if container is not None:

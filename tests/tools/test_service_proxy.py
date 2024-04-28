@@ -1,6 +1,12 @@
+import os
+
+import pytest
 from modelscope_agent.tools.base import ToolServiceProxy
 
+IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
 
+
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason='no need to run this test on ci')
 def test_tool_service():
     try:
         tool_service = ToolServiceProxy('RenewInstance', {'test': 'xxx'})

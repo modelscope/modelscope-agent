@@ -13,6 +13,6 @@ DEFAULT_TOOL_MANAGER_SERVICE_URL = 'http://localhost:31511'
 
 class ApiNames(Enum):
     dashscope_api_key = 'DASHSCOPE_API_KEY'
-    modelscope_api_key = 'MODELSCOPE_API_KEY'
+    modelscope_api_key = 'MODELSCOPE_API_TOKEN'
     amap_api_key = 'AMAP_TOKEN'
     bing_api_key = 'BING_SEARCH_V7_SUBSCRIPTION_KEY'

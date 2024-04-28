@@ -4,7 +4,8 @@ import pytest
 import requests
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.constants import DEFAULT_TOOL_MANAGER_SERVICE_URL
-from tests.ut_utils import is_docker_daemon_running
+
+IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
 
 
 def check_url(url: str):
@@ -25,8 +26,7 @@ def check_url(url: str):
 
 
 @pytest.mark.skipif(
-    not is_docker_daemon_running(),
-    reason='Need to set up the docker environment')
+    IN_GITHUB_ACTIONS, reason='Need to set up the docker environment')
 def test_role_play_with():
     llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 

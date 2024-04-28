@@ -13,8 +13,8 @@ class MockTool1(MockTool):
 # Using RolePlay as a concrete agent
 @pytest.fixture
 def tester_agent(mocker):
-    TOOL_REGISTRY['mock_tool'] = MockTool
-    TOOL_REGISTRY['mock_tool1'] = MockTool1
+    TOOL_REGISTRY['mock_tool'] = {'class': MockTool}
+    TOOL_REGISTRY['mock_tool1'] = {'class': MockTool1}
     function_list = ['mock_tool', {'mock_tool1': {'config': 'some_config'}}]
     llm_config = {
         'model': 'qwen-max',
