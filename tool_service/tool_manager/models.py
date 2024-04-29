@@ -35,11 +35,6 @@ class CreateTool(BaseModel):
     tool_image: str = 'modelscope-agent/tool-node:latest'
 
 
-class GetToolUrl(BaseModel):
-    tool_name: str
-    tenant_id: str = 'default'
-
-
 class ExecuteTool(BaseModel):
     tool_name: str
     tenant_id: str = 'default'

@@ -1,10 +1,12 @@
 import os
 from contextlib import asynccontextmanager
 from typing import Coroutine
+from uuid import uuid4
 
 import json
 from fastapi import FastAPI, HTTPException
 from modelscope_agent.tools.base import TOOL_REGISTRY
+from tool_service.service_utils import create_success_msg
 from tool_service.tool_node.models import ToolRequest
 from tool_service.tool_node.utils import get_attribute_from_tool_cls
 
@@ -84,12 +86,13 @@ async def root():
     Returns:
         dict: A dictionary containing a welcoming message.
     """
-    return {'message': 'Hello World'}
+    request_id = str(uuid4())
+    return create_success_msg({'message': 'Hello World'}, request_id)
 
 
 # get tool info
 @app.get('/tool_info')
-async def get_tool_info():
+async def get_tool_info(request_id: str):
     """
     Function to get the tool information.
 
@@ -100,11 +103,12 @@ async def get_tool_info():
     try:
         tool_attribute = app.tool_attribute
         first_key = next(iter(tool_attribute))
-        return tool_attribute[first_key]
-    except Exception:
+        return create_success_msg(tool_attribute[first_key], request_id)
+    except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get tool info for '{app.tool_name}'")
+            status_code=400,
+            detail=
+            f"Failed to get tool info for '{app.tool_name}' with error {e}")
 
 
 # execute tool
@@ -123,11 +127,11 @@ async def execute_tool(request: ToolRequest):
         result = tool_instance.call(request.params, **request.kwargs)
         if isinstance(result, Coroutine):
             result = await result
-        return result
-    except Exception:
+        return create_success_msg(result, request_id=request.request_id)
+    except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to execute tool '{app.tool_name}'")
+            status_code=400,
+            detail=f"Failed to execute tool '{app.tool_name}' with error {e}")
 
 
 if __name__ == '__main__':

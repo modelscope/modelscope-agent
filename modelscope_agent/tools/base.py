@@ -273,59 +273,92 @@ class ToolServiceProxy(BaseTool):
         self.parameters = tool_info['parameters']
         super().__init__({self.name: self.tool_cfg})
 
+    @staticmethod
+    def parse_service_response(response):
+        try:
+            # Assuming the response is a JSON string
+            response_data = response.json()
+
+            # Extract the 'output' field from the response
+            output_data = response_data.get('output', {})
+            return output_data
+        except json.JSONDecodeError:
+            # Handle the case where response is not JSON or cannot be decoded
+            return None
+
     def _register_tool(self):
-        response = requests.post(
-            f'{self.tool_service_manager_url}/create_tool_service',
-            json={
-                'tool_name': self.tool_name,
-                'tenant_id': self.tenant_id,
-                'tool_cfg': self.tool_cfg
-            })
-        response.raise_for_status()
-        result = response.json()
-        if 'status' not in result:
-            raise Exception(
-                'Failed to register tool, the tool service might be done, please use local version'
-            )
-        if result['status'] not in ['pending', 'running']:
-            raise Exception(
-                'Failed to register tool, the tool service might be done, please use local version.'
+        try:
+            response = requests.post(
+                f'{self.tool_service_manager_url}/create_tool_service',
+                json={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id,
+                    'tool_cfg': self.tool_cfg
+                })
+            response.raise_for_status()
+            result = ToolServiceProxy.parse_service_response(response)
+            if 'status' not in result:
+                raise Exception(
+                    'Failed to register tool, the tool service might be done, please use local version'
+                )
+            if result['status'] not in ['pending', 'running']:
+                raise Exception(
+                    'Failed to register tool, the tool service might be done, please use local version.'
+                )
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during registering tool from tool manager service with detail {e}'
             )
 
     def _check_tool_status(self):
-        response = requests.post(
-            f'{self.tool_service_manager_url}/check_tool_service_status',
-            params={
-                'tool_name': self.tool_name,
-                'tenant_id': self.tenant_id,
-            })
-        response.raise_for_status()
-        result = response.json()
-        if 'status' not in result:
-            raise Exception(
-                'Failed to register tool, the tool service might be done, please use local version'
+        try:
+            response = requests.post(
+                f'{self.tool_service_manager_url}/check_tool_service_status',
+                params={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id,
+                })
+            response.raise_for_status()
+            result = ToolServiceProxy.parse_service_response(response)
+            if 'status' not in result:
+                raise Exception(
+                    'Failed to register tool, the tool service might be done, please use local version'
+                )
+            return result['status']
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during checking status from tool manager service with detail {e}'
             )
-        return result['status']
 
     def _get_tool_info(self):
-        response = requests.post(
-            f'{self.tool_service_manager_url}/tool_info',
-            json={
-                'tool_name': self.tool_name,
-                'tenant_id': self.tenant_id
-            })
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = requests.post(
+                f'{self.tool_service_manager_url}/tool_info',
+                json={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id
+                })
+            response.raise_for_status()
+            return ToolServiceProxy.parse_service_response(response)
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during getting tool info from tool manager service with detail {e}'
+            )
 
     def call(self, params: str, **kwargs):
-        # visit tool node to call tool
-        response = requests.post(
-            f'{self.tool_service_manager_url}/execute_tool',
-            json={
-                'tool_name': self.tool_name,
-                'tenant_id': self.tenant_id,
-                'params': params,
-                'kwargs': kwargs
-            })
-        response.raise_for_status()
-        return response.json()
+        try:
+            # visit tool node to call tool
+            response = requests.post(
+                f'{self.tool_service_manager_url}/execute_tool',
+                json={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id,
+                    'params': params,
+                    'kwargs': kwargs
+                })
+            response.raise_for_status()
+            return ToolServiceProxy.parse_service_response(response)
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during executing tool from tool manager service with detail {e}'
+            )

@@ -3,6 +3,33 @@
 Tool service provide running environment for tool instances by docker container,
 meanwhile a tool manager is responsible for creating and managing those tool instances.
 
+User could run the agent with the tool in running in docker container, instead of same process with agent.
+In such way, the tool could be run in an isolated environment, and the agent could be more stable and secure.
+
+At the initial phase, agent will call the tool manager service to create a tool instance as tool node service, and the tool node service will
+be running in a docker container with independent environment and port.
+
+During the execution phase, agent will call the tool manager service, then tool manager will forward the call to the tool node service,
+the tool manager will play as a proxy for the tool node service in this phase.
+
+At last, an Oauth server will be added later to provide authentication and authorization for the tool manager service.
+
+
+## Pre-requisite
+- Docker installed
+- Docker daemon running
+- Python 3.6 or above
+
+## Installation
+
+```bash
+git clone https://github.com/modelscope/modelscope-agent.git
+cd modelscope-agent
+sh scripts/run_tool_manager.sh
+```
+
+The script will build image for tool node service, and  start the tool manager service.
+
 
 ## Tool Manager API
 The tool manager API is responsible for creating and managing tool container, it is running on port 31511 by default.
@@ -18,7 +45,7 @@ POST /create_tool_service
   "tool_name": "RenewInstance",
   "tenant_id": "default",
   "tool_cfg": {},
-  "tool_image": "modelscope-agent/tool-node:v0.4"
+  "tool_image": "modelscope-agent/tool-node:lastest"
 }
 
 Response
