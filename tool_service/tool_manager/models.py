@@ -40,6 +40,13 @@ class GetToolUrl(BaseModel):
     tenant_id: str = 'default'
 
 
+class ExecuteTool(BaseModel):
+    tool_name: str
+    tenant_id: str = 'default'
+    params: str = ''
+    kwargs: dict = {}
+
+
 class ContainerStatus(Enum):
     pending = 'pending'
     running = 'running'

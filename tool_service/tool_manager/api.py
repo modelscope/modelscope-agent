@@ -1,12 +1,13 @@
 import os
 from contextlib import asynccontextmanager
 
+import requests
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from sqlmodel import Session, select
 from tool_service.tool_manager.connections import create_db_and_tables, engine
 from tool_service.tool_manager.models import (ContainerStatus, CreateTool,
-                                              GetToolUrl, ToolInstance,
-                                              ToolRegisterInfo)
+                                              ExecuteTool, GetToolUrl,
+                                              ToolInstance, ToolRegisterInfo)
 from tool_service.tool_manager.sandbox import (NODE_NETWORK,
                                                remove_docker_container,
                                                restart_docker_container,
@@ -237,7 +238,7 @@ async def update_tool_service(
     background_tasks: BackgroundTasks,
     tool_cfg: dict = {},
     tenant_id: str = 'default',
-    tool_image: str = 'modelscope-agent/tool-node',
+    tool_image: str = 'modelscope-agent/tool-node:latest',
 ):
     tool_node_name = f'{tool_name}_{tenant_id}'
     tool_register_info = ToolRegisterInfo(
@@ -286,14 +287,14 @@ async def list_tools(tenant_id: str = 'default'):
     return tools
 
 
-@app.post('/get_tool_service_url/')
-async def get_tool_service_url(get_tool_url: GetToolUrl):
+@app.post('/tool_info/')
+async def get_tool_info(tool_input: ExecuteTool):
 
     # get tool instance
     with Session(engine) as session:
         statement = select(ToolInstance).where(
             ToolInstance.name ==  # noqa W504
-            f'{get_tool_url.tool_name}_{get_tool_url.tenant_id}')
+            f'{tool_input.tool_name}_{tool_input.tenant_id}')
         results = session.exec(statement)
         tool_instance = results.first()
     if not tool_instance:
@@ -301,19 +302,54 @@ async def get_tool_service_url(get_tool_url: GetToolUrl):
 
     # get tool service url
     try:
-        tool_service_url = 'http://' + tool_instance.ip + ':' + str(
-            tool_instance.port) + '/execute_tool'
         tool_info_url = 'http://' + tool_instance.ip + ':' + str(
             tool_instance.port) + '/tool_info'
-        return {
-            'tool_service_url': tool_service_url,
-            'tool_info_url': tool_info_url
-        }
-    except Exception:
+        response = requests.get(tool_info_url)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=
-            f'Failed to get tool service url, with error {tool_instance.error}'
+            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
+        )
+
+
+@app.post('/execute_tool/')
+async def execute_tool(tool_input: ExecuteTool):
+
+    # get tool instance
+    with Session(engine) as session:
+        statement = select(ToolInstance).where(
+            ToolInstance.name ==  # noqa W504
+            f'{tool_input.tool_name}_{tool_input.tenant_id}')
+        results = session.exec(statement)
+        tool_instance = results.first()
+    if not tool_instance:
+        raise HTTPException(status_code=404, detail='Tool not found')
+
+    tool_service_url = 'http://' + tool_instance.ip + ':' + str(
+        tool_instance.port) + '/execute_tool'
+    if tool_input.params == '':
+        raise HTTPException(
+            status_code=400,
+            detail=
+            f'The params of tool {tool_input.tool_name}_{tool_input.tenant_id} is empty.'
+        )
+    try:
+        response = requests.post(
+            tool_service_url,
+            json={
+                'params': tool_input.params,
+                'kwargs': tool_input.kwargs
+            })
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=
+            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
         )
 
 

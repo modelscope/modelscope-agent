@@ -1,7 +1,7 @@
 # Tool Service
 
 Tool service provide running environment for tool instances by docker container,
-meanwhile a tool manager is responsible for creating and managing those tool instances.
+meanwhile a tool manager part is responsible for creating and managing those tool instances.
 
 
 ## Tool Manager API
@@ -97,7 +97,7 @@ RESPONSE
 1. start the tool manager server
 2. init modelscope agent tool node service by calling
 ```python
-from modelscope_agent.tools.base import ToolServiceProxy
+from modelscope_agent.tools import ToolServiceProxy
 
 tool_service = ToolServiceProxy(tool_name='RenewInstance', tool_cfg={'test': 'xxx'})
 ```

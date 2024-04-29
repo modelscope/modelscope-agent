@@ -50,3 +50,4 @@ def test_role_play_with():
     assert isinstance(text, str)
     assert 'Answer:' in text
     assert 'Observation:' in text
+    assert '![IMAGEGEN]' in text

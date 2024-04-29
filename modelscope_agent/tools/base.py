@@ -267,10 +267,6 @@ class ToolServiceProxy(BaseTool):
                 'Tool node not start up successfully, please double check your docker environment'
             )
 
-        tool_service_info = self._get_tool_api_endpoint()
-        self.tool_node_url = tool_service_info['tool_service_url']
-        self.tool_info_url = tool_service_info['tool_info_url']
-
         tool_info = self._get_tool_info()
         self.name = tool_info['name']
         self.description = tool_info['description']
@@ -311,27 +307,23 @@ class ToolServiceProxy(BaseTool):
             )
         return result['status']
 
-    def _get_tool_api_endpoint(self):
-        # get tool node endpoint by tool service
+    def _get_tool_info(self):
         response = requests.post(
-            f'{self.tool_service_manager_url}/get_tool_service_url',
+            f'{self.tool_service_manager_url}/tool_info',
             json={
                 'tool_name': self.tool_name,
                 'tenant_id': self.tenant_id
             })
-        response.raise_for_status()
-        tool_info = response.json()
-        return tool_info
-
-    def _get_tool_info(self):
-        response = requests.get(self.tool_info_url)
         response.raise_for_status()
         return response.json()
 
     def call(self, params: str, **kwargs):
         # visit tool node to call tool
         response = requests.post(
-            self.tool_node_url, json={
+            f'{self.tool_service_manager_url}/execute_tool',
+            json={
+                'tool_name': self.tool_name,
+                'tenant_id': self.tenant_id,
                 'params': params,
                 'kwargs': kwargs
             })
