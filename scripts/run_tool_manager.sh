@@ -26,12 +26,21 @@ else
 fi
 
 # build tool node image
-echo "Building tool node image, the first time might be token 10 mins."
-docker build -f docker/tool_node.dockerfile -t modelscope-agent/tool-node .
+function build_docker_image {
+  echo "Building tool node image, the first time might be token 10 mins."
+  docker build -f docker/tool_node.dockerfile -t modelscope-agent/tool-node .
+}
 
 # install dependencies might be done in venv, not much dependencies here
 echo "Installing dependencies from requirements.txt..."
 pip3 install -r tool_service/requirements.txt
+
+# Check if the first argument is "build", if so, build the Docker image
+if [ "$1" == "build" ]; then
+    build_docker_image
+else
+    echo "Skipping Docker build as per the input argument."
+fi
 
 # running
 echo "Running fastapi server at port 31511."
