@@ -11,6 +11,8 @@ echo "${CODE_INTERPRETER_WORK_DIR}"
 # cp file
 cp tests/samples/* "${CODE_INTERPRETER_WORK_DIR}/"
 ls  "${CODE_INTERPRETER_WORK_DIR}"
+pip install playwright
+playwright install --with-deps chromium
 
 # run ci
 pytest tests
