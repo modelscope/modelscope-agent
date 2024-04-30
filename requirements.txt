@@ -9,6 +9,7 @@ langchain-community
 langchain-experimental
 modelscope >=1.10.0,<=1.12.0
 moviepy
+ollama
 openai
 opencv-python
 openpyxl
