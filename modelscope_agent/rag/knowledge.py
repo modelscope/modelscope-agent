@@ -2,16 +2,25 @@ import os
 from typing import Dict, Any, Union, List, Optional
 
 from llama_index.core.llms.llm import LLM
-from llama_index.core.schema import Document
+from llama_index.core.schema import Document, TransformComponent
+from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.tools.retriever_tool import RetrieverTool
+from llama_index.core.base.base_selector import BaseSelector
+from llama_index.core.retrievers import RouterRetriever
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.indices.service_context import ServiceContext
+from llama_index.core.settings import Settings
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core.data_structs.data_structs import IndexDict
+from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
+from modelscope_agent.llm.dashscope import DashScopeLLM
+from modelscope_agent.rag.llm import MSAgentLLM
 
-
-@register_rag('base_pipeline')
-class BaseKnowledgePipeline(BaseLlamaPack):
+# @register_rag('base_knowledge')
+class BaseKnowledge(BaseLlamaPack):
     """ base knowledge pipeline.
 
     从不同的源加载知识，支持：文件夹路径（str），文件路径列表（list），将不同源配置到不同的召回方式（dict）.
@@ -26,7 +35,7 @@ class BaseKnowledgePipeline(BaseLlamaPack):
     def __init__(self,
                  knowledge_source: Union[Dict, List, str],
                  cache_dir: str = './run',
-                 llm: Optional[LLM] = None,
+                 llm: Optional[DashScopeLLM] = None,
                  **kwargs) -> None:
         extra_readers = self.get_extra_readers()
         documents = self.read(knowledge_source, extra_readers)
@@ -35,34 +44,39 @@ class BaseKnowledgePipeline(BaseLlamaPack):
             print('No valid document.')
             return
 
+        if llm:
+            llm = MSAgentLLM(llm)
+
         # 为支持不同策略可自行挑选indexing的文档范围，indexing步骤也应在retrievers初始化内实现。
-        retriever_tools = self.get_retriever_tools(documents, cache_dir)
-        root_retriever = self.get_retriever_router(retriever_tools)
-        self.query_engine = RetrieverQueryEngine.from_args(root_retriever)
+        root_retriever = self.get_root_retriever(documents, cache_dir, llm=llm)
+        self.query_engine = RetrieverQueryEngine.from_args(root_retriever, llm=llm)
 
     def get_transformations(self, **kwargs) -> Optional[List[TransformComponent]]:
         return None
 
-    def get_retriever_tools(self, documents: List[Document], cache_dir: str) -> List[BaseRetriever]:
+    def _get_retriever_tools(self, documents: List[Document], cache_dir: str) -> List[BaseRetriever]:
         retriever_tools = list()
 
         # indexing
         ## 可配置chunk_size等
-        service_context = ServiceContext.from_defaults(chunk_size=256)
+        Settings.chunk_size = 512
         ## 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         transformations = self.get_transformations()
-
+        """
         if cache_dir is not None and os.path.exists(cache_dir):
             # Load from cache
             from llama_index import StorageContext, load_index_from_storage
             # rebuild storage context
             storage_context = StorageContext.from_defaults(persist_dir=cache_dir)
             # load index
-            index = load_index_from_storage(storage_context)
+            index = load_index_from_storage(storage_context, embed_model=DashscopeEmbedding())
         elif documents is not None:
-            index = VectorStoreIndex.from_documents(documents=documents, transformations=transformations)
+        """
+        if 1:
+            index = VectorStoreIndex.from_documents(documents=documents, transformations=transformations, embed_model=DashscopeEmbedding())
         else:
-            index = VectorStoreIndex(documents=documents, transformations=transformations, service_context=service_context)
+            print('Neither documents nor cache_dir.')
+            # index = VectorStoreIndex(nodes, transformations=transformations, embed_model=DashscopeEmbedding)
 
         if cache_dir is not None and not os.path.exists(cache_dir):
             index.storage_context.persist(persist_dir=cache_dir)
@@ -86,9 +100,13 @@ class BaseKnowledgePipeline(BaseLlamaPack):
     def get_postprocessors(self, **kwargs) -> BaseNodePostprocessor:
         return None
 
-    def get_retriever_router(self, retriever_tools: List[BaseRetriever]) -> RouterRetriever:
-        router_retriever = RouterRetriever.from_default(retriever_tools)
+    def get_root_retriever(self, documents: List[Document], cache_dir: str, llm: LLM) -> RouterRetriever:
+        retriever_tools = self._get_retriever_tools(documents, cache_dir)
+        router_retriever = RouterRetriever.from_defaults(retriever_tools, llm=llm)
         return router_retriever
+    
+    def get_retriever_selector(self, **kwargs) -> BaseSelector:
+        return None
 
     def get_extra_readers(self) -> Dict[str, BaseReader]:
         # lazy import
@@ -99,14 +117,14 @@ class BaseKnowledgePipeline(BaseLlamaPack):
                 FlatReader
             )
         except ImportError:
-            raise ImportError("`llama-index-readers-file` package not found")
+            print("`llama-index-readers-file` package not found. Can not read .pd .html file.")
+            return {}
 
         return {'.pb': PandasCSVReader,
-                '.html': HTMLTagReader,
-                '.*': FlatReader}
+                '.html': HTMLTagReader}
 
     def read(self, knowledge_source: Union[str, List[str]], extra_readers: Dict[str, BaseReader]) -> List[Document]:
-        if isinstance(knowledge_source):
+        if isinstance(knowledge_source, str):
             if os.path.isdir(knowledge_source):
                 general_reader = SimpleDirectoryReader(input_dir=knowledge_source, file_extractor=extra_readers)
             elif os.path.isfile(knowledge_source):
@@ -127,5 +145,8 @@ class BaseKnowledgePipeline(BaseLlamaPack):
 
 
 if __name__ == '__main__':
-    knowledge_ppl = BaseKnowledgePipeline('./data')
-    print(knowledge_ppl.run('Agent+API的使用原理是什么？'))
+    from modelscope_agent.llm import get_chat_model
+    llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+    llm = get_chat_model(**llm_config)
+    knowledge = BaseKnowledge('./data', llm=llm)
+    print(knowledge.run('Agent+API的使用原理是什么？'))
