@@ -1,9 +1,11 @@
+import base64
+
 import httpx
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (AsyncChromiumLoader,
                                                   AsyncHtmlLoader)
 from langchain_community.document_transformers import BeautifulSoupTransformer
-from modelscope_agent.tools import BaseTool, register_tool
+from modelscope_agent.tools.base import BaseTool, register_tool
 
 
 @register_tool('web_browser')
@@ -24,6 +26,9 @@ class WebBrowser(BaseTool):
         }
         self.client = httpx.Client(
             headers=self.headers, verify=False, timeout=30.0)
+        self.cfg = cfg.get(self.name, {})
+
+        self.use_advantage = self.cfg.get('use_adv', False)
 
     def call(self, params: str, **kwargs) -> str:
         params = self._verify_args(params)
@@ -35,13 +40,48 @@ class WebBrowser(BaseTool):
         if urls is None:
             return ''
 
+        if self.use_advantage:
+            text_result, image_result = self.advantage_https_get(
+                urls, **kwargs)
+        else:
+            text_result = self.simple_https_get(urls, **kwargs)
+        return text_result
+
+    def advantage_https_get(self, urls):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return (
+                'Please install playwright with chromium kernel by running `pip install playwright` and '
+                '`playwright install --with-deps chromium`')
+
+        if isinstance(urls, list):
+            urls = urls[0]
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(urls)
+            text_result = page.evaluate('() => document.body.innerText')
+            screenshot_bytes = page.screenshot(full_page=True)
+            screenshot_base64 = base64.b64encode(screenshot_bytes).decode(
+                'utf-8')
+            browser.close()
+
+        return text_result, screenshot_base64
+
+    def simple_https_get(self, urls, **kwargs):
+        # load html and get docs
+        loader = AsyncHtmlLoader(urls)
+        docs = loader.load()
+
+        result = self._post_process(docs, **kwargs)
+        return result
+
+    def _post_process(self, docs, **kwargs):
         # make sure parameters could be initialized in runtime
         max_browser_length = kwargs.get('max_browser_length', 2000)
         split_url_into_chunk = kwargs.get('split_url_into_chunk', False)
 
-        # # load html
-        loader = AsyncHtmlLoader(urls)
-        docs = loader.load()
         # Transform
         bs_transformer = BeautifulSoupTransformer()
         docs_transformed = bs_transformer.transform_documents(
