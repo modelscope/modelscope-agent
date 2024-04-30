@@ -47,7 +47,7 @@ class WebBrowser(BaseTool):
             text_result = self.simple_https_get(urls, **kwargs)
         return text_result
 
-    def advantage_https_get(self, urls):
+    def advantage_https_get(self, urls, **kwargs):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
