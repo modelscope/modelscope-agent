@@ -10,16 +10,11 @@ from .base import BaseChatModel, register_llm
 @register_llm('ollama')
 class OllamaLLM(BaseChatModel):
 
-    def __init__(self,
-                 model: str,
-                 model_server: str,
-                 is_chat: bool = False,
-                 **kwargs):
+    def __init__(self, model: str, model_server: str, **kwargs):
         super().__init__(model, model_server)
         host = kwargs.get('host', 'http://localhost:11434')
         self.client = ollama.Client(host=host)
         self.model = model
-        self.is_chat = is_chat
 
     def _chat_stream(self,
                      messages: List[Dict],
@@ -50,11 +45,7 @@ class OllamaLLM(BaseChatModel):
         return final_content
 
     def support_raw_prompt(self) -> bool:
-        if self.is_chat is None:
-            return super().support_raw_prompt()
-        else:
-            # if not chat, then prompt
-            return not self.is_chat
+        return super().support_raw_prompt()
 
     def _out_generator(self, response):
         for chunk in response:

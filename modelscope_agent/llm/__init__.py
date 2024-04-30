@@ -3,9 +3,9 @@ import re
 from .base import LLM_REGISTRY, BaseChatModel
 from .dashscope import DashScopeLLM, QwenChatAtDS
 from .modelscope import ModelScopeChatGLM, ModelScopeLLM
+from .ollama import OllamaLLM
 from .openai import OpenAi
 from .zhipu import GLM4, ZhipuLLM
-from .ollama import OllamaLLM
 
 
 def get_chat_model(model: str, model_server: str, **kwargs) -> BaseChatModel:
