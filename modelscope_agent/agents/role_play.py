@@ -221,7 +221,8 @@ class RolePlay(Agent, AgentEnvMixin):
         })
 
         planning_prompt = ''
-        if self.llm.support_raw_prompt():
+        if self.llm.support_raw_prompt() and hasattr(self.llm,
+                                                     'build_raw_prompt'):
             planning_prompt = self.llm.build_raw_prompt(messages)
 
         max_turn = 10
