@@ -1,7 +1,7 @@
 import pytest
-from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.agents.role_play.role_play import RolePlay
 from modelscope_agent.llm import BaseChatModel
-from modelscope_agent.tools import TOOL_REGISTRY, BaseTool
+from modelscope_agent.tools import TOOL_REGISTRY
 
 from .ut_utils import MockTool
 

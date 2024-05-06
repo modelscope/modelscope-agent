@@ -10,11 +10,12 @@ Initially, all you need to do is initialize a `RolePlay` object with the corresp
 ```Python
 # Configure environment variables; this step can be skipped if you have already set the API key in your runtime environment in advance.
 import os
-os.environ['DASHSCOPE_API_KEY']=YOUR_DASHSCOPE_API_KEY
-os.environ['AMAP_TOKEN']=YOUR_AMAP_TOKEN
+
+os.environ['DASHSCOPE_API_KEY'] = YOUR_DASHSCOPE_API_KEY
+os.environ['AMAP_TOKEN'] = YOUR_AMAP_TOKEN
 
 # Select RolePlay to configure the agent.
-from modelscope_agent.agents.role_play import RolePlay  # NOQA
+from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 
 role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
 

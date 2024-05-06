@@ -12,7 +12,7 @@ from typing import Tuple
 from builder_core import AgentBuilder, init_builder_chatbot_agent
 from config_utils import (get_user_builder_history_dir,
                           get_user_preview_history_dir)
-from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.agents.role_play.role_play import RolePlay
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from server_logging import logger
 from user_core import init_user_chatbot_agent

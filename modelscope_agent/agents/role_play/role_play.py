@@ -102,6 +102,9 @@ SPECIAL_PREFIX_TEMPLATE_ROLE = {
     'en': 'You are playing as {role_name}',
 }
 
+PROMPT_TEMPLATE_NAME_ZH = 'system_prompt_zh.jinja2'
+PROMPT_TEMPLATE_NAME_EN = 'system_prompt_en.jinja2'
+
 SPECIAL_PREFIX_TEMPLATE_TOOL = {
     'zh': '。你可以使用工具：[{tool_names}]',
     'en': '. you can use tools: [{tool_names}]',
@@ -139,6 +142,20 @@ class RolePlay(Agent, AgentEnvMixin):
                        description, instruction, **kwargs)
         AgentEnvMixin.__init__(self, **kwargs)
 
+    def _get_prompt_template(self, lang):
+        if lang == 'zh':
+            prompt_template_name = PROMPT_TEMPLATE_NAME_ZH
+        else:
+            prompt_template_name = PROMPT_TEMPLATE_NAME_EN
+
+        prompt_template_path = os.path.join(
+            os.path.dirname(__file__), prompt_template_name)
+
+        with open(prompt_template_path, 'r') as f:
+            prompt_template = f.read().strip()
+
+        return prompt_template
+
     def _run(self,
              user_request,
              history: Optional[List[Dict]] = None,
@@ -146,12 +163,13 @@ class RolePlay(Agent, AgentEnvMixin):
              lang: str = 'zh',
              **kwargs):
 
+        prompt_template = self._get_prompt_template(lang)
+
         self.tool_descs = '\n\n'.join(tool.function_plain_text
                                       for tool in self.function_map.values())
         self.tool_names = ','.join(tool.name
                                    for tool in self.function_map.values())
 
-        self.system_prompt = ''
         self.query_prefix = ''
         self.query_prefix_dict = {'role': '', 'tool': '', 'knowledge': ''}
         append_files = kwargs.get('append_files', [])
@@ -166,30 +184,33 @@ class RolePlay(Agent, AgentEnvMixin):
             knowledge_limit = kwargs.get('knowledge_limit',
                                          os.getenv('KNOWLEDGE_LIMIT', 4000))
             ref_doc = check_and_limit_input_length(ref_doc, knowledge_limit)
-            self.system_prompt += KNOWLEDGE_TEMPLATE[lang].format(
-                ref_doc=ref_doc)
+            # self.system_prompt += KNOWLEDGE_TEMPLATE[lang].format(
+            #     ref_doc=ref_doc)
             self.query_prefix_dict[
                 'knowledge'] = SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE[lang]
 
         # concat tools information
+        use_tool = False
         if self.function_map and not self.llm.support_function_calling():
-            self.system_prompt += TOOL_TEMPLATE[lang].format(
-                tool_descs=self.tool_descs, tool_names=self.tool_names)
+            # self.system_prompt += TOOL_TEMPLATE[lang].format(
+            #     tool_descs=self.tool_descs, tool_names=self.tool_names)
             self.query_prefix_dict['tool'] = SPECIAL_PREFIX_TEMPLATE_TOOL[
                 lang].format(tool_names=self.tool_names)
+            use_tool = True
 
         # concat instruction
-        if isinstance(self.instruction, dict):
+        if isinstance(self.instruction, str):
+            default_instruction = False
+            self.role_instruction = self.instruction
+            self.role_name = ''
+            self.role_description = ''
+        else:
+            default_instruction = True
             self.role_name = self.instruction['name']
             self.query_prefix_dict['role'] = SPECIAL_PREFIX_TEMPLATE_ROLE[
                 lang].format(role_name=self.role_name)
-            self.system_prompt += PROMPT_TEMPLATE[lang].format(
-                role_prompt=self._parse_role_config(self.instruction, lang))
-        else:
-            # string can not parser role name
-            self.role_name = ''
-            self.system_prompt += PROMPT_TEMPLATE[lang].format(
-                role_prompt=self.instruction)
+            self.role_description = self.instruction['description']
+            self.role_instruction = self.instruction['instruction']
 
         self.query_prefix = ''
         self.query_prefix += self.query_prefix_dict['role']
@@ -203,6 +224,18 @@ class RolePlay(Agent, AgentEnvMixin):
                 [os.path.basename(path) for path in append_files])
             self.query_prefix += SPECIAL_PREFIX_TEMPLATE_FILE[lang].format(
                 file_names=file_names)
+
+        self.system_prompt = self.render_template(
+            prompt_template,
+            use_ref_doc=(ref_doc and use_ref_doc),
+            ref_doc=ref_doc,
+            use_tool=use_tool,
+            tool_descs=self.tool_descs,
+            tool_names=self.tool_names,
+            default_instruction=default_instruction,
+            role_name=self.role_name,
+            role_description=self.role_description,
+            role_instruction=self.role_instruction)
 
         # Concat the system as one round of dialogue
         messages = [{'role': 'system', 'content': self.system_prompt}]
@@ -326,75 +359,3 @@ class RolePlay(Agent, AgentEnvMixin):
             text = text[:k]  # Discard '\nObservation:'.
 
         return (func_name is not None), func_name, func_args, text
-
-    def _parse_role_config(self, config: dict, lang: str = 'zh') -> str:
-        """
-        Parsing role config dict to str.
-
-        Args:
-            config: One example of config is
-                {
-                    "name": "多啦A梦",
-                    "description": "能够像多啦A梦一样，拥有各种神奇的技能和能力，可以帮我解决生活中的各种问题。",
-                    "instruction": "可以查找信息、提供建议、提醒日程；爱讲笑话，每次说话的结尾都会加上一句幽默的总结；最喜欢的人是大熊"
-                }
-        Returns:
-            Processed string for this config
-        """
-        if lang == 'en':
-            return self._parse_role_config_en(config)
-        else:
-            return self._parse_role_config_zh(config)
-
-    def _parse_role_config_en(self, config: dict) -> str:
-
-        prompt = 'You are playing as an AI-Agent, '
-
-        # concat agents
-        if 'name' in config and config['name']:
-            prompt += ('Your name is ' + config['name'] + '.')
-        if 'description' in config and config['description']:
-            prompt += config['description']
-        prompt += '\nYou have the following specific functions:'
-
-        if 'instruction' in config and config['instruction']:
-            if isinstance(config['instruction'], list):
-                for ins in config['instruction']:
-                    prompt += ins
-                    prompt += '；'
-            elif isinstance(config['instruction'], str):
-                prompt += config['instruction']
-            if prompt[-1] == '；':
-                prompt = prompt[:-1]
-
-        prompt += '\nNow you will start playing as'
-        if 'name' in config and config['name']:
-            prompt += config['name']
-
-        return prompt
-
-    def _parse_role_config_zh(self, config: dict) -> str:
-        prompt = '你扮演AI-Agent，'
-
-        # concat agents
-        if 'name' in config and config['name']:
-            prompt += ('你的名字是' + config['name'] + '。')
-        if 'description' in config and config['description']:
-            prompt += config['description']
-        prompt += '\n你具有下列具体功能：'
-
-        if 'instruction' in config and config['instruction']:
-            if isinstance(config['instruction'], list):
-                for ins in config['instruction']:
-                    prompt += ins
-                    prompt += '；'
-            elif isinstance(config['instruction'], str):
-                prompt += config['instruction']
-            if prompt[-1] == '；':
-                prompt = prompt[:-1]
-
-        prompt += '\n下面你将开始扮演'
-        if 'name' in config and config['name']:
-            prompt += config['name']
-
-        return prompt

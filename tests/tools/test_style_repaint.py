@@ -1,6 +1,6 @@
 from modelscope_agent.tools import StyleRepaint
 
-from modelscope_agent.agents.role_play import RolePlay  # NOQA
+from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 
 
 def test_style_repaint():

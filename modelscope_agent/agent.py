@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from jinja2 import BaseLoader
+from jinja2 import Environment as JinjaEnvironment
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import TOOL_REGISTRY
@@ -54,6 +56,7 @@ class Agent(ABC):
         self.description = description
         self.instruction = instruction
         self.uuid_str = kwargs.get('uuid_str', None)
+        self.env = JinjaEnvironment(loader=BaseLoader())
 
     def run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
         if 'lang' not in kwargs:
@@ -62,6 +65,11 @@ class Agent(ABC):
             else:
                 kwargs['lang'] = 'en'
         return self._run(*args, **kwargs)
+
+    def render_template(self, template: str, **kwargs) -> str:
+        template = self.env.from_string(template)
+        result = template.render(**kwargs)
+        return result
 
     @abstractmethod
     def _run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
