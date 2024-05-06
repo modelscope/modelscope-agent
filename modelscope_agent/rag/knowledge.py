@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from typing import Dict, Any, Union, List, Optional
 
 from llama_index.core.llms.llm import LLM
@@ -15,9 +16,17 @@ from llama_index.core.indices.service_context import ServiceContext
 from llama_index.core.settings import Settings
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core.data_structs.data_structs import IndexDict
+from llama_index.core.schema import QueryBundle
 from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
 from modelscope_agent.llm.dashscope import DashScopeLLM
 from modelscope_agent.rag.llm import MSAgentLLM
+#from modelscope_agent.rag.selector import FileSelector
+
+
+@dataclass
+class FileQueryBundle(QueryBundle):
+    files: List[str]= None
+
 
 # @register_rag('base_knowledge')
 class BaseKnowledge(BaseLlamaPack):
@@ -52,6 +61,7 @@ class BaseKnowledge(BaseLlamaPack):
         self.query_engine = RetrieverQueryEngine.from_args(root_retriever, llm=llm)
 
     def get_transformations(self, **kwargs) -> Optional[List[TransformComponent]]:
+        # rechunk，筛选文档内容等
         return None
 
     def _get_retriever_tools(self, documents: List[Document], cache_dir: str) -> List[BaseRetriever]:
@@ -62,27 +72,26 @@ class BaseKnowledge(BaseLlamaPack):
         Settings.chunk_size = 512
         ## 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         transformations = self.get_transformations()
-        """
         if cache_dir is not None and os.path.exists(cache_dir):
             # Load from cache
-            from llama_index import StorageContext, load_index_from_storage
+            from llama_index.core import StorageContext, load_index_from_storage
             # rebuild storage context
             storage_context = StorageContext.from_defaults(persist_dir=cache_dir)
             # load index
             index = load_index_from_storage(storage_context, embed_model=DashscopeEmbedding())
         elif documents is not None:
-        """
-        if 1:
             index = VectorStoreIndex.from_documents(documents=documents, transformations=transformations, embed_model=DashscopeEmbedding())
         else:
             print('Neither documents nor cache_dir.')
-            # index = VectorStoreIndex(nodes, transformations=transformations, embed_model=DashscopeEmbedding)
+            # index = VectorStoreIndex(nodes, transformations=transformations, embed_model=DashscopeEmbedding())
 
         if cache_dir is not None and not os.path.exists(cache_dir):
             index.storage_context.persist(persist_dir=cache_dir)
 
         # init retriever tool
         vector_retriever = index.as_retriever()
+
+        return vector_retriever
 
         ## 对召回后的内容进行处理
         retriever_postprocessors = self.get_postprocessors()
@@ -98,14 +107,17 @@ class BaseKnowledge(BaseLlamaPack):
         return retriever_tools
 
     def get_postprocessors(self, **kwargs) -> BaseNodePostprocessor:
+        # 获取召回内容后处理器
         return None
 
-    def get_root_retriever(self, documents: List[Document], cache_dir: str, llm: LLM) -> RouterRetriever:
-        retriever_tools = self._get_retriever_tools(documents, cache_dir)
-        router_retriever = RouterRetriever.from_defaults(retriever_tools, llm=llm)
-        return router_retriever
+    def get_root_retriever(self, documents: List[Document], cache_dir: str, llm: LLM) -> BaseRetriever:
+        # retriever_tools = self._get_retriever_tools(documents, cache_dir)
+        #selector = self.get_retriever_selector()
+        #router_retriever = RouterRetriever(retriever_tools, llm=llm, selector=selector)
+        return self._get_retriever_tools(documents, cache_dir)
     
     def get_retriever_selector(self, **kwargs) -> BaseSelector:
+        # 根据query选择使用哪些retriever
         return None
 
     def get_extra_readers(self) -> Dict[str, BaseReader]:
@@ -139,9 +151,12 @@ class BaseKnowledge(BaseLlamaPack):
 
     def run(self,
             query: str,
+            files: List[str],
             **kwargs
             ) -> str:
-        return self.query_engine.query(query, **kwargs)
+        query_bundle = FileQueryBundle(query)
+
+        return self.query_engine.query(query_bundle, **kwargs)
 
 
 if __name__ == '__main__':
@@ -149,4 +164,4 @@ if __name__ == '__main__':
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
     llm = get_chat_model(**llm_config)
     knowledge = BaseKnowledge('./data', llm=llm)
-    print(knowledge.run('Agent+API的使用原理是什么？'))
+    print(knowledge.run('Agent+API的使用原理是什么？', files=['file_name1', 'file_name2']))
