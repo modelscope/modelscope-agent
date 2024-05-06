@@ -171,7 +171,7 @@ class BaseKnowledge(BaseLlamaPack):
         retriever._filters = MetadataFilters(filters=filters)
         print(retriever._filters)
 
-    def run(self, query: str, files: List[str]=[], **kwargs) -> str:
+    def run(self, query: str, files: List[str] = [], **kwargs) -> str:
         query_bundle = FileQueryBundle(query)
 
         if len(files) > 0:
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     knowledge_source = ['data/Agent.pdf', 'data/QA.pdf']
 
     knowledge = BaseKnowledge('./data', llm=llm)
-    
+
     print(knowledge.run('高德天气API申请', files=['QA.pdf']))
     print('-----------------------')
     print(knowledge.run('高德天气API申请', files=['Agent.pdf']))
