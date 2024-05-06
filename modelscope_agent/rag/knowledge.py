@@ -166,14 +166,16 @@ class BaseKnowledge(BaseLlamaPack):
     def set_filter(self, files: List[str]):
         retriever = self.query_engine.retriever
         filters = [
-            MetadataFilter(key='file_path', value=file) for file in files
+            MetadataFilter(key='file_name', value=file) for file in files
         ]
         retriever._filters = MetadataFilters(filters=filters)
         print(retriever._filters)
 
-    def run(self, query: str, files: List[str], **kwargs) -> str:
+    def run(self, query: str, files: List[str]=[], **kwargs) -> str:
         query_bundle = FileQueryBundle(query)
-        self.set_filter(files)
+
+        if len(files) > 0:
+            self.set_filter(files)
 
         return self.query_engine.query(query_bundle, **kwargs)
 
@@ -182,7 +184,10 @@ if __name__ == '__main__':
     from modelscope_agent.llm import get_chat_model
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
     llm = get_chat_model(**llm_config)
+    knowledge_source = ['data/Agent.pdf', 'data/QA.pdf']
+
     knowledge = BaseKnowledge('./data', llm=llm)
-    print(
-        knowledge.run(
-            'Agent+API的使用原理是什么？', files=['file_name1', 'file_name2']))
+    
+    print(knowledge.run('高德天气API申请', files=['QA.pdf']))
+    print('-----------------------')
+    print(knowledge.run('高德天气API申请', files=['Agent.pdf']))
