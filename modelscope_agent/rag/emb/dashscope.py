@@ -41,7 +41,7 @@ class DashscopeEmbedding(BaseEmbedding):
 
         # Validate model_name and input_type
         if model_name not in DashscopeModelName:
-            raise ValueError(f'model_name {model_name} is not in ')
+            raise ValueError(f'model {model_name} is not supported.')
 
         super().__init__(
             model_name=model_name,
@@ -63,7 +63,7 @@ class DashscopeEmbedding(BaseEmbedding):
         if resp.status_code == HTTPStatus.OK:
             res = resp.output['embeddings']
         else:
-            raise ValueError(f'call dahscope api failed: {resp}')
+            raise ValueError(f'call dashscope api failed: {resp}')
 
         return [list(map(float, e['embedding'])) for e in res]
 
