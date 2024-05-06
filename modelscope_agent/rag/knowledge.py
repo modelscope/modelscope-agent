@@ -77,6 +77,7 @@ class BaseKnowledge(BaseLlamaPack):
         Settings.chunk_size = 512
         ## 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         transformations = self.get_transformations()
+        index = None
         if cache_dir is not None and os.path.exists(cache_dir):
             # Load from cache
             from llama_index.core import StorageContext, load_index_from_storage
@@ -84,14 +85,17 @@ class BaseKnowledge(BaseLlamaPack):
             storage_context = StorageContext.from_defaults(
                 persist_dir=cache_dir)
             # load index
-            index = load_index_from_storage(
-                storage_context, embed_model=DashscopeEmbedding())
-        elif documents is not None:
+            try:
+                index = load_index_from_storage(
+                    storage_context, embed_model=DashscopeEmbedding())
+            except Exception as e:
+                print(f'Can not load index from cache_dir {cache_dir}, detail: {e}')
+        if not index and documents is not None:
             index = VectorStoreIndex.from_documents(
                 documents=documents,
                 transformations=transformations,
                 embed_model=DashscopeEmbedding())
-        else:
+        if not index:
             print('Neither documents nor cache_dir.')
             # index = VectorStoreIndex(nodes, transformations=transformations, embed_model=DashscopeEmbedding())
 
