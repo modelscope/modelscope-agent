@@ -227,3 +227,52 @@ class BaseTool(ABC):
             parameters=json.dumps(
                 self.function['parameters'], ensure_ascii=False),
         )
+
+    @staticmethod
+    def parser_function(tools: List[dict]):
+        """
+        Tool parser function with input
+        Args:
+            tools: the list of tools, each tool includes key of name, description, parameters
+
+        Returns:
+
+        """
+
+        tool_desc_template = {
+            'zh':
+            '{name}: {name} API。{description} 输入参数: {parameters} Format the arguments as a JSON object.',
+            'en':
+            '{name}: {name} API. {description} Parameters: {parameters} Format the arguments as a JSON object.'
+        }
+
+        def has_chinese_chars_in_tools(_tools):
+            for _tool in _tools:
+                _func_info = _tool.get('function', {})
+                if 'description' in _func_info:
+                    if has_chinese_chars(_func_info['description']):
+                        return True
+
+            return False
+
+        if has_chinese_chars_in_tools(tools):
+            tool_desc = tool_desc_template['zh']
+        else:
+            tool_desc = tool_desc_template['en']
+
+        tools_text = []
+        for tool in tools:
+            func_info = tool.get('function', {})
+            if func_info == {}:
+                continue
+            name = func_info.get('name', '')
+            description = func_info.get('description', '')
+            tool = tool_desc.format(
+                name=name,
+                description=description,
+                parameters=json.dumps(
+                    func_info['parameters'], ensure_ascii=False),
+            )
+            tools_text.append(tool)
+        tools_text = '\n\n'.join(tools_text)
+        return tools_text
