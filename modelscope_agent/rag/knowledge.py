@@ -14,10 +14,13 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.retrievers import RouterRetriever
 from llama_index.core.schema import Document, QueryBundle, TransformComponent
-from llama_index.core.settings import Settings
+from llama_index.core.settings import (Settings,
+                                       transformations_from_settings_or_context
+                                       )
 from llama_index.core.tools.retriever_tool import RetrieverTool
 from llama_index.core.vector_stores.types import (MetadataFilter,
                                                   MetadataFilters)
+from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.dashscope import DashScopeLLM
 from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
 from modelscope_agent.rag.llm import MSAgentLLM
@@ -55,8 +58,11 @@ class BaseKnowledge(BaseLlamaPack):
             print('No valid document.')
             return
 
-        if llm:
+        if llm and isinstance(llm, DashScopeLLM):
             llm = MSAgentLLM(llm)
+        else:
+            llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+            llm = get_chat_model(**llm_config)
 
         # 为支持不同策略可自行挑选indexing的文档范围，indexing步骤也应在retrievers初始化内实现。
         root_retriever = self.get_root_retriever(documents, cache_dir, llm=llm)
@@ -68,10 +74,12 @@ class BaseKnowledge(BaseLlamaPack):
         # rechunk，筛选文档内容等
         return None
 
-    def _get_retriever_tools(self, documents: List[Document],
-                             cache_dir: str) -> List[BaseRetriever]:
-        retriever_tools = list()
+    def get_postprocessors(self, **kwargs) -> BaseNodePostprocessor:
+        # 获取召回内容后处理器
+        return None
 
+    def get_root_retriever(self, documents: List[Document], cache_dir: str,
+                           llm: LLM) -> BaseRetriever:
         # indexing
         ## 可配置chunk_size等
         Settings.chunk_size = 512
@@ -89,7 +97,9 @@ class BaseKnowledge(BaseLlamaPack):
                 index = load_index_from_storage(
                     storage_context, embed_model=DashscopeEmbedding())
             except Exception as e:
-                print(f'Can not load index from cache_dir {cache_dir}, detail: {e}')
+                print(
+                    f'Can not load index from cache_dir {cache_dir}, detail: {e}'
+                )
         if not index and documents is not None:
             index = VectorStoreIndex.from_documents(
                 documents=documents,
@@ -103,37 +113,7 @@ class BaseKnowledge(BaseLlamaPack):
             index.storage_context.persist(persist_dir=cache_dir)
 
         # init retriever tool
-        vector_retriever = index.as_retriever()
-
-        return vector_retriever
-
-        ## 对召回后的内容进行处理
-        retriever_postprocessors = self.get_postprocessors()
-
-        ## 如果新增一个retriever，且使用同一个indexing（过滤、选择、rechunk策略都相同）
-        # bm25_retriever = BM25Retriever.from_defaults(docstore=index.docstore)
-
-        retriever_tools.append(
-            RetrieverTool.from_defaults(
-                retriever=vector_retriever,
-                node_postprocessors=retriever_postprocessors))
-
-        return retriever_tools
-
-    def get_postprocessors(self, **kwargs) -> BaseNodePostprocessor:
-        # 获取召回内容后处理器
-        return None
-
-    def get_root_retriever(self, documents: List[Document], cache_dir: str,
-                           llm: LLM) -> BaseRetriever:
-        # retriever_tools = self._get_retriever_tools(documents, cache_dir)
-        #selector = self.get_retriever_selector()
-        #router_retriever = RouterRetriever(retriever_tools, llm=llm, selector=selector)
-        return self._get_retriever_tools(documents, cache_dir)
-
-    def get_retriever_selector(self, **kwargs) -> BaseSelector:
-        # 根据query选择使用哪些retriever
-        return None
+        return index.as_retriever()
 
     def get_extra_readers(self) -> Dict[str, BaseReader]:
         # lazy import
@@ -183,15 +163,34 @@ class BaseKnowledge(BaseLlamaPack):
 
         return self.query_engine.query(query_bundle, **kwargs)
 
+    def add_file(self, files: List[str]):
+        from llama_index.core import StorageContext
+        from llama_index.core.ingestion import run_transformations
+
+        if isinstance(files, str):
+            files = [files]
+
+        try:
+            extra_readers = self.get_extra_readers()
+            docs = self.read(files, extra_readers)
+            for doc in docs:
+                self.query_engine.retriever._index.insert(doc)
+
+        except BaseException as e:
+            print(f'add files {files} failed, detail: {e}')
+
+    def delete_file(self, file: str):
+        pass
+
 
 if __name__ == '__main__':
-    from modelscope_agent.llm import get_chat_model
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
     llm = get_chat_model(**llm_config)
-    knowledge_source = ['data/Agent.pdf', 'data/QA.pdf']
 
     knowledge = BaseKnowledge('./data', llm=llm)
 
-    print(knowledge.run('高德天气API申请', files=['QA.pdf']))
+    print(knowledge.run('高德天气API申请', files=['常见QA.pdf']))
     print('-----------------------')
-    print(knowledge.run('高德天气API申请', files=['Agent.pdf']))
+
+    knowledge.add_file('./data2/常见QA.pdf')
+    print(knowledge.run('高德天气API申请', files=['常见QA.pdf']))

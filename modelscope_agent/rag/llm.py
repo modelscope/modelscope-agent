@@ -1,28 +1,20 @@
 import warnings
-import dashscope
-
 from typing import Any, Callable, Dict, Optional, Sequence
 
-from llama_index.core.base.llms.types import (
-    ChatMessage,
-    ChatResponse,
-    ChatResponseAsyncGen,
-    ChatResponseGen,
-    CompletionResponse,
-    CompletionResponseAsyncGen,
-    CompletionResponseGen,
-    LLMMetadata,
-    MessageRole,
-)
+import dashscope
+from llama_index.core.base.llms.types import (ChatMessage, ChatResponse,
+                                              ChatResponseAsyncGen,
+                                              ChatResponseGen,
+                                              CompletionResponse,
+                                              CompletionResponseAsyncGen,
+                                              CompletionResponseGen,
+                                              LLMMetadata, MessageRole)
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.callbacks import CallbackManager
-from llama_index.core.llms.callbacks import (
-    llm_chat_callback,
-    llm_completion_callback,
-)
+from llama_index.core.llms.callbacks import (llm_chat_callback,
+                                             llm_completion_callback)
 from llama_index.core.llms.llm import LLM
 from llama_index.core.types import BaseOutputParser, PydanticProgramMode
-
 from modelscope_agent.llm.dashscope import DashScopeLLM
 
 
@@ -41,19 +33,19 @@ class MSAgentLLM(LLM):
         ```
     """
 
-    model: str = Field(description="The dashscope model to use.")
-    temperature: float = Field(description="The temperature to use for sampling.")
+    model: str = Field(description='The dashscope model to use.')
+    temperature: float = Field(description='The temperature to use for sampling.')
     max_retries: int = Field(
-        default=10, description="The maximum number of API retries."
+        default=10, description='The maximum number of API retries.'
     )
-    max_tokens: int = Field(description="The maximum number of tokens to generate.")
+    max_tokens: int = Field(description='The maximum number of tokens to generate.')
     #llm: DashScopeLLM = Field(description="The dashscope model to use.")
     _llm: Any = PrivateAttr()
 
     def __init__(
         self,
         llm: DashScopeLLM,
-        model: str = "qwen_max",
+        model: str = 'qwen_max',
         temperature: float = 0.5,
         max_tokens: int = 2000,
         timeout: Optional[float] = None,
@@ -89,7 +81,7 @@ class MSAgentLLM(LLM):
     @classmethod
     def class_name(cls) -> str:
         """Get class name."""
-        return "MS_Agent_LLM"
+        return 'MS_Agent_LLM'
 
     @property
     def metadata(self) -> LLMMetadata:
@@ -103,8 +95,8 @@ class MSAgentLLM(LLM):
     @property
     def _model_kwargs(self) -> Dict[str, Any]:
         base_kwargs = {
-            "model": self.model,
-            "temperature": self.temperature,
+            'model': self.model,
+            'temperature': self.temperature,
         }
         return {
             **base_kwargs,
@@ -162,7 +154,7 @@ class MSAgentLLM(LLM):
         response = self._llm._chat_stream(messages, **kwargs)
 
         def gen() -> ChatResponseGen:
-            content = ""
+            content = ''
             role = MessageRole.ASSISTANT
             for r in response:
                 content += r

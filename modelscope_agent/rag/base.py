@@ -1,8 +1,9 @@
 import os
-from typing import Dict, Any, Union, List
+from typing import Any, Dict, List, Union
+
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.readers.base import BaseReader
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 
 
 class Knowledge(BaseLlamaPack):
@@ -40,10 +41,10 @@ class Knowledge(BaseLlamaPack):
     def get_modules(self) -> Dict[str, Any]:
         """Get modules for rewrite."""
         return {
-            "node_parser": self.node_parser,
-            "recursive_retriever": self.recursive_retriever,
-            "query_engines": self.query_engines,
-            "reader": self.path_reader,
+            'node_parser': self.node_parser,
+            'recursive_retriever': self.recursive_retriever,
+            'query_engines': self.query_engines,
+            'reader': self.path_reader,
         }
 
     def run(self,
