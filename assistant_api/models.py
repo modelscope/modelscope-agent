@@ -1,8 +1,12 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from fastapi import File, UploadFile
 from pydantic import BaseModel, Field
 
+class Tool(BaseModel):
+    name: str = Field(..., title='Tool name')
+    description: str = Field(..., title='Tool description')
+    parameters: List[Dict] = Field([], title='List of parameters')
 
 class LLMConfig(BaseModel):
     model: str = Field(..., title='Model name')
@@ -15,7 +19,7 @@ class AgentConfig(BaseModel):
     name: str = Field(..., title='Agent name')
     description: str = Field(..., title='Agent description')
     instruction: str = Field(..., title='Agent instruction')
-    tools: List[str] = Field([], title='List of tools')
+    tools: List[Union[str, Tool]] = Field([], title='List of tools')
 
 
 class ChatRequest(BaseModel):
@@ -27,15 +31,11 @@ class ChatRequest(BaseModel):
     files: List[str] = Field([], title='List of files used in knowledge')
     uuid_str: Optional[str] = Field('test', title='UUID string')
 
+class ToolResponse(BaseModel):
+    name: str = Field(..., title='Tool name')
+    inputs: Dict = Field({}, title='List of inputs')
 
-# for upper api
-class AgentModel(BaseModel):
-    uuid: str = Field(..., title='Agent ID')
-    llm_config: LLMConfig = Field(..., title='LLM config')
-    agent_config: AgentConfig = Field(..., title='Agent config')
-
-
-class MemoryModel(BaseModel):
-    uuid: str = Field(..., title='Memory ID')
-    history: List[Dict[str, str]] = Field([], title='List of messages')
-    files: List[str] = Field([], title='List of files used in knowledge')
+class ChatResponse(BaseModel):
+    response: str = Field(..., title='Response message')
+    require_actions: bool = Field(False, title='Whether require actions')
+    tool: ToolResponse = Field(None, title='Tool response')

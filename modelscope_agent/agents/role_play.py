@@ -160,7 +160,7 @@ class RolePlay(Agent, AgentEnvMixin):
             self.tool_descs = BaseTool.parser_function(tools)
             tool_name_list = []
             for tool in tools:
-                func_info = tool.get('function', {})
+                func_info = tool
                 if func_info == {}:
                     continue
                 if 'name' in func_info:
@@ -194,7 +194,7 @@ class RolePlay(Agent, AgentEnvMixin):
                 'knowledge'] = SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE[lang]
 
         # concat tools information
-        if self.function_map and not self.llm.support_function_calling():
+        if self.tool_descs and not self.llm.support_function_calling():
             self.system_prompt += TOOL_TEMPLATE[lang].format(
                 tool_descs=self.tool_descs, tool_names=self.tool_names)
             self.query_prefix_dict['tool'] = SPECIAL_PREFIX_TEMPLATE_TOOL[
