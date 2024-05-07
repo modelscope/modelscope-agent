@@ -13,7 +13,7 @@
 import os
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
-from pydantic import ValidationError
+
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 @register_tool('sambert_tts')
 class SambertTtsTool(BaseTool):
@@ -120,9 +120,9 @@ API详情地址：[https://help.aliyun.com/zh/dashscope/developer-reference/quic
 ![图片](../resource/tool-readme.png)
 
 ### 添加单元测试
-- 除了完成核心模块的开发，还需要添加单元测试用例，以便确保功能完整性，测试用例可以参考：`code interpreter unit test`
+- 除了完成核心模块的开发，还需要添加单元测试用例，以便确保功能完整性，测试用例可以参考：[code interpreter unit test](../../tests/tools/test_code_interpreter.py)
 - 跑测试用例，仅需要确保当前测试用例通过即可
-- `modelscope-agent`利用`pytest`完成测试，因此未安装`pytest`的话，需要先安装`pytest`，示例如下：
+- `modelscope-agent`利用`pytest`完成测试，因此未安装`pytest`的话，需要先安装`pytest`，具体跑测试的示例如下：
 
 ```shell
 pytest modelscope-agent/tools/contrib/demo/test_case.py
@@ -144,7 +144,7 @@ contrib
     ├── renew_aliyun_instance.py
     └── test_case.py
 ```
-- 需要将该类加入到 `modelscope_agent/tools/contrib/__init__.py`， 以便被上一层引用到。
+- 需要将该类加入到 `modelscope_agent/tools/contrib/__init__.py`， 以便被上一层引用到，具体参考[tools/contrib](../../modelscope_agent/tools/contrib/demo)。
 
 ### 代码提交规范
 

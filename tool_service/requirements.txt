@@ -1,0 +1,5 @@
+docker
+fastapi
+pydantic
+sqlmodel
+uvicorn

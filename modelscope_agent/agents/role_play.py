@@ -269,7 +269,7 @@ class RolePlay(Agent, AgentEnvMixin):
             if use_tool:
                 if self.llm.support_function_calling():
                     yield f'Action: {action}\nAction Input: {action_input}'
-                observation = self._call_tool(action, action_input)
+                observation = self._call_tool(action, action_input, **kwargs)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation

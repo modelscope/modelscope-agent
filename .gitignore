@@ -137,11 +137,12 @@ result.mp4
 apps/agentfabric/config/local_user/*
 **/logs/
 **/log/
-
+*.db
 # Pytorch
 *.pth
 *.pt
-
+.run/
+.run/*
 
 # ast template
 ast_index_file.py

@@ -1,9 +1,11 @@
-import os
+import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union
 
 import json
 import json5
+import requests
+from modelscope_agent.constants import DEFAULT_TOOL_MANAGER_SERVICE_URL
 from modelscope_agent.utils.utils import has_chinese_chars
 
 # ast?
@@ -116,7 +118,9 @@ TOOL_REGISTRY = ToolRegistry()
 def register_tool(name):
 
     def decorator(cls):
-        TOOL_REGISTRY[name] = cls
+        if name not in TOOL_REGISTRY:
+            TOOL_REGISTRY[name] = {}
+        TOOL_REGISTRY[name]['class'] = cls
         return cls
 
     return decorator
@@ -227,3 +231,134 @@ class BaseTool(ABC):
             parameters=json.dumps(
                 self.function['parameters'], ensure_ascii=False),
         )
+
+
+class ToolServiceProxy(BaseTool):
+
+    def __init__(
+            self,
+            tool_name: str,
+            tool_cfg: dict,
+            tenant_id: str = 'default',
+            tool_service_manager_url: str = DEFAULT_TOOL_MANAGER_SERVICE_URL):
+        """
+        Tool service proxy class
+        Args:
+            tool_name: tool name might be the name of tool or the address of tool artifacts
+            tool_cfg: the configuration of tool
+            tenant_id: the tenant id that the tool belongs to, defalut to 'default'
+            tool_service_manager_url: the url of tool service manager, default to 'http://localhost:31511'
+        """
+        self.tool_service_manager_url = tool_service_manager_url
+        self.tool_name = tool_name
+        self.tool_cfg = tool_cfg
+        self.tenant_id = tenant_id
+        self._register_tool()
+
+        max_retry = 10
+        while max_retry > 0:
+            status = self._check_tool_status()
+            if status == 'running':
+                break
+            time.sleep(1)
+            max_retry -= 1
+        if max_retry == 0:
+            raise RuntimeError(
+                'Tool node not start up successfully, please double check your docker environment'
+            )
+
+        tool_info = self._get_tool_info()
+        self.name = tool_info['name']
+        self.description = tool_info['description']
+        self.parameters = tool_info['parameters']
+        super().__init__({self.name: self.tool_cfg})
+
+    @staticmethod
+    def parse_service_response(response):
+        try:
+            # Assuming the response is a JSON string
+            response_data = response.json()
+
+            # Extract the 'output' field from the response
+            output_data = response_data.get('output', {})
+            return output_data
+        except json.JSONDecodeError:
+            # Handle the case where response is not JSON or cannot be decoded
+            return None
+
+    def _register_tool(self):
+        try:
+            response = requests.post(
+                f'{self.tool_service_manager_url}/create_tool_service',
+                json={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id,
+                    'tool_cfg': self.tool_cfg
+                })
+            response.raise_for_status()
+            result = ToolServiceProxy.parse_service_response(response)
+            if 'status' not in result:
+                raise Exception(
+                    'Failed to register tool, the tool service might be done, please use local version'
+                )
+            if result['status'] not in ['pending', 'running']:
+                raise Exception(
+                    'Failed to register tool, the tool service might be done, please use local version.'
+                )
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during registering tool from tool manager service with detail {e}'
+            )
+
+    def _check_tool_status(self):
+        try:
+            response = requests.post(
+                f'{self.tool_service_manager_url}/check_tool_service_status',
+                params={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id,
+                })
+            response.raise_for_status()
+            result = ToolServiceProxy.parse_service_response(response)
+            if 'status' not in result:
+                raise Exception(
+                    'Failed to register tool, the tool service might be done, please use local version'
+                )
+            return result['status']
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during checking status from tool manager service with detail {e}'
+            )
+
+    def _get_tool_info(self):
+        try:
+            response = requests.post(
+                f'{self.tool_service_manager_url}/tool_info',
+                json={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id
+                })
+            response.raise_for_status()
+            return ToolServiceProxy.parse_service_response(response)
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during getting tool info from tool manager service with detail {e}'
+            )
+
+    def call(self, params: str, **kwargs):
+        try:
+            # visit tool node to call tool
+            response = requests.post(
+                f'{self.tool_service_manager_url}/execute_tool',
+                json={
+                    'tool_name': self.tool_name,
+                    'tenant_id': self.tenant_id,
+                    'params': params,
+                    'kwargs': kwargs
+                })
+            response.raise_for_status()
+            return ToolServiceProxy.parse_service_response(response)
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during executing tool from tool manager service with detail {e}'
+            )
