@@ -8,6 +8,8 @@
 
 历经多次迭代，用户可以更快速的接入一个新的工具进入主库。
 
+在`modelscope_agent/tools`路径下创建您的工具类文件，这里假设创建名为`test_sambert_tool.py`的文件
+
 以下为接一个新`tool`入库的示例：
 ```python
 import os
@@ -15,10 +17,10 @@ from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
-@register_tool('sambert_tts')
-class SambertTtsTool(BaseTool):
+@register_tool('test_sambert_tool')
+class TestSambertTool(BaseTool):
     description = 'Sambert语音合成服务，将文本转成语音'
-    name = 'sambert_tts'
+    name = 'test_sambert_tool'
     parameters: list = [{
         'name': 'text',
         'description': '需要转成语音的文本',
@@ -54,7 +56,7 @@ class SambertTtsTool(BaseTool):
 
 解读：
 
-- line6：`@register_tool('sambert_tts')`用于将该工具类注册到注册中心以便后续调用， 并取名为 sambert_tts。
+- line6：`@register_tool('test_sambert_tool')`用于将该工具类注册到注册中心以便后续调用， 并取名为 test_sambert_tool。
 - line 8-15：工具在被大模型调用的时候，所有需要的信息都会被定义在这部分，不同的工具对应的`name`, `description`必须要描述清晰，以便大模型能够正确的使用该工具。 于此同时， `parameters`需要严格按照上述格式进行定义，以便模型能够正确生成调用该工具的参数，参数需要包括：`name`, `description`, `required`和`type`。
 - line 16: `__init__()`方法可以把一些非运行时相关的配置加在这里。
 - line 17:  `self.cfg = cfg.get(self.name, {})`对于一些配置较多，或者需要配置来自于文件的场景，可以使用该方法来初始化一个工具。
@@ -62,9 +64,14 @@ class SambertTtsTool(BaseTool):
 - line 25:  `params = self._verify_args(params)`该方法用`parse`，`stringify`的 `parameters`成为`dict`，我们已经有默认方法得以实现。 针对一些模型生成效果不好的场景，或者需要有特殊解析逻辑的场景，用户可以自行实现该类。
 - line 26-40: 该地方实现了利用`dashscope`的`tts`接口调用的方法，用户可以在这里完成实现各自`tool`的具体功能，对于调用一些异步的api，需要轮训等任务的，可以参考[这里](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/tools/dashscope_tools/style_repaint.py)
 
+### 其他配置项
+- 需要在`modelscope_agent/tools/base.py`中对register_map进行配置，添加`'test_sambert_tool': 'TestSambertTool'`到字典里，格式为`注册名：类名`。
+- 需要在`modelscope_agent/tools/__init__.py`中对_import_structure进行配置，添加`'test_sambert_tool': ['TestSambertTool']`，格式为`文件名：类名`。
+
 ### 在Agent中使用tool
 在上一步中，我们已经定义了一个新的`tool`类，那么下面会演示如何调用它。
 ```python
+import os
 from modelscope_agent.agents import RolePlay
 role_template = '你扮演一名语音合成大师，可以将文本转化为语音。'
 llm_config = {
@@ -73,14 +80,14 @@ llm_config = {
     }
 # 对于需要额外config的情况
 function_list = [{
-    'sambert_tts':{
+    'test_sambert_tool':{
       'dashscope_api_key': os.environ.get('DASHSCOPE_API_KEY')
     }
 }]
 # 对于不需要额外config的情况，直接写注册的名称即可
-function_list = ['sambert_tts']
+function_list = ['test_sambert_tool']
 bot = RolePlay(function_list=function_list,llm=llm_config, instruction=role_template)
-response = bot.run("请帮我把，modelscope-agent真棒，用甜美女声念出来。", remote=False, print_info=True)
+response = bot.run("请帮我把，modelscope-agent真厉害，用甜美女声念出来。", remote=False, print_info=True)
 text = ''
 for chunk in response:
     text += chunk
@@ -91,7 +98,7 @@ print(text)
 
 - line 2：定义了`agent`的提示词，用于推进任务。
 - line 3-6: 定义了`agent`所需要的模型，目前`qwen-max`是qwen系列中指令理解，指令生成效果最好的模型。
-- line 8-14: 在这里我们将刚才注册到工具注册中心的新工具`sambert_tts`加到`function_list`待`agent`调用，其中两种形式，带`config`传入的或者单纯名字的均可。
+- line 8-14: 在这里我们将刚才注册到工具注册中心的新工具`test_sambert_tool`加到`function_list`待`agent`调用，其中两种形式，带`config`传入的或者单纯名字的均可。
 - line 15: 利用上述几步的信息初始化`agent`。
 - line 16-20: 提交任务给`agent`，完成相关工具的调用。
 
@@ -129,11 +136,14 @@ pytest modelscope-agent/tools/contrib/demo/test_case.py
 ```
 
 ### 总结：文档结构
-综上，
+综上，为了保证文档结构的规范，需要您对需要提交的代码进行文档结构的调整。
 
 - 提交代码需要三个文件： 执行文件，测试文件和`readme`
 - 需要将上述三个文件放到一个文件夹中，为了让该文件夹被引用还需要一个`__init__.py`文件
-- 最后，需要确保该文件夹位于 `modelscope_agent/tools/contrib` 下。一个实例如下图所示：
+- 需要将测试时对`modelscope_agent/tools/__init__.py`中关于_import_structure的修改重新进行配置，参考如下示例。
+- 最后，需要确保该文件夹位于 `modelscope_agent/tools/contrib` 下。
+  
+一个实例如下图所示：
 
 ```
 contrib
@@ -145,6 +155,7 @@ contrib
     └── test_case.py
 ```
 - 需要将该类加入到 `modelscope_agent/tools/contrib/__init__.py`， 以便被上一层引用到，具体参考[tools/contrib](../../modelscope_agent/tools/contrib/demo)。
+- 重新执行确保代码可行
 
 ### 代码提交规范
 
