@@ -2,14 +2,16 @@ import os
 
 import pytest
 from fastapi import FastAPI
-from sqlmodel import Session, select
-from tool_service.tool_manager.api import \
+from modelscope_agent_servers.tool_manager_server.api import \
     start_docker_container_and_store_status
-from tool_service.tool_manager.connections import (create_db_and_tables,
-                                                   drop_db_and_tables, engine)
-from tool_service.tool_manager.models import ToolInstance, ToolRegisterInfo
-from tool_service.tool_manager.sandbox import get_docker_container
-from tool_service.tool_manager.utils import PortGenerator
+from modelscope_agent_servers.tool_manager_server.connections import (
+    create_db_and_tables, drop_db_and_tables, engine)
+from modelscope_agent_servers.tool_manager_server.models import (
+    ToolInstance, ToolRegisterInfo)
+from modelscope_agent_servers.tool_manager_server.sandbox import \
+    get_docker_container
+from modelscope_agent_servers.tool_manager_server.utils import PortGenerator
+from sqlmodel import Session, select
 
 IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
 

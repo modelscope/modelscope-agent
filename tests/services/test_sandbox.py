@@ -2,11 +2,11 @@ import os
 import time
 
 import pytest
-from tool_service.tool_manager.models import ToolRegisterInfo
-from tool_service.tool_manager.sandbox import (get_docker_container,
-                                               get_exec_cmd,
-                                               restart_docker_container,
-                                               start_docker_container)
+from modelscope_agent_servers.tool_manager_server.models import \
+    ToolRegisterInfo
+from modelscope_agent_servers.tool_manager_server.sandbox import (
+    get_docker_container, get_exec_cmd, restart_docker_container,
+    start_docker_container)
 
 IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
 
