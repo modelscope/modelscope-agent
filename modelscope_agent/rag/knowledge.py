@@ -22,7 +22,7 @@ from modelscope_agent.llm.dashscope import DashScopeLLM
 from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
 from modelscope_agent.rag.llm import MSAgentLLM
 
-#from modelscope_agent.rag.selector import FileSelector
+# from modelscope_agent.rag.selector import FileSelector
 
 
 @dataclass
@@ -73,9 +73,9 @@ class BaseKnowledge(BaseLlamaPack):
         retriever_tools = list()
 
         # indexing
-        ## 可配置chunk_size等
+        # 可配置chunk_size等
         Settings.chunk_size = 512
-        ## 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
+        # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         transformations = self.get_transformations()
         if cache_dir is not None and os.path.exists(cache_dir):
             # Load from cache
@@ -103,10 +103,10 @@ class BaseKnowledge(BaseLlamaPack):
 
         return vector_retriever
 
-        ## 对召回后的内容进行处理
+        # 对召回后的内容进行处理
         retriever_postprocessors = self.get_postprocessors()
 
-        ## 如果新增一个retriever，且使用同一个indexing（过滤、选择、rechunk策略都相同）
+        # 如果新增一个retriever，且使用同一个indexing（过滤、选择、rechunk策略都相同）
         # bm25_retriever = BM25Retriever.from_defaults(docstore=index.docstore)
 
         retriever_tools.append(
@@ -123,8 +123,8 @@ class BaseKnowledge(BaseLlamaPack):
     def get_root_retriever(self, documents: List[Document], cache_dir: str,
                            llm: LLM) -> BaseRetriever:
         # retriever_tools = self._get_retriever_tools(documents, cache_dir)
-        #selector = self.get_retriever_selector()
-        #router_retriever = RouterRetriever(retriever_tools, llm=llm, selector=selector)
+        # selector = self.get_retriever_selector()
+        # router_retriever = RouterRetriever(retriever_tools, llm=llm, selector=selector)
         return self._get_retriever_tools(documents, cache_dir)
 
     def get_retriever_selector(self, **kwargs) -> BaseSelector:
