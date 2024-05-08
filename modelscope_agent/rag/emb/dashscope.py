@@ -1,21 +1,18 @@
 import os
-import dashscope
-from http import HTTPStatus
 from enum import Enum
+from http import HTTPStatus
 from typing import Any, List, Optional
 
+import dashscope
 from llama_index.legacy.bridge.pydantic import Field
 from llama_index.legacy.callbacks import CallbackManager
-from llama_index.legacy.core.embeddings.base import (
-    DEFAULT_EMBED_BATCH_SIZE,
-    BaseEmbedding,
-)
-
+from llama_index.legacy.core.embeddings.base import (DEFAULT_EMBED_BATCH_SIZE,
+                                                     BaseEmbedding)
 
 # Enums for validation and type safety
 DashscopeModelName = [
-    "text-embedding-v1",
-    "text-embedding-v2",
+    'text-embedding-v1',
+    'text-embedding-v2',
 ]
 
 
@@ -25,7 +22,7 @@ class DashscopeEmbedding(BaseEmbedding):
 
     def __init__(
         self,
-        model_name: str = "text-embedding-v2",
+        model_name: str = 'text-embedding-v2',
         embed_batch_size: int = DEFAULT_EMBED_BATCH_SIZE,
         callback_manager: Optional[CallbackManager] = None,
     ):
@@ -37,7 +34,9 @@ class DashscopeEmbedding(BaseEmbedding):
                           this model is supported and that the input type provided is compatible with the model.
         """
 
-        assert os.environ.get('DASHSCOPE_API_KEY', None), 'DASHSCOPE_API_KEY should be set in environ.'
+        assert os.environ.get(
+            'DASHSCOPE_API_KEY',
+            None), 'DASHSCOPE_API_KEY should be set in environ.'
 
         # Validate model_name and input_type
         if model_name not in DashscopeModelName:
@@ -51,9 +50,11 @@ class DashscopeEmbedding(BaseEmbedding):
 
     @classmethod
     def class_name(cls) -> str:
-        return "DashscopeEmbedding"
+        return 'DashscopeEmbedding'
 
-    def _embed(self, texts: List[str], text_type='document') -> List[List[float]]:
+    def _embed(self,
+               texts: List[str],
+               text_type='document') -> List[List[float]]:
         """Embed sentences using dashscope."""
         resp = dashscope.TextEmbedding.call(
             input=texts,
@@ -86,4 +87,3 @@ class DashscopeEmbedding(BaseEmbedding):
     def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Get text embeddings."""
         return self._embed(texts, text_type='document')
-

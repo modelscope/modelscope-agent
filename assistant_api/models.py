@@ -3,10 +3,12 @@ from typing import Dict, List, Optional, Union
 from fastapi import File, UploadFile
 from pydantic import BaseModel, Field
 
+
 class Tool(BaseModel):
     name: str = Field(..., title='Tool name')
     description: str = Field(..., title='Tool description')
     parameters: List[Dict] = Field([], title='List of parameters')
+
 
 class LLMConfig(BaseModel):
     model: str = Field(..., title='Model name')
@@ -31,9 +33,11 @@ class ChatRequest(BaseModel):
     files: List[str] = Field([], title='List of files used in knowledge')
     uuid_str: Optional[str] = Field('test', title='UUID string')
 
+
 class ToolResponse(BaseModel):
     name: str = Field(..., title='Tool name')
     inputs: Dict = Field({}, title='List of inputs')
+
 
 class ChatResponse(BaseModel):
     response: str = Field(..., title='Response message')

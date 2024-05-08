@@ -1,7 +1,8 @@
 import os
 from typing import List
 
-from assistant_api.models import AgentConfig, ChatRequest, ChatResponse, ToolResponse, LLMConfig
+from assistant_api.models import (AgentConfig, ChatRequest, ChatResponse,
+                                  LLMConfig, ToolResponse)
 from assistant_api.server_utils import EmbeddingSingleton
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -42,11 +43,14 @@ async def upload_files(uuid_str: str = Form(...),
             # memory.run(None, url=save_dir)
             save_dirs.append(save_dir)
         print(save_dirs)
-        memory = BaseKnowledge(
-            knowledge_source=save_dirs,
-            cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
-            llm=None)
-        return JSONResponse(content={'status': 'upload files success', 'files': save_dirs})
+        # memory = BaseKnowledge(
+        #     knowledge_source=save_dirs,
+        #     cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
+        #     llm=None)
+        return JSONResponse(content={
+            'status': 'upload files success',
+            'files': save_dirs
+        })
     return JSONResponse(content={'status': 'upload fiels failed'})
 
 
@@ -90,6 +94,7 @@ async def chat(agent_request: ChatRequest):
             response += chunk
     return response
 
+
 @app.post('/v1/chat/completion')
 async def chat_completion(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
@@ -119,8 +124,12 @@ async def chat_completion(agent_request: ChatRequest):
         llm=llm_config,
         instruction=agent_config['instruction'],
         uuid_str=uuid_str)
-    result = agent.run(query, history=history, ref_doc=ref_doc, 
-            tools=function_list, chat_mode=True)
+    result = agent.run(
+        query,
+        history=history,
+        ref_doc=ref_doc,
+        tools=function_list,
+        chat_mode=True)
 
     del agent
 
@@ -130,25 +139,21 @@ async def chat_completion(agent_request: ChatRequest):
     llm_result = ''
     for chunk in result:
         llm_result += chunk
-    
-    response = ChatResponse(
-        response=llm_result)
-    
+
+    response = ChatResponse(response=llm_result)
+
     # use re to detect tools
-    try:    
+    try:
         import re
         import json
         result = re.search(r'Action: (.+)\nAction Input: (.+)', llm_result)
         action = result.group(1)
         action_input = json.loads(result.group(2))
         response.require_actions = True
-        response.tool = ToolResponse(
-            name=action,
-            inputs=action_input
-        )
-    except:
+        response.tool = ToolResponse(name=action, inputs=action_input)
+    except RuntimeError:
         pass
-    
+
     if agent_request.stream and response.require_actions:
         raise ValueError('Cannot stream response with tool actions')
     elif agent_request.stream:
