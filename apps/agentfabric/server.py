@@ -69,6 +69,8 @@ def builder_chat(uuid_str):
         ci_dir = get_user_ci_dir()
         os.makedirs(ci_dir, exist_ok=True)
         file_path = os.path.join(ci_dir, uuid_str + '_' + file.filename)
+        if '../' in file_path:
+            raise Exception('Access not allowed.')
         file.save(file_path)
         file_paths.append(file_path)
 
@@ -201,6 +203,8 @@ def import_builder(uuid_str):
 
         # 保存文件到服务器的文件系统
         file_path = os.path.join(IMPORT_ZIP_TEMP_DIR, uuid_str, file.filename)
+        if '../' in file_path:
+            raise Exception('Access not allowed.')
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         file.save(file_path)
         archive_dir = unzip_with_folder(file_path)
@@ -299,7 +303,10 @@ def save_builder_config(uuid_str):
     if not os.path.exists(upload_dir):
         os.makedirs(upload_dir)
     for file in files:
-        file.save(os.path.join(upload_dir, file.filename))
+        file_path = os.path.join(upload_dir, file.filename)
+        if '../' in file_path:
+            raise Exception('Access not allowed.')
+        file.save(file_path)
     if len(builder_config['openAPIConfigs']) > 0:
         openapi_config = builder_config['openAPIConfigs'][0]
         openapi_schema = openapi_config.get('schema', '')
@@ -371,6 +378,8 @@ def preview_chat(uuid_str, session_str):
         ci_dir = get_user_ci_dir()
         os.makedirs(ci_dir, exist_ok=True)
         file_path = os.path.join(ci_dir, uuid_str + '_' + file.filename)
+        if '../' in file_path:
+            raise Exception('Access not allowed.')
         file.save(file_path)
         file_paths.append(file_path)
     logger.info(f'/preview/chat/{uuid_str}/{session_str}: files: {file_paths}')
