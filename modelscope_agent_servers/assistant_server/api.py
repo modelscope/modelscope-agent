@@ -1,14 +1,19 @@
 import os
 from typing import List
+from uuid import uuid4
 
-from assistant_api.models import (AgentConfig, ChatRequest, ChatResponse,
-                                  LLMConfig, ToolResponse)
-from assistant_api.server_utils import EmbeddingSingleton
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.rag.knowledge import BaseKnowledge
+from modelscope_agent_servers.assistant_server.models import (AgentConfig,
+                                                              ChatRequest,
+                                                              ChatResponse,
+                                                              LLMConfig,
+                                                              ToolResponse)
+from modelscope_agent_servers.assistant_server.utils import EmbeddingSingleton
+from modelscope_agent_servers.service_utils import create_success_msg
 
 DEFAULT_KNOWLEDGE_PATH = 'knowledges'
 DEFAULT_INDEX_PATH = 'index'
@@ -24,6 +29,16 @@ async def startup_event():
 @app.post('/assistant/upload_files')
 async def upload_files(uuid_str: str = Form(...),
                        files: List[UploadFile] = File(...)):
+    """
+
+    Args:
+        uuid_str: user id
+        files: file
+
+    Returns:
+
+    """
+    request_id = str(uuid4())
     if files:
         knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
         if not os.path.exists(knowledge_path):
@@ -51,7 +66,8 @@ async def upload_files(uuid_str: str = Form(...),
             'status': 'upload files success',
             'files': save_dirs
         })
-    return JSONResponse(content={'status': 'upload fiels failed'})
+    return create_success_msg({'status': 'upload files failed'},
+                              request_id=request_id)
 
 
 @app.post('/assistant/chat')

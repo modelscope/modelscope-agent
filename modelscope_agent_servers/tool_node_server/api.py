@@ -6,9 +6,10 @@ from uuid import uuid4
 import json
 from fastapi import FastAPI, HTTPException
 from modelscope_agent.tools.base import TOOL_REGISTRY
-from tool_service.service_utils import create_success_msg
-from tool_service.tool_node.models import ToolRequest
-from tool_service.tool_node.utils import get_attribute_from_tool_cls
+from modelscope_agent_servers.service_utils import create_success_msg
+from modelscope_agent_servers.tool_node_server.models import ToolRequest
+from modelscope_agent_servers.tool_node_server.utils import \
+    get_attribute_from_tool_cls
 
 # Get the path of the current file
 current_file_path = os.path.abspath(__file__)

@@ -24,9 +24,9 @@ RUN mkdir -p assets
 RUN mkdir -p workspace
 
 # install dependency
-ENV PYTHONPATH $PYTHONPATH:/app/tool_service
+ENV PYTHONPATH $PYTHONPATH:/app/modelscope_agent_servers
 RUN pip install fastapi pydantic uvicorn docker sqlmodel
 
-COPY tool_service /app/tool_service
+COPY modelscope_agent_servers /app/modelscope_agent_servers
 
-#ENTRYPOINT exec uvicorn tool_service.tool_manager.api:app --host 0.0.0.0 --port 31511
+#ENTRYPOINT exec uvicorn modelscope_agent_servers.tool_manager_server.api:app --host 0.0.0.0 --port 31511

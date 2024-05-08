@@ -38,8 +38,8 @@ class BaseKnowledge(BaseLlamaPack):
     Automatically select the best file reader given file extensions.
 
     Args:
-        knowledges: Path to the directory，或文件路径列表，或指定召回方式的文件路径。
-        save_path: 缓存indexing后的信息。
+        knowledge_source: Path to the directory，或文件路径列表，或指定召回方式的文件路径。
+        cache_dir: 缓存indexing后的信息。
         llm: 总结召回内容时使用的llm。
     """
 

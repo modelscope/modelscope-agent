@@ -33,11 +33,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install fastapi uvicorn
 
 COPY modelscope_agent /app/modelscope_agent
-ENV PYTHONPATH $PYTHONPATH:/app/modelscope_agent:/app/tool_service
+ENV PYTHONPATH $PYTHONPATH:/app/modelscope_agent:/app/modelscope_agent_servers
 ENV BASE_TOOL_DIR /app/assets
 
 # install tool_node
-COPY tool_service /app/tool_service
+COPY modelscope_agent_servers /app/modelscope_agent_servers
 
 
 #ENTRYPOINT exec uvicorn tool_service.tool_node.api:app --host 0.0.0.0 --port $PORT

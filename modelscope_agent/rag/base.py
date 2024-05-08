@@ -18,21 +18,21 @@ class Knowledge(BaseLlamaPack):
     """
 
     def __init__(self,
-                 knowledge_sources: Union[List, str, Dict],
+                 knowledge_source: Union[List, str, Dict],
                  cache_dir: str = './run',
                  **kwargs) -> None:
 
         # extra_readers = self.get_extra_readers()
         self.documents = []
-        if isinstance(knowledge_sources, str):
-            if os.path.exists(knowledge_sources):
+        if isinstance(knowledge_source, str):
+            if os.path.exists(knowledge_source):
                 self.documents.append(
                     SimpleDirectoryReader(
-                        input_dir=knowledge_sources,
+                        input_dir=knowledge_source,
                         recursive=True).load_data())
 
         self.documents = SimpleDirectoryReader(
-            input_files=knowledge_sources).load_data()
+            input_files=knowledge_source).load_data()
 
     def get_extra_readers(self) -> Dict[str, BaseReader]:
         return {}

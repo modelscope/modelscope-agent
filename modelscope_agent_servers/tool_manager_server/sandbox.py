@@ -3,8 +3,10 @@ from typing import List, Tuple
 
 import docker
 from docker.models.containers import Container
-from tool_service.tool_manager.connections import get_docker_client
-from tool_service.tool_manager.models import ToolRegisterInfo
+from modelscope_agent_servers.tool_manager_server.connections import \
+    get_docker_client
+from modelscope_agent_servers.tool_manager_server.models import \
+    ToolRegisterInfo
 
 TIMEOUT = 120
 NODE_NETWORK = 'host'
@@ -43,7 +45,7 @@ def init_docker_container(docker_client, tool: ToolRegisterInfo):
     container_port = f'{tool.port}/tcp'  # inside container port（protocal could be tcp/udp）
     host_port = tool.port  # host port
     port_bindings = {container_port: host_port}
-    command = f'uvicorn tool_service.tool_node.api:app --host 0.0.0.0 --port {tool.port}'
+    command = f'uvicorn modelscope_agent_server.tool_node_server.api:app --host 0.0.0.0 --port {tool.port}'
 
     container = docker_client.containers.run(
         tool.image,
