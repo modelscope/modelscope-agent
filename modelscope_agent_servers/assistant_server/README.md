@@ -41,6 +41,7 @@ To interact with the chat API, you should construct a object like `ChatRequest` 
 
 
 ```Python
+import os
 url = 'http://localhost:8000/assistant/chat'
 
 # llm config

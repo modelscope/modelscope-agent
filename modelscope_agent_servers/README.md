@@ -1,4 +1,137 @@
-# Tool Service
+# Modelscope Agent Servers
+
+Modelscope Agent Servers is a set of services that provide running environment and apis for agents, tools,
+and the manager of the tool instances.
+
+Three services are provided in this project:
+- assistant server: provide chat/assistant service for agents
+- tool manager server: provide apis for creating, managing, and removing tool instances
+- tool node server: provide running environment for tool instances
+
+`Tool manager server` is bonded with `Tool node server`, the tool manager will automatically create tool node service
+for each tool instance, and the tool node service will be running in a docker container with independent environment and port.
+By using `tool services`, user could run tool in a more secure and stable way.
+
+`Assistant server` could run independently, developers could use the chat service or assistant service to interact with the agents without running tool manager service.
+
+## Assistant Service
+
+Assistant service is responsible for providing chat service for agents, two different level apis are provided in this service:
+- chat: user could chat with the agent by sending `query` and `tools' info`, and the agent will respond with which tool to use and parameters needed, this api is an alternative to the LLMs who has no function call or function call result is not valid.
+-assistant: user could chat with the agent by sending `query`, `tools' info`, `knowledge` and `message history`, and the agent will respond with the result of the action of the tool calling based on input.
+
+Other than those two main apis, a file upload api is also provided for uploading files for knowledge retrieval.
+The assistant service apis are running on port `31512` by default.
+
+### Pre-requisite
+- Modelscope-agent 0.5.0
+- Python 3.8 or above
+
+### Installation
+
+```bash
+# get latest code
+git clone https://github.com/modelscope/modelscope-agent.git
+cd modelscope-agent
+
+# start the assistant server
+sh scripts/run_assistant_server.sh
+
+```
+
+### Use case
+
+#### Chat
+
+#### Assistant
+
+To interact with the Assistant API, you should construct an object like `ChatRequest` on the client side, and then use the requests library to send it as the request body. An example code snippet is as follows:
+
+
+```Python
+import os
+import requests
+
+url = 'http://localhost:31512/v1/assistant/lite'
+
+# llm config
+llm_cfg = {
+    'model': 'qwen-max',
+    'model_server': 'dashscope',
+    'api_key': os.environ.get('DASHSCOPE_API_KEY'),
+}
+# agent config
+agent_cfg = {
+    'name': 'test',
+    'description': 'test assistant',
+    'instruction': 'you are a helpful assistant'
+}
+
+#
+request = {
+    'agent_config': agent_cfg,
+    'llm_config': llm_cfg,
+    'messages': [
+        {'content': '请为我介绍一下modelscope', 'role': 'user'}
+    ],
+    'uuid_str': 'test',
+    'use_knowledge': True # whether to use knowledge
+}
+
+response = requests.post(url, json=request)
+
+```
+
+If you want to use `stream` output, you can extract messages like this:
+
+```Python
+request = {
+    'agent_config': agent_cfg,
+    'llm_config': llm_cfg,
+    'messages': [
+        {'content': '请为我介绍一下modelscope', 'role': 'user'}
+    ],
+    'uuid_str': 'test',
+    'stream': True, # whether to use stream
+    'use_knowledge': True
+}
+
+response = requests.post(url, json=request)
+
+# extract message
+if response.encoding is None:
+    response.encoding = 'utf-8'
+
+for line in response.iter_lines(decode_unicode=True):
+    if line:
+        print(line)
+```
+
+
+
+#### Upload files
+You can upload your local files use `requests` library. Below is a simple example:
+
+```Python
+import requests
+# you may need to replace with your sever url
+url1 = 'http://localhost:31512/v1/files'
+
+# uuid
+datas = {
+    'uuid_str': 'test'
+}
+
+# the files to upload
+files = [
+    ('files', ('ms.txt', open('ms.txt', 'rb'), 'text/plain'))
+]
+response = requests.post(url1, data=datas, files=files)
+
+```
+
+
+## Tool Service
 
 Tool service provide running environment for tool instances by docker container,
 meanwhile a tool manager is responsible for creating and managing those tool instances.
@@ -12,15 +145,19 @@ be running in a docker container with independent environment and port.
 During the execution phase, agent will call the tool manager service, then tool manager will forward the call to the tool node service,
 the tool manager will play as a proxy for the tool node service in this phase.
 
+The tool manager service apis are running on port `31511` by default.
+Meanwhile, the tool node services' port will be started from `31513` and increased by 1 for each new tool instance.
+
 At last, an Oauth server will be added later to provide authentication and authorization for the tool manager service.
 
 
-## Pre-requisite
+### Pre-requisite
 - Docker installed
 - Docker daemon running
-- Python 3.6 or above
+- Modelscope-agent 0.5.0
+- Python 3.8 or above
 
-## Installation
+### Installation
 
 ```bash
 # get latest code
@@ -35,7 +172,7 @@ sh scripts/run_tool_manager.sh
 
 ```
 
-## Testing the tool service mode
+### Testing the tool service mode
 
 1. start the tool manager server by running
 ```bash
@@ -54,7 +191,7 @@ tool_service = ToolServiceProxy(tool_name='RenewInstance', tool_cfg={'test': 'xx
 result = tool_service.call( "{\"instance_id\": 123, \"period\": \"mon\"}")
 ```
 
-## Running the tool service in agent
+### Running the tool service in agent
 
 The following code snippet demonstrates how to run the tool service in agent.
 1. make sure pass in the `use_api=True` to the RolePlay class
@@ -88,7 +225,7 @@ the only difference is that the tool service is running in a docker container by
 
 
 ## Contribution of Tools
-Please find detail in
+Please find detail in [tool_contribution_guide_CN.md](https://github.com/modelscope/modelscope-agent/blob/master/docs/contributing/tool_contribution_guide_CN.md)
 
 ## Tool Manager API
 The tool manager API is responsible for creating and managing tool container, it is running on port 31511 by default.
@@ -109,7 +246,6 @@ POST /create_tool_service
 
 Response
 {
-    "status_code": 200,
     "request_id": "311f2e35-8dc3-48a3-a356-b255ee4b268c",
     "message": "",
     "output":
@@ -131,7 +267,6 @@ POST /check_tool_service_status/
 
 Response
 {
-    "status_code": 200,
     "request_id": "311f2e35-8dc3-48a3-a356-b255ee4b268c",
     "message": "",
     "output":
@@ -152,7 +287,6 @@ POST /remove_tool/
 
 Response
 {
-    "status_code": 200,
     "request_id": "311f2e35-8dc3-48a3-a356-b255ee4b268c",
     "message": "",
     "output":
@@ -191,7 +325,6 @@ POST /tool_info/
 
 Response
 {
-    "status_code": 200,
     "request_id": "311f2e35-8dc3-48a3-a356-b255ee4b268c",
     "message": "",
     "output": {
@@ -225,7 +358,6 @@ POST /execute_tool/
 
 Response
 {
-    "status_code": 200,
     "request_id": "311f2e35-8dc3-48a3-a356-b255ee4b268c",
     "message": "",
     "output": "已完成ECS实例ID为123的续费，续费时长mon月"
