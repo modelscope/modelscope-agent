@@ -1,7 +1,8 @@
 import re
 
 import json
-from modelscope_agent.tools.code_interpreter import CodeInterpreter
+from modelscope_agent.tools.code_interpreter.code_interpreter import \
+    CodeInterpreter
 
 
 def test_code_interpreter_image():

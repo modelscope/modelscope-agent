@@ -3,8 +3,9 @@ import time
 
 import json
 import requests
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
-from modelscope_agent.utils.utils import get_upload_url
+from modelscope_agent.utils.utils import get_api_key, get_upload_url
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -55,9 +56,11 @@ class StyleRepaint(BaseTool):
             'url',
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation'
         )
-        self.token = kwargs.get('token',
-                                os.environ.get('DASHSCOPE_API_KEY', ''))
-        assert self.token != '', 'dashscope api token must be acquired'
+        try:
+            self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+
         retry_times = MAX_RETRY_TIMES
         headers = {
             'Content-Type': 'application/json',

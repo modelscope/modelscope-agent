@@ -12,6 +12,7 @@ import json5
 from dashscope.common.error import InvalidInput, UploadFileException
 from dashscope.utils.oss_utils import OssUtils
 from jieba import analyse
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.tokenization_utils import count_tokens
 
@@ -292,3 +293,29 @@ def check_and_limit_input_length(check_body: Union[list, str],
             else:
                 break
         return output_messages
+
+
+def get_api_key(api_enum: ApiNames, key=None, **kwargs):
+    """
+
+    Args:
+        api_enum: enum of api name
+        key: default key
+        **kwargs: might contain the api name
+
+    Returns:
+
+    """
+    api_key = ''
+    if key is not None:
+        if kwargs.get(api_enum.name, '') != '':
+            if key != kwargs.get(api_enum.name):
+                # use runtime key instead of init key
+                api_key = kwargs.get(api_enum.name)
+        else:
+            api_key = key
+    else:
+        api_key = kwargs.get(api_enum.name, os.environ.get(api_enum.value, ''))
+
+    assert api_key != '', f'{api_enum.name} must be acquired'
+    return api_key

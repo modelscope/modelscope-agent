@@ -251,7 +251,8 @@ class RolePlay(Agent, AgentEnvMixin):
             })
 
         planning_prompt = ''
-        if self.llm.support_raw_prompt():
+        if self.llm.support_raw_prompt() and hasattr(self.llm,
+                                                     'build_raw_prompt'):
             planning_prompt = self.llm.build_raw_prompt(messages)
 
         max_turn = 10
@@ -304,7 +305,7 @@ class RolePlay(Agent, AgentEnvMixin):
             if use_tool:
                 if self.llm.support_function_calling():
                     yield f'Action: {action}\nAction Input: {action_input}'
-                observation = self._call_tool(action, action_input)
+                observation = self._call_tool(action, action_input, **kwargs)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation
