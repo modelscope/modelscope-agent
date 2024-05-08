@@ -142,7 +142,7 @@ pytest modelscope-agent/tools/contrib/demo/test_case.py
 - 需要将上述三个文件放到一个文件夹中，为了让该文件夹被引用还需要一个`__init__.py`文件
 - 需要将测试时对`modelscope_agent/tools/__init__.py`中关于_import_structure的修改重新进行配置，参考如下示例。
 - 最后，需要确保该文件夹位于 `modelscope_agent/tools/contrib` 下。
-  
+
 一个实例如下图所示：
 
 ```
