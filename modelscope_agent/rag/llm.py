@@ -1,11 +1,14 @@
-import warnings
+# yapf: disable
 from typing import Any, Callable, Dict, Optional, Sequence
 
 import dashscope
-from llama_index.core.base.llms.types import (
-    ChatMessage, ChatResponse, ChatResponseAsyncGen, ChatResponseGen,
-    CompletionResponse, CompletionResponseAsyncGen, CompletionResponseGen,
-    LLMMetadata, MessageRole)
+from llama_index.core.base.llms.types import (ChatMessage, ChatResponse,
+                                              ChatResponseAsyncGen,
+                                              ChatResponseGen,
+                                              CompletionResponse,
+                                              CompletionResponseAsyncGen,
+                                              CompletionResponseGen,
+                                              LLMMetadata, MessageRole)
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.llms.callbacks import (llm_chat_callback,
