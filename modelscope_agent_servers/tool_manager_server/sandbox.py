@@ -45,7 +45,7 @@ def init_docker_container(docker_client, tool: ToolRegisterInfo):
     container_port = f'{tool.port}/tcp'  # inside container port（protocal could be tcp/udp）
     host_port = tool.port  # host port
     port_bindings = {container_port: host_port}
-    command = f'uvicorn modelscope_agent_server.tool_node_server.api:app --host 0.0.0.0 --port {tool.port}'
+    command = f'uvicorn modelscope_agent_servers.tool_node_server.api:app --host 0.0.0.0 --port {tool.port}'
 
     container = docker_client.containers.run(
         tool.image,
