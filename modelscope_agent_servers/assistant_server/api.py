@@ -13,7 +13,8 @@ from modelscope_agent_servers.assistant_server.models import (AgentConfig,
                                                               LLMConfig,
                                                               ToolResponse)
 from modelscope_agent_servers.assistant_server.utils import EmbeddingSingleton
-from modelscope_agent_servers.service_utils import create_success_msg
+from modelscope_agent_servers.service_utils import (create_error_msg,
+                                                    create_success_msg)
 
 DEFAULT_KNOWLEDGE_PATH = 'knowledges'
 DEFAULT_INDEX_PATH = 'index'
@@ -43,11 +44,7 @@ async def upload_files(uuid_str: str = Form(...),
         knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
         if not os.path.exists(knowledge_path):
             os.makedirs(knowledge_path)
-        # memory = MemoryWithRetrievalKnowledge(
-        #     storage_path=knowledge_path,
-        #     name=uuid_str,
-        #     use_knowledge_cache=True,
-        #     embedding=EmbeddingSingleton().get_embedding())
+
         save_dirs = []
         for file in files:
             save_dir = os.path.join(knowledge_path, file.filename)
@@ -55,24 +52,26 @@ async def upload_files(uuid_str: str = Form(...),
                 continue
             with open(save_dir, 'wb') as f:
                 f.write(file.file.read())
-            # memory.run(None, url=save_dir)
             save_dirs.append(save_dir)
         print(save_dirs)
-        # memory = BaseKnowledge(
-        #     knowledge_source=save_dirs,
-        #     cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
-        #     llm=None)
-        return JSONResponse(content={
-            'status': 'upload files success',
-            'files': save_dirs
-        })
-    return create_success_msg({'status': 'upload files failed'},
+        _ = BaseKnowledge(
+            knowledge_source=save_dirs,
+            cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
+            llm=None)
+        return create_success_msg(
+            {
+                'status': 'upload files success',
+                'files': save_dirs
+            },
+            request_id=request_id)
+    return create_success_msg({'status': 'No valid files'},
                               request_id=request_id)
 
 
 @app.post('/assistant/chat')
 async def chat(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
+    request_id = str(uuid4())
 
     # agent related config
     llm_config = agent_request.llm_config.dict()
@@ -108,12 +107,13 @@ async def chat(agent_request: ChatRequest):
         response = ''
         for chunk in result:
             response += chunk
-    return response
+    return create_success_msg({'response': response}, request_id=request_id)
 
 
 @app.post('/v1/chat/completion')
 async def chat_completion(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
+    request_id = str(uuid4())
 
     # agent related config
     llm_config = agent_request.llm_config.dict()
@@ -135,6 +135,9 @@ async def chat_completion(agent_request: ChatRequest):
             cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
             llm=llm_config)
         ref_doc = memory.run(query, files=agent_request.files)
+        if ref_doc == 'Empty Response':
+            return create_error_msg(
+                'No valid knowledge contents.', request_id=request_id)
     agent = RolePlay(
         function_list=None,
         llm=llm_config,
@@ -149,9 +152,6 @@ async def chat_completion(agent_request: ChatRequest):
 
     del agent
 
-    # if agent_request.stream:
-    #     return StreamingResponse(result)
-    # else:
     llm_result = ''
     for chunk in result:
         llm_result += chunk
@@ -167,12 +167,13 @@ async def chat_completion(agent_request: ChatRequest):
         action_input = json.loads(result.group(2))
         response.require_actions = True
         response.tool = ToolResponse(name=action, inputs=action_input)
-    except RuntimeError:
+    except Exception:
         pass
 
     if agent_request.stream and response.require_actions:
-        raise ValueError('Cannot stream response with tool actions')
+        return create_error_msg(
+            'not support stream with tool', request_id=request_id)
     elif agent_request.stream:
         return StreamingResponse(response)
     else:
-        return response
+        return create_success_msg(response.dict(), request_id=request_id)

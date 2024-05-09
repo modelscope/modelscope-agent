@@ -25,8 +25,6 @@ from modelscope_agent.llm.dashscope import DashScopeLLM
 from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
 from modelscope_agent.rag.llm import MSAgentLLM
 
-#from modelscope_agent.rag.selector import FileSelector
-
 
 @dataclass
 class FileQueryBundle(QueryBundle):
@@ -56,13 +54,14 @@ class BaseKnowledge(BaseLlamaPack):
 
         if not documents:
             print('No valid document.')
-            return
+            # return
 
         if llm and isinstance(llm, DashScopeLLM):
             llm = MSAgentLLM(llm)
         else:
             llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
             llm = get_chat_model(**llm_config)
+            llm = MSAgentLLM(llm)
 
         # 为支持不同策略可自行挑选indexing的文档范围，indexing步骤也应在retrievers初始化内实现。
         root_retriever = self.get_root_retriever(documents, cache_dir, llm=llm)
@@ -81,9 +80,9 @@ class BaseKnowledge(BaseLlamaPack):
     def get_root_retriever(self, documents: List[Document], cache_dir: str,
                            llm: LLM) -> BaseRetriever:
         # indexing
-        ## 可配置chunk_size等
+        # 可配置chunk_size等
         Settings.chunk_size = 512
-        ## 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
+        # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         transformations = self.get_transformations()
         index = None
         if cache_dir is not None and os.path.exists(cache_dir):
@@ -130,21 +129,27 @@ class BaseKnowledge(BaseLlamaPack):
 
     def read(self, knowledge_source: Union[str, List[str]],
              extra_readers: Dict[str, BaseReader]) -> List[Document]:
-        if isinstance(knowledge_source, str):
-            if os.path.isdir(knowledge_source):
-                general_reader = SimpleDirectoryReader(
-                    input_dir=knowledge_source, file_extractor=extra_readers)
-            elif os.path.isfile(knowledge_source):
-                general_reader = SimpleDirectoryReader(
-                    input_files=[knowledge_source],
-                    file_extractor=extra_readers)
+        try:
+            if isinstance(knowledge_source, str):
+                if os.path.isdir(knowledge_source):
+                    general_reader = SimpleDirectoryReader(
+                        input_dir=knowledge_source,
+                        file_extractor=extra_readers)
+                elif os.path.isfile(knowledge_source):
+                    general_reader = SimpleDirectoryReader(
+                        input_files=[knowledge_source],
+                        file_extractor=extra_readers)
+                else:
+                    raise ValueError(
+                        f'file path not exists: {knowledge_source}.')
             else:
-                raise ValueError(f'file path not exists: {knowledge_source}.')
-        else:
-            general_reader = SimpleDirectoryReader(
-                input_files=knowledge_source, file_extractor=extra_readers)
+                general_reader = SimpleDirectoryReader(
+                    input_files=knowledge_source, file_extractor=extra_readers)
 
-        documents = general_reader.load_data(num_workers=os.cpu_count())
+            documents = general_reader.load_data(num_workers=os.cpu_count())
+        except ValueError:
+            print('No valid documents')
+            documents = []
         return documents
 
     def set_filter(self, files: List[str]):
@@ -161,7 +166,7 @@ class BaseKnowledge(BaseLlamaPack):
         if len(files) > 0:
             self.set_filter(files)
 
-        return self.query_engine.query(query_bundle, **kwargs)
+        return str(self.query_engine.query(query_bundle, **kwargs))
 
     def add_file(self, files: List[str]):
         from llama_index.core import StorageContext
