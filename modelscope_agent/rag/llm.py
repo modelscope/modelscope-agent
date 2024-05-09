@@ -1,14 +1,11 @@
-# yapf: disable
+import warnings
 from typing import Any, Callable, Dict, Optional, Sequence
 
 import dashscope
-from llama_index.core.base.llms.types import (ChatMessage, ChatResponse,
-                                              ChatResponseAsyncGen,
-                                              ChatResponseGen,
-                                              CompletionResponse,
-                                              CompletionResponseAsyncGen,
-                                              CompletionResponseGen,
-                                              LLMMetadata, MessageRole)
+from llama_index.core.base.llms.types import (
+    ChatMessage, ChatResponse, ChatResponseAsyncGen, ChatResponseGen,
+    CompletionResponse, CompletionResponseAsyncGen, CompletionResponseGen,
+    LLMMetadata, MessageRole)
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.llms.callbacks import (llm_chat_callback,
@@ -40,7 +37,7 @@ class MSAgentLLM(LLM):
         default=10, description='The maximum number of API retries.')
     max_tokens: int = Field(
         description='The maximum number of tokens to generate.')
-    # llm: DashScopeLLM = Field(description="The dashscope model to use.")
+    #llm: DashScopeLLM = Field(description="The dashscope model to use.")
     _llm: Any = PrivateAttr()
 
     def __init__(
@@ -89,9 +86,9 @@ class MSAgentLLM(LLM):
     @property
     def metadata(self) -> LLMMetadata:
         return LLMMetadata(
-            # num_output=self.max_tokens,
+            #num_output=self.max_tokens,
             is_chat_model=True,
-            # model_name=self.model,
+            #model_name=self.model,
             system_role=MessageRole.SYSTEM,
         )
 
