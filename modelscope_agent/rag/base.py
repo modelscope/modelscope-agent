@@ -13,8 +13,8 @@ class Knowledge(BaseLlamaPack):
     Automatically select the best file reader given file extensions.
 
     Args:
-        knowledges: Path to the directory，或文件路径列表，或指定召回方式的文件路径。
-        save_path: 缓存indexing后的信息。
+        knowledge_source: Path to the directory，或文件路径列表，或指定召回方式的文件路径。
+        cache_dir: 缓存indexing后的信息。
     """
 
     def __init__(self,
@@ -22,17 +22,17 @@ class Knowledge(BaseLlamaPack):
                  cache_dir: str = './run',
                  **kwargs) -> None:
 
-        extra_readers = self.get_extra_readers()
+        # extra_readers = self.get_extra_readers()
         self.documents = []
-        if isinstance(knowledges_source, str):
-            if os.path.exists(knowledges_source):
+        if isinstance(knowledge_source, str):
+            if os.path.exists(knowledge_source):
                 self.documents.append(
                     SimpleDirectoryReader(
-                        input_dir=knowledges_source,
+                        input_dir=knowledge_source,
                         recursive=True).load_data())
 
         self.documents = SimpleDirectoryReader(
-            input_files=knowledges_source).load_data()
+            input_files=knowledge_source).load_data()
 
     def get_extra_readers(self) -> Dict[str, BaseReader]:
         return {}
