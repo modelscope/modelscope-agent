@@ -160,7 +160,7 @@ class RolePlay(Agent, AgentEnvMixin):
             self.tool_descs = BaseTool.parser_function(tools)
             tool_name_list = []
             for tool in tools:
-                func_info = tool
+                func_info = tool.get('function', {})
                 if func_info == {}:
                     continue
                 if 'name' in func_info:

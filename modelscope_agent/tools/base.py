@@ -266,7 +266,7 @@ class BaseTool(ABC):
 
         tools_text = []
         for tool in tools:
-            func_info = tool
+            func_info = tool.get('function', {})
             if func_info == {}:
                 continue
             name = func_info.get('name', '')

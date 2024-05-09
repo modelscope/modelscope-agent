@@ -27,11 +27,12 @@ class AgentConfig(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[Dict[str, str]] = Field(..., title='List of messages')
     llm_config: LLMConfig = Field(..., title='LLM config')
-    agent_config: AgentConfig = Field(..., title='Agent config')
+    agent_config: AgentConfig = Field(None, title='Agent config')
     stream: bool = Field(False, title='Stream output')
     use_knowledge: bool = Field(False, title='Whether to use knowledge')
     files: List[str] = Field([], title='List of files used in knowledge')
     uuid_str: Optional[str] = Field('test', title='UUID string')
+    tools: List[Dict] = Field(None, title='Tools config')
 
 
 class ToolResponse(BaseModel):

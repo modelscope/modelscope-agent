@@ -3,16 +3,14 @@ from typing import List
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from modelscope_agent.agents.role_play import RolePlay
-from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.rag.knowledge import BaseKnowledge
-from modelscope_agent_servers.assistant_server.models import (AgentConfig,
-                                                              ChatRequest,
+from modelscope_agent_servers.assistant_server.models import (ChatRequest,
                                                               ChatResponse,
-                                                              LLMConfig,
                                                               ToolResponse)
-from modelscope_agent_servers.assistant_server.utils import EmbeddingSingleton
+from modelscope_agent_servers.assistant_server.utils import \
+    tool_calling_wrapper
 from modelscope_agent_servers.service_utils import (create_error_msg,
                                                     create_success_msg)
 
@@ -118,10 +116,9 @@ async def chat_completion(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
     request_id = str(uuid4())
 
-    # agent related config
+    # config
     llm_config = agent_request.llm_config.dict()
-    agent_config = agent_request.agent_config.dict()
-    function_list = agent_config.pop('tools')
+    function_list = agent_request.tools
 
     # message and history
     message = agent_request.messages
@@ -141,11 +138,7 @@ async def chat_completion(agent_request: ChatRequest):
         if ref_doc == 'Empty Response':
             return create_error_msg(
                 'No valid knowledge contents.', request_id=request_id)
-    agent = RolePlay(
-        function_list=None,
-        llm=llm_config,
-        instruction=agent_config['instruction'],
-        uuid_str=uuid_str)
+    agent = RolePlay(function_list=None, llm=llm_config, uuid_str=uuid_str)
     result = agent.run(
         query,
         history=history,
@@ -179,4 +172,10 @@ async def chat_completion(agent_request: ChatRequest):
     elif agent_request.stream:
         return StreamingResponse(response)
     else:
-        return create_success_msg(response.dict(), request_id=request_id)
+        kwargs = {'choices': tool_calling_wrapper(response)}
+        return create_success_msg(None, request_id=request_id, **kwargs)
+
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app=app, host='127.0.0.1', port=31512)

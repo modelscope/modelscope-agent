@@ -53,8 +53,9 @@ An example code snippet is as follows:
 curl -X POST 'http://localhost:31512/v1/chat/completion' \
 -H 'Content-Type: application/json' \
 -d '{
-    "agent_config": {
-        "tools": [{
+    "tools": [{
+        "type": "function",
+        "function": {
             "name": "amap_weather",
             "description": "amap weather tool",
             "parameters": [{
@@ -63,11 +64,8 @@ curl -X POST 'http://localhost:31512/v1/chat/completion' \
                 "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
                 "required": true
             }]
-        }],
-        "name": "test",
-        "description": "test assistant",
-        "instruction": "you are a helpful assistant"
-    },
+        }
+    }],
     "llm_config": {
         "model": "qwen-max",
         "model_server": "dashscope",
@@ -87,10 +85,24 @@ With above examples, the output should be like this:
 {
     "request_id":"xxxxx",
     "message":"",
-    "output":{
-        "response":"Action: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
-        "require_actions":true,
-        "tool":{"name":"amap_weather","inputs":{"location":"海淀区"}}}}
+    "output": None,
+    "choices": [{
+        "index":0,
+        "message": {
+            "role": "assistant",
+            "content": "Action: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
+            "tool_calls": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "amap_weather",
+                        "arguments": "{\"location\":\"海淀区\"}"
+                }
+            }]
+        },
+        "finish_reason": "tool_calls"
+    }]
+}
 ```
 
 #### knowledge retrieval
@@ -104,11 +116,20 @@ To enable knowledge retrieval, you'll need to include use_knowledge and files in
 curl -X POST 'http://localhost:31512/v1/chat/completion' \
 -H 'Content-Type: application/json' \
 -d '{
-    "agent_config": {
-        "name": "test",
-        "description": "test assistant",
-        "instruction": "you are a helpful assistant"
-    },
+    "tools": [
+    {
+        "type": "function",
+        "function": {
+            "name": "amap_weather",
+            "description": "amap weather tool",
+            "parameters": [{
+                "name": "location",
+                "type": "string",
+                "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
+                "required": true
+            }]
+        }
+    }],
     "llm_config": {
         "model": "qwen-max",
         "model_server": "dashscope",
@@ -129,7 +150,16 @@ With above examples, the output should be like this:
 {
     "request_id":"2bdb05fb-48b6-4ba2-9a38-7c9eb7c5c88e",
     "message":"",
-    "output":{"response":"..."}
+    "output": None,
+    "choices": [{
+        "index":0,
+        "message": {
+            "role": "assistant",
+            "content": "Information based on knowledge retrieval.",
+        }
+        "finish_reason": "stop"
+
+    }]
 }
 ```
 

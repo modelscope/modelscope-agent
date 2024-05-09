@@ -7,12 +7,11 @@ from requests import Response
 
 def create_success_msg(output: Union[Dict, str],
                        request_id: str,
-                       message: str = ''):
-    return JSONResponse(content={
-        'request_id': request_id,
-        'message': message,
-        'output': output
-    })
+                       message: str = '',
+                       **kwargs):
+    content = {'request_id': request_id, 'message': message, 'output': output}
+    content.update(kwargs)
+    return JSONResponse(content=content)
 
 
 def create_error_msg(message: str, request_id: str, status_code: int = 400):
