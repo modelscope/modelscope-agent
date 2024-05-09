@@ -129,6 +129,7 @@ Like `v1/chat/completion` API, you should construct a `ChatRequest` object when 
 
 
 ```Python
+import os
 url = 'http://localhost:8000/assistant/chat'
 
 # llm config

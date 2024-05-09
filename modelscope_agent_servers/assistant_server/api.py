@@ -27,7 +27,7 @@ async def startup_event():
         os.makedirs(DEFAULT_KNOWLEDGE_PATH)
 
 
-@app.post('/assistant/upload_files')
+@app.post('/v1/files')
 async def upload_files(uuid_str: str = Form(...),
                        files: List[UploadFile] = File(...)):
     """
@@ -68,7 +68,7 @@ async def upload_files(uuid_str: str = Form(...),
                               request_id=request_id)
 
 
-@app.post('/assistant/chat')
+@app.post('/v1/assistant/lite')
 async def chat(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
     request_id = str(uuid4())
