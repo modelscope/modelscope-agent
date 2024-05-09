@@ -12,12 +12,8 @@ from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.readers.base import BaseReader
-from llama_index.core.retrievers import RouterRetriever
 from llama_index.core.schema import Document, QueryBundle, TransformComponent
-from llama_index.core.settings import (Settings,
-                                       transformations_from_settings_or_context
-                                       )
-from llama_index.core.tools.retriever_tool import RetrieverTool
+from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import (MetadataFilter,
                                                   MetadataFilters)
 from modelscope_agent.llm import get_chat_model
@@ -39,8 +35,8 @@ class BaseKnowledge(BaseLlamaPack):
     Automatically select the best file reader given file extensions.
 
     Args:
-        knowledges: Path to the directory，或文件路径列表，或指定召回方式的文件路径。
-        save_path: 缓存indexing后的信息。
+        knowledge_source: Path to the directory，或文件路径列表，或指定召回方式的文件路径。
+        cache_dir: 缓存indexing后的信息。
         llm: 总结召回内容时使用的llm。
     """
 
