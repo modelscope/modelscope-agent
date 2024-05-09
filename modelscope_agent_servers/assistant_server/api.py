@@ -93,6 +93,9 @@ async def chat(agent_request: ChatRequest):
             cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
             llm=llm_config)
         ref_doc = memory.run(query, files=agent_request.files)
+        if ref_doc == 'Empty Response':
+            return create_error_msg(
+                'No valid knowledge contents.', request_id=request_id)
     agent = RolePlay(
         function_list=function_list,
         llm=llm_config,

@@ -86,29 +86,34 @@ class BaseKnowledge(BaseLlamaPack):
         transformations = self.get_transformations()
         index = None
         if cache_dir is not None and os.path.exists(cache_dir):
-            # Load from cache
-            from llama_index.core import StorageContext, load_index_from_storage
-            # rebuild storage context
-            storage_context = StorageContext.from_defaults(
-                persist_dir=cache_dir)
-            # load index
             try:
+                # Load from cache
+                from llama_index.core import StorageContext, load_index_from_storage
+                # rebuild storage context
+                storage_context = StorageContext.from_defaults(
+                    persist_dir=cache_dir)
+                # load index
+
                 index = load_index_from_storage(
                     storage_context, embed_model=DashscopeEmbedding())
             except Exception as e:
                 print(
                     f'Can not load index from cache_dir {cache_dir}, detail: {e}'
                 )
-        if not index and documents is not None:
-            index = VectorStoreIndex.from_documents(
-                documents=documents,
-                transformations=transformations,
-                embed_model=DashscopeEmbedding())
+        if documents is not None:
+            if not index:
+                index = VectorStoreIndex.from_documents(
+                    documents=documents,
+                    transformations=transformations,
+                    embed_model=DashscopeEmbedding())
+            else:
+                for doc in documents:
+                    index.insert(doc)
         if not index:
             print('Neither documents nor cache_dir.')
             # index = VectorStoreIndex(nodes, transformations=transformations, embed_model=DashscopeEmbedding())
 
-        if cache_dir is not None and not os.path.exists(cache_dir):
+        if cache_dir is not None:
             index.storage_context.persist(persist_dir=cache_dir)
 
         # init retriever tool
