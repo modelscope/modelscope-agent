@@ -1,7 +1,7 @@
 import pytest
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm import BaseChatModel
-from modelscope_agent.tools import TOOL_REGISTRY, BaseTool
+from modelscope_agent.tools.base import TOOL_REGISTRY
 
 from .ut_utils import MockTool
 
@@ -13,8 +13,8 @@ class MockTool1(MockTool):
 # Using RolePlay as a concrete agent
 @pytest.fixture
 def tester_agent(mocker):
-    TOOL_REGISTRY['mock_tool'] = MockTool
-    TOOL_REGISTRY['mock_tool1'] = MockTool1
+    TOOL_REGISTRY['mock_tool'] = {'class': MockTool}
+    TOOL_REGISTRY['mock_tool1'] = {'class': MockTool1}
     function_list = ['mock_tool', {'mock_tool1': {'config': 'some_config'}}]
     llm_config = {
         'model': 'qwen-max',

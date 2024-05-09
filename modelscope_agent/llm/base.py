@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Union
 
+from modelscope_agent.llm.utils.llm_templates import get_model_stop_words
 from modelscope_agent.utils.retry import retry
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import print_traceback
@@ -151,6 +152,15 @@ class BaseChatModel(ABC):
 
         """
         raise NotImplementedError
+
+    def _update_stop_word(self, stop=None):
+        stop_words_from_model = get_model_stop_words(self.model)
+        if stop is None:
+            stop = stop_words_from_model
+        else:
+            stop = stop_words_from_model + stop
+
+        return stop
 
     @abstractmethod
     def _chat_no_stream(self,

@@ -282,8 +282,8 @@ def get_builder_file(uuid_str, file_name):
 @with_request_id
 def save_builder_config(uuid_str):
     logger.info(f'save_builder_config: uuid_str_{uuid_str}')
-
     builder_config_str = request.form.get('builder_config')
+    logger.info(f'builder_config: {builder_config_str}')
     builder_config = json.loads(builder_config_str)
     if 'tools' in builder_config:
         if 'code_interpreter' in builder_config['tools']:

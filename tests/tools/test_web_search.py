@@ -1,5 +1,5 @@
 import json
-from modelscope_agent.tools import WebSearch
+from modelscope_agent.tools.web_search.web_search import WebSearch
 
 
 def test_web_search():

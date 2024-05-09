@@ -1,4 +1,4 @@
-from modelscope_agent.tools import QWenVL
+from modelscope_agent.tools.dashscope_tools.qwen_vl import QWenVL
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
