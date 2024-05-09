@@ -37,7 +37,7 @@ def mock_tool_info():
     return ToolRegisterInfo(
         node_name='RenewInstance_default',
         tool_name='RenewInstance',
-        image='modelscope-agent/tool-node:no-modelscope',
+        image='modelscope-agent/tool-node:latest',
         config={
             'name': 'RenewInstance',
             'RenewInstance': {

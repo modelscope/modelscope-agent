@@ -6,7 +6,8 @@ from uuid import uuid4
 import json
 from fastapi import FastAPI, HTTPException
 from modelscope_agent.tools.base import TOOL_REGISTRY
-from modelscope_agent_servers.service_utils import create_success_msg
+from modelscope_agent_servers.service_utils import (create_error_msg,
+                                                    create_success_msg)
 from modelscope_agent_servers.tool_node_server.models import ToolRequest
 from modelscope_agent_servers.tool_node_server.utils import \
     get_attribute_from_tool_cls
@@ -106,9 +107,10 @@ async def get_tool_info(request_id: str):
         first_key = next(iter(tool_attribute))
         return create_success_msg(tool_attribute[first_key], request_id)
     except Exception as e:
-        raise HTTPException(
+        return create_error_msg(
             status_code=400,
-            detail=
+            request_id=request_id,
+            message=
             f"Failed to get tool info for '{app.tool_name}' with error {e}")
 
 
@@ -130,9 +132,10 @@ async def execute_tool(request: ToolRequest):
             result = await result
         return create_success_msg(result, request_id=request.request_id)
     except Exception as e:
-        raise HTTPException(
+        return create_error_msg(
             status_code=400,
-            detail=f"Failed to execute tool '{app.tool_name}' with error {e}")
+            request_id=request.request_id,
+            message=f"Failed to execute tool '{app.tool_name}' with error {e}")
 
 
 if __name__ == '__main__':

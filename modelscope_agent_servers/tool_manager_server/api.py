@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import List
 from uuid import uuid4
 
 import requests
@@ -235,7 +236,10 @@ async def check_tool_service_status(
             select(ToolInstance).where(
                 ToolInstance.name == tool_node_name)).first()
         if not tool_container:
-            return create_error_msg(status_code=404, message='Tool not found')
+            return create_error_msg(
+                status_code=404,
+                request_id=request_id,
+                message='Tool not found')
         output = {'status': tool_container.status}
         message = ''
         if tool_container.status == ContainerStatus.failed.value:
@@ -297,7 +301,7 @@ async def deregister_tool(tool_name: str,
     return create_success_msg(output, request_id=request_id)
 
 
-@app.get('/tools/', response_model=list[ToolInstance])
+@app.get('/tools/', response_model=List[ToolInstance])
 async def list_tools(tenant_id: str = 'default'):
     with Session(engine) as session:
         statement = select(ToolInstance).where(
@@ -321,7 +325,8 @@ async def get_tool_info(tool_input: ExecuteTool):
         results = session.exec(statement)
         tool_instance = results.first()
     if not tool_instance:
-        return create_error_msg(status_code=404, message='Tool not found')
+        return create_error_msg(
+            status_code=404, request_id=request_id, message='Tool not found')
 
     # get tool service url
     try:
@@ -335,6 +340,7 @@ async def get_tool_info(tool_input: ExecuteTool):
     except Exception as e:
         return create_error_msg(
             status_code=400,
+            request_id=request_id,
             message=
             f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
         )
@@ -353,13 +359,15 @@ async def execute_tool(tool_input: ExecuteTool):
         results = session.exec(statement)
         tool_instance = results.first()
     if not tool_instance:
-        return create_error_msg(status_code=404, message='Tool not found')
+        return create_error_msg(
+            status_code=404, request_id=request_id, message='Tool not found')
 
     tool_service_url = 'http://' + tool_instance.ip + ':' + str(
         tool_instance.port) + '/execute_tool'
     if tool_input.params == '':
         return create_error_msg(
             status_code=400,
+            request_id=request_id,
             message=
             f'The params of tool {tool_input.tool_name}_{tool_input.tenant_id} is empty.'
         )
@@ -377,6 +385,7 @@ async def execute_tool(tool_input: ExecuteTool):
     except Exception as e:
         return create_error_msg(
             status_code=400,
+            request_id=request_id,
             message=
             f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
         )
