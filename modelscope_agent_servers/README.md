@@ -18,7 +18,7 @@ By using `tool services`, user could run tool in a more secure and stable way.
 
 Assistant service is responsible for providing chat service for agents, two different level apis are provided in this service:
 - chat: user could chat with the agent by sending `query` and `tools' info`, and the agent will respond with which tool to use and parameters needed, this api is an alternative to the LLMs who has no function call or function call result is not valid.
--assistant: user could chat with the agent by sending `query`, `tools' info`, `knowledge` and `message history`, and the agent will respond with the result of the action of the tool calling based on input.
+- assistant: user could chat with the agent by sending `query`, `tools' info`, `knowledge` and `message history`, and the agent will respond with the result of the action of the tool calling based on input.
 
 Other than those two main apis, a file upload api is also provided for uploading files for knowledge retrieval.
 The assistant service apis are running on port `31512` by default.
@@ -43,9 +43,99 @@ sh scripts/run_assistant_server.sh
 
 #### Chat
 
+
+To interact with the chat API, you should construct a object like `ChatRequest` on the client side, and then use the requests library to send it as the request body.
+
+#### function calling
+An example code snippet is as follows:
+
+```Shell
+curl -X POST 'http://localhost:31512/v1/chat/completion' \
+-H 'Content-Type: application/json' \
+-d '{
+    "agent_config": {
+        "tools": [{
+            "name": "amap_weather",
+            "description": "amap weather tool",
+            "parameters": [{
+                "name": "location",
+                "type": "string",
+                "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
+                "required": true
+            }]
+        }],
+        "name": "test",
+        "description": "test assistant",
+        "instruction": "you are a helpful assistant"
+    },
+    "llm_config": {
+        "model": "qwen-max",
+        "model_server": "dashscope",
+        "api_key": "YOUR DASHSCOPE API KEY"
+    },
+    "messages": [
+        {"content": "海淀区天气", "role": "user"}
+    ],
+    "uuid_str": "test",
+    "stream": false
+}'
+
+```
+
+With above examples, the output should be like this:
+```Python
+{
+    "request_id":"xxxxx",
+    "message":"",
+    "output":{
+        "response":"Action: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
+        "require_actions":true,
+        "tool":{"name":"amap_weather","inputs":{"location":"海淀区"}}}}
+```
+
+#### knowledge retrieval
+
+To enable knowledge retrieval, you'll need to include use_knowledge and files in your configuration settings.
+
+- `use_knowledge`: Specifies whether knowledge retrieval should be activated.
+- `files`: the file(s) you wish to use during the conversation. By default, all previously uploaded files will be used.
+
+```Shell
+curl -X POST 'http://localhost:31512/v1/chat/completion' \
+-H 'Content-Type: application/json' \
+-d '{
+    "agent_config": {
+        "name": "test",
+        "description": "test assistant",
+        "instruction": "you are a helpful assistant"
+    },
+    "llm_config": {
+        "model": "qwen-max",
+        "model_server": "dashscope",
+        "api_key": "YOUR DASHSCOPE API KEY"
+    },
+    "messages": [
+        {"content": "高德天气api申请", "role": "user"}
+    ],
+    "uuid_str": "test",
+    "stream": false,
+    "use_knowledge": true,
+    "files": ["QA.pdf"]
+}'
+```
+
+With above examples, the output should be like this:
+```Python
+{
+    "request_id":"2bdb05fb-48b6-4ba2-9a38-7c9eb7c5c88e",
+    "message":"",
+    "output":{"response":"..."}
+}
+```
+
 #### Assistant
 
-To interact with the Assistant API, you should construct an object like `ChatRequest` on the client side, and then use the requests library to send it as the request body. An example code snippet is as follows:
+Like `v1/chat/completion` API, you should construct a `ChatRequest` object when use `v1/assistant/lite`. Here is an example using python `requests` library.
 
 
 ```Python
