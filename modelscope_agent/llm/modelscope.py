@@ -2,8 +2,9 @@ import os
 import sys
 from typing import Dict, Iterator, List, Optional
 
-from .base import BaseChatModel, register_llm
 from modelscope_agent.utils.tokenization_utils import count_tokens
+
+from .base import BaseChatModel, register_llm
 
 
 @register_llm('modelscope')
@@ -114,7 +115,9 @@ class ModelScopeLLM(BaseChatModel):
     def _inference(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         if stop:
             from transformers import StoppingCriteria, StoppingCriteriaList
+
             class StopSequenceCriteria(StoppingCriteria):
+
                 def __init__(self, stop_sequences, tokenizer):
                     if isinstance(stop_sequences, str):
                         stop_sequences = [stop_sequences]
@@ -122,9 +125,14 @@ class ModelScopeLLM(BaseChatModel):
                     self.tokenizer = tokenizer
 
                 def __call__(self, input_ids, scores, **kwargs) -> bool:
-                    decoded_output = self.tokenizer.decode(input_ids.tolist()[0])
-                    return any(decoded_output.endswith(stop_sequence) for stop_sequence in self.stop_sequences)
-            stopping_criteria = StoppingCriteriaList([StopSequenceCriteria(stop, self.tokenizer)])
+                    decoded_output = self.tokenizer.decode(
+                        input_ids.tolist()[0])
+                    return any(
+                        decoded_output.endswith(stop_sequence)
+                        for stop_sequence in self.stop_sequences)
+
+            stopping_criteria = StoppingCriteriaList(
+                [StopSequenceCriteria(stop, self.tokenizer)])
         else:
             stopping_criteria = None
 
@@ -134,7 +142,9 @@ class ModelScopeLLM(BaseChatModel):
         input_len = input_ids.shape[1]
 
         result = self.model.generate(
-            input_ids=input_ids, stopping_criteria=stopping_criteria, generation_config=self.generation_cfg)
+            input_ids=input_ids,
+            stopping_criteria=stopping_criteria,
+            generation_config=self.generation_cfg)
 
         result = result[0].tolist()[input_len:]
         response = self.tokenizer.decode(result)
@@ -216,4 +226,3 @@ class ModelScopeQwenChat(ModelScopeLLM):
             prompt += f'\n{im_start}assistant\n{im_end}'
         prompt = prompt[:-len(f'{im_end}')]
         return prompt
-    
