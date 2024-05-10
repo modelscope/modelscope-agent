@@ -8,15 +8,16 @@ Three services are provided in this project:
 - tool manager server: provide apis for creating, managing, and removing tool instances
 - tool node server: provide running environment for tool instances
 
+`Assistant server` could run independently, developers could use the chat api or assistant api to interact with the agents without running tool manager service.
+
 `Tool manager server` is bonded with `Tool node server`, the tool manager will automatically create tool node service
 for each tool instance, and the tool node service will be running in a docker container with independent environment and port.
 By using `tool services`, user could run tool in a more secure and stable way.
 
-`Assistant server` could run independently, developers could use the chat service or assistant service to interact with the agents without running tool manager service.
 
 ## Assistant Service
 
-Assistant service is responsible for providing chat service for agents, two different level apis are provided in this service:
+Assistant service is responsible for providing chat api for agents, two different level apis are provided in this service:
 - chat: user could chat with the agent by sending `query` and `tools' info`, and the agent will respond with which tool to use and parameters needed, this api is an alternative to the LLMs who has no function call or function call result is not valid.
 - assistant: user could chat with the agent by sending `query`, `tools' info`, `knowledge` and `message history`, and the agent will respond with the result of the action of the tool calling based on input.
 

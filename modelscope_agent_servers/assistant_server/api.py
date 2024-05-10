@@ -75,6 +75,7 @@ async def chat(agent_request: ChatRequest):
     llm_config = agent_request.llm_config.dict()
     agent_config = agent_request.agent_config.dict()
     function_list = agent_config['tools']
+    use_tool_api = agent_request.use_tool_api
 
     # message and history
     message = agent_request.messages
@@ -98,7 +99,8 @@ async def chat(agent_request: ChatRequest):
         function_list=function_list,
         llm=llm_config,
         instruction=agent_config['instruction'],
-        uuid_str=uuid_str)
+        uuid_str=uuid_str,
+        use_api=use_tool_api)
     result = agent.run(query, history=history, ref_doc=ref_doc)
     del agent
 

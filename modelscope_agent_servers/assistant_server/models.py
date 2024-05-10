@@ -34,6 +34,7 @@ class ChatRequest(BaseModel):
     uuid_str: Optional[str] = Field('test', title='UUID string')
     tools: List[Dict] = Field(None, title='Tools config')
     tool_choice: Optional[str] = Field('auto', title='tool usage choice')
+    use_tool_api: Optional[bool] = Field(False, title='use tool api or not')
 
 
 class ToolResponse(BaseModel):
