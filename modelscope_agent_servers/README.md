@@ -66,6 +66,7 @@ curl -X POST 'http://localhost:31512/v1/chat/completion' \
             }]
         }
     }],
+    "tool_choice": "auto",
     "llm_config": {
         "model": "qwen-max",
         "model_server": "dashscope",

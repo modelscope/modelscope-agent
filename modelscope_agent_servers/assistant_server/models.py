@@ -33,6 +33,7 @@ class ChatRequest(BaseModel):
     files: List[str] = Field([], title='List of files used in knowledge')
     uuid_str: Optional[str] = Field('test', title='UUID string')
     tools: List[Dict] = Field(None, title='Tools config')
+    tool_choice: Optional[str] = Field('auto', title='tool usage choice')
 
 
 class ToolResponse(BaseModel):

@@ -119,6 +119,7 @@ async def chat_completion(agent_request: ChatRequest):
     # config
     llm_config = agent_request.llm_config.dict()
     function_list = agent_request.tools
+    tool_choice = agent_request.tool_choice
 
     # message and history
     message = agent_request.messages
@@ -144,6 +145,7 @@ async def chat_completion(agent_request: ChatRequest):
         history=history,
         ref_doc=ref_doc,
         tools=function_list,
+        tool_choice=tool_choice,
         chat_mode=True)
 
     del agent
