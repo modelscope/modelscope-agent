@@ -45,6 +45,10 @@ async def upload_files(uuid_str: str = Form(...),
 
         save_dirs = []
         for file in files:
+            # 如果文件名是一个路径，那么就不保存
+            if os.path.dirname(file.filename):
+                return create_error_msg({'status': 'Invalid file name'},
+                                        request_id=request_id)
             save_dir = os.path.join(knowledge_path, file.filename)
             if os.path.exists(save_dir):
                 continue
