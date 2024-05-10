@@ -51,7 +51,7 @@ To interact with the chat API, you should construct a object like `ChatRequest` 
 An example code snippet is as follows:
 
 ```Shell
-curl -X POST 'http://localhost:31512/v1/chat/completion' \
+curl -X POST 'http://localhost:31512/v1/chat/completions' \
 -H 'Content-Type: application/json' \
 -d '{
     "tools": [{
@@ -115,7 +115,7 @@ To enable knowledge retrieval, you'll need to include use_knowledge and files in
 - `files`: the file(s) you wish to use during the conversation. By default, all previously uploaded files will be used.
 
 ```Shell
-curl -X POST 'http://localhost:31512/v1/chat/completion' \
+curl -X POST 'http://localhost:31512/v1/chat/completions' \
 -H 'Content-Type: application/json' \
 -d '{
     "tools": [
@@ -167,14 +167,14 @@ With above examples, the output should be like this:
 
 #### Assistant
 
-Like `v1/chat/completion` API, you should construct a `ChatRequest` object when use `v1/assistant/lite`. Here is an example using python `requests` library.
+Like `v1/chat/completions` API, you should construct a `ChatRequest` object when use `v1/assistants/lite`. Here is an example using python `requests` library.
 
 
 ```Python
 import os
 import requests
 
-url = 'http://localhost:31512/v1/assistant/lite'
+url = 'http://localhost:31512/v1/assistants/lite'
 
 # llm config
 llm_cfg = {

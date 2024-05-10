@@ -70,7 +70,7 @@ async def upload_files(uuid_str: str = Form(...),
                               request_id=request_id)
 
 
-@app.post('/v1/assistant/lite')
+@app.post('/v1/assistants/lite')
 async def chat(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
     request_id = str(uuid4())
@@ -120,7 +120,7 @@ async def chat(agent_request: ChatRequest):
     return create_success_msg({'response': response}, request_id=request_id)
 
 
-@app.post('/v1/chat/completion')
+@app.post('/v1/chat/completions')
 async def chat_completion(agent_request: ChatRequest):
     uuid_str = agent_request.uuid_str
     request_id = str(uuid4())
