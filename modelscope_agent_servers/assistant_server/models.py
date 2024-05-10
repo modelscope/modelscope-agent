@@ -35,6 +35,19 @@ class ChatRequest(BaseModel):
     tools: List[Dict] = Field(None, title='Tools config')
     tool_choice: Optional[str] = Field('auto', title='tool usage choice')
     use_tool_api: Optional[bool] = Field(False, title='use tool api or not')
+    kwargs: Dict[str, object] = Field(
+        False, title='store additional key to kwargs')
+
+    def __init__(__pydantic_self__, **data):
+        # store all additional keys to `kwargs`
+        extra_keys = set(data.keys()) - set(
+            __pydantic_self__.model_fields.keys())
+        kwargs = {key: data.pop(key) for key in extra_keys}
+        super().__init__(**data)
+        __pydantic_self__.kwargs = kwargs
+
+    class Config:
+        extra = 'allow'
 
 
 class ToolResponse(BaseModel):

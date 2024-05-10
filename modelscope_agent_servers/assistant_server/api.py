@@ -82,6 +82,9 @@ async def chat(agent_request: ChatRequest):
     history = message[:-1]
     query = message[-1]['content']
 
+    # additional kwargs
+    kwargs = agent_request.kwargs
+
     ref_doc = None
     if agent_request.use_knowledge:
         knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
@@ -101,7 +104,7 @@ async def chat(agent_request: ChatRequest):
         instruction=agent_config['instruction'],
         uuid_str=uuid_str,
         use_api=use_tool_api)
-    result = agent.run(query, history=history, ref_doc=ref_doc)
+    result = agent.run(query, history=history, ref_doc=ref_doc, **kwargs)
     del agent
 
     if agent_request.stream:
@@ -128,6 +131,9 @@ async def chat_completion(agent_request: ChatRequest):
     history = message[:-1]
     query = message[-1]['content']
 
+    # additional kwargs
+    kwargs = agent_request.kwargs
+
     ref_doc = None
     if agent_request.use_knowledge:
         knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
@@ -148,7 +154,8 @@ async def chat_completion(agent_request: ChatRequest):
         ref_doc=ref_doc,
         tools=function_list,
         tool_choice=tool_choice,
-        chat_mode=True)
+        chat_mode=True,
+        **kwargs)
 
     del agent
 
