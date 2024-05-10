@@ -107,7 +107,7 @@ async def chat(agent_request: ChatRequest):
         llm=llm_config,
         instruction=agent_config['instruction'],
         uuid_str=uuid_str,
-        use_api=use_tool_api)
+        use_tool_api=use_tool_api)
     result = agent.run(query, history=history, ref_doc=ref_doc, **kwargs)
     del agent
 

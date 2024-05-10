@@ -18,7 +18,7 @@ class Agent(ABC):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
-                 use_api: bool = False,
+                 use_tool_api: bool = False,
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -34,7 +34,7 @@ class Agent(ABC):
             name: the name of agent
             description: the description of agent, which is used for multi_agent
             instruction: the system instruction of this agent
-            use_api: whether to use the tool service api, else to use the tool cls instance
+            use_tool_api: whether to use the tool service api, else to use the tool cls instance
             kwargs: other potential parameters
         """
         if isinstance(llm, Dict):
@@ -43,7 +43,7 @@ class Agent(ABC):
         else:
             self.llm = llm
         self.stream = True
-        self.use_api = use_api
+        self.use_tool_api = use_tool_api
 
         self.function_list = []
         self.function_map = {}
@@ -122,12 +122,12 @@ class Agent(ABC):
             tool_class_with_tenant = TOOL_REGISTRY[tool_name]
 
             # check if the tenant_id of tool instance or tool service are exists
-            # TODO: change from use_api=True to False, to get the tenant_id of the tool changes to
+            # TODO: change from use_tool_api=True to False, to get the tenant_id of the tool changes to
             if tenant_id in tool_class_with_tenant:
                 return
 
             try:
-                if self.use_api:
+                if self.use_tool_api:
                     # get service proxy as tool instance, call method will call remote tool service
                     tool_instance = ToolServiceProxy(tool_name, tool_cfg,
                                                      tenant_id)

@@ -316,7 +316,7 @@ result = tool_service.call( "{\"instance_id\": 123, \"period\": \"mon\"}")
 ### Running the tool service in agent
 
 The following code snippet demonstrates how to run the tool service in agent.
-1. make sure pass in the `use_api=True` to the RolePlay class
+1. make sure pass in the `use_tool_api=True` to the RolePlay class
 2. pass in the `dashscope_api_key` to the `run` method, we will allow user to record keys in Oauth service before calling the tool manager service later, to make request much more secure.
 
 ```python
@@ -328,7 +328,7 @@ llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 # input tool name
 function_list = ['image_gen']
 
-bot = RolePlay(function_list=function_list, llm=llm_config, use_api=True)
+bot = RolePlay(function_list=function_list, llm=llm_config, use_tool_api=True)
 
 response = bot.run(
     '创建一个多啦A梦', dashscope_api_key=os.getenv('DASHSCOPE_API_KEY'))
@@ -343,7 +343,7 @@ assert 'Observation:' in text
 assert '![IMAGEGEN]' in text
 ```
 We could see that the usage of the tool service has almost no difference with the local tool service,
-the only difference is that the tool service is running in a docker container by setting the `use_api=True`
+the only difference is that the tool service is running in a docker container by setting the `use_tool_api=True`
 
 
 ## Contribution of Tools
