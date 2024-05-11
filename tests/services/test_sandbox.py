@@ -2,11 +2,11 @@ import os
 import time
 
 import pytest
-from tool_service.tool_manager.models import ToolRegisterInfo
-from tool_service.tool_manager.sandbox import (get_docker_container,
-                                               get_exec_cmd,
-                                               restart_docker_container,
-                                               start_docker_container)
+from modelscope_agent_servers.tool_manager_server.models import \
+    ToolRegisterInfo
+from modelscope_agent_servers.tool_manager_server.sandbox import (
+    get_docker_container, get_exec_cmd, restart_docker_container,
+    start_docker_container)
 
 IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
 
@@ -19,8 +19,9 @@ if not os.path.exists('/tmp/test-tool-node'):
 @pytest.fixture
 def mock_tool_info():
     return ToolRegisterInfo(
-        name='test-tool',
-        image='modelscope-agent/tool-node:no-modelscope',
+        tool_name='test_tool_name',
+        node_name='test-tool',
+        image='modelscope-agent/tool-node:latest',
         config={'config_key': 'config_value'},
         workspace_dir='/tmp/test-tool-node',
         tenant_id='test-tenant')
@@ -54,7 +55,7 @@ def test_start_docker_container(mock_tool_info):
     assert exit_code == 0
     assert output.decode(
         'utf-8'
-    ) == '{{"name": "test-tool", "test-tool": {{"config_key": "config_value"}}}}\n'
+    ) == '{"name": "test_tool_name", "test_tool_name": {"config_key": "config_value"}}\n'
 
     container.stop()
     container.remove(force=True)
@@ -63,7 +64,8 @@ def test_start_docker_container(mock_tool_info):
     )
 
 
-@pytest.mark.skip(reason='Need to set up the docker environment')
+@pytest.mark.skipif(
+    IN_GITHUB_ACTIONS, reason='Need to set up the docker environment')
 def test_restart_docker_container(mock_tool_info):
 
     # running the origin container
@@ -98,7 +100,7 @@ def test_restart_docker_container(mock_tool_info):
     assert exit_code == 0
     assert output.decode(
         'utf-8'
-    ) == '{{"name": "test-tool", "test-tool": {{"config_key1": "config_value1"}}}}\n'
+    ) == '{"name": "test_tool_name", "test_tool_name": {"config_key1": "config_value1"}}\n'
 
     container.stop()
     container.remove(force=True)

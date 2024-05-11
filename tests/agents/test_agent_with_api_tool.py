@@ -38,7 +38,8 @@ def test_role_play_with():
     if not is_accessible:
         assert False, """Start up the tool manager service by `sh scripts/run_tool_manager.sh`"""
 
-    bot = RolePlay(function_list=function_list, llm=llm_config, use_api=True)
+    bot = RolePlay(
+        function_list=function_list, llm=llm_config, use_tool_api=True)
 
     response = bot.run(
         '创建一个多啦A梦', dashscope_api_key=os.getenv('DASHSCOPE_API_KEY'))

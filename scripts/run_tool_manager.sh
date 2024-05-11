@@ -33,7 +33,7 @@ function build_docker_image {
 
 # install dependencies might be done in venv, not much dependencies here
 echo "Installing dependencies from requirements.txt..."
-pip3 install -r tool_service/requirements.txt
+pip3 install -r modelscope_agent_servers/requirements.txt
 
 # Check if the first argument is "build", if so, build the Docker image
 if [ "$1" == "build" ]; then
@@ -43,6 +43,6 @@ else
 fi
 
 # running
-echo "Running fastapi server at port 31511."
-export PYTHONPATH=$PYTHONPATH:tool_service
-uvicorn tool_service.tool_manager.api:app --host 0.0.0.0 --port 31511
+echo "Running fastapi tool manager server at port 31511."
+export PYTHONPATH=$PYTHONPATH:modelscope_agent_servers
+uvicorn modelscope_agent_servers.tool_manager_server.api:app --host 0.0.0.0 --port 31511
