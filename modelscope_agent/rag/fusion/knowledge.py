@@ -1,7 +1,8 @@
 import os
 from typing import List, Optional, Any
 from llama_index.core.llms.llm import LLM
-from llama_index.core.schema import Document
+from llama_index.core.schema import Document, TransformComponent
+
 from modelscope_agent.rag.knowledge import BaseKnowledge
 from llama_index.core.base.base_retriever import BaseRetriever
 from modelscope_agent.llm import get_chat_model
@@ -14,15 +15,13 @@ from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
 
 
 class FusionKnowledge(BaseKnowledge):
-    def get_root_retriever(self, documents: List[Document], cache_dir: str, llm: LLM, chunk_size: int = 200, similarity_top_k=2, **kwargs) -> BaseRetriever:
+    def get_root_retriever(self, documents: List[Document], cache_dir: str, transformations: Optional[List[TransformComponent]], chunk_size: int = 200, similarity_top_k=2, **kwargs) -> BaseRetriever:
         from llama_index.retrievers.bm25 import BM25Retriever
         from llama_index.core.retrievers import QueryFusionRetriever
 
         # indexing
         # 可配置chunk_size等
         Settings.chunk_size = 512
-        # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
-        transformations = self.get_transformations()
         index = None
         if cache_dir is not None and os.path.exists(cache_dir):
             try:
