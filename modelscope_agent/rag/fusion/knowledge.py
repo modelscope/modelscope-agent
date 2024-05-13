@@ -1,21 +1,25 @@
 import os
-from typing import List, Optional, Any
-from llama_index.core.llms.llm import LLM
-from llama_index.core.schema import Document, TransformComponent
-
-from modelscope_agent.rag.knowledge import BaseKnowledge
-from llama_index.core.base.base_retriever import BaseRetriever
-from modelscope_agent.llm import get_chat_model
-from llama_index.core.settings import Settings
+from typing import Any, List, Optional
 
 from llama_index.core import VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
-
+from llama_index.core.llms.llm import LLM
+from llama_index.core.schema import Document, TransformComponent
+from llama_index.core.settings import Settings
+from modelscope_agent.llm import get_chat_model
 from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
+from modelscope_agent.rag.knowledge import BaseKnowledge
 
 
 class FusionKnowledge(BaseKnowledge):
-    def get_root_retriever(self, documents: List[Document], cache_dir: str, transformations: Optional[List[TransformComponent]], chunk_size: int = 200, similarity_top_k=2, **kwargs) -> BaseRetriever:
+
+    def get_root_retriever(self,
+                           documents: List[Document],
+                           cache_dir: str,
+                           transformations: Optional[List[TransformComponent]],
+                           chunk_size: int = 200,
+                           similarity_top_k=2,
+                           **kwargs) -> BaseRetriever:
         from llama_index.retrievers.bm25 import BM25Retriever
         from llama_index.core.retrievers import QueryFusionRetriever
 
@@ -56,9 +60,14 @@ class FusionKnowledge(BaseKnowledge):
 
         # init retriever tool
         vector_retriever = index.as_retriever()
-        bm_retriever =  BM25Retriever.from_defaults(docstore=index.docstore, similarity_top_k=similarity_top_k)
+        bm_retriever = BM25Retriever.from_defaults(
+            docstore=index.docstore, similarity_top_k=similarity_top_k)
 
-        return QueryFusionRetriever(retrievers=[vector_retriever, bm_retriever], llm=llm, num_queries=0)
+        return QueryFusionRetriever(
+            retrievers=[vector_retriever, bm_retriever],
+            llm=llm,
+            num_queries=0)
+
 
 if __name__ == '__main__':
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
@@ -68,4 +77,3 @@ if __name__ == '__main__':
 
     print(knowledge.run('如何创建agent', files=[]))
     print('-----------------------')
-

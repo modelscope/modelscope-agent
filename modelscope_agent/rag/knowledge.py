@@ -1,8 +1,8 @@
 import os
-import fsspec
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
+import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.base.base_selector import BaseSelector
@@ -11,7 +11,7 @@ from llama_index.core.indices.service_context import ServiceContext
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
-from llama_index.core.query_engine import RetrieverQueryEngine, BaseQueryEngine
+from llama_index.core.query_engine import BaseQueryEngine, RetrieverQueryEngine
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document, QueryBundle, TransformComponent
 from llama_index.core.settings import Settings
@@ -64,13 +64,18 @@ class BaseKnowledge(BaseLlamaPack):
 
         # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         transformations = self.get_transformations()
-        root_retriever = self.get_root_retriever(documents, cache_dir, transformations=transformations, llm=llm, **kwargs)
+        root_retriever = self.get_root_retriever(
+            documents,
+            cache_dir,
+            transformations=transformations,
+            llm=llm,
+            **kwargs)
         postprocessors = self.get_postprocessors(**kwargs)
-        self.query_engine = self.get_query_engine(root_retriever, postprocessors, **kwargs)
-    
-    def get_query_engine(self,
-                         root_retriever: BaseRetriever,
-                         llm: LLM, postprocessors, **kwargs) -> BaseQueryEngine:
+        self.query_engine = self.get_query_engine(root_retriever,
+                                                  postprocessors, **kwargs)
+
+    def get_query_engine(self, root_retriever: BaseRetriever, llm: LLM,
+                         postprocessors, **kwargs) -> BaseQueryEngine:
         RetrieverQueryEngine.from_args(
             root_retriever, llm=llm, node_postprocessors=postprocessors)
 
@@ -79,11 +84,13 @@ class BaseKnowledge(BaseLlamaPack):
         # rechunk，筛选文档内容等
         return None
 
-    def get_postprocessors(self, **kwargs) -> Optional[List[BaseNodePostprocessor]]:
+    def get_postprocessors(self,
+                           **kwargs) -> Optional[List[BaseNodePostprocessor]]:
         # 获取召回内容后处理器
         return None
 
-    def get_root_retriever(self, documents: List[Document], cache_dir: str, transformations: Optional[List[TransformComponent]], 
+    def get_root_retriever(self, documents: List[Document], cache_dir: str,
+                           transformations: Optional[List[TransformComponent]],
                            llm: LLM, **kwargs) -> BaseRetriever:
         # indexing
         # 可配置chunk_size等
@@ -135,15 +142,28 @@ class BaseKnowledge(BaseLlamaPack):
             )
             return {}
 
-        return {'.pb': PandasCSVReader(), '.html': HTMLTagReader(), '.txt': FlatReader()}
+        return {
+            '.pb': PandasCSVReader(),
+            '.html': HTMLTagReader(),
+            '.txt': FlatReader()
+        }
 
-    def read(self,
-             knowledge_source: Union[str, List[str]], # file_dir or list of file_path
-             extra_readers: Dict[str, BaseReader], # extra_readers get from self.get_extra_readers()
-             exclude_hidden: bool = True, # Whether to exclude hidden files (dotfiles).
-             recursive: bool = False, # Whether to recursively search in subdirectories.
-             fs: Optional[fsspec.AbstractFileSystem] = None, # File system to use. Defaults to using the local file system. Can be changed to use any remote file system exposed via the fsspec interface.
-             **kwargs) -> List[Document]:
+    def read(
+        self,
+        knowledge_source: Union[str,
+                                List[str]],  # file_dir or list of file_path
+        extra_readers: Dict[
+            str,
+            BaseReader],  # extra_readers get from self.get_extra_readers()
+        exclude_hidden:
+        bool = True,  # Whether to exclude hidden files (dotfiles).
+        recursive:
+        bool = False,  # Whether to recursively search in subdirectories.
+        fs: Optional[
+            fsspec.
+            AbstractFileSystem] = None,  # File system to use. Defaults to using the local file system. Can be changed to use any remote file system exposed via the fsspec interface.
+        **kwargs
+    ) -> List[Document]:
 
         try:
             if isinstance(knowledge_source, str):
@@ -166,8 +186,11 @@ class BaseKnowledge(BaseLlamaPack):
                         f'file path not exists: {knowledge_source}.')
             else:
                 general_reader = SimpleDirectoryReader(
-                    input_files=knowledge_source, file_extractor=extra_readers,
-                    fs=fs, exclude_hidden=exclude_hidden, recursive=recursive)
+                    input_files=knowledge_source,
+                    file_extractor=extra_readers,
+                    fs=fs,
+                    exclude_hidden=exclude_hidden,
+                    recursive=recursive)
 
             documents = general_reader.load_data(num_workers=os.cpu_count())
         except ValueError:
