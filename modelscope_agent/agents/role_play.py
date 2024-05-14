@@ -440,7 +440,8 @@ class RolePlay(Agent, AgentEnvMixin):
 
         return prompt
 
-    def _parse_image_url(self, image_url, messages):
+    def _parse_image_url(self, image_url: List[Union[str, Dict]],
+                         messages: List[Dict]) -> List[Dict]:
 
         assert len(messages) > 0
         if self.llm.model not in ['gpt-4o', 'gpt-4-turbo']:
