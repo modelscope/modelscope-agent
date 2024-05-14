@@ -149,6 +149,7 @@ class RolePlay(Agent, AgentEnvMixin):
              user_request,
              history: Optional[List[Dict]] = None,
              ref_doc: str = None,
+             image_url: str = None,
              lang: str = 'zh',
              **kwargs):
 
@@ -249,6 +250,9 @@ class RolePlay(Agent, AgentEnvMixin):
                 'role': 'user',
                 'content': self.query_prefix + user_request
             })
+        
+        if image_url:
+            self._parse_image_url(image_url, messages)
 
         planning_prompt = ''
         if self.llm.support_raw_prompt() and hasattr(self.llm,
@@ -434,3 +438,22 @@ class RolePlay(Agent, AgentEnvMixin):
             prompt += config['name']
 
         return prompt
+
+    def _parse_image_url(self, image_url, messages):
+
+        assert len(messages) > 0
+        origin_message:str = messages[-1]['content']
+        parsed_message = [
+            {
+                'type': 'text',
+                'text': origin_message
+            },
+            {
+                'type': 'image_url',
+                'image_url': {
+                    "url": image_url
+                }
+            }
+        ]
+        messages[-1]['content'] = parsed_message
+        return messages
