@@ -8,6 +8,7 @@ from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import BaseTool
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
+from modelscope_agent.utils.logger import agent_logger as logger
 
 KNOWLEDGE_TEMPLATE_ZH = """
 
@@ -442,6 +443,11 @@ class RolePlay(Agent, AgentEnvMixin):
     def _parse_image_url(self, image_url, messages):
 
         assert len(messages) > 0
+        if self.llm.model not in ['gpt_4o', 'gpt_4v']:
+            logger.warning(
+                f'currently only gp4_4o and gpt_4v support image_url, but the model is {self.llm.model}'
+            )
+            return messages
         origin_message:str = messages[-1]['content']
         parsed_message = [
             {
