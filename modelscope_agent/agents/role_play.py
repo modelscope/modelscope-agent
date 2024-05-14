@@ -6,9 +6,9 @@ from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
-from modelscope_agent.utils.logger import agent_logger as logger
 
 KNOWLEDGE_TEMPLATE_ZH = """
 
@@ -251,7 +251,7 @@ class RolePlay(Agent, AgentEnvMixin):
                 'role': 'user',
                 'content': self.query_prefix + user_request
             })
-        
+
         if image_url:
             self._parse_image_url(image_url, messages)
 
@@ -448,18 +448,15 @@ class RolePlay(Agent, AgentEnvMixin):
                 f'currently only gp4_4o and gpt_4v support image_url, but the model is {self.llm.model}'
             )
             return messages
-        origin_message:str = messages[-1]['content']
-        parsed_message = [
-            {
-                'type': 'text',
-                'text': origin_message
-            },
-            {
-                'type': 'image_url',
-                'image_url': {
-                    "url": image_url
-                }
+        origin_message: str = messages[-1]['content']
+        parsed_message = [{
+            'type': 'text',
+            'text': origin_message
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url': image_url
             }
-        ]
+        }]
         messages[-1]['content'] = parsed_message
         return messages
