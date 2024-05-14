@@ -150,7 +150,7 @@ class RolePlay(Agent, AgentEnvMixin):
              user_request,
              history: Optional[List[Dict]] = None,
              ref_doc: str = None,
-             image_url: str = None,
+             image_url: Optional[List[Union[str, Dict]]] = None,
              lang: str = 'zh',
              **kwargs):
 
@@ -448,15 +448,16 @@ class RolePlay(Agent, AgentEnvMixin):
                 f'currently only gp4-4o and gpt-4-turbo support image_url, but the model is {self.llm.model}'
             )
             return messages
-        origin_message: str = messages[-1]['content']
-        parsed_message = [{
-            'type': 'text',
-            'text': origin_message
-        }, {
+
+        if isinstance(image_url[0], str):
+            image_url = [{'url': url} for url in image_url]
+
+        images = [{
             'type': 'image_url',
-            'image_url': {
-                'url': image_url
-            }
-        }]
+            'image_url': image
+        } for image in image_url]
+
+        origin_message: str = messages[-1]['content']
+        parsed_message = [{'type': 'text', 'text': origin_message}, *images]
         messages[-1]['content'] = parsed_message
         return messages
