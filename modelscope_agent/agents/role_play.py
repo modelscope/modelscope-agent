@@ -443,9 +443,9 @@ class RolePlay(Agent, AgentEnvMixin):
     def _parse_image_url(self, image_url, messages):
 
         assert len(messages) > 0
-        if self.llm.model not in ['gpt_4o', 'gpt_4v']:
+        if self.llm.model not in ['gpt-4o', 'gpt-4-turbo']:
             logger.warning(
-                f'currently only gp4_4o and gpt_4v support image_url, but the model is {self.llm.model}'
+                f'currently only gp4-4o and gpt-4-turbo support image_url, but the model is {self.llm.model}'
             )
             return messages
         origin_message: str = messages[-1]['content']
