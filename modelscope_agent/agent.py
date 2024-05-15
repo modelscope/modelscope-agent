@@ -181,6 +181,29 @@ class Agent(ABC):
 
         return (func_name is not None), func_name, func_args, text
 
+    def _parse_image_url(self, image_url: List[Union[str, Dict]],
+                         messages: List[Dict]) -> List[Dict]:
+
+        assert len(messages) > 0
+        if self.llm.model not in ['gpt-4o', 'gpt-4-turbo']:
+            logger.warning(
+                f'currently only gp4-4o and gpt-4-turbo support image_url, but the model is {self.llm.model}'
+            )
+            return messages
+
+        if isinstance(image_url[0], str):
+            image_url = [{'url': url} for url in image_url]
+
+        images = [{
+            'type': 'image_url',
+            'image_url': image
+        } for image in image_url]
+
+        origin_message: str = messages[-1]['content']
+        parsed_message = [{'type': 'text', 'text': origin_message}, *images]
+        messages[-1]['content'] = parsed_message
+        return messages
+
     # del the tools as well while del the agent
     def __del__(self):
         try:
