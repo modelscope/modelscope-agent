@@ -118,9 +118,7 @@ TOOL_REGISTRY = ToolRegistry()
 def register_tool(name):
 
     def decorator(cls):
-        if name not in TOOL_REGISTRY:
-            TOOL_REGISTRY[name] = {}
-        TOOL_REGISTRY[name]['class'] = cls
+        TOOL_REGISTRY[name] = {'class': cls}
         return cls
 
     return decorator
