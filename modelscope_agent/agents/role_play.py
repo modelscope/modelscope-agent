@@ -8,6 +8,8 @@ from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import BaseTool
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
+from modelscope_agent.utils.logger import agent_logger as logger
+
 
 KNOWLEDGE_TEMPLATE_ZH = """
 
@@ -260,11 +262,13 @@ class RolePlay(Agent, AgentEnvMixin):
             planning_prompt = self.llm.build_raw_prompt(messages)
 
         max_turn = 10
+        call_llm_count = 0
         while True and max_turn > 0:
             # print('=====one input planning_prompt======')
             # print(planning_prompt)
             # print('=============Answer=================')
             max_turn -= 1
+            call_llm_count += 1
             if self.llm.support_function_calling():
                 output = self.llm.chat_with_functions(
                     messages=messages,
@@ -282,6 +286,7 @@ class RolePlay(Agent, AgentEnvMixin):
                     **kwargs)
 
             llm_result = ''
+            logger.info(f'call llm {call_llm_count} times output: {output}')
             for s in output:
                 if isinstance(s, dict):
                     llm_result = s

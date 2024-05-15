@@ -209,6 +209,9 @@ class BaseChatModel(ABC):
                 if response.get('function_call', None):
                     # logger.info('Support of function calling is detected.')
                     self._support_fn_call = True
+                if response.get('tool_calls', None):
+                    # logger.info('Support of function calling is detected.')
+                    self._support_fn_call = True
             except FnCallNotImplError:
                 pass
             except AttributeError:
