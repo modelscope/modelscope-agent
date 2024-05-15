@@ -65,6 +65,7 @@ def test_agent_call_tool(tester_agent):
 
 def test_agent_parse_image_url(tester_agent):
     image_url = ['https://example.com/image.jpg']
+    tester_agent.llm.model = 'gpt-4o'
     messages = [{'role': 'user', 'content': 'hello'}]
     messages = tester_agent._parse_image_url(image_url, messages)
 

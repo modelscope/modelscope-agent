@@ -4,6 +4,7 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import TOOL_REGISTRY, ToolServiceProxy
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
 
 
