@@ -6,10 +6,9 @@ from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
-from modelscope_agent.utils.logger import agent_logger as logger
-
 
 KNOWLEDGE_TEMPLATE_ZH = """
 

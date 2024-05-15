@@ -1,10 +1,10 @@
 import os
 from typing import Dict, Iterator, List, Optional
-
 from zhipuai import ZhipuAI
 
-from .base import BaseChatModel, register_llm
 from modelscope_agent.utils.logger import agent_logger as logger
+from .base import BaseChatModel, register_llm
+
 
 def stream_output(response, **kwargs):
     func_call = {
@@ -31,7 +31,11 @@ class ZhipuLLM(BaseChatModel):
     Universal LLM model interface on zhipu
     """
 
-    def __init__(self, model: str, model_server: str, support_fn_call: bool = True, **kwargs):
+    def __init__(self,
+                 model: str,
+                 model_server: str,
+                 support_fn_call: bool = True,
+                 **kwargs):
         super().__init__(model, model_server, support_fn_call=support_fn_call)
         api_key = kwargs.get('api_key', os.getenv('ZHIPU_API_KEY', '')).strip()
         assert api_key, 'ZHIPU_API_KEY is required.'

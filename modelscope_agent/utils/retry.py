@@ -27,7 +27,7 @@ def retry(max_retries=3, delay_seconds=1, return_str=False):
                     return func(*args, **kwargs)
                 except AssertionError as e:
                     raise AssertionError(e)
-                except Exception as e:
+                except Exception:
                     logger.warning(
                         f'Attempt to run {func.__name__} {attempts + 1} failed: {format_exc()}'
                     )
