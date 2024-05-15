@@ -209,6 +209,7 @@ async def create_tool_service(tool_info: CreateTool,
         tenant_id=tool_info.tenant_id,
         image=tool_info.tool_image,
         workspace_dir=os.getcwd(),
+        tool_url=tool_info.tool_url,
     )
     background_tasks.add_task(start_docker_container_and_store_status,
                               tool_register_info, app)
@@ -251,20 +252,18 @@ async def check_tool_service_status(
 
 @app.post('/update_tool_service/')
 async def update_tool_service(
-    tool_name: str,
+    tool_info: CreateTool,
     background_tasks: BackgroundTasks,
-    tool_cfg: dict = {},
-    tenant_id: str = 'default',
-    tool_image: str = 'modelscope-agent/tool-node:latest',
 ):
-    tool_node_name = f'{tool_name}_{tenant_id}'
+    tool_node_name = f'{tool_info.tool_name}_{tool_info.tenant_id}'
     tool_register_info = ToolRegisterInfo(
         node_name=tool_node_name,
-        tool_name=tool_name,
-        config=tool_cfg,
-        tenant_id=tenant_id,
-        image=tool_image,
+        tool_name=tool_info.tool_name,
+        config=tool_info.tool_cfg,
+        tenant_id=tool_info.tenant_id,
+        image=tool_info.tool_image,
         workspace_dir=os.getcwd(),
+        tool_url=tool_info.tool_url,
     )
     background_tasks.add_task(restart_docker_container_and_update_status,
                               tool_register_info, app)

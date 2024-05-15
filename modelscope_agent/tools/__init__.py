@@ -1,6 +1,7 @@
 import sys
 
 from ..utils import _LazyModule
+from .contrib import *  # noqa F403
 
 _import_structure = {
     'amap_weather': ['AMAPWeather'],
