@@ -43,7 +43,7 @@ class Agent(ABC):
             self.llm = get_chat_model(**self.llm_config)
         else:
             self.llm = llm
-        self.stream = True
+        self.stream = kwargs.get('stream', True)
         self.use_tool_api = use_tool_api
 
         self.function_list = []

@@ -268,7 +268,7 @@ class RolePlay(Agent, AgentEnvMixin):
             if self.llm.support_function_calling():
                 output = self.llm.chat_with_functions(
                     messages=messages,
-                    stream=True,
+                    stream=self.stream,
                     functions=[
                         func.function for func in self.function_map.values()
                     ],
@@ -276,7 +276,7 @@ class RolePlay(Agent, AgentEnvMixin):
             else:
                 output = self.llm.chat(
                     prompt=planning_prompt,
-                    stream=True,
+                    stream=self.stream,
                     stop=['Observation:', 'Observation:\n'],
                     messages=messages,
                     **kwargs)
