@@ -49,7 +49,8 @@ class ZhipuLLM(BaseChatModel):
                      **kwargs) -> Iterator[str]:
         if not functions or not len(functions):
             tool_choice = 'none'
-        print(f'====> stream messages: {messages}')
+        logger.info(
+            f'====> stream messages: {messages}, functions: {functions}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -66,7 +67,8 @@ class ZhipuLLM(BaseChatModel):
                         **kwargs) -> str:
         if not functions or not len(functions):
             tool_choice = 'none'
-        print(f'====> no stream messages: {messages}')
+        logger.info(
+            f'====> no stream messages: {messages}, functions: {functions}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
