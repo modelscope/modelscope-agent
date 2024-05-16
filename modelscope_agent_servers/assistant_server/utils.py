@@ -2,7 +2,8 @@ from typing import List
 
 import json
 from modelscope_agent_servers.assistant_server.models import (
-    ChatCompletionResponseChoice, ChatMessage)
+    ChatCompletionResponse, ChatCompletionResponseChoice,
+    ChatCompletionResponseStreamChoice, ChatMessage, DeltaMessage)
 
 
 def parse_tool_result(llm_result: str):
@@ -45,6 +46,32 @@ def parse_messages(messages: List[ChatMessage]):
         query = content[0]['text']
         image_url = [con['image_url'] for con in content[1:]]
     return query, history, image_url
+
+
+def stream_choice_wrapper(response, model, request_id):
+    for chunk in response:
+        choices = ChatCompletionResponseStreamChoice(
+            index=0,
+            delta=DeltaMessage(role='assistant', content=chunk),
+        )
+        chunk = ChatCompletionResponse(
+            id=request_id,
+            object='chat.completion.chunk',
+            choices=[choices],
+            model=model)
+        data = chunk.model_dump_json(exclude_unset=True)
+        yield f'data: {data}\n\n'
+
+    choices = ChatCompletionResponseStreamChoice(
+        index=0, delta=DeltaMessage(), finish_reason='stop')
+    chunk = ChatCompletionResponse(
+        id=request_id,
+        object='chat.completion.chunk',
+        choices=[choices],
+        model=model)
+    data = chunk.model_dump_json(exclude_unset=True)
+    yield f'data: {data}\n\n'
+    yield 'data: [DONE]\n\n'
 
 
 def choice_wrapper(response: str,

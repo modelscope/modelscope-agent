@@ -12,6 +12,11 @@ class ChatMessage(BaseModel):
     tool_calls: Optional[List[Dict]] = Field(None, title='Tool calls')
 
 
+class DeltaMessage(BaseModel):
+    role: str = Field(None, title='Role name')
+    content: str = Field(None, title='Message content')
+
+
 class Tool(BaseModel):
     name: str = Field(..., title='Tool name')
     description: str = Field(..., title='Tool description')
@@ -92,8 +97,8 @@ class ChatCompletionResponseChoice(BaseModel):
 
 class ChatCompletionResponseStreamChoice(BaseModel):
     index: int = Field(..., title='Index of the choice')
-    message: ChatMessage = Field(..., title='Chat message')
-    finish_reason: str = Field(..., title='Finish reason')
+    delta: DeltaMessage = Field(..., title='Chat message')
+    finish_reason: str = Field(None, title='Finish reason')
 
 
 class ChatCompletionResponse(BaseModel):
@@ -102,7 +107,7 @@ class ChatCompletionResponse(BaseModel):
                         ChatCompletionResponseStreamChoice]]
     created: Optional[int] = Field(default_factory=lambda: int(time.time()))
     model: str = Field(..., title='Model name')
-    system_fingerprint: str = Field(..., title='Cuurently request id')
+    system_fingerprint: str = Field(None, title='Cuurently request id')
     object: Literal['chat.completion', 'chat.completion.chunk'] = Field(
         'chat.completion', title='Object type')
     usage: Optional[Usage] = Field(
