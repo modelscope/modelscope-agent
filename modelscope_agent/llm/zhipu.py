@@ -1,8 +1,9 @@
 import os
 from typing import Dict, Iterator, List, Optional
-from zhipuai import ZhipuAI
 
 from modelscope_agent.utils.logger import agent_logger as logger
+from zhipuai import ZhipuAI
+
 from .base import BaseChatModel, register_llm
 
 
