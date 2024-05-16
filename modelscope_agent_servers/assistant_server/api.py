@@ -2,20 +2,22 @@ import os
 from typing import List
 from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import StreamingResponse
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.rag.knowledge import BaseKnowledge
-from modelscope_agent_servers.assistant_server.models import (ChatRequest,
-                                                              ChatResponse,
-                                                              ToolResponse)
-from modelscope_agent_servers.assistant_server.utils import \
-    tool_calling_wrapper
+from modelscope_agent_servers.assistant_server.models import (
+    AgentRequest, ChatCompletionRequest, ChatCompletionResponse, ToolResponse)
+from modelscope_agent_servers.assistant_server.utils import (choice_wrapper,
+                                                             parse_messages,
+                                                             parse_tool_result)
 from modelscope_agent_servers.service_utils import (create_error_msg,
                                                     create_success_msg)
 
 DEFAULT_KNOWLEDGE_PATH = 'knowledges'
 DEFAULT_INDEX_PATH = 'index'
+
+model_server = os.environ.get('MODEL_SERVER', 'dashscope')
 app = FastAPI()
 
 
@@ -71,7 +73,7 @@ async def upload_files(uuid_str: str = Form(...),
 
 
 @app.post('/v1/assistants/lite')
-async def chat(agent_request: ChatRequest):
+async def chat(agent_request: AgentRequest):
     uuid_str = agent_request.uuid_str
     request_id = str(uuid4())
 
@@ -121,45 +123,44 @@ async def chat(agent_request: ChatRequest):
 
 
 @app.post('/v1/chat/completions')
-async def chat_completion(agent_request: ChatRequest):
-    uuid_str = agent_request.uuid_str
-    request_id = str(uuid4())
+async def chat_completion(chat_request: ChatCompletionRequest,
+                          authorization: str = Header(None)):
 
-    # config
-    llm_config = agent_request.llm_config.dict()
-    function_list = agent_request.tools
-    tool_choice = agent_request.tool_choice
+    request_id = f'chatcmpl_{str(uuid4())}'
+    user = chat_request.user
+    model = chat_request.model
+    # remove the prefix 'Bearer ' from the authorization header
+    auth = authorization[7:] if authorization else ''
+
+    # llm_config
+    llm_config = {
+        'model': model,
+        'model_server': model_server,
+        'api_key': auth
+    }
+
+    # tool related config
+    function_list = chat_request.tools
+    tool_choice = chat_request.tool_choice
 
     # message and history
-    message = agent_request.messages
-    history = message[:-1]
-    query = message[-1]['content']
+    message = chat_request.messages
+
+    # parse meesage
+    query, history, image_url = parse_messages(message)
 
     # additional kwargs
-    kwargs = agent_request.kwargs
+    # kwargs = agent_request.kwargs
 
-    ref_doc = None
-    if agent_request.use_knowledge:
-        knowledge_path = os.path.join(DEFAULT_KNOWLEDGE_PATH, uuid_str)
-        if not os.path.exists(knowledge_path):
-            os.makedirs(knowledge_path)
-        memory = BaseKnowledge(
-            knowledge_source=[],
-            cache_dir=os.path.join(knowledge_path, DEFAULT_INDEX_PATH),
-            llm=llm_config)
-        ref_doc = memory.run(query, files=agent_request.files)
-        if ref_doc == 'Empty Response':
-            return create_error_msg(
-                'No valid knowledge contents.', request_id=request_id)
-    agent = RolePlay(function_list=None, llm=llm_config, uuid_str=uuid_str)
+    agent = RolePlay(function_list=None, llm=llm_config, uuid_str=user)
     result = agent.run(
         query,
         history=history,
-        ref_doc=ref_doc,
         tools=function_list,
         tool_choice=tool_choice,
         chat_mode=True,
-        **kwargs)
+        # **kwargs)
+    )
 
     del agent
 
@@ -167,28 +168,23 @@ async def chat_completion(agent_request: ChatRequest):
     for chunk in result:
         llm_result += chunk
 
-    response = ChatResponse(response=llm_result)
+    action, action_input = parse_tool_result(llm_result)
+    choices = choice_wrapper(llm_result, action, action_input)
+    chat_response = ChatCompletionResponse(
+        choices=choices,
+        model=model,
+        id=request_id,
+        system_fingerprint=request_id)
 
-    # use re to detect tools
-    try:
-        import re
-        import json
-        result = re.search(r'Action: (.+)\nAction Input: (.+)', llm_result)
-        action = result.group(1)
-        action_input = json.loads(result.group(2))
-        response.require_actions = True
-        response.tool = ToolResponse(name=action, inputs=action_input)
-    except Exception:
-        pass
-
-    if agent_request.stream and response.require_actions:
+    if chat_request.stream and chat_response.choices[0][
+            'finish_reason'] == 'tool_calls':
         return create_error_msg(
             'not support stream with tool', request_id=request_id)
-    elif agent_request.stream:
+    elif chat_request.stream:
         return StreamingResponse(response)
     else:
-        kwargs = {'choices': tool_calling_wrapper(response)}
-        return create_success_msg(None, request_id=request_id, **kwargs)
+        return create_success_msg(
+            None, request_id=request_id, **chat_response.dict())
 
 
 if __name__ == '__main__':
