@@ -142,11 +142,8 @@ async def chat_completion(chat_request: ChatCompletionRequest,
     function_list = chat_request.tools
     tool_choice = chat_request.tool_choice
 
-    # message and history
-    message = chat_request.messages
-
     # parse meesage
-    query, history, image_url = parse_messages(message)
+    query, history, image_url = parse_messages(chat_request.messages)
 
     # additional kwargs
     # kwargs = agent_request.kwargs
@@ -179,15 +176,8 @@ async def chat_completion(chat_request: ChatCompletionRequest,
         id=request_id,
         system_fingerprint=request_id)
 
-    if chat_request.stream and chat_response.choices[0][
-            'finish_reason'] == 'tool_calls':
-        return create_error_msg(
-            'not support stream with tool', request_id=request_id)
-    elif chat_request.stream:
-        return StreamingResponse(response)
-    else:
-        return create_success_msg(
-            None, request_id=request_id, **chat_response.dict())
+    return create_success_msg(
+        None, request_id=request_id, **chat_response.dict())
 
 
 if __name__ == '__main__':
