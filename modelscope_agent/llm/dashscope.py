@@ -20,8 +20,8 @@ def stream_output(response, **kwargs):
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
             # logging at the first frame for request_id, and the last frame for the whole output
-            print (trunk)
-            if not text: #or trunk.output.choices[0].finish_reason != 'null':
+            print(trunk)
+            if not text:  #or trunk.output.choices[0].finish_reason != 'null':
                 logger.info(
                     f'call dashscope generation api success, '
                     f'request_id: { trunk.request_id}, output: { trunk.output}'
@@ -229,15 +229,15 @@ class QwenChatAtDS(DashScopeLLM):
             if 'chat_records' in prompt:
                 prompt = f'{prompt.replace("chat_records", content)}\n<|im_start|>{cur_role_name}\n'
             else:
-                chat_records_list = content.strip().split("\n")
-                user_content = ""
+                chat_records_list = content.strip().split('\n')
+                user_content = ''
                 for chat_role in chat_records_list:
                     try:
-                        cur_role, cur_chat = chat_role.split(":")
+                        cur_role, cur_chat = chat_role.split(':')
                     except:
                         continue
-                    user_content += f'<|im_start|>{cur_role.strip()}\n{cur_chat.strip()}<|im_end|>\n' 
-                prompt = f'{prompt}{user_content}<|im_start|>{cur_role_name}\n' 
+                    user_content += f'<|im_start|>{cur_role.strip()}\n{cur_chat.strip()}<|im_end|>\n'
+                prompt = f'{prompt}{user_content}<|im_start|>{cur_role_name}\n'
 
         print('prompt: ', [prompt])
         return prompt
