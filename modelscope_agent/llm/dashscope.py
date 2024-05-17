@@ -21,7 +21,7 @@ def stream_output(response, **kwargs):
         if trunk.status_code == HTTPStatus.OK:
             # logging at the first frame for request_id, and the last frame for the whole output
             print(trunk)
-            if not text:  #or trunk.output.choices[0].finish_reason != 'null':
+            if not text:
                 logger.info(
                     f'call dashscope generation api success, '
                     f'request_id: { trunk.request_id}, output: { trunk.output}'
@@ -234,7 +234,7 @@ class QwenChatAtDS(DashScopeLLM):
                 for chat_role in chat_records_list:
                     try:
                         cur_role, cur_chat = chat_role.split(':')
-                    except:
+                    except Exception:
                         continue
                     user_content += f'<|im_start|>{cur_role.strip()}\n{cur_chat.strip()}<|im_end|>\n'
                 prompt = f'{prompt}{user_content}<|im_start|>{cur_role_name}\n'
