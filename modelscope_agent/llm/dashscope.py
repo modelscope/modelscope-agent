@@ -100,6 +100,8 @@ class DashScopeLLM(BaseChatModel):
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
         response = dashscope.Generation.call(**generation_input)
+        print(response)
+        response = self.stat_last_call_token_info(response)
         return stream_output(response, **kwargs)
 
     def _chat_no_stream(self,
@@ -118,6 +120,7 @@ class DashScopeLLM(BaseChatModel):
             top_p=top_p,
         )
         if response.status_code == HTTPStatus.OK:
+            self.stat_last_call_token_info(response)
             return response.output.choices[0].message.content
         else:
             err = 'Error code: %s, error message: %s' % (
@@ -125,6 +128,24 @@ class DashScopeLLM(BaseChatModel):
                 response.message,
             )
             return err
+
+    def stat_last_call_token_info(self, response):
+        try:
+            self.last_call_usage_info = {
+                'prompt_tokens': response.usage.input_tokens,
+                'completion_tokens': response.usage.output_tokens,
+                'total_tokens': response.usage.total_tokens
+            }
+            return response
+        except AttributeError:
+            for chunk in response:
+                # if hasattr(chunk.output, 'usage'):
+                self.last_call_usage_info = {
+                    'prompt_tokens': chunk.usage.input_tokens,
+                    'completion_tokens': chunk.usage.output_tokens,
+                    'total_tokens': chunk.usage.total_tokens
+                }
+                yield chunk
 
 
 @register_llm('dashscope_qwen')

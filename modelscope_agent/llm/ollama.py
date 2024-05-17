@@ -25,6 +25,7 @@ class OllamaLLM(BaseChatModel):
             f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
         stream = self.client.chat(
             model=self.model, messages=messages, stream=True)
+        stream = self.stat_last_call_token_info(stream)
         for chunk in stream:
             tmp_content = chunk['message']['content']
             logger.info(f'call ollama success, output: {tmp_content}')
@@ -40,6 +41,7 @@ class OllamaLLM(BaseChatModel):
             f'call ollama, model: {self.model}, messages: {str(messages)}, '
             f'stop: {str(stop)}, stream: False, args: {str(kwargs)}')
         response = self.client.chat(model=self.model, messages=messages)
+        self.stat_last_call_token_info(response)
         final_content = response['message']['content']
         logger.info(f'call ollama success, output: {final_content}')
         return final_content
@@ -83,3 +85,22 @@ class OllamaLLM(BaseChatModel):
             messages = [{'role': 'user', 'content': prompt}]
         return super().chat(
             messages=messages, stop=stop, stream=stream, **kwargs)
+
+    def stat_last_call_token_info(self, response):
+        try:
+            self.last_call_usage_info = {
+                'prompt_tokens': response.prompt_eval_count,
+                'completion_tokens': response.eval_count,
+                'total_tokens':
+                response.prompt_eval_count + response.eval_count
+            }
+            return response
+        except AttributeError:
+            for chunk in response:
+                # if hasattr(chunk.output, 'usage'):
+                self.last_call_usage_info = {
+                    'prompt_tokens': chunk.prompt_eval_count,
+                    'completion_tokens': chunk.eval_count,
+                    'total_tokens': chunk.prompt_eval_count + chunk.eval_count
+                }
+                yield chunk

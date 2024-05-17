@@ -48,7 +48,7 @@ def parse_messages(messages: List[ChatMessage]):
     return query, history, image_url
 
 
-def stream_choice_wrapper(response, model, request_id):
+def stream_choice_wrapper(response, model, request_id, llm):
     for chunk in response:
         choices = ChatCompletionResponseStreamChoice(
             index=0,
@@ -68,7 +68,8 @@ def stream_choice_wrapper(response, model, request_id):
         id=request_id,
         object='chat.completion.chunk',
         choices=[choices],
-        model=model)
+        model=model,
+        usage=llm.get_usage())
     data = chunk.model_dump_json(exclude_unset=True)
     yield f'data: {data}\n\n'
     yield 'data: [DONE]\n\n'

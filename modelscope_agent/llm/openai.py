@@ -42,6 +42,7 @@ class OpenAi(BaseChatModel):
             stop=stop,
             stream=True,
             **kwargs)
+        response = self.stat_last_call_token_info(response)
         # TODO: error handling
         for chunk in response:
             # sometimes delta.content is None by vllm, we should not yield None
@@ -66,6 +67,7 @@ class OpenAi(BaseChatModel):
             stop=stop,
             stream=False,
             **kwargs)
+        self.stat_last_call_token_info(response)
         logger.info(
             f'call openai api success, output: {response.choices[0].message.content}'
         )

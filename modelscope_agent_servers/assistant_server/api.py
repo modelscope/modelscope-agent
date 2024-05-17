@@ -16,7 +16,7 @@ from modelscope_agent_servers.service_utils import (create_error_msg,
 DEFAULT_KNOWLEDGE_PATH = 'knowledges'
 DEFAULT_INDEX_PATH = 'index'
 
-model_server = os.environ.get('MODEL_SERVER', 'dashscope')
+model_server = os.environ.get('MODEL_SERVER', 'ollama')
 app = FastAPI()
 
 
@@ -24,6 +24,9 @@ app = FastAPI()
 async def startup_event():
     if not os.path.exists(DEFAULT_KNOWLEDGE_PATH):
         os.makedirs(DEFAULT_KNOWLEDGE_PATH)
+
+    if model_server == 'ollama':
+        os.system('ollama serve')
 
 
 @app.post('/v1/files')
@@ -157,10 +160,10 @@ async def chat_completion(chat_request: ChatCompletionRequest,
         chat_mode=True,
         # **kwargs)
     )
-    del agent
 
     if chat_request.stream:
-        stream_chat_response = stream_choice_wrapper(result, model, request_id)
+        stream_chat_response = stream_choice_wrapper(result, model, request_id,
+                                                     agent.llm)
         return StreamingResponse(
             stream_chat_response, media_type='text/event-stream')
 
@@ -168,13 +171,20 @@ async def chat_completion(chat_request: ChatCompletionRequest,
     for chunk in result:
         llm_result += chunk
 
+    usage = agent.llm.get_usage()
+    print(usage)
+
+    del agent
+
     action, action_input = parse_tool_result(llm_result)
     choices = choice_wrapper(llm_result, action, action_input)
+
     chat_response = ChatCompletionResponse(
         choices=choices,
         model=model,
         id=request_id,
-        system_fingerprint=request_id)
+        system_fingerprint=request_id,
+        usage=usage)
 
     return create_success_msg(
         None, request_id=request_id, **chat_response.dict())

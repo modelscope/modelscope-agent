@@ -45,6 +45,8 @@ class BaseChatModel(ABC):
         self.model_server = model_server
         self.max_length = 6000
 
+        self.last_call_usage_info = {}
+
     # It is okay to use the same code to handle the output
     # regardless of whether stream is True or False, as follows:
     # ```py
@@ -239,3 +241,16 @@ class BaseChatModel(ABC):
 
     def get_max_length(self) -> int:
         return self.max_length
+
+    def get_usage(self) -> Dict:
+        return self.last_call_usage_info
+
+    def stat_last_call_token_info(self, response):
+        try:
+            self.last_call_usage_info = response.usage.dict()
+            return response
+        except AttributeError:
+            for chunk in response:
+                if hasattr(chunk.choices[0], 'usage'):
+                    self.last_call_usage_info = chunk.usage.dict()
+                yield chunk
