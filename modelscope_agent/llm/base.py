@@ -251,6 +251,6 @@ class BaseChatModel(ABC):
             return response
         except AttributeError:
             for chunk in response:
-                if hasattr(chunk.choices[0], 'usage'):
-                    self.last_call_usage_info = chunk.usage.dict()
+                if hasattr(chunk, 'usage') and chunk.usage is not None:
+                    self.last_call_usage_info = chunk.usage
                 yield chunk
