@@ -37,6 +37,7 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 
 ## 更新
+* 🔥May 17, 2024: 在Ray的基础上，支持了多人聊天室的应用，一键快速开发聊天室，参考[多人聊天应用](https://github.com/modelscope/modelscope-agent/tree/master/apps/multi_roles_chat_room)
 * 🔥May 14, 2024: 在`RolePlay` Agent中支持了基于OpenAI`GPT-4o`模型的图像输入。开发者可以通过指定`image_url`参数体验这一功能。
 * 🔥2024.5.10: 上线用户友好的Assistant API，同时也提供了基于独立容器，且安全可靠执行工具的Tools API。参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/)
 * 🔥2024.4.12: 基于[Ray](https://docs.ray.io/en/latest/)的multi-agent方案正式上线，参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/multi_agents_utils/README_CN.md)
