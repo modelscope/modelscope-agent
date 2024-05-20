@@ -5,12 +5,10 @@ from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.tools.dashscope_tools.image_generation import \
     TextToImageTool
 
-NOT_IN_MODELSCOPE_REPO = os.getenv(
-    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_image_gen():
     params = """{'text': '画一只小猫', 'resolution': '1024*1024'}"""
 
@@ -19,8 +17,7 @@ def test_image_gen():
     assert (res.startswith('![IMAGEGEN]('))
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_image_gen_wrong_resolution():
     params = """{'text': '画一只小猫', 'resolution': '1024'}"""
 
@@ -29,8 +26,7 @@ def test_image_gen_wrong_resolution():
     assert (res.startswith('![IMAGEGEN]('))
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_image_gen_role():
     role_template = '你扮演一个画家，用尽可能丰富的描述调用工具绘制图像。'
 

@@ -5,12 +5,10 @@ from modelscope_agent.tools.dashscope_tools.style_repaint import StyleRepaint
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
-NOT_IN_MODELSCOPE_REPO = os.getenv(
-    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_style_repaint():
     # 图片默认上传到ci_workspace
     params = """{'input.image_path': 'luoli15.jpg', 'input.style_index': 0}"""
@@ -20,8 +18,7 @@ def test_style_repaint():
     assert (res.startswith('![IMAGEGEN](http'))
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_style_repaint_role():
     role_template = '你扮演一个绘画家，用尽可能丰富的描述调用工具绘制各种风格的图画。'
 

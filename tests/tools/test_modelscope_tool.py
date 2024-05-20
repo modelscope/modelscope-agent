@@ -2,8 +2,7 @@ import os
 
 import pytest
 
-NOT_IN_MODELSCOPE_REPO = os.getenv(
-    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
 
 @pytest.mark.skip()
@@ -15,8 +14,7 @@ def test_modelscope_speech_generation():
     assert isinstance(res, str)
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_video_generation():
     from modelscope_agent.tools.modelscope_tools.text_to_video_tool import TextToVideoTool
     params = "{'input': '一个正在打篮球的人'}"
@@ -25,8 +23,7 @@ def test_modelscope_video_generation():
     assert isinstance(res, str)
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_text_address():
     from modelscope_agent.tools.modelscope_tools.text_address_tool import TextAddressTool
     kwargs = """{'input': '北京朝阳望京东金辉大厦'}"""
@@ -35,8 +32,7 @@ def test_modelscope_text_address():
     assert isinstance(res, str)
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_text_ner_remote():
     from modelscope_agent.tools.modelscope_tools.text_ner_tool import TextNerTool
     kwargs = """{'input': '多数新生儿甲亢在出生时即有症状，表现为突眼、甲状腺肿大、烦躁、多动、心动过速、呼吸急促，严重可出现心力衰竭，血T3、T4升高，TSH下降。'}"""
@@ -45,8 +41,7 @@ def test_modelscope_text_ner_remote():
     assert isinstance(res, str)
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_text_ner_local():
     from modelscope_agent.tools.modelscope_tools.text_ner_tool import TextNerTool
     kwargs = """{'input': '多数新生儿甲亢在出生时即有症状，表现为突眼、甲状腺肿大、烦躁、多动、心动过速、呼吸急促，严重可出现心力衰竭，血T3、T4升高，TSH下降。'}"""
@@ -60,8 +55,7 @@ def test_modelscope_text_ner_local():
     assert isinstance(res, str)
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_text_ie():
     from modelscope_agent.tools.modelscope_tools.text_ie_tool import TextInfoExtractTool
     kwargs = """{'input': '很满意，音质很好，发货速度快，值得购买', 'schema': {'属性词': {'情感词': null}}}"""

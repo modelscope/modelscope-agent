@@ -5,12 +5,10 @@ from modelscope_agent.tools.dashscope_tools.wordart_tool import WordArtTexture
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
-NOT_IN_MODELSCOPE_REPO = os.getenv(
-    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_word_art():
     params = """{
         'input.text.text_content': '魔搭社区',
@@ -24,8 +22,7 @@ def test_word_art():
     assert (res.startswith('http'))
 
 
-@pytest.mark.skipif(
-    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_word_art_role():
     role_template = '你扮演一个美术老师，用尽可能丰富的描述调用工具生成艺术字图片。'
 
