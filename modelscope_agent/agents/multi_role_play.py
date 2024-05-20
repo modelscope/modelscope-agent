@@ -1,12 +1,7 @@
 import os
-import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
-from modelscope_agent import Agent
-from modelscope_agent.agent_env_util import AgentEnvMixin
-from modelscope_agent.agents.role_play import RolePlay
-from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.utils.tokenization_utils import count_tokens
+from modelscope_agent.agents.role_play.role_play import RolePlay
 from modelscope_agent.utils.utils import check_and_limit_input_length
 
 KNOWLEDGE_TEMPLATE_ZH = """

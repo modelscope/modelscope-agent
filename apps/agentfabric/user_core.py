@@ -1,10 +1,9 @@
 import copy
 import os.path
-from typing import List
 
 import json
 from config_utils import get_user_preview_history_dir, parse_configuration
-from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.agents.role_play.role_play import RolePlay
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from modelscope_agent.tools.base import TOOL_REGISTRY
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool

@@ -11,11 +11,12 @@ agent结合了大型语言模型（LLM）以及特定任务的工具，并利用
 ```Python
 # 配置环境变量；如果您已经提前将api-key提前配置到您的运行环境中，可以省略这个步骤
 import os
-os.environ['DASHSCOPE_API_KEY']=YOUR_DASHSCOPE_API_KEY
-os.environ['AMAP_TOKEN']=YOUR_AMAP_TOKEN
+
+os.environ['DASHSCOPE_API_KEY'] = YOUR_DASHSCOPE_API_KEY
+os.environ['AMAP_TOKEN'] = YOUR_AMAP_TOKEN
 
 # 选用RolePlay 配置agent
-from modelscope_agent.agents.role_play import RolePlay  # NOQA
+from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 
 role_template = '你扮演一个天气预报助手，你需要查询相应地区的天气，并调用给你的画图工具绘制一张城市的图。'
 
