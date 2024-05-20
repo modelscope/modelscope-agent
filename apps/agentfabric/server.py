@@ -15,8 +15,9 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_ci_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_builder_configuration,
                           save_plugin_configuration)
-from flask import (Flask, Response, jsonify, make_response, request,
+from flask import (Flask, Response, g, jsonify, make_response, request,
                    send_from_directory)
+from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
 from modelscope_agent.schemas import Message
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_dir)
@@ -29,10 +30,34 @@ app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 app.session_manager = SessionManager()
 
 
+def get_auth_token():
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        return auth_header[7:]  # Slice off the 'Bearer ' prefix
+    return None
+
+
 @app.before_request
 def set_request_id():
     request_id = request.headers.get('X-Modelscope-Request-Id', 'unknown')
     request_id_var.set(request_id)
+
+
+@app.before_request
+def before_request_func():
+    token = None
+    # Check if authorization header is present
+    if MODELSCOPE_AGENT_TOKEN_HEADER_NAME in request.headers:
+        auth_header = request.headers[MODELSCOPE_AGENT_TOKEN_HEADER_NAME]
+        # Check if the value of the header starts with 'Bearer'
+        if auth_header.startswith('Bearer '):
+            # Extract the token part from 'Bearer token_value'
+            token = auth_header[7:]
+        else:
+            # Extract the token part from auth_header
+            token = auth_header
+
+    g.token = token
 
 
 def with_request_id(func):
@@ -367,6 +392,11 @@ def preview_publish_get_zip(uuid_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['POST'])
 @with_request_id
 def preview_chat(uuid_str, session_str):
+    token = g.get('token', None)
+    if not token:
+        # If token is not found, return 401 Unauthorized response
+        return jsonify({'message': 'Token is missing!'}), 401
+
     logger.info(f'preview_chat: uuid_str_{uuid_str}_session_str_{session_str}')
 
     params_str = request.form.get('params')
@@ -427,7 +457,9 @@ def preview_chat(uuid_str, session_str):
                     history=history,
                     ref_doc=ref_doc,
                     append_files=file_paths,
-                    uuid_str=uuid_str):
+                    uuid_str=uuid_str,
+                    token=token,
+            ):
                 logger.info('frame, {}'.format(
                     str(frame).replace('\n', '\\n')))
                 # important! do not change this

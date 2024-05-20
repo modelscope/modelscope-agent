@@ -1,10 +1,11 @@
 import os
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 import requests
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
 from modelscope_agent_servers.service_utils import (create_error_msg,
                                                     create_success_msg,
                                                     parse_service_response)
@@ -37,6 +38,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+def get_token(authorization: Optional[str] = Header(
+    None, alias=MODELSCOPE_AGENT_TOKEN_HEADER_NAME)):  # noqa E125
+    if authorization:
+        # Assuming the token is a bearer token
+        schema, _, token = authorization.partition(' ')
+        if schema and token and schema.lower() == 'bearer':
+            return token
+        elif token == '':
+            return authorization
+    else:
+        return None
 
 
 def start_docker_container_and_store_status(tool: ToolRegisterInfo,
@@ -312,7 +326,8 @@ async def list_tools(tenant_id: str = 'default'):
 
 
 @app.post('/tool_info/')
-async def get_tool_info(tool_input: ExecuteTool):
+async def get_tool_info(tool_input: ExecuteTool,
+                        token: str = Depends(get_token)):
 
     # get tool instance
     request_id = str(uuid4())
@@ -332,7 +347,9 @@ async def get_tool_info(tool_input: ExecuteTool):
         tool_info_url = 'http://' + tool_instance.ip + ':' + str(
             tool_instance.port) + '/tool_info'
         response = requests.get(
-            tool_info_url, params={'request_id': request_id})
+            tool_info_url,
+            params={'request_id': request_id},
+            headers={'Authorization': f'Bearer {token}'})
         response.raise_for_status()
         return create_success_msg(
             parse_service_response(response), request_id=request_id)
@@ -346,7 +363,8 @@ async def get_tool_info(tool_input: ExecuteTool):
 
 
 @app.post('/execute_tool/')
-async def execute_tool(tool_input: ExecuteTool):
+async def execute_tool(tool_input: ExecuteTool,
+                       token: str = Depends(get_token)):
 
     request_id = str(uuid4())
 
@@ -377,7 +395,8 @@ async def execute_tool(tool_input: ExecuteTool):
                 'params': tool_input.params,
                 'kwargs': tool_input.kwargs,
                 'request_id': request_id
-            })
+            },
+            headers={'Authorization': f'Bearer {token}'})
         response.raise_for_status()
         return create_success_msg(
             parse_service_response(response), request_id=request_id)

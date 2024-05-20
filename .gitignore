@@ -39,6 +39,7 @@ MANIFEST
 *.manifest
 *.spec
 release.sh
+build.sh
 *.html
 
 # Installer logs

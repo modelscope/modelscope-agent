@@ -393,6 +393,12 @@ class ToolServiceProxy(BaseTool):
             )
 
     def call(self, params: str, **kwargs):
+        token = kwargs.get('token', '')
+        from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
+        headers = {
+            'Content-Type': 'application/json',
+            MODELSCOPE_AGENT_TOKEN_HEADER_NAME: token
+        }
         try:
             # visit tool node to call tool
             response = requests.post(
@@ -402,7 +408,8 @@ class ToolServiceProxy(BaseTool):
                     'tenant_id': self.tenant_id,
                     'params': params,
                     'kwargs': kwargs
-                })
+                },
+                headers=headers)
             response.raise_for_status()
             return ToolServiceProxy.parse_service_response(response)
         except Exception as e:

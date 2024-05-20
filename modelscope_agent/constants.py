@@ -10,6 +10,7 @@ AGENT_REGISTRY_NAME = 'agent_center'
 TASK_CENTER_NAME = 'task_center'
 DEFAULT_TOOL_MANAGER_SERVICE_URL = 'http://localhost:31511'
 DEFAULT_ASSISTANT_SERVICE_URL = 'http://localhost:31512'
+MODELSCOPE_AGENT_TOKEN_HEADER_NAME = 'X-Modelscope-Agent-Token'
 
 
 class ApiNames(Enum):
