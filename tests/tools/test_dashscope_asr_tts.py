@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from modelscope_agent.tools.dashscope_tools.paraformer_asr_tool import \
     ParaformerAsrTool
@@ -5,6 +7,9 @@ from modelscope_agent.tools.dashscope_tools.sambert_tts_tool import \
     SambertTtsTool
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
+
+NOT_IN_MODELSCOPE_REPO = os.getenv(
+    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
 
 
 @pytest.mark.skip()
@@ -44,6 +49,8 @@ def test_paraformer_asr_agent():
     assert isinstance(text, str)
 
 
+@pytest.mark.skipif(
+    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
 def test_sambert_tts_agent():
     role_template = '你扮演一个语音专家，能够调用工具合成语音。'
 

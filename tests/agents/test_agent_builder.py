@@ -1,7 +1,14 @@
+import os
+
 import pytest
 from modelscope_agent.agents.agent_builder import AgentBuilder
 
+NOT_IN_MODELSCOPE_REPO = os.getenv(
+    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
 
+
+@pytest.mark.skipif(
+    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
 def test_agent_builder():
     llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 

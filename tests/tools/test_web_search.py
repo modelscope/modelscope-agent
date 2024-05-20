@@ -1,7 +1,15 @@
+import os
+
 import json
+import pytest
 from modelscope_agent.tools.web_search.web_search import WebSearch
 
+NOT_IN_MODELSCOPE_REPO = os.getenv(
+    'GITHUB_REPOSITORY') != 'modelscope/modelscope-agent'
 
+
+@pytest.mark.skipif(
+    NOT_IN_MODELSCOPE_REPO, reason='only run modelscope-agent main repo')
 def test_web_search():
     input_params = """{'query': '2024元旦 哈尔滨 天气'}"""
     web_searcher = WebSearch()
