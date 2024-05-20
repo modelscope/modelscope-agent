@@ -1,4 +1,4 @@
-from modelscope_agent.tools import StyleRepaint
+from modelscope_agent.tools.dashscope_tools.style_repaint import StyleRepaint
 
 from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 

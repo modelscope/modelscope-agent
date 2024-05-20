@@ -3,7 +3,9 @@ from typing import Dict, Optional
 
 import pandas as pd
 import requests
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
+from modelscope_agent.utils.utils import get_api_key
 
 
 @register_tool('amap_weather')
@@ -26,9 +28,9 @@ class AMAPWeather(BaseTool):
             'https://modelscope.oss-cn-beijing.aliyuncs.com/resource/agent/AMap_adcode_citycode.xlsx'
         )
 
-        self.token = self.cfg.get('token', os.environ.get('AMAP_TOKEN', ''))
-        assert self.token != '', 'weather api token must be acquired through ' \
-            'https://lbs.amap.com/api/webservice/guide/create-project/get-key and set by AMAP_TOKEN'
+        self.api_key = self.cfg.get(
+            ApiNames.amap_api_key.name,
+            os.environ.get(ApiNames.amap_api_key.value, ''))
 
     def get_city_adcode(self, city_name):
         filtered_df = self.city_df[self.city_df['中文名'] == city_name]
@@ -43,11 +45,18 @@ class AMAPWeather(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-
+        try:
+            self.api_key = get_api_key(ApiNames.amap_api_key, self.api_key,
+                                       **kwargs)
+        except AssertionError:
+            raise ValueError(
+                'weather api token must be acquired through ',
+                'https://lbs.amap.com/api/webservice/guide/create-project/get-key and set by AMAP_TOKEN'
+            )
         location = params['location']
         response = requests.get(
             self.url.format(
-                city=self.get_city_adcode(location), key=self.token))
+                city=self.get_city_adcode(location), key=self.api_key))
         data = response.json()
         if data['status'] == '0':
             raise RuntimeError(data)

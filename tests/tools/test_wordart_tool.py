@@ -1,4 +1,4 @@
-from modelscope_agent.tools import WordArtTexture
+from modelscope_agent.tools.dashscope_tools.wordart_tool import WordArtTexture
 
 from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 

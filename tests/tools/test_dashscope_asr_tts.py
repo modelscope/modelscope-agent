@@ -1,5 +1,8 @@
 import pytest
-from modelscope_agent.tools import ParaformerAsrTool, SambertTtsTool
+from modelscope_agent.tools.dashscope_tools.paraformer_asr_tool import \
+    ParaformerAsrTool
+from modelscope_agent.tools.dashscope_tools.sambert_tts_tool import \
+    SambertTtsTool
 
 from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 

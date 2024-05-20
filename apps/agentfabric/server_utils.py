@@ -11,7 +11,7 @@ from typing import Tuple
 
 from builder_core import AgentBuilder, init_builder_chatbot_agent
 from config_utils import (get_user_builder_history_dir,
-                          get_user_preview_history_dir)
+                          get_user_preview_history_dir, parse_configuration)
 from modelscope_agent.agents.role_play.role_play import RolePlay
 from modelscope_agent.memory import MemoryWithRetrievalKnowledge
 from server_logging import logger
@@ -142,6 +142,23 @@ class SessionManager:
         user_agent = self.user_bots[unique_id]
         if renew or user_agent is None:
             logger.info(f'init_user_chatbot_agent: {builder_id} {session}')
+
+            # check code_interpreter
+            builder_cfg, _, tool_cfg, _, _, _ = parse_configuration(builder_id)
+            if 'tools' in builder_cfg and 'code_interpreter' in builder_cfg[
+                    'tools']:
+                if builder_cfg['tools']['code_interpreter'].get(
+                        'is_active', False
+                ) and builder_cfg['tools']['code_interpreter'].get(
+                        'use', False):
+                    raise ValueError('Using code interpreter.')
+            if 'code_interpreter' in tool_cfg:
+                if tool_cfg['code_interpreter'].get(
+                        'is_active',
+                        False) and tool_cfg['code_interpreter'].get(
+                            'use', False):
+                    raise ValueError('Using code interpreter.')
+
             user_agent = init_user_chatbot_agent(builder_id, session)
             self.user_bots[unique_id] = user_agent
         return user_agent

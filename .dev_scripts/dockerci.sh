@@ -14,5 +14,8 @@ ls  "${CODE_INTERPRETER_WORK_DIR}"
 pip install playwright
 playwright install --with-deps chromium
 
+# install package
+pip install fastapi pydantic uvicorn docker sqlmodel
+
 # run ci
 pytest tests

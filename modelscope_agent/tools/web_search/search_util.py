@@ -1,6 +1,7 @@
 import os
 from enum import Enum
 
+from modelscope_agent.constants import ApiNames
 from pydantic import BaseModel, model_validator
 
 
@@ -17,7 +18,7 @@ class SearchResult(BaseModel):
 
 
 class AuthenticationKey(Enum):
-    bing = 'BING_SEARCH_V7_SUBSCRIPTION_KEY'
+    bing = ApiNames.bing_api_key.value
     kuake = 'PLACE_HOLDER'
 
     @classmethod

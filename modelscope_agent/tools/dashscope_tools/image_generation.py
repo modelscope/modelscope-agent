@@ -1,11 +1,10 @@
 import os
-import re
 
-import cv2
 import dashscope
-import json
 from dashscope import ImageSynthesis
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
+from modelscope_agent.utils.utils import get_api_key
 
 
 @register_tool('image_gen')
@@ -40,7 +39,11 @@ class TextToImageTool(BaseTool):
             return None
         seed = kwargs.get('seed', None)
         model = kwargs.get('model', 'wanx-v1')
-        dashscope.api_key = os.getenv('DASHSCOPE_API_KEY')
+        try:
+            dashscope.api_key = get_api_key(ApiNames.dashscope_api_key,
+                                            **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         response = ImageSynthesis.call(
             model=model,

@@ -134,6 +134,10 @@ class OpenAi(BaseChatModel):
                             functions: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
         if functions:
+            functions = [{
+                'type': 'function',
+                'function': item
+            } for item in functions]
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,

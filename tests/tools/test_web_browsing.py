@@ -1,6 +1,4 @@
-import re
-
-from modelscope_agent.tools import WebBrowser
+from modelscope_agent.tools.web_browser import WebBrowser
 
 
 def test_web_browser():

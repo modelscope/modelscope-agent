@@ -1,6 +1,7 @@
 from modelscope_agent.agents.role_play.role_play import RolePlay  # NOQA
 import json
-from modelscope_agent.tools.dashscope_tools import ImageEnhancement
+from modelscope_agent.tools.dashscope_tools.image_enhancement import \
+    ImageEnhancement
 
 
 def test_image_enhancement():
