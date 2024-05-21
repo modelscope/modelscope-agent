@@ -155,7 +155,7 @@ class RolePlay(Agent, AgentEnvMixin):
 
         chat_mode = kwargs.pop('chat_mode', False)
         tools = kwargs.get('tools', None)
-        tool_choice = kwargs.pop('tool_choice', 'auto')
+        tool_choice = kwargs.get('tool_choice', 'auto')
 
         if tools is not None:
             self.tool_descs = BaseTool.parser_function(tools)

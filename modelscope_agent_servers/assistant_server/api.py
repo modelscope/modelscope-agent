@@ -142,20 +142,21 @@ async def chat_completion(chat_request: ChatCompletionRequest,
     }
 
     # tool related config
-    function_list = chat_request.tools
-    tool_choice = chat_request.tool_choice
+    tools = chat_request.tools
+    tool_choice = None
+    if tools:
+        tool_choice = chat_request.tool_choice
 
     # parse meesage
     query, history, image_url = parse_messages(chat_request.messages)
 
     # additional kwargs
-    # kwargs = agent_request.kwargs
 
     agent = RolePlay(function_list=None, llm=llm_config, uuid_str=user)
     result = agent.run(
         query,
         history=history,
-        tools=function_list,
+        tools=tools,
         tool_choice=tool_choice,
         chat_mode=True,
         # **kwargs)
