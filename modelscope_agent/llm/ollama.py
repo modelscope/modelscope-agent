@@ -15,6 +15,7 @@ class OllamaLLM(BaseChatModel):
         host = kwargs.get('host', 'http://localhost:11434')
         self.client = ollama.Client(host=host)
         self.model = model
+        self.client.pull(self.model)
 
     def _chat_stream(self,
                      messages: List[Dict],

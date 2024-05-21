@@ -16,7 +16,7 @@ from modelscope_agent_servers.service_utils import (create_error_msg,
 DEFAULT_KNOWLEDGE_PATH = 'knowledges'
 DEFAULT_INDEX_PATH = 'index'
 
-model_server = os.environ.get('MODEL_SERVER', 'ollama')
+model_server = os.environ.get('MODEL_SERVER', 'dashscope')
 app = FastAPI()
 
 
@@ -24,9 +24,6 @@ app = FastAPI()
 async def startup_event():
     if not os.path.exists(DEFAULT_KNOWLEDGE_PATH):
         os.makedirs(DEFAULT_KNOWLEDGE_PATH)
-
-    if model_server == 'ollama':
-        os.system('ollama serve')
 
 
 @app.post('/v1/files')
