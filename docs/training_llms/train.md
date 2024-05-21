@@ -36,47 +36,27 @@ Assistants:
 To start a training, you can use the script `run_train_ddp.sh'
 
 ```Shell
-DATA_PARALLEL_SIZE=2
-TENSOR_MODEL_PARALLEL_SIZE=2
-
-WORLD_SIZE=$(($DATA_PARALLEL_SIZE * $TENSOR_MODEL_PARALLEL_SIZE))
-DATE_TIME=$(date +%Y%m%d-%H%M%S)
-export PYTHONPATH=$PYTHONPATH:./
-torchrun --nproc_per_node $WORLD_SIZE demo/tool_agent_finetune/finetune_tool.py \
-    --work_dir './tmp/tmp_baichuan/'$DATE_TIME \
-    --model 'baichuan-inc/baichuan-7B' \
-    --dataset_json_file 'demo/tool_agent_finetune/train_v1.2_plugins_sample.json' \
-    --train_split 'train' \
-    --val_split 'validation' \
-    --max_epochs 1 \
-    --per_device_train_batch_size 8 \
-    --train_data_worker 1 \
-    --lr 1e-4 \
-    --lr_scheduler 'CosineAnnealingLR' \
-    --bf16 1 \
-    --device_map 'auto' \
-    --train_shuffle 'True' \
-    --save_best_checkpoint 'True' \
-    --logging_interval 5 \
-    --save_strategy 'by_step' \
-    --save_interval 2000 \
-    --max_checkpoint_num 1 \
-    --use_lora 1 \
+CUDA_VISIBLE_DEVICES=0 \
+python llm_sft.py \
+    --model_type modelscope-agent-7b \
+    --sft_type lora \
+    --output_dir runs \
+    --dataset damo/MSAgent-Bench \
+    --dataset_sample 20000 \
+    --dataset_test_ratio 0.02 \
+    --max_length 2048 \
+    --dtype bf16 \
     --lora_rank 8 \
     --lora_alpha 32 \
-    --lora_dropout 0.1 \
-    --lora_replace_module 'pack' \
-    --enable_gradient_checkpoint 1 \
-    --max_length 2048 \
-    --eval_strategy 'by_step' \
-    --eval_interval 300 \
-    --eval_metrics 'ppl' \
-    --metric_for_best_model 'ppl' \
-    --metric_rule_for_best_model 'min' \
-    --per_device_eval_batch_size 8 \
-    --eval_data_worker 1 \
-    --max_checkpoint_num_best 1 \
-    --deepspeed 'demo/tool_agent_finetune/default_offload_opt_param.json' \
+    --lora_dropout_p 0.1 \
+    --batch_size 1 \
+    --learning_rate 1e-4 \
+    --gradient_accumulation_steps 16 \
+    --eval_steps 50 \
+    --save_steps 50 \
+    --save_total_limit 2 \
+    --logging_steps 20 \
+    --use_flash_attn true \
 ```
 
 ### evaluate

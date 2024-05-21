@@ -24,3 +24,4 @@ torchrun \
     --ddp_backend nccl \
     --gradient_accumulation_steps $(expr 16 / $nproc_per_node) \
     --deepspeed 'scripts/train/ds_stage_2.json' \
+    --save_only_model true \
