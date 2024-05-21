@@ -89,18 +89,24 @@ class OllamaLLM(BaseChatModel):
     def stat_last_call_token_info(self, response):
         try:
             self.last_call_usage_info = {
-                'prompt_tokens': response.prompt_eval_count,
-                'completion_tokens': response.eval_count,
+                'prompt_tokens':
+                response.get('prompt_eval_count', -1),
+                'completion_tokens':
+                response.get('eval_count', -1),
                 'total_tokens':
-                response.prompt_eval_count + response.eval_count
+                response.get('prompt_eval_count') + response.get('eval_count')
             }
             return response
         except AttributeError:
             for chunk in response:
                 # if hasattr(chunk.output, 'usage'):
                 self.last_call_usage_info = {
-                    'prompt_tokens': chunk.prompt_eval_count,
-                    'completion_tokens': chunk.eval_count,
-                    'total_tokens': chunk.prompt_eval_count + chunk.eval_count
+                    'prompt_tokens':
+                    chunk.get('prompt_eval_count', -1),
+                    'completion_tokens':
+                    chunk.get('eval_count', -1),
+                    'total_tokens':
+                    chunk.get('prompt_eval_count', -1)
+                    + chunk.get('eval_count', -1)
                 }
                 yield chunk
