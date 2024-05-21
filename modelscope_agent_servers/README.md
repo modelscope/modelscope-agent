@@ -46,7 +46,7 @@ sh scripts/run_assistant_server.sh dashscope
 
 #### Chat
 
-We provide compatibility with parts of the OpenAI API `chat/completions`, especially function calls. The developers can use `OpenAI` SDK with local url base. Currently the supported backend includes `dashscope`, `openai` and `ollama`.
+We provide compatibility with parts of the OpenAI API `chat/completions`, especially function calls. The developers can use `OpenAI` SDK with specified local url. Currently the supported model server includes `dashscope`, `openai` and `ollama`.
 
 Here is an code snippet using `OpenAI` SDK with `dashscope` model server:
 
