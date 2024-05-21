@@ -3,7 +3,9 @@ from typing import Dict, Optional
 
 import json
 import requests
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.utils.utils import get_api_key
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -25,9 +27,6 @@ class ModelscopePipelineTool(BaseTool):
         super().__init__(cfg)
 
         self.api_url = self.cfg.get('url', self.url)
-        self.api_token = os.getenv('MODELSCOPE_API_TOKEN', None)
-        assert self.api_token is not None, 'api_token is not set'
-
         # local call should be used by only cfg
 
         self.use_local = not self.cfg.get('is_remote_tool', True)
@@ -66,7 +65,12 @@ class ModelscopePipelineTool(BaseTool):
 
     def _remote_call(self, params: dict, **kwargs):
         data = json.dumps(params)
-        headers = {'Authorization': f'Bearer {self.api_token}'}
+        try:
+            api_token = get_api_key(ApiNames.modelscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid MODELSCOPE_API_TOKEN!')
+
+        headers = {'Authorization': f'Bearer {api_token}'}
         retry_times = MAX_RETRY_TIMES
 
         while retry_times:

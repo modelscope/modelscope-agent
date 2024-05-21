@@ -1,5 +1,4 @@
-from modelscope_agent.tools import register_tool
-from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.tools.base import BaseTool, register_tool
 
 
 @register_tool('RenewInstance')

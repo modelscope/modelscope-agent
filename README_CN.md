@@ -22,6 +22,9 @@
 <a href="https://pepy.tech/project/modelscope-agent"><img src="https://pepy.tech/badge/modelscope-agent"></a>
 </p>
 
+<p align="center">
+<a href="https://trendshift.io/repositories/323" target="_blank"><img src="https://trendshift.io/api/badge/repositories/323" alt="modelscope%2Fmodelscope-agent | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</p>
 
 ## 简介
 
@@ -34,6 +37,9 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 
 ## 更新
+* 🔥May 17, 2024: 在Ray的基础上，支持了多人聊天室的应用，一键快速开发聊天室，参考[多人聊天应用](https://github.com/modelscope/modelscope-agent/tree/master/apps/multi_roles_chat_room)
+* 🔥May 14, 2024: 在`RolePlay` Agent中支持了基于OpenAI`GPT-4o`模型的图像输入。开发者可以通过指定`image_url`参数体验这一功能。
+* 🔥2024.5.10: 上线用户友好的Assistant API，同时也提供了基于独立容器，且安全可靠执行工具的Tools API。参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/)
 * 🔥2024.4.12: 基于[Ray](https://docs.ray.io/en/latest/)的multi-agent方案正式上线，参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/multi_agents_utils/README_CN.md)
 * 2024.3.15: Modelscope-Agent 和 Agentfabric（面向GPT的开源版本）正在[modelscope studio](https://modelscope.cn/studios/agent)的生产环境中运行。
 * 2024.2.10：在中国新年期间，我们将modelscope agent升级到v0.3版本，以便开发者通过编码更方便地定制各类agent，并使创建多agent演示变得更加容易。更多详情，您可以参考[#267](https://github.com/modelscope/modelscope-agent/pull/267) 和 [#293](https://github.com/modelscope/modelscope-agent/pull/293)。

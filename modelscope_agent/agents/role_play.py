@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
+from modelscope_agent.tools.base import BaseTool
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
 
@@ -107,6 +108,11 @@ SPECIAL_PREFIX_TEMPLATE_TOOL = {
     'en': '. you can use tools: [{tool_names}]',
 }
 
+SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT = {
+    'zh': '。你必须使用工具中的一个或多个：[{tool_names}]',
+    'en': '. you must use one or more tools: [{tool_names}]',
+}
+
 SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE = {
     'zh': '。请查看前面的知识库',
     'en': '. Please read the knowledge base at the beginning',
@@ -143,13 +149,30 @@ class RolePlay(Agent, AgentEnvMixin):
              user_request,
              history: Optional[List[Dict]] = None,
              ref_doc: str = None,
+             image_url: Optional[List[Union[str, Dict]]] = None,
              lang: str = 'zh',
              **kwargs):
 
-        self.tool_descs = '\n\n'.join(tool.function_plain_text
-                                      for tool in self.function_map.values())
-        self.tool_names = ','.join(tool.name
-                                   for tool in self.function_map.values())
+        chat_mode = kwargs.get('chat_mode', False)
+        tools = kwargs.get('tools', None)
+        tool_choice = kwargs.get('tool_choice', 'auto')
+
+        if tools is not None:
+            self.tool_descs = BaseTool.parser_function(tools)
+            tool_name_list = []
+            for tool in tools:
+                func_info = tool.get('function', {})
+                if func_info == {}:
+                    continue
+                if 'name' in func_info:
+                    tool_name_list.append(func_info['name'])
+            self.tool_names = ','.join(tool_name_list)
+        else:
+            self.tool_descs = '\n\n'.join(
+                tool.function_plain_text
+                for tool in self.function_map.values())
+            self.tool_names = ','.join(tool.name
+                                       for tool in self.function_map.values())
 
         self.system_prompt = ''
         self.query_prefix = ''
@@ -172,7 +195,7 @@ class RolePlay(Agent, AgentEnvMixin):
                 'knowledge'] = SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE[lang]
 
         # concat tools information
-        if self.function_map and not self.llm.support_function_calling():
+        if self.tool_descs and not self.llm.support_function_calling():
             self.system_prompt += TOOL_TEMPLATE[lang].format(
                 tool_descs=self.tool_descs, tool_names=self.tool_names)
             self.query_prefix_dict['tool'] = SPECIAL_PREFIX_TEMPLATE_TOOL[
@@ -215,13 +238,25 @@ class RolePlay(Agent, AgentEnvMixin):
             messages.extend(history)
 
         # concat the new messages
-        messages.append({
-            'role': 'user',
-            'content': self.query_prefix + user_request
-        })
+        if chat_mode and tool_choice == 'required':
+            required_prefix = SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT[
+                lang].format(tool_names=self.tool_names)
+            messages.append({
+                'role': 'user',
+                'content': required_prefix + user_request
+            })
+        else:
+            messages.append({
+                'role': 'user',
+                'content': self.query_prefix + user_request
+            })
+
+        if image_url:
+            self._parse_image_url(image_url, messages)
 
         planning_prompt = ''
-        if self.llm.support_raw_prompt():
+        if self.llm.support_raw_prompt() and hasattr(self.llm,
+                                                     'build_raw_prompt'):
             planning_prompt = self.llm.build_raw_prompt(messages)
 
         max_turn = 10
@@ -233,7 +268,7 @@ class RolePlay(Agent, AgentEnvMixin):
             if self.llm.support_function_calling():
                 output = self.llm.chat_with_functions(
                     messages=messages,
-                    stream=True,
+                    stream=self.stream,
                     functions=[
                         func.function for func in self.function_map.values()
                     ],
@@ -241,7 +276,7 @@ class RolePlay(Agent, AgentEnvMixin):
             else:
                 output = self.llm.chat(
                     prompt=planning_prompt,
-                    stream=True,
+                    stream=self.stream,
                     stop=['Observation:', 'Observation:\n'],
                     messages=messages,
                     **kwargs)
@@ -264,11 +299,17 @@ class RolePlay(Agent, AgentEnvMixin):
             else:
                 assert 'llm_result must be an instance of dict or str'
 
+            if chat_mode:
+                if use_tool and tool_choice != 'none':
+                    return f'Action: {action}\nAction Input: {action_input}\nResult: {output}'
+                else:
+                    return f'Result: {output}'
+
             # yield output
             if use_tool:
                 if self.llm.support_function_calling():
                     yield f'Action: {action}\nAction Input: {action_input}'
-                observation = self._call_tool(action, action_input)
+                observation = self._call_tool(action, action_input, **kwargs)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation

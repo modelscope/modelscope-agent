@@ -1,8 +1,14 @@
-from modelscope_agent.tools import QWenVL
+import os
+
+import pytest
+from modelscope_agent.tools.dashscope_tools.qwen_vl import QWenVL
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_qwen_vl():
     # 图片默认上传到ci_workspace,后端测试mork时需要在本地存图片到/tmp/ci_workspace，这里只需要图片basename。
     params = """{'image_file_path': 'luoli15.jpg', 'text': '描述这张照片'}"""
@@ -12,6 +18,7 @@ def test_qwen_vl():
     assert (isinstance(res, dict) and 'text' in res)
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_qwen_vl_role():
     role_template = '你扮演一个美术老师，用尽可能丰富的描述调用工具讲解描述各种图画。'
 

@@ -32,6 +32,7 @@ class OpenAi(BaseChatModel):
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
+        stop = self._update_stop_word(stop)
         logger.info(
             f'call openai api, model: {self.model}, messages: {str(messages)}, '
             f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
@@ -55,6 +56,7 @@ class OpenAi(BaseChatModel):
                         messages: List[Dict],
                         stop: Optional[List[str]] = None,
                         **kwargs) -> str:
+        stop = self._update_stop_word(stop)
         logger.info(
             f'call openai api, model: {self.model}, messages: {str(messages)}, '
             f'stop: {str(stop)}, stream: False, args: {str(kwargs)}')
@@ -132,6 +134,10 @@ class OpenAi(BaseChatModel):
                             functions: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
         if functions:
+            functions = [{
+                'type': 'function',
+                'function': item
+            } for item in functions]
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,

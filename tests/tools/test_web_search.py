@@ -1,7 +1,13 @@
+import os
+
 import json
-from modelscope_agent.tools import WebSearch
+import pytest
+from modelscope_agent.tools.web_search.web_search import WebSearch
+
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_web_search():
     input_params = """{'query': '2024元旦 哈尔滨 天气'}"""
     web_searcher = WebSearch()
