@@ -179,7 +179,7 @@ request = {
         {'content': '高德天气API申请', 'role': 'user'}
     ],
     'uuid_str': 'test',
-    'use_knowledge': True # whether to use knowledge
+    'use_knowledge': True, # whether to use knowledge
     "files": ["QA.pdf"]
 }
 
