@@ -134,8 +134,7 @@ with demo:
             back_btn = gr.Button('返回重新选择场景')
             with gr.Group('Models'):
                 select_model = gr.Dropdown(
-                    label=
-                    'The model that use as LLM core\nqwen-spark-plus-0403: https://xingchen.aliyun.com',
+                    label='The model that use as LLM core',
                     choices=list(['qwen-max', 'qwen-spark-plus-0403']),
                     value='qwen-spark-plus-0403')
             with gr.Group('Roles'):
