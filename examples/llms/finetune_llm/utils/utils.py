@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import json
 import matplotlib.pyplot as plt
@@ -12,7 +12,9 @@ from swift.utils.tb_utils import (TB_COLOR, TB_COLOR_SMOOTH,
                                   read_tensorboard_file, tensorboard_smoothing)
 from torch import dtype as Dtype
 from torch.nn import Module
-from transformers import GenerationConfig, TextStreamer
+from torch.nn.utils.rnn import pad_sequence
+from transformers import (GenerationConfig, PreTrainedTokenizerBase,
+                          TextStreamer)
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
 logger = get_logger()
@@ -253,3 +255,43 @@ def evaluate(refs, preds):
         'input_em': sum(input_em) / len(input_em),
         'rouge': rougel
     }
+
+
+def data_collate_fn(batch: List[Dict[str, Any]],
+                    tokenizer: PreTrainedTokenizerBase,
+                    padding_to: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Args:
+        batch(`List[Dict[str, Any]]`): The input data in batch
+        padding_to(`int`, optional): Whether padding the batch to a fixed length, if none, the batch
+            will be padded to the `longest`
+    """
+    assert tokenizer.pad_token_id is not None
+    input_ids = [torch.tensor(b['input_ids']) for b in batch]
+    labels = [torch.tensor(b['labels']) for b in batch]
+    attention_mask = [
+        torch.ones(len(input_ids[i]), dtype=torch.int64)
+        for i in range(len(input_ids))
+    ]
+
+    if padding_to is not None:
+        padding_len = padding_to - input_ids[0].shape[-1]
+        if padding_len > 0:
+            input_ids[0] = F.pad(input_ids[0], (0, padding_len), 'constant',
+                                 tokenizer.pad_token_id)
+            attention_mask[0] = F.pad(attention_mask[0], (0, padding_len),
+                                      'constant', 0)
+            labels[0] = F.pad(labels[0], (0, padding_len), 'constant', -100)
+
+    input_ids = pad_sequence(
+        input_ids, batch_first=True, padding_value=tokenizer.pad_token_id)
+    attention_mask = pad_sequence(
+        attention_mask, batch_first=True, padding_value=0)
+    labels = pad_sequence(labels, batch_first=True, padding_value=-100)
+
+    res = {
+        'input_ids': input_ids,
+        'attention_mask': attention_mask,
+        'labels': labels,
+    }
+    return res

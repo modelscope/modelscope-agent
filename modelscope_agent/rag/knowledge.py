@@ -4,9 +4,6 @@ from typing import Any, Dict, List, Optional, Union
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.base.base_selector import BaseSelector
-from llama_index.core.data_structs.data_structs import IndexDict
-from llama_index.core.indices.service_context import ServiceContext
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
@@ -20,6 +17,9 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.dashscope import DashScopeLLM
 from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
 from modelscope_agent.rag.llm import MSAgentLLM
+from modelscope_agent.utils.nltk_utils import install_nltk_data
+
+install_nltk_data()
 
 
 @dataclass

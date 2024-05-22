@@ -154,7 +154,7 @@ class RolePlay(Agent, AgentEnvMixin):
              lang: str = 'zh',
              **kwargs):
 
-        chat_mode = kwargs.get('chat_mode', False)
+        chat_mode = kwargs.pop('chat_mode', False)
         tools = kwargs.get('tools', None)
         tool_choice = kwargs.get('tool_choice', 'auto')
 

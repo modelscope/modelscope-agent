@@ -1,29 +1,83 @@
+from typing import List
+
 import json
-from langchain_community.embeddings import ModelScopeEmbeddings
-from modelscope_agent_servers.assistant_server.models import ChatResponse
+from modelscope_agent_servers.assistant_server.models import (
+    ChatCompletionResponse, ChatCompletionResponseChoice,
+    ChatCompletionResponseStreamChoice, ChatMessage, DeltaMessage)
 
 
-class EmbeddingSingleton:
-    _instance = None
-    _is_initialized = False  # 初始化标志
+def parse_tool_result(llm_result: str):
+    """
+    Args:
+        llm_result: the result from the model
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(EmbeddingSingleton,
-                                  cls).__new__(cls, *args, **kwargs)
-        return cls._instance
+    Returns: dict
 
-    def __init__(self):
-        if not self._is_initialized:
-            self._is_initialized = True
-            self.embedding = ModelScopeEmbeddings(
-                model_id='damo/nlp_gte_sentence-embedding_chinese-base')
-
-    def get_embedding(self):
-        return self.embedding
+    """
+    try:
+        import re
+        import json
+        result = re.search(r'Action: (.+)\nAction Input: (.+)', llm_result)
+        action = result.group(1)
+        action_input = json.loads(result.group(2))
+        return action, action_input
+    except Exception:
+        return None, None
 
 
-def tool_calling_wrapper(response: ChatResponse):
+def parse_messages(messages: List[ChatMessage]):
+    """
+    Args:
+        messages: the list of chat messages
+
+    Returns: Tuple[List[str], str]
+
+    """
+    history = []
+
+    for message in messages[:-1]:
+        history.append(message.dict())
+
+    image_url = None
+    content = messages[-1].content
+    if isinstance(content, str):
+        query = content
+    else:
+        query = content[0]['text']
+        image_url = [con['image_url'] for con in content[1:]]
+    return query, history, image_url
+
+
+def stream_choice_wrapper(response, model, request_id, llm):
+    for chunk in response:
+        choices = ChatCompletionResponseStreamChoice(
+            index=0,
+            delta=DeltaMessage(role='assistant', content=chunk),
+        )
+        chunk = ChatCompletionResponse(
+            id=request_id,
+            object='chat.completion.chunk',
+            choices=[choices],
+            model=model)
+        data = chunk.model_dump_json(exclude_unset=True)
+        yield f'data: {data}\n\n'
+
+    choices = ChatCompletionResponseStreamChoice(
+        index=0, delta=DeltaMessage(), finish_reason='stop')
+    chunk = ChatCompletionResponse(
+        id=request_id,
+        object='chat.completion.chunk',
+        choices=[choices],
+        model=model,
+        usage=llm.get_usage())
+    data = chunk.model_dump_json(exclude_unset=True)
+    yield f'data: {data}\n\n'
+    yield 'data: [DONE]\n\n'
+
+
+def choice_wrapper(response: str,
+                   tool_name: str = None,
+                   tool_inputs: dict = None):
     """
     output should be in the format of openai choices
     "choices": [
@@ -54,26 +108,23 @@ def tool_calling_wrapper(response: ChatResponse):
 
     """
     # TODO: only support one tool call for now
-    response_dict = response.dict()
-    choices = [{
+    choice = {
         'index': 0,
         'message': {
             'role': 'assistant',
-            'content': response_dict['response'],
+            'content': response,
         }
-    }]
-    if response_dict['tool'] is not None:
-        choices[0]['message']['tool_calls'] = [{
+    }
+    if tool_name is not None:
+        choice['message']['tool_calls'] = [{
             'type': 'function',
             'function': {
-                'name':
-                response_dict['tool']['name'],
-                'arguments':
-                json.dumps(
-                    response_dict['tool']['inputs'], ensure_ascii=False)
+                'name': tool_name,
+                'arguments': json.dumps(tool_inputs, ensure_ascii=False)
             }
         }]
-        choices[0]['finish_reason'] = 'tool_calls'
+        choice['finish_reason'] = 'tool_calls'
     else:
-        choices[0]['finish_reason'] = 'stop'
-    return choices
+        choice['finish_reason'] = 'stop'
+    choice = ChatCompletionResponseChoice(**choice)
+    return [choice]

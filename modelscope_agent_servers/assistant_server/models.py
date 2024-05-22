@@ -1,7 +1,20 @@
-from typing import Dict, List, Optional, Union
+import time
+from typing import Dict, List, Literal, Optional, Union
 
 from fastapi import File, UploadFile
 from pydantic import BaseModel, Field
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(..., title='Role name')
+    content: Union[str, List[Dict[str, str]]] = Field(...,
+                                                      title='Message content')
+    tool_calls: Optional[List[Dict]] = Field(None, title='Tool calls')
+
+
+class DeltaMessage(BaseModel):
+    role: str = Field(None, title='Role name')
+    content: str = Field(None, title='Message content')
 
 
 class Tool(BaseModel):
@@ -24,7 +37,7 @@ class AgentConfig(BaseModel):
     tools: List[Union[str, Tool]] = Field([], title='List of tools')
 
 
-class ChatRequest(BaseModel):
+class AgentRequest(BaseModel):
     messages: List[Dict[str, str]] = Field(..., title='List of messages')
     llm_config: LLMConfig = Field(..., title='LLM config')
     agent_config: AgentConfig = Field(None, title='Agent config')
@@ -55,7 +68,47 @@ class ToolResponse(BaseModel):
     inputs: Dict = Field({}, title='List of inputs')
 
 
-class ChatResponse(BaseModel):
+class AgentResponse(BaseModel):
     response: str = Field(..., title='Response message')
     require_actions: bool = Field(False, title='Whether require actions')
     tool: ToolResponse = Field(None, title='Tool response')
+
+
+class Usage(BaseModel):
+    prompt_tokens: int = Field(-1, title='Prompt tokens consumed')
+    completion_tokens: int = Field(-1, title='Completion tokens consumed')
+    total_tokens: int = Field(-1, title='Total tokens consumed')
+
+
+class ChatCompletionRequest(BaseModel):
+    model: str = Field(..., title='Model name')
+    messages: List[ChatMessage]
+    tools: Optional[List[Dict]] = Field(None, title='Tools config')
+    tool_choice: Optional[str] = Field('auto', title='tool usage choice')
+    stream: Optional[bool] = Field(False, title='Stream output')
+    user: str = Field('default_user', title='User name')
+
+
+class ChatCompletionResponseChoice(BaseModel):
+    index: int = Field(..., title='Index of the choice')
+    message: ChatMessage = Field(..., title='Chat message')
+    finish_reason: str = Field(..., title='Finish reason')
+
+
+class ChatCompletionResponseStreamChoice(BaseModel):
+    index: int = Field(..., title='Index of the choice')
+    delta: DeltaMessage = Field(..., title='Chat message')
+    finish_reason: str = Field(None, title='Finish reason')
+
+
+class ChatCompletionResponse(BaseModel):
+    id: str = Field(..., title='Unique id for chat completion')
+    choices: List[Union[ChatCompletionResponseChoice,
+                        ChatCompletionResponseStreamChoice]]
+    created: Optional[int] = Field(default_factory=lambda: int(time.time()))
+    model: str = Field(..., title='Model name')
+    system_fingerprint: str = Field(None, title='Cuurently request id')
+    object: Literal['chat.completion', 'chat.completion.chunk'] = Field(
+        'chat.completion', title='Object type')
+    usage: Optional[Usage] = Field(
+        default=Usage(), title='Token usage information')
