@@ -51,7 +51,7 @@ class Agent(ABC):
         self.function_map = {}
         if function_list:
             for function in function_list:
-                self._register_tool(function)
+                self._register_tool(function, **kwargs)
 
         self.storage_path = storage_path
         self.mem = None
@@ -98,7 +98,8 @@ class Agent(ABC):
 
     def _register_tool(self,
                        tool: Union[str, Dict],
-                       tenant_id: str = 'default'):
+                       tenant_id: str = 'default',
+                       **kwargs):
         """
         Instantiate the tool for the agent
 
@@ -138,7 +139,7 @@ class Agent(ABC):
                 if self.use_tool_api:
                     # get service proxy as tool instance, call method will call remote tool service
                     tool_instance = ToolServiceProxy(tool_name, tool_cfg,
-                                                     tenant_id)
+                                                     tenant_id, **kwargs)
                 else:
                     # instantiation tool class as tool instance
                     tool_instance = TOOL_REGISTRY[tool_name]['class'](tool_cfg)

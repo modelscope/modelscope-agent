@@ -460,7 +460,7 @@ def preview_chat(uuid_str, session_str):
                     append_files=file_paths,
                     uuid_str=uuid_str,
                     user_token=user_token,
-            ):
+                    dashscope_api_key=os.getenv('DASHSCOPE_API_KEY')):
                 logger.info('frame, {}'.format(
                     str(frame).replace('\n', '\\n')))
                 # important! do not change this

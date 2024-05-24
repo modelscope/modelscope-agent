@@ -291,7 +291,8 @@ class ToolServiceProxy(BaseTool):
                  tool_service_manager_url: str = os.getenv(
                      'TOOL_MANAGER_SERVICE_URL',
                      DEFAULT_TOOL_MANAGER_SERVICE_URL),
-                 user_token: str = None):
+                 user_token: str = None,
+                 **kwargs):
         """
         Tool service proxy class
         Args:
