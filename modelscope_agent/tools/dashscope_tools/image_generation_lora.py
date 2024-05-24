@@ -76,7 +76,7 @@ class TextToImageLoraTool(BaseTool):
                 origin_result = json.loads(response.content.decode('utf-8'))
 
                 self.final_result = origin_result
-                return self.get_wordart_result()
+                return self.get_image_lora_result()
             except Timeout:
                 continue
             except RequestException as e:
@@ -134,7 +134,7 @@ class TextToImageLoraTool(BaseTool):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def get_wordart_result(self):
+    def get_image_lora_result(self):
         try:
             result = self.get_result()
             while True:
@@ -152,7 +152,7 @@ class TextToImageLoraTool(BaseTool):
                     raise Exception(output.get('message', '任务失败，请重试'))
                 else:
                     # 继续轮询，等待一段时间后再次调用
-                    time.sleep(3)  # 等待 1 秒钟
+                    time.sleep(3)  # 等待 3 秒钟
                     result = self.get_result()
                     print(f'Running:{result}')
         except Exception as e:
