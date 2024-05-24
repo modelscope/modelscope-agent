@@ -40,6 +40,10 @@ else
   fi
 fi
 
+# get config from ENV
+CONFIG_DICT=${CONFIG_DICT}
+mkdir -p /app/assets
+echo "${CONFIG_DICT}" > /app/assets/config.json
 
 uvicorn modelscope_agent_servers.tool_node_server.api:app --host 0.0.0.0 --port "$1"
 #sleep 90m
