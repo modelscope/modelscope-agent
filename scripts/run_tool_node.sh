@@ -5,6 +5,9 @@ OSS_URL=${TOOL_OSS_URL}
 ZIP_FILE_NAME="new_tool.zip"
 DESTINATION_FOLDER="/app/modelscope_agent/tools/contrib/new_tool"
 
+mkdir -p /app/assets
+echo "{\"name\": \"${TOOL_NAME}\"}" > /app/assets/configuration.json
+
 # check if OSS_URL is empty, if empty them run a normal tool node server.
 if [ -z "${OSS_URL}" ]; then
   uvicorn modelscope_agent_servers.tool_node_server.api:app --host 0.0.0.0 --port "$1"
@@ -41,9 +44,7 @@ else
 fi
 
 # get config from ENV
-CONFIG_DICT=${CONFIG_DICT}
-mkdir -p /app/assets
-echo "${CONFIG_DICT}" > /app/assets/config.json
+TOOL_NAME=${TOOL_NAME}
 
 uvicorn modelscope_agent_servers.tool_node_server.api:app --host 0.0.0.0 --port "$1"
 #sleep 90m
