@@ -360,7 +360,7 @@ class ToolServiceProxy(BaseTool):
 
     def _check_tool_status(self):
         try:
-            response = requests.post(
+            response = requests.get(
                 f'{self.tool_service_manager_url}/check_tool_service_status',
                 params={
                     'tool_name': self.tool_name,
