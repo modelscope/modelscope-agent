@@ -28,6 +28,13 @@ else
 
   # unzip the downloaded file
   unzip -o "${ZIP_FILE_NAME}" -d "${DESTINATION_FOLDER}"
+  for subfolder in "${DESTINATION_FOLDER}"/*; do
+    if [ -d "$subfolder" ]; then # Check if it's a directory
+        find "$subfolder" -type f -exec mv {} "${DESTINATION_FOLDER}"/ \;
+        # Optionally, remove the now-empty subdirectory
+        rmdir "$subfolder"
+    fi
+done
   echo "from .new_tool import *" >> /app/modelscope_agent/tools/contrib/__init__.py
 
   # check if extraction is successful
