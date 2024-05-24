@@ -1,3 +1,4 @@
+import os
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union
@@ -395,9 +396,11 @@ class ToolServiceProxy(BaseTool):
     def call(self, params: str, **kwargs):
         token = kwargs.get('token', '')
         from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
+        service_token = os.getenv('TOOL_MANAGER_AUTH', '')
         headers = {
             'Content-Type': 'application/json',
-            MODELSCOPE_AGENT_TOKEN_HEADER_NAME: token
+            MODELSCOPE_AGENT_TOKEN_HEADER_NAME: token,
+            'authorization': service_token
         }
         try:
             # visit tool node to call tool
