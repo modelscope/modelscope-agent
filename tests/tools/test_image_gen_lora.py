@@ -41,7 +41,3 @@ def test_image_gen_lora_role():
         text += chunk
     print(text)
     assert isinstance(text, str)
-
-
-# test_image_gen_lora()
-test_image_gen_lora_role()
