@@ -7,8 +7,9 @@ _import_structure = {
     'code_interpreter': ['CodeInterpreter'],
     'contrib': ['AliyunRenewInstanceTool'],
     'dashscope_tools': [
-        'ImageEnhancement', 'TextToImageTool', 'TextToImageLoraTool', 'ParaformerAsrTool', 'QWenVL',
-        'SambertTtsTool', 'StyleRepaint', 'WordArtTexture'
+        'ImageEnhancement', 'TextToImageTool', 'TextToImageLoraTool',
+        'ParaformerAsrTool', 'QWenVL', 'SambertTtsTool', 'StyleRepaint',
+        'WordArtTexture'
     ],
     'doc_parser': ['DocParser'],
     'hf_tool': ['HFTool'],
