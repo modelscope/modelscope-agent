@@ -18,6 +18,8 @@ register_map = {
     'WebSearch',
     'image_gen':
     'TextToImageTool',
+    'image_gen_lora':
+    'TextToImageLoraTool',
     'image_enhancement':
     'ImageEnhancement',
     'qwen_vl':
