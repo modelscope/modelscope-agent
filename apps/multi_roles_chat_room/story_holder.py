@@ -94,6 +94,11 @@ def get_avatar_by_name(role_name):
         '顾易': 'guyi.png',
         '郑梓妍': 'zhengziyan.png',
         '李云思': 'liyunsi.png',
+        '林婉儿': 'linwaner.jpeg',
+        '范闲': 'fanxian.jpg',
+        '战豆豆': 'zhandoudou.jpg',
+        '海棠朵朵': 'haitangduoduo.jpg',
+        '司理理': 'silili.jpeg',
         'others': 'default_girl.png'
     }
     if role_name not in file_map.keys():
