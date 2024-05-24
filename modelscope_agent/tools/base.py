@@ -6,7 +6,8 @@ from typing import Dict, List, Optional, Union
 import json
 import json5
 import requests
-from modelscope_agent.constants import DEFAULT_TOOL_MANAGER_SERVICE_URL
+from modelscope_agent.constants import (DEFAULT_TOOL_MANAGER_SERVICE_URL,
+                                        MODELSCOPE_AGENT_TOKEN_HEADER_NAME)
 from modelscope_agent.utils.utils import has_chinese_chars
 
 # ast?
@@ -283,12 +284,14 @@ class BaseTool(ABC):
 
 class ToolServiceProxy(BaseTool):
 
-    def __init__(
-            self,
-            tool_name: str,
-            tool_cfg: dict,
-            tenant_id: str = 'default',
-            tool_service_manager_url: str = DEFAULT_TOOL_MANAGER_SERVICE_URL):
+    def __init__(self,
+                 tool_name: str,
+                 tool_cfg: dict,
+                 tenant_id: str = 'default',
+                 tool_service_manager_url: str = os.getenv(
+                     'TOOL_MANAGER_SERVICE_URL',
+                     DEFAULT_TOOL_MANAGER_SERVICE_URL),
+                 user_token: str = None):
         """
         Tool service proxy class
         Args:
@@ -296,8 +299,11 @@ class ToolServiceProxy(BaseTool):
             tool_cfg: the configuration of tool
             tenant_id: the tenant id that the tool belongs to, defalut to 'default'
             tool_service_manager_url: the url of tool service manager, default to 'http://localhost:31511'
+            user_token: used to pass to the tool service manager to authenticate the user
         """
+
         self.tool_service_manager_url = tool_service_manager_url
+        self.user_token = user_token
         self.tool_name = tool_name
         self.tool_cfg = tool_cfg
         self.tenant_id = tenant_id
@@ -336,13 +342,20 @@ class ToolServiceProxy(BaseTool):
 
     def _register_tool(self):
         try:
+            service_token = os.getenv('TOOL_MANAGER_AUTH', '')
+            headers = {
+                'Content-Type': 'application/json',
+                MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
+                'authorization': service_token
+            }
             response = requests.post(
                 f'{self.tool_service_manager_url}/create_tool_service',
                 json={
                     'tool_name': self.tool_name,
                     'tenant_id': self.tenant_id,
                     'tool_cfg': self.tool_cfg
-                })
+                },
+                headers=headers)
             response.raise_for_status()
             result = ToolServiceProxy.parse_service_response(response)
             if 'status' not in result:
@@ -360,12 +373,19 @@ class ToolServiceProxy(BaseTool):
 
     def _check_tool_status(self):
         try:
+            service_token = os.getenv('TOOL_MANAGER_AUTH', '')
+            headers = {
+                'Content-Type': 'application/json',
+                MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
+                'authorization': service_token
+            }
             response = requests.get(
                 f'{self.tool_service_manager_url}/check_tool_service_status',
                 params={
                     'tool_name': self.tool_name,
                     'tenant_id': self.tenant_id,
-                })
+                },
+                headers=headers)
             response.raise_for_status()
             result = ToolServiceProxy.parse_service_response(response)
             if 'status' not in result:
@@ -380,12 +400,19 @@ class ToolServiceProxy(BaseTool):
 
     def _get_tool_info(self):
         try:
+            service_token = os.getenv('TOOL_MANAGER_AUTH', '')
+            headers = {
+                'Content-Type': 'application/json',
+                MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
+                'authorization': service_token
+            }
             response = requests.post(
                 f'{self.tool_service_manager_url}/tool_info',
                 json={
                     'tool_name': self.tool_name,
                     'tenant_id': self.tenant_id
-                })
+                },
+                headers=headers)
             response.raise_for_status()
             return ToolServiceProxy.parse_service_response(response)
         except Exception as e:
@@ -394,12 +421,12 @@ class ToolServiceProxy(BaseTool):
             )
 
     def call(self, params: str, **kwargs):
-        token = kwargs.get('token', '')
-        from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
+        # ms_token
+        self.user_token = kwargs.get('user_token', self.user_token)
         service_token = os.getenv('TOOL_MANAGER_AUTH', '')
         headers = {
             'Content-Type': 'application/json',
-            MODELSCOPE_AGENT_TOKEN_HEADER_NAME: token,
+            MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
             'authorization': service_token
         }
         try:

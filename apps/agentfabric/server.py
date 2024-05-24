@@ -24,6 +24,7 @@ from publish_util import (pop_user_info_from_config, prepare_agent_zip,
 from server_logging import logger, request_id_var
 from server_utils import (IMPORT_ZIP_TEMP_DIR, STATIC_FOLDER, SessionManager,
                           unzip_with_folder)
+from ssrf_protect import AntiSSRF
 
 app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 
@@ -37,14 +38,7 @@ def get_auth_token():
     return None
 
 
-@app.before_request
-def set_request_id():
-    request_id = request.headers.get('X-Modelscope-Request-Id', 'unknown')
-    request_id_var.set(request_id)
-
-
-@app.before_request
-def before_request_func():
+def get_modelscope_agent_token():
     token = None
     # Check if authorization header is present
     if MODELSCOPE_AGENT_TOKEN_HEADER_NAME in request.headers:
@@ -56,8 +50,13 @@ def before_request_func():
         else:
             # Extract the token part from auth_header
             token = auth_header
+    return token
 
-    g.token = token
+
+@app.before_request
+def set_request_id():
+    request_id = request.headers.get('X-Modelscope-Request-Id', 'unknown')
+    request_id_var.set(request_id)
 
 
 def with_request_id(func):
@@ -237,7 +236,9 @@ def import_builder(uuid_str):
     else:
         url = request.get_json().get('url')
         # 发起请求获取数据
+        AntiSSRF.startSSRFProtect()
         response = requests.get(url)
+        AntiSSRF.stopSSRFProtect()
 
         file_name = 'archive.zip'
         file_path = os.path.join(IMPORT_ZIP_TEMP_DIR, uuid_str, file_name)
@@ -392,8 +393,8 @@ def preview_publish_get_zip(uuid_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['POST'])
 @with_request_id
 def preview_chat(uuid_str, session_str):
-    token = g.get('token', None)
-    if not token:
+    user_token = get_modelscope_agent_token()
+    if not user_token:
         # If token is not found, return 401 Unauthorized response
         return jsonify({'message': 'Token is missing!'}), 401
 
@@ -419,7 +420,7 @@ def preview_chat(uuid_str, session_str):
             start_time = time.time()
             seed = random.randint(0, 1000000000)
             user_agent, user_memory = app.session_manager.get_user_bot(
-                uuid_str, session_str)
+                uuid_str, session_str, user_token=user_token)
             user_agent.seed = seed
             logger.info(
                 f'get method: time consumed {time.time() - start_time}')
@@ -458,7 +459,7 @@ def preview_chat(uuid_str, session_str):
                     ref_doc=ref_doc,
                     append_files=file_paths,
                     uuid_str=uuid_str,
-                    token=token,
+                    user_token=user_token,
             ):
                 logger.info('frame, {}'.format(
                     str(frame).replace('\n', '\\n')))

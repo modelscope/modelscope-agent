@@ -137,7 +137,8 @@ class SessionManager:
             self,
             builder_id,
             session,
-            renew=False) -> Tuple[RolePlay, MemoryWithRetrievalKnowledge]:
+            renew=False,
+            user_token=None) -> Tuple[RolePlay, MemoryWithRetrievalKnowledge]:
         unique_id = builder_id + '_' + session
         user_agent = self.user_bots[unique_id]
         if renew or user_agent is None:
@@ -159,7 +160,8 @@ class SessionManager:
                             'use', False):
                     raise ValueError('Using code interpreter.')
 
-            user_agent = init_user_chatbot_agent(builder_id, session)
+            user_agent = init_user_chatbot_agent(
+                builder_id, session, user_token=user_token)
             self.user_bots[unique_id] = user_agent
         return user_agent
 

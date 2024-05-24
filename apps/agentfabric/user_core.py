@@ -12,7 +12,10 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 
 # init user chatbot_agent
-def init_user_chatbot_agent(uuid_str='', session='default', use_tool_api=True):
+def init_user_chatbot_agent(uuid_str='',
+                            session='default',
+                            use_tool_api=True,
+                            user_token=None):
     builder_cfg, model_cfg, tool_cfg, _, plugin_cfg, _ = parse_configuration(
         uuid_str)
     # set top_p and stop_words for role play
@@ -45,6 +48,7 @@ def init_user_chatbot_agent(uuid_str='', session='default', use_tool_api=True):
         instruction=instruction,
         uuid_str=uuid_str,
         use_tool_api=use_tool_api,
+        user_token=user_token,
     )
 
     # build memory
