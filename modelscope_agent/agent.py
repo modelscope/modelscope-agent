@@ -3,7 +3,8 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.tools.base import TOOL_REGISTRY, ToolServiceProxy
+from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
+                                         ToolServiceProxy)
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
 
@@ -121,6 +122,12 @@ class Agent(ABC):
             self.function_list.append(tool)
 
             tool_class_with_tenant = TOOL_REGISTRY[tool_name]
+
+            # adapt the TOOL_REGISTRY[tool_name] to origin tool class
+
+            if isinstance(tool_class_with_tenant, BaseTool):
+                tool_class_with_tenant = {'class': TOOL_REGISTRY[tool_name]}
+                TOOL_REGISTRY[tool_name] = tool_class_with_tenant
 
             # check if the tenant_id of tool instance or tool service are exists
             # TODO: change from use_tool_api=True to False, to get the tenant_id of the tool changes to

@@ -38,21 +38,60 @@ cd modelscope-agent
 # start the assistant server
 sh scripts/run_assistant_server.sh
 
+# start the assistant server with specified backend
+sh scripts/run_assistant_server.sh dashscope
 ```
 
 ### Use case
 
 #### Chat
 
+We provide compatibility with parts of the OpenAI API `chat/completions`, especially function calls. The developers can use `OpenAI` SDK with specified local url. Currently the supported model server includes `dashscope`, `openai` and `ollama`.
 
-To interact with the chat API, you should construct a object like `ChatRequest` on the client side, and then use the requests library to send it as the request body.
+Here is an code snippet using `OpenAI` SDK with `dashscope` model server:
 
-#### function calling
-An example code snippet is as follows:
+```Python
+api_base = "http://localhost:31512/v1/"
+model = 'qwen-max'
+
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "amap_weather",
+        "description": "amap weather tool",
+        "parameters": [{
+            "name": "location",
+            "type": "string",
+            "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
+            "required": True
+        }]
+    }
+}]
+
+tool_choice = 'auto'
+
+client = OpenAI(
+    api_key="YOUR_DASHSCOPE_API_KEY",
+    base_url=api_base,
+)
+chat_completion = client.chat.completions.create(
+    messages=[{
+        "role": "user",
+        "content": "海淀区天气是什么？"
+    }],
+    model=model,
+    tools=tools,
+    tool_choice=tool_choice
+)
+
+```
+
+You can also use `curl` to request this API.
 
 ```Shell
 curl -X POST 'http://localhost:31512/v1/chat/completions' \
 -H 'Content-Type: application/json' \
+-H "Authorization: Bearer $DASHSCOPE_API_KEY" \
 -d '{
     "tools": [{
         "type": "function",
@@ -68,16 +107,10 @@ curl -X POST 'http://localhost:31512/v1/chat/completions' \
         }
     }],
     "tool_choice": "auto",
-    "llm_config": {
-        "model": "qwen-max",
-        "model_server": "dashscope",
-        "api_key": "YOUR DASHSCOPE API KEY"
-    },
+    "model": "qwen-max",
     "messages": [
         {"content": "海淀区天气", "role": "user"}
-    ],
-    "uuid_str": "test",
-    "stream": false
+    ]
 }'
 
 ```
@@ -85,90 +118,39 @@ curl -X POST 'http://localhost:31512/v1/chat/completions' \
 With above examples, the output should be like this:
 ```Python
 {
-    "request_id":"xxxxx",
-    "message":"",
-    "output": None,
-    "choices": [{
+    "request_id":"xxx",
+    "id":"xxx",
+    "choices":[{
         "index":0,
-        "message": {
-            "role": "assistant",
-            "content": "Action: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
-            "tool_calls": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "amap_weather",
-                        "arguments": "{\"location\":\"海淀区\"}"
-                }
-            }]
+        "message":{
+            "role":"assistant",
+            "content":"Action: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
+            "tool_calls":[{
+                    "type":"function",
+                    "function":{
+                        "name":"amap_weather",
+                        "arguments":"{\"location\": \"海淀区\"}"
+                    }
+                }]
         },
-        "finish_reason": "tool_calls"
-    }]
-}
-```
-
-#### knowledge retrieval
-
-To enable knowledge retrieval, you'll need to include use_knowledge and files in your configuration settings.
-
-- `use_knowledge`: Specifies whether knowledge retrieval should be activated.
-- `files`: the file(s) you wish to use during the conversation. By default, all previously uploaded files will be used.
-
-```Shell
-curl -X POST 'http://localhost:31512/v1/chat/completions' \
--H 'Content-Type: application/json' \
--d '{
-    "tools": [
-    {
-        "type": "function",
-        "function": {
-            "name": "amap_weather",
-            "description": "amap weather tool",
-            "parameters": [{
-                "name": "location",
-                "type": "string",
-                "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
-                "required": true
-            }]
-        }
-    }],
-    "llm_config": {
-        "model": "qwen-max",
-        "model_server": "dashscope",
-        "api_key": "YOUR DASHSCOPE API KEY"
-    },
-    "messages": [
-        {"content": "高德天气api申请", "role": "user"}
-    ],
-    "uuid_str": "test",
-    "stream": false,
-    "use_knowledge": true,
-    "files": ["QA.pdf"]
-}'
-```
-
-With above examples, the output should be like this:
-```Python
-{
-    "request_id":"2bdb05fb-48b6-4ba2-9a38-7c9eb7c5c88e",
-    "message":"",
-    "output": None,
-    "choices": [{
-        "index":0,
-        "message": {
-            "role": "assistant",
-            "content": "Information based on knowledge retrieval.",
-        }
-        "finish_reason": "stop"
-
-    }]
-}
+        "finish_reason":"tool_calls"
+        }],
+        "created":xxx,
+        "model":"qwen-max",
+        "object":"chat.completion",
+        "usage":{"prompt_tokens":267,"completion_tokens":15,"total_tokens":282}}
 ```
 
 #### Assistant
 
-Like `v1/chat/completions` API, you should construct a `ChatRequest` object when use `v1/assistants/lite`. Here is an example using python `requests` library.
+To interact with the chat API, you should construct a object like `AgentRequest` on the client side, and then use the requests library to send it as the request body.
 
+#### knowledge retrieval
+
+In `assistants/lite` API, to enable knowledge retrieval, you'll need to include use_knowledge and files in your configuration settings.
+
+- `use_knowledge`: Specifies whether knowledge retrieval should be activated.
+- `files`: the file(s) you wish to use during the conversation. By default, all previously uploaded files will be used.
 
 ```Python
 import os
@@ -194,10 +176,11 @@ request = {
     'agent_config': agent_cfg,
     'llm_config': llm_cfg,
     'messages': [
-        {'content': '请为我介绍一下modelscope', 'role': 'user'}
+        {'content': '高德天气API申请', 'role': 'user'}
     ],
     'uuid_str': 'test',
-    'use_knowledge': True # whether to use knowledge
+    'use_knowledge': True, # whether to use knowledge
+    "files": ["QA.pdf"]
 }
 
 response = requests.post(url, json=request)
@@ -211,7 +194,7 @@ request = {
     'agent_config': agent_cfg,
     'llm_config': llm_cfg,
     'messages': [
-        {'content': '请为我介绍一下modelscope', 'role': 'user'}
+        {'content': '高德天气API申请', 'role': 'user'}
     ],
     'uuid_str': 'test',
     'stream': True, # whether to use stream

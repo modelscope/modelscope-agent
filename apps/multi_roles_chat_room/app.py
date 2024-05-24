@@ -135,8 +135,8 @@ with demo:
             with gr.Group('Models'):
                 select_model = gr.Dropdown(
                     label='The model that use as LLM core',
-                    choices=list(['qwen-max', 'qwen-spark-plus']),
-                    value='qwen-spark-plus')
+                    choices=list(['qwen-max', 'qwen-spark-plus-0403']),
+                    value='qwen-spark-plus-0403')
             with gr.Group('Roles'):
                 # new_user_name = gr.Textbox(
                 #     label='Role name', placeholder='input role name ...')

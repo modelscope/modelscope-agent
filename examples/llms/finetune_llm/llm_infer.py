@@ -7,7 +7,7 @@ from typing import Optional
 import json
 import torch
 from swift import Swift, get_logger
-from swift.utils import parse_args, print_model_info, seed_everything
+from swift.utils import get_model_info, parse_args, seed_everything
 from tqdm import tqdm
 from transformers import BitsAndBytesConfig, GenerationConfig, TextStreamer
 from utils import (DEFAULT_PROMPT, MODEL_MAPPING, evaluate,
@@ -87,7 +87,7 @@ def llm_infer(args: InferArguments) -> None:
         model = Swift.from_pretrained(model, args.ckpt_dir)
 
     show_layers(model)
-    print_model_info(model)
+    get_model_info(model)
 
     # ### Inference
 
