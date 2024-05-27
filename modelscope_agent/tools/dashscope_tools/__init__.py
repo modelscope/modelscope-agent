@@ -5,7 +5,7 @@ from modelscope_agent.utils import _LazyModule
 _import_structure = {
     'image_enhancement': ['ImageEnhancement'],
     'image_generation': ['TextToImageTool'],
-    'image_generation_lora': ['TextToImageLoraTool'],
+    'image_generation_lite': ['TextToImageLiteTool'],
     'qwen_vl': ['QWenVL'],
     'style_repaint': ['StyleRepaint'],
     'wordart_tool': ['WordArtTexture'],
