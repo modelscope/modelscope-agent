@@ -5,7 +5,6 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          ToolServiceProxy)
-from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
 
 
@@ -193,11 +192,6 @@ class Agent(ABC):
                          messages: List[Dict]) -> List[Dict]:
 
         assert len(messages) > 0
-        if self.llm.model not in ['gpt-4o', 'gpt-4-turbo']:
-            logger.warning(
-                f'currently only gp4-4o and gpt-4-turbo support image_url, but the model is {self.llm.model}'
-            )
-            return messages
 
         if isinstance(image_url[0], str):
             image_url = [{'url': url} for url in image_url]
