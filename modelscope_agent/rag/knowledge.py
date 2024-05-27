@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Type
 
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
@@ -45,8 +45,12 @@ class BaseKnowledge(BaseLlamaPack):
                  knowledge_source: Union[Dict, List, str],
                  cache_dir: str = './run',
                  llm: Optional[DashScopeLLM] = None,
+                 retriever: Optional[Type[BaseRetriever]] = None,
+                 loaders: Dict[str, Type[BaseReader]] = {},
+                 transformations: List[Type[TransformComponent]] = [],
+                 post_processors: List[Type[BaseNodePostprocessor]] = [],
                  **kwargs) -> None:
-        extra_readers = self.get_extra_readers()
+        extra_readers = self.get_extra_readers(loaders)
         documents = self.read(knowledge_source, extra_readers)
 
         if not documents:
@@ -63,35 +67,52 @@ class BaseKnowledge(BaseLlamaPack):
             llm = MSAgentLLM(llm)
 
         # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
-        transformations = self.get_transformations()
+        transformations = self.get_transformations(transformations)
         root_retriever = self.get_root_retriever(
             documents,
             cache_dir,
             transformations=transformations,
             llm=llm,
+            retriever=retriever,
             **kwargs)
-        postprocessors = self.get_postprocessors(**kwargs)
-        self.query_engine = self.get_query_engine(root_retriever,
+        postprocessors = self.get_postprocessors(post_processors, **kwargs)
+        self.query_engine = self.get_query_engine(root_retriever, llm,
                                                   postprocessors, **kwargs)
 
     def get_query_engine(self, root_retriever: BaseRetriever, llm: LLM,
                          postprocessors, **kwargs) -> BaseQueryEngine:
-        RetrieverQueryEngine.from_args(
+        return RetrieverQueryEngine.from_args(
             root_retriever, llm=llm, node_postprocessors=postprocessors)
 
-    def get_transformations(self,
+    def get_transformations(self, transformations: List[Type[TransformComponent]],
                             **kwargs) -> Optional[List[TransformComponent]]:
         # rechunk，筛选文档内容等
-        return None
+        res = []
+        for t in transformations:
+            try:
+                t.from_defaults()
+                res.append(res)
+            except Exception as e:
+                print(f'node parser {t} cannot be used and it will be ignored. Detail: {e}')
+        return res
 
-    def get_postprocessors(self,
-                           **kwargs) -> Optional[List[BaseNodePostprocessor]]:
+    def get_postprocessors(self, post_processors: List[Type[BaseNodePostprocessor]],
+                           **kwargs) -> Optional[List[Type[BaseNodePostprocessor]]]:
         # 获取召回内容后处理器
-        return None
+        res = []
+        for post_processor_cls in post_processors:
+            try:
+                post_processor = post_processor_cls()
+                res.append(post_processor)
+            except Exception as e:
+                print(f'post_processor_cls {post_processor_cls} cannot be used and it will be ignored. Detail: {e}')
+
+        return res
 
     def get_root_retriever(self, documents: List[Document], cache_dir: str,
                            transformations: Optional[List[TransformComponent]],
-                           llm: LLM, **kwargs) -> BaseRetriever:
+                           llm: LLM, retriever: Optional[Type[BaseRetriever]] = None, **kwargs) -> BaseRetriever:
+
         # indexing
         # 可配置chunk_size等
         Settings.chunk_size = 512
@@ -112,7 +133,6 @@ class BaseKnowledge(BaseLlamaPack):
                     f'Can not load index from cache_dir {cache_dir}, detail: {e}'
                 )
         if documents is not None:
-            print(f'documents: {documents}')
             if not index:
                 index = VectorStoreIndex.from_documents(
                     documents=documents,
@@ -129,24 +149,38 @@ class BaseKnowledge(BaseLlamaPack):
             index.storage_context.persist(persist_dir=cache_dir)
 
         # init retriever tool
+        if retriever:
+            try:
+                return retriever.from_defaults(index)
+            except Exception as e:
+                print(f'Retriever {retriever} cannot be used, using default retriever instead. Detail: {e}')
+
         return index.as_retriever()
 
-    def get_extra_readers(self) -> Dict[str, BaseReader]:
+    def get_extra_readers(self, loaders: Dict[str, Type[BaseReader]]) -> Dict[str, BaseReader]:
+        extra_readers = {}
+        for file_type, loader_cls in loaders.items():
+            try:
+                loader = loader_cls()
+                extra_readers[file_type] = loader
+            except Exception as e:
+                print(f'Using {loader_cls} failed. Can not read {file_type} file. Detail: {e}')
+        
         # lazy import
         try:
             from llama_index.readers.file import (PandasCSVReader,
                                                   HTMLTagReader, FlatReader)
         except ImportError:
             print(
-                '`llama-index-readers-file` package not found. Can not read .pd .html file.'
+                '`llama-index-readers-file` package not found. Can not read .pd .html .txt file.'
             )
-            return {}
+            return extra_readers
 
         return {
             '.pb': PandasCSVReader(),
             '.html': HTMLTagReader(),
             '.txt': FlatReader()
-        }
+        }.update(extra_readers)
 
     def read(
         self,
@@ -236,10 +270,19 @@ if __name__ == '__main__':
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
     llm = get_chat_model(**llm_config)
 
-    knowledge = BaseKnowledge('./data/sly.txt', llm=llm)
+    from llama_index.retrievers.bm25 import BM25Retriever
+    from llama_index.readers.json import JSONReader
+    #from llama_index.postprocessor.cohere_rerank import CohereRerank
+    from llama_index.legacy.node_parser.file.markdown import MarkdownNodeParser
+    knowledge = BaseKnowledge('./data', llm=llm, retriever=BM25Retriever, loaders={'.json': JSONReader}, post_processors=[], transformations=[MarkdownNodeParser])
 
-    print(knowledge.run('高德天气API申请', files=['常见QA.pdf']))
+    import time
+    s = time.time()
+    print("start time", s)
+    print(knowledge.run('高德天气API申请'))
+    e = time.time()
+    print("end time", e)
     print('-----------------------')
 
-    knowledge.add_file('./data2/常见QA.pdf')
+    knowledge.add_files('./data2/常见QA.pdf')
     print(knowledge.run('高德天气API申请', files=['常见QA.pdf']))
