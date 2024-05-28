@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union, Type
+from typing import Any, Dict, List, Optional, Type, Union
 
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
@@ -84,7 +84,8 @@ class BaseKnowledge(BaseLlamaPack):
         return RetrieverQueryEngine.from_args(
             root_retriever, llm=llm, node_postprocessors=postprocessors)
 
-    def get_transformations(self, transformations: List[Type[TransformComponent]],
+    def get_transformations(self,
+                            transformations: List[Type[TransformComponent]],
                             **kwargs) -> Optional[List[TransformComponent]]:
         # rechunk，筛选文档内容等
         res = []
@@ -93,11 +94,14 @@ class BaseKnowledge(BaseLlamaPack):
                 t.from_defaults()
                 res.append(res)
             except Exception as e:
-                print(f'node parser {t} cannot be used and it will be ignored. Detail: {e}')
+                print(
+                    f'node parser {t} cannot be used and it will be ignored. Detail: {e}'
+                )
         return res
 
-    def get_postprocessors(self, post_processors: List[Type[BaseNodePostprocessor]],
-                           **kwargs) -> Optional[List[Type[BaseNodePostprocessor]]]:
+    def get_postprocessors(
+            self, post_processors: List[Type[BaseNodePostprocessor]],
+            **kwargs) -> Optional[List[Type[BaseNodePostprocessor]]]:
         # 获取召回内容后处理器
         res = []
         for post_processor_cls in post_processors:
@@ -105,13 +109,19 @@ class BaseKnowledge(BaseLlamaPack):
                 post_processor = post_processor_cls()
                 res.append(post_processor)
             except Exception as e:
-                print(f'post_processor_cls {post_processor_cls} cannot be used and it will be ignored. Detail: {e}')
+                print(
+                    f'post_processor_cls {post_processor_cls} cannot be used and it will be ignored. Detail: {e}'
+                )
 
         return res
 
-    def get_root_retriever(self, documents: List[Document], cache_dir: str,
+    def get_root_retriever(self,
+                           documents: List[Document],
+                           cache_dir: str,
                            transformations: Optional[List[TransformComponent]],
-                           llm: LLM, retriever: Optional[Type[BaseRetriever]] = None, **kwargs) -> BaseRetriever:
+                           llm: LLM,
+                           retriever: Optional[Type[BaseRetriever]] = None,
+                           **kwargs) -> BaseRetriever:
 
         # indexing
         # 可配置chunk_size等
@@ -153,19 +163,25 @@ class BaseKnowledge(BaseLlamaPack):
             try:
                 return retriever.from_defaults(index)
             except Exception as e:
-                print(f'Retriever {retriever} cannot be used, using default retriever instead. Detail: {e}')
+                print(
+                    f'Retriever {retriever} cannot be used, using default retriever instead. Detail: {e}'
+                )
 
         return index.as_retriever()
 
-    def get_extra_readers(self, loaders: Dict[str, Type[BaseReader]]) -> Dict[str, BaseReader]:
+    def get_extra_readers(
+            self, loaders: Dict[str,
+                                Type[BaseReader]]) -> Dict[str, BaseReader]:
         extra_readers = {}
         for file_type, loader_cls in loaders.items():
             try:
                 loader = loader_cls()
                 extra_readers[file_type] = loader
             except Exception as e:
-                print(f'Using {loader_cls} failed. Can not read {file_type} file. Detail: {e}')
-        
+                print(
+                    f'Using {loader_cls} failed. Can not read {file_type} file. Detail: {e}'
+                )
+
         # lazy import
         try:
             from llama_index.readers.file import (PandasCSVReader,
@@ -182,23 +198,13 @@ class BaseKnowledge(BaseLlamaPack):
             '.txt': FlatReader()
         }.update(extra_readers)
 
-    def read(
-        self,
-        knowledge_source: Union[str,
-                                List[str]],  # file_dir or list of file_path
-        extra_readers: Dict[
-            str,
-            BaseReader],  # extra_readers get from self.get_extra_readers()
-        exclude_hidden:
-        bool = True,  # Whether to exclude hidden files (dotfiles).
-        recursive:
-        bool = False,  # Whether to recursively search in subdirectories.
-        fs: Optional[
-            fsspec.
-            AbstractFileSystem] = None,  # File system to use. Defaults to using the local file system. Can be changed to use any remote file system exposed via the fsspec interface.
-        **kwargs
-    ) -> List[Document]:
-
+    def read(self,
+             knowledge_source: Union[str, List[str]],
+             extra_readers: Dict[str, BaseReader],
+             exclude_hidden: bool = True,
+             recursive: bool = False,
+             fs: Optional[fsspec.AbstractFileSystem] = None,
+             **kwargs) -> List[Document]:
         try:
             if isinstance(knowledge_source, str):
                 if os.path.isdir(knowledge_source):
@@ -272,16 +278,21 @@ if __name__ == '__main__':
 
     from llama_index.retrievers.bm25 import BM25Retriever
     from llama_index.readers.json import JSONReader
-    #from llama_index.postprocessor.cohere_rerank import CohereRerank
     from llama_index.legacy.node_parser.file.markdown import MarkdownNodeParser
-    knowledge = BaseKnowledge('./data', llm=llm, retriever=BM25Retriever, loaders={'.json': JSONReader}, post_processors=[], transformations=[MarkdownNodeParser])
+    knowledge = BaseKnowledge(
+        './data',
+        llm=llm,
+        retriever=BM25Retriever,
+        loaders={'.json': JSONReader},
+        post_processors=[],
+        transformations=[MarkdownNodeParser])
 
     import time
     s = time.time()
-    print("start time", s)
+    print('start time', s)
     print(knowledge.run('高德天气API申请'))
     e = time.time()
-    print("end time", e)
+    print('end time', e)
     print('-----------------------')
 
     knowledge.add_files('./data2/常见QA.pdf')

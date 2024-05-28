@@ -1,11 +1,8 @@
-import warnings
 from typing import Any, Callable, Dict, Optional, Sequence
 
-import dashscope
-from llama_index.core.base.llms.types import (
-    ChatMessage, ChatResponse, ChatResponseAsyncGen, ChatResponseGen,
-    CompletionResponse, CompletionResponseAsyncGen, CompletionResponseGen,
-    LLMMetadata, MessageRole)
+from llama_index.core.base.llms.types import (ChatMessage, ChatResponse,
+                                              ChatResponseGen, LLMMetadata,
+                                              MessageRole)
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.llms.callbacks import (llm_chat_callback,
@@ -37,7 +34,7 @@ class MSAgentLLM(LLM):
         default=10, description='The maximum number of API retries.')
     max_tokens: int = Field(
         description='The maximum number of tokens to generate.')
-    #llm: DashScopeLLM = Field(description="The dashscope model to use.")
+    # llm: DashScopeLLM = Field(description="The dashscope model to use.")
     _llm: Any = PrivateAttr()
 
     def __init__(
@@ -86,9 +83,7 @@ class MSAgentLLM(LLM):
     @property
     def metadata(self) -> LLMMetadata:
         return LLMMetadata(
-            #num_output=self.max_tokens,
             is_chat_model=True,
-            #model_name=self.model,
             system_role=MessageRole.SYSTEM,
         )
 
@@ -124,32 +119,8 @@ class MSAgentLLM(LLM):
         )
 
     @llm_completion_callback()
-    def complete(self,
-                 prompt: str,
-                 formatted: bool = False,
-                 **kwargs: Any) -> CompletionResponse:
-        pass
-        """
-        all_kwargs = self._get_all_kwargs(**kwargs)
-        if "stream" in all_kwargs:
-            warnings.warn(
-                "Parameter `stream` is not supported by the `chat` method."
-                "Use the `stream_chat` method instead"
-            )
-
-        response = completion_with_retry(
-            client=self._client,
-            max_retries=self.max_retries,
-            chat=False,
-            prompt=prompt,
-            **all_kwargs,
-        )
-
-        return CompletionResponse(
-            text=response.generations[0].text,
-            raw=response.__dict__,
-        )
-    """
+    def complete(self, prompt: str, formatted: bool = False, **kwargs: Any):
+        raise NotImplementedError()
 
     @llm_chat_callback()
     def stream_chat(self, messages: Sequence[ChatMessage],
@@ -178,155 +149,29 @@ class MSAgentLLM(LLM):
     def stream_complete(self,
                         prompt: str,
                         formatted: bool = False,
-                        **kwargs: Any) -> CompletionResponseGen:
-        pass
-        """
-        all_kwargs = self._get_all_kwargs(**kwargs)
-        all_kwargs["stream"] = True
-
-        response = completion_with_retry(
-            client=self._client,
-            max_retries=self.max_retries,
-            chat=False,
-            prompt=prompt,
-            **all_kwargs,
-        )
-
-        def gen() -> CompletionResponseGen:
-            content = ""
-            for r in response:
-                content_delta = r.text
-                content += content_delta
-                yield CompletionResponse(
-                    text=content, delta=content_delta, raw=r._asdict()
-                )
-
-        return gen()
-        """
+                        **kwargs: Any):
+        raise NotImplementedError()
 
     @llm_chat_callback()
     async def achat(self, messages: Sequence[ChatMessage],
                     **kwargs: Any) -> ChatResponse:
-        pass
-        """
-        history = messages_to_cohere_history(messages[:-1])
-        prompt = messages[-1].content
-        all_kwargs = self._get_all_kwargs(**kwargs)
-        if all_kwargs["model"] not in CHAT_MODELS:
-            raise ValueError(f"{all_kwargs['model']} not supported for chat")
-        if "stream" in all_kwargs:
-            warnings.warn(
-                "Parameter `stream` is not supported by the `chat` method."
-                "Use the `stream_chat` method instead"
-            )
-
-        response = await acompletion_with_retry(
-            aclient=self._aclient,
-            max_retries=self.max_retries,
-            chat=True,
-            message=prompt,
-            chat_history=history,
-            **all_kwargs,
-        )
-
-        return ChatResponse(
-            message=ChatMessage(role=MessageRole.ASSISTANT, content=response.text),
-            raw=response.__dict__,
-        )
-        """
+        raise NotImplementedError()
 
     @llm_completion_callback()
     async def acomplete(self,
                         prompt: str,
                         formatted: bool = False,
-                        **kwargs: Any) -> CompletionResponse:
-        pass
-        """
-        all_kwargs = self._get_all_kwargs(**kwargs)
-        if "stream" in all_kwargs:
-            warnings.warn(
-                "Parameter `stream` is not supported by the `chat` method."
-                "Use the `stream_chat` method instead"
-            )
-
-        response = await acompletion_with_retry(
-            aclient=self._aclient,
-            max_retries=self.max_retries,
-            chat=False,
-            prompt=prompt,
-            **all_kwargs,
-        )
-
-        return CompletionResponse(
-            text=response.generations[0].text,
-            raw=response.__dict__,
-        )
-        """
+                        **kwargs: Any):
+        raise NotImplementedError()
 
     @llm_chat_callback()
     async def astream_chat(self, messages: Sequence[ChatMessage],
-                           **kwargs: Any) -> ChatResponseAsyncGen:
-        pass
-        """
-        history = messages_to_cohere_history(messages[:-1])
-        prompt = messages[-1].content
-        all_kwargs = self._get_all_kwargs(**kwargs)
-        all_kwargs["stream"] = True
-        if all_kwargs["model"] not in CHAT_MODELS:
-            raise ValueError(f"{all_kwargs['model']} not supported for chat")
-        response = await acompletion_with_retry(
-            aclient=self._aclient,
-            max_retries=self.max_retries,
-            chat=True,
-            message=prompt,
-            chat_history=history,
-            **all_kwargs,
-        )
-
-        async def gen() -> ChatResponseAsyncGen:
-            content = ""
-            role = MessageRole.ASSISTANT
-            async for r in response:
-                if "text" in r.__dict__:
-                    content_delta = r.text
-                else:
-                    content_delta = ""
-                content += content_delta
-                yield ChatResponse(
-                    message=ChatMessage(role=role, content=content),
-                    delta=content_delta,
-                    raw=r.__dict__,
-                )
-
-        return gen()
-        """
+                           **kwargs: Any):
+        raise NotImplementedError()
 
     @llm_completion_callback()
     async def astream_complete(self,
                                prompt: str,
                                formatted: bool = False,
-                               **kwargs: Any) -> CompletionResponseAsyncGen:
-        pass
-        """
-        all_kwargs = self._get_all_kwargs(**kwargs)
-        all_kwargs["stream"] = True
-
-        response = await acompletion_with_retry(
-            aclient=self._aclient,
-            max_retries=self.max_retries,
-            chat=False,
-            prompt=prompt,
-            **all_kwargs,
-        )
-
-        async def gen() -> CompletionResponseAsyncGen:
-            content = ""
-            async for r in response:
-                content_delta = r.text
-                content += content_delta
-                yield CompletionResponse(
-                    text=content, delta=content_delta, raw=r._asdict()
-                )
-
-        return gen()
-    """
+                               **kwargs: Any):
+        raise NotImplementedError()
