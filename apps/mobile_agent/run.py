@@ -27,13 +27,14 @@ groundingdino_dir = [
 # instruction = "Tell me today's weathers" # Your instruction
 
 os.environ['OPENAI_API_KEY'] = args.openai_api_key
+# used to calling qwen-vl for description of icon during perception
 os.environ['DASHSCOPE_API_KEY'] = args.dashscope_api_key
 
 instruction = args.instruction
 
 llm_config = {
     'model': 'gpt-4o',
-    'model_server': 'openai_proxy',
+    'model_server': 'openai',
 }
 
 env = ADBEnvironment(adb_path, groundingdino_dir)
