@@ -15,16 +15,13 @@ parser.add_argument(
     '--instruction', type=str, default="Tell me today's weathers")
 
 args = parser.parse_args()
-print(args)
-# adb_path = "../../../../platform-tools/adb" # Your adb path
+
 adb_path = args.adb_path
 
 groundingdino_dir = [
     os.path.join(args.groundingdino_dir, 'config/GroundingDINO_SwinT_OGC.py'),
     os.path.join(args.groundingdino_dir, 'groundingdino_swint_ogc.pth')
 ]
-
-# instruction = "Tell me today's weathers" # Your instruction
 
 os.environ['OPENAI_API_KEY'] = args.openai_api_key
 # used to calling qwen-vl for description of icon during perception
