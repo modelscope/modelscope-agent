@@ -3,8 +3,8 @@ import os
 from typing import Dict, List, Optional, Tuple, Union
 
 import json
-from environments.environment import ADBEnvironment
 from modelscope_agent import Agent
+from modelscope_agent.environment import ADBEnvironment
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from prompt import (get_action_prompt, get_memory_prompt, get_process_prompt,
