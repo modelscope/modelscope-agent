@@ -1,3 +1,5 @@
+# flake8: noqa
+
 # ------------------------------------------------------------------------
 # Grounding DINO
 # url: https://github.com/IDEA-Research/GroundingDINO

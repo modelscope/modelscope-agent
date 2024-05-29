@@ -25,14 +25,16 @@ def create_positive_map_from_span(tokenized, token_span, max_text_len=256):
                     beg_pos = tokenized.char_to_token(beg + 1)
                     if beg_pos is None:
                         beg_pos = tokenized.char_to_token(beg + 2)
-                except:
+                except Exception as e:
+                    print(e)
                     beg_pos = None
             if end_pos is None:
                 try:
                     end_pos = tokenized.char_to_token(end - 2)
                     if end_pos is None:
                         end_pos = tokenized.char_to_token(end - 3)
-                except:
+                except Exception as e:
+                    print(e)
                     end_pos = None
             if beg_pos is None or end_pos is None:
                 continue
