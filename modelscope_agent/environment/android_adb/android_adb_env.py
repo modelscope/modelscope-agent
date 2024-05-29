@@ -27,7 +27,6 @@ class ADBEnvironment:
             model='damo/cv_convnextTiny_ocr-recognition-document_damo')
 
         # groundingdino model
-
         self.groundingdino_model = load_model(
             groundingdino_dir[0], groundingdino_dir[1], device='cuda').eval()
 

@@ -7,8 +7,10 @@ from modelscope_agent import Agent
 from modelscope_agent.environment import ADBEnvironment
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
-from prompt import (get_action_prompt, get_memory_prompt, get_process_prompt,
-                    get_reflect_prompt, get_system_prompt)
+from modelscope_agent.utils.logger import agent_logger as logger
+
+from .prompt import (get_action_prompt, get_memory_prompt, get_process_prompt,
+                     get_reflect_prompt, get_system_prompt)
 
 
 class MobileAgentV2(Agent):
@@ -53,6 +55,8 @@ class MobileAgentV2(Agent):
         self.mem = None
 
     def _run(self, user_query, **kwargs):
+        step = 0
+
         thought_history = []
         summary_history = []
         action_history = []
@@ -63,9 +67,12 @@ class MobileAgentV2(Agent):
         memory = ''
 
         error_flag = False
-        while True:
-            this_results = {}
 
+        logger.info('Start running mobile agent')
+        while True:
+            step += 1
+            this_results = {}
+            logger.info(f'Oberserve the environment: Step {step}')
             perception_infos, width, height, keyboard, screenshot_file = self.env.observe(
             )
 
@@ -82,6 +89,7 @@ class MobileAgentV2(Agent):
 
             self._parse_image_url([screenshot_file], messages)
 
+            logger.info(f'Call decision agent: Step {step}')
             output_decision = self.llm_decision.chat(messages=messages)
             # this_results['decision'] = output_action
 
@@ -101,6 +109,7 @@ class MobileAgentV2(Agent):
 
             messages.append({'role': 'user', 'content': prompt_memory})
 
+            logger.info(f'Call decision agent with action: Step {step}')
             output_memory = self.llm_decision.chat(messages=messages)
 
             messages.append({'role': 'assistant', 'content': output_memory})
@@ -120,6 +129,7 @@ class MobileAgentV2(Agent):
             last_keyboard = keyboard
             last_screenshot_file = screenshot_file
 
+            logger.info(f'Observe the environment before reflect: Step {step}')
             perception_infos, width, height, keyboard, screenshot_file = self.env.observe(
             )
 
@@ -135,6 +145,7 @@ class MobileAgentV2(Agent):
             self._parse_image_url([last_screenshot_file, screenshot_file],
                                   messages)
 
+            logger.info(f'Call reflect agent: Step {step}')
             output_reflect = self.llm_reflect.chat(messages=messages)
             this_results['reflect'] = output_reflect
             reflect = output_reflect.split('### Answer ###')[-1].replace(
@@ -156,6 +167,7 @@ class MobileAgentV2(Agent):
                 messages = [{'role': 'system', 'content': system_prompy_plan}]
                 messages.append({'role': 'user', 'content': prompt_memory})
 
+                logger.info(f'Call planner agent: Step {step}')
                 output_memory = self.llm_planner.chat(messages=messages)
 
                 messages.append({
