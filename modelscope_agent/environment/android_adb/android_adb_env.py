@@ -1,15 +1,17 @@
+import asyncio
 import os
 import shutil
 import subprocess
 import time
 from typing import List
 
+from modelscope_agent.utils.logger import agent_logger as logger
 from PIL import Image
 
 from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
-from .utils import (crop, det, draw_coordinates_on_image, encode_image,
-                    generate, get_all_files_in_folder, load_model,
+from .utils import (agenerate, crop, det, draw_coordinates_on_image,
+                    encode_image, get_all_files_in_folder, load_model,
                     merge_text_blocks, ocr)
 
 
@@ -44,8 +46,8 @@ class ADBEnvironment:
                                                  'last_screenshot.jpg')
 
     def observe(self):
-        perception_infos, width, height, keyboard = self.get_perception_infos(
-            self.screenshot_file)
+        perception_infos, width, height, keyboard = asyncio.run(
+            self.get_perception_infos(self.screenshot_file))
         screenshot_file = encode_image(self.screenshot_file)
         return perception_infos, width, height, keyboard, screenshot_file
 
@@ -97,14 +99,17 @@ class ADBEnvironment:
         os.rename(self.screenshot_file, self.last_screenshot_file)
         return False
 
-    def get_perception_infos(self, screenshot_file):
+    async def get_perception_infos(self, screenshot_file):
+
+        logger.info('Start getting perception infos')
         self.get_screenshot()
 
         width, height = Image.open(screenshot_file).size
-
+        logger.info('Start use OCR get text and coordinates')
         text, coordinates = ocr(screenshot_file, self.ocr_detection,
                                 self.ocr_recognition)
         text, coordinates = merge_text_blocks(text, coordinates)
+        logger.info('End use OCR get text and coordinates')
 
         center_list = [[(coordinate[0] + coordinate[2]) / 2,
                         (coordinate[1] + coordinate[3]) / 2]
@@ -119,7 +124,9 @@ class ADBEnvironment:
             }
             perception_infos.append(perception_info)
 
+        logger.info('Start use groundino to detect icons')
         coordinates = det(screenshot_file, 'icon', self.groundingdino_model)
+        logger.info('End use groundino to detect icons')
 
         for i in range(len(coordinates)):
             perception_info = {'text': 'icon', 'coordinates': coordinates[i]}
@@ -136,6 +143,8 @@ class ADBEnvironment:
             crop(screenshot_file, image_box[i], image_id[i])
 
         images = get_all_files_in_folder(self.temp_dir)
+
+        logger.info('Start use qwen-vl to describe icons')
         if len(images) > 0:
             images = sorted(
                 images, key=lambda x: int(x.split('/')[-1].split('.')[0]))
@@ -144,19 +153,29 @@ class ADBEnvironment:
             ]
             icon_map = {}
             # Please describe this icon.
+            tasks = []
+            idx_arr = []
             prompt = 'This image is an icon from a phone screen. Please describe the color and shape of this icon.'
             for i in range(len(images)):
                 image_path = os.path.join(self.temp_dir, images[i])
                 icon_width, icon_height = Image.open(image_path).size
                 if icon_height > 0.8 * height or icon_width * icon_height > 0.2 * width * height:
                     des = 'None'
+                    icon_map[i + 1] = des
                 else:
-                    des = generate(image_path, prompt)
-                icon_map[i + 1] = des
+                    task = agenerate(image_path, prompt)
+                    idx_arr.append(i)
+                    tasks.append(task)
+
+            descriptions = await asyncio.gather(*tasks)
+            for i, j in zip(idx_arr, range(len(descriptions))):
+                icon_map[i + 1] = descriptions[j]
+
             for i, j in zip(image_id, range(1, len(image_id) + 1)):
                 if icon_map.get(j):
                     perception_infos[i]['text'] = 'icon: ' + icon_map[j]
 
+        logger.info('End use qwen-vl to describe icons')
         for i in range(len(perception_infos)):
             perception_infos[i]['coordinates'] = [
                 int((perception_infos[i]['coordinates'][0]
@@ -175,7 +194,7 @@ class ADBEnvironment:
             if 'ADB Keyboard' in perception_info['text']:
                 keyboard = True
                 break
-
+        logger.info('Finish getting perception infos')
         return perception_infos, width, height, keyboard
 
     # ADB related functions

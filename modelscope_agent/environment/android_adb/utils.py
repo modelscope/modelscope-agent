@@ -349,12 +349,7 @@ def crop(image, box, i):
 
 
 def generate(image_file, query):
-    # query = tokenizer.from_list_format([
-    #     {'image': image_file},
-    #     {'text': query},
-    # ])
-    # response, _ = model.chat(tokenizer, query=query, history=None)
-    # return response
+
     from dashscope import MultiModalConversation
 
     local_file_path = f'file://{image_file}'
@@ -373,8 +368,16 @@ def generate(image_file, query):
         model='qwen-vl-plus',
         messages=messages,
         api_key=os.getenv('DASHSCOPE_API_KEY'))
-    # return response['output']['choices'][0]['message']['content']['text']
+
     return response.output.choices[0].message.content[0]['text']
+
+
+async def agenerate(image_path, prompt):
+    import asyncio
+    loop = asyncio.get_running_loop()
+    # 使用默认的线程池执行耗时的同步函数
+    result = await loop.run_in_executor(None, generate, image_path, prompt)
+    return result
 
 
 def merge_text_blocks(text_list, coordinates_list):
