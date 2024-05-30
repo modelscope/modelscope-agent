@@ -94,6 +94,7 @@ class ADBEnvironment:
 
         elif 'Stop' in action:
             return True
+        time.sleep(5)
         if os.path.exists(self.last_screenshot_file):
             os.remove(self.last_screenshot_file)
         os.rename(self.screenshot_file, self.last_screenshot_file)
@@ -289,24 +290,15 @@ class ADBEnvironment:
         for char in text:
             if char == ' ':
                 command = adb_path + ' shell input text %s'
-                subprocess.run(
-                    command, capture_output=True, text=True, shell=True)
             elif char == '_':
                 command = adb_path + ' shell input keyevent 66'
-                subprocess.run(
-                    command, capture_output=True, text=True, shell=True)
             elif 'a' <= char <= 'z' or 'A' <= char <= 'Z' or char.isdigit():
                 command = adb_path + f' shell input text {char}'
-                subprocess.run(
-                    command, capture_output=True, text=True, shell=True)
             elif char in '-.,!?@\'°/:;()':
                 command = adb_path + f" shell input text \"{char}\""
-                subprocess.run(
-                    command, capture_output=True, text=True, shell=True)
             else:
                 command = adb_path + f" shell am broadcast -a ADB_INPUT_TEXT --es msg \"{char}\""
-                subprocess.run(
-                    command, capture_output=True, text=True, shell=True)
+            subprocess.run(command, capture_output=True, text=True, shell=True)
 
     def slide(self, x1, y1, x2, y2):
         command = self.adb_path + f' shell input swipe {x1} {y1} {x2} {y2} 500'

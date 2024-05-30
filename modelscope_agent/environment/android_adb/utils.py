@@ -12,6 +12,7 @@ import torch
 from groundingdino.models import build_model
 from groundingdino.util.slconfig import SLConfig
 from groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
+from modelscope_agent.utils.retry import retry
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -348,6 +349,7 @@ def crop(image, box, i):
     cropped_image.save(f'./temp/{i}.jpg')
 
 
+@retry(max_retries=5, delay_seconds=0.5)
 def generate(image_file, query):
 
     from dashscope import MultiModalConversation
