@@ -7,6 +7,7 @@ import gradio as gr
 import modelscope_studio as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
+from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
@@ -38,10 +39,11 @@ def check_uuid(uuid_str):
     return uuid_str
 
 
-def init_user(state):
+def init_user(state, _user_token=None):
     try:
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent, user_memory = init_user_chatbot_agent(uuid_str)
+        user_agent, user_memory = init_user_chatbot_agent(
+            uuid_str, user_token=_user_token)
         user_agent.seed = seed
         state['user_agent'] = user_agent
         state['user_memory'] = user_memory
@@ -57,6 +59,7 @@ def init_user(state):
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/appBot.css', theme=customTheme)
 with demo:
+    user_token = gr.Textbox(label='modelscope_agent_tool_token', visible=False)
     gr.Markdown(
         '# <center class="agent_title"> \N{fire} AgentFabric powered by Modelscope-agent [github star](https://github.com/modelscope/modelscope-agent/tree/main)</center>'  # noqa E501
     )
@@ -96,10 +99,10 @@ with demo:
                 examples=suggests,
                 inputs=[user_chatbot_input])
 
-    def send_message(chatbot, input, _state):
+    def send_message(chatbot, input, _state, _user_token):
         # 将发送的消息添加到聊天历史
         if 'user_agent' not in _state:
-            init_user(_state)
+            init_user(_state, _user_token)
         # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
@@ -137,7 +140,8 @@ with demo:
                     input.text,
                     history=history,
                     ref_doc=ref_doc,
-                    append_files=append_files):
+                    append_files=append_files,
+                    user_token=_user_token):
 
                 # important! do not change this
                 response += frame
@@ -166,7 +170,7 @@ with demo:
 
     gr.on([user_chatbot_input.submit],
           fn=send_message,
-          inputs=[user_chatbot, user_chatbot_input, state],
+          inputs=[user_chatbot, user_chatbot_input, state, user_token],
           outputs=[user_chatbot, user_chatbot_input])
 
     demo.load(init_user, inputs=[state], outputs=[state])

@@ -14,7 +14,7 @@ from modelscope_agent.utils.logger import agent_logger as logger
 # init user chatbot_agent
 def init_user_chatbot_agent(uuid_str='',
                             session='default',
-                            use_tool_api=True,
+                            use_tool_api=False,
                             user_token=None):
     builder_cfg, model_cfg, tool_cfg, _, plugin_cfg, _ = parse_configuration(
         uuid_str)

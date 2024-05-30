@@ -161,7 +161,7 @@ class SessionManager:
                     raise ValueError('Using code interpreter.')
 
             user_agent = init_user_chatbot_agent(
-                builder_id, session, user_token=user_token)
+                builder_id, session, use_tool_api=True, user_token=user_token)
             self.user_bots[unique_id] = user_agent
         return user_agent
 

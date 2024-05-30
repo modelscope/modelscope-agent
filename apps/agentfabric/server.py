@@ -17,7 +17,8 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_ci_dir,
                           save_plugin_configuration)
 from flask import (Flask, Response, g, jsonify, make_response, request,
                    send_from_directory)
-from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
+from modelscope_agent.constants import (MODELSCOPE_AGENT_TOKEN_HEADER_NAME,
+                                        ApiNames)
 from modelscope_agent.schemas import Message
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_dir)
@@ -414,6 +415,11 @@ def preview_chat(uuid_str, session_str):
         file.save(file_path)
         file_paths.append(file_path)
     logger.info(f'/preview/chat/{uuid_str}/{session_str}: files: {file_paths}')
+    # Generating the kwargs dictionary
+    kwargs = {
+        name.lower(): os.getenv(value.value)
+        for name, value in ApiNames.__members__.items()
+    }
 
     def generate():
         try:
@@ -453,6 +459,7 @@ def preview_chat(uuid_str, session_str):
                     'request_id': request_id_var.get('')
                 },
                 ensure_ascii=False)
+
             for frame in user_agent.run(
                     input_content,
                     history=history,
@@ -460,7 +467,7 @@ def preview_chat(uuid_str, session_str):
                     append_files=file_paths,
                     uuid_str=uuid_str,
                     user_token=user_token,
-                    dashscope_api_key=os.getenv('DASHSCOPE_API_KEY')):
+                    **kwargs):
                 logger.info('frame, {}'.format(
                     str(frame).replace('\n', '\\n')))
                 # important! do not change this
