@@ -117,12 +117,13 @@ class Agent(ABC):
         if isinstance(tool, dict):
             tool_name = next(iter(tool))
             tool_cfg = tool[tool_name]
-        logger.info(
+        logger.query_info(
+            message=
             f'############## tool is {tool}, tool name is {tool_name}, tool_cfg is {tool_cfg}'
         )
         if tool_name not in TOOL_REGISTRY and not self.use_tool_api:
             raise NotImplementedError
-        logger.info('############## reach here1')
+        logger.query_info(message='############## reach here1')
         if tool not in self.function_list:
             self.function_list.append(tool)
 
