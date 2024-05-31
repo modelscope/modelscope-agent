@@ -163,7 +163,7 @@ def parse_configuration(uuid_str=''):
         else:
             # for tool hub only
             if '/' in key:
-                tool_cfg[key] = {'use': value['use']}
+                tool_cfg[key] = value
         if value['use']:
             available_tool_list.append(key)
 
