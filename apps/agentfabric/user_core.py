@@ -24,16 +24,17 @@ def init_user_chatbot_agent(uuid_str='',
     model_cfg[builder_cfg.model]['generate_cfg']['top_p'] = 0.5
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
-    # build model
-    logger.query_info(
-        uuid=uuid_str,
-        message=f'using model {builder_cfg.model}',
-        details={'model_config': model_cfg[builder_cfg.model]})
-
     # update function_list
     function_list = parse_tool_cfg(tool_cfg)
     function_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, function_list)
+
+    # build model
+    logger.query_info(
+        uuid=uuid_str,
+        message=
+        f'using model {builder_cfg.model} with tool {tool_cfg} and function list {function_list}',
+        details={'model_config': model_cfg[builder_cfg.model]})
 
     llm_config = copy.deepcopy(model_cfg[builder_cfg.model])
     llm_config['model_server'] = llm_config.pop('type')
