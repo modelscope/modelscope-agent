@@ -122,12 +122,13 @@ with open(target_file_path, 'w', encoding='utf-8') as file:
 ms_agent数据集全为英文、且并无AgentFabric的roleplay等内容信息。虽然基模型qwen-7b-chat拥有中文能力，使通过new_ms_agent 数据集finetune后的模型能够正常识别用户意图，正确调用工具；但总结和停止能力都稍弱。 为此，我们通过开源的AgentFabric框架实际调用访问，获得了一些AgentFabric使用过程中实际发送给模型的prompt。筛选处理成一个数据集，加上new_ms_agent的数据一起finetune。得到的模型在AgentFabric上修复了此前的总结稍弱、有时无法自动停止问题。
 多次调用均响应正常，甚至有一次get到了instruction中的内容。
 处理好的488条数据已上传至modelscope数据集，[处理好的488条数据下载](https://modelscope.cn/api/v1/datasets/AI-ModelScope/ms_agent_for_agentfabric/repo?Revision=master&FilePath=addition.jsonl)
+根据ms-agent转换格式得到的新数据集[ms_agent_for_agentfabric](https://modelscope.cn/datasets/AI-ModelScope/ms_agent_for_agentfabric/summary)，现已集成到[SWIFT](https://github.com/modelscope/swift)中。 其中ms-agent-for-agentfabric-default包含3万条由ms-agent转换的数据集，ms-agent-for-agentfabric-additional包含488条由开源的AgentFabric框架实际调用访问数据筛选得到
 
 ## 微调流程
 
 ### 在gpu机器执行
 
-将new_ms_agent.jsonl和addition.jsonl两个文件的具体路径通过--custom_train_dataset_path进行配置后，在8* A100 环境中可通过以下命令开启训练，需约2-3小时；如果是单卡训练，需要修改nproc_per_node=1。
+将`dataset`配置为`ms-agent-for-agentfabric-default`和`ms-agent-for-agentfabric-addition`，在8* A100 环境中可通过以下命令开启训练，需约2-3小时；如果是单卡训练，需要修改nproc_per_node=1。
 
 ```shell
 # Experimental environment: A100
@@ -146,11 +147,11 @@ nohup torchrun \
     --tuner_backend swift \
     --dtype AUTO \
     --output_dir output \
-    --custom_train_dataset_path ms_agent_for_agentfabric/new_ms_agent.jsonl ms_agent_for_agentfabric/addition.jsonl
+    --dataset ms-agent-for-agentfabric-default ms-agent-for-agentfabric-addition \
     --train_dataset_mix_ratio 2.0 \
     --train_dataset_sample -1 \
     --num_train_epochs 2 \
-    --max_length 2048 \
+    --max_length 1500 \
     --check_dataset_strategy warning \
     --lora_rank 8 \
     --lora_alpha 32 \
@@ -161,9 +162,9 @@ nohup torchrun \
     --model_author 陶白白 \
     --gradient_checkpointing true \
     --batch_size 2 \
-    --weight_decay 0.01 \
+    --weight_decay 0.1 \
     --learning_rate 5e-5 \
-    --gradient_accumulation_steps $(expr 1 / $nproc_per_node) \
+    --gradient_accumulation_steps $(expr 32 / $nproc_per_node) \
     --max_grad_norm 0.5 \
     --warmup_ratio 0.03 \
     --eval_steps 100 \
