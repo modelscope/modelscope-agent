@@ -14,17 +14,6 @@ from modelscope_agent.llm.dashscope import DashScopeLLM
 
 class MSAgentLLM(LLM):
     """dashscope LLM.
-
-    Examples:
-        `pip install llama-index-llms-cohere`
-
-        ```python
-        from llama_index.llms.cohere import Cohere
-
-        llm = Cohere(model="command", api_key=api_key)
-        resp = llm.complete("Paul Graham is ")
-        print(resp)
-        ```
     """
 
     model: str = Field(description='The dashscope model to use.')
