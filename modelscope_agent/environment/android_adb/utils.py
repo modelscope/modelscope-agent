@@ -6,14 +6,10 @@ import os
 
 import clip
 import cv2
-import groundingdino.datasets.transforms as T
 import numpy as np
 import torch
-from groundingdino.models import build_model
-from groundingdino.util.slconfig import SLConfig
-from groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
 from modelscope_agent.utils.retry import retry
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 
 def crop_image(img, position):
@@ -200,71 +196,6 @@ def ocr(image_path, ocr_detection, ocr_recognition):
         return text_data, coordinate
 
 
-def transform_image(image_pil):
-
-    transform = T.Compose([
-        T.RandomResize([800], max_size=1333),
-        T.ToTensor(),
-        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-    image, _ = transform(image_pil, None)  # 3, h, w
-    return image
-
-
-def load_model(model_config_path, model_checkpoint_path, device):
-    args = SLConfig.fromfile(model_config_path)
-    args.device = device
-    model = build_model(args)
-    checkpoint = torch.load(model_checkpoint_path, map_location='cpu')
-    load_res = model.load_state_dict(
-        clean_state_dict(checkpoint['model']), strict=False)
-    print(load_res)
-    _ = model.eval()
-    return model
-
-
-def get_grounding_output(model,
-                         image,
-                         caption,
-                         box_threshold,
-                         text_threshold,
-                         with_logits=True):
-    caption = caption.lower()
-    caption = caption.strip()
-    if not caption.endswith('.'):
-        caption = caption + '.'
-
-    with torch.no_grad():
-        outputs = model(image[None], captions=[caption])
-    logits = outputs['pred_logits'].cpu().sigmoid()[0]  # (nq, 256)
-    boxes = outputs['pred_boxes'].cpu()[0]  # (nq, 4)
-    logits.shape[0]
-
-    logits_filt = logits.clone()
-    boxes_filt = boxes.clone()
-    filt_mask = logits_filt.max(dim=1)[0] > box_threshold
-    logits_filt = logits_filt[filt_mask]  # num_filt, 256
-    boxes_filt = boxes_filt[filt_mask]  # num_filt, 4
-    logits_filt.shape[0]
-
-    tokenlizer = model.tokenizer
-    tokenized = tokenlizer(caption)
-
-    pred_phrases = []
-    scores = []
-    for logit, box in zip(logits_filt, boxes_filt):
-        pred_phrase = get_phrases_from_posmap(logit > text_threshold,
-                                              tokenized, tokenlizer)
-        if with_logits:
-            pred_phrases.append(pred_phrase
-                                + f'({str(logit.max().item())[:4]})')
-        else:
-            pred_phrases.append(pred_phrase)
-        scores.append(logit.max().item())
-
-    return boxes_filt, torch.Tensor(scores), pred_phrases
-
-
 def remove_boxes(boxes_filt, size, iou_threshold=0.5):
     boxes_to_remove = set()
 
@@ -289,21 +220,27 @@ def remove_boxes(boxes_filt, size, iou_threshold=0.5):
     return boxes_filt
 
 
-def det(input_image,
-        text_prompt,
+def det(input_image_path,
+        caption,
         groundingdino_model,
         box_threshold=0.07,
         text_threshold=0.5):
-    image = Image.open(input_image)
+    image = Image.open(input_image_path)
     size = image.size
 
-    image_pil = image.convert('RGB')
-    image = np.array(image_pil)
+    caption = caption.lower()
+    caption = caption.strip()
+    if not caption.endswith('.'):
+        caption = caption + '.'
+    inputs = {
+        'IMAGE_PATH': input_image_path,
+        'TEXT_PROMPT': caption,
+        'BOX_TRESHOLD': box_threshold,
+        'TEXT_TRESHOLD': text_threshold
+    }
 
-    transformed_image = transform_image(image_pil)
-    boxes_filt, scores, pred_phrases = get_grounding_output(
-        groundingdino_model, transformed_image, text_prompt, box_threshold,
-        text_threshold)
+    result = groundingdino_model(inputs)
+    boxes_filt = result['boxes']
 
     H, W = size[1], size[0]
     for i in range(boxes_filt.size(0)):
@@ -377,7 +314,6 @@ def generate(image_file, query):
 async def agenerate(image_path, prompt):
     import asyncio
     loop = asyncio.get_running_loop()
-    # 使用默认的线程池执行耗时的同步函数
     result = await loop.run_in_executor(None, generate, image_path, prompt)
     return result
 

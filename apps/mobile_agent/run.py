@@ -10,18 +10,12 @@ parser.add_argument(
     '--openai_api_key', type=str, default=os.getenv('OPENAI_API_KEY'))
 parser.add_argument(
     '--dashscope_api_key', type=str, default=os.getenv('DASHSCOPE_API_KEY'))
-parser.add_argument('--groundingdino_dir', type=str, default='./groundingdino')
 parser.add_argument(
     '--instruction', type=str, default="Tell me today's weathers")
 
 args = parser.parse_args()
 
 adb_path = args.adb_path
-
-groundingdino_dir = [
-    os.path.join(args.groundingdino_dir, 'config/GroundingDINO_SwinT_OGC.py'),
-    os.path.join(args.groundingdino_dir, 'groundingdino_swint_ogc.pth')
-]
 
 os.environ['OPENAI_API_KEY'] = args.openai_api_key
 # used to calling qwen-vl for description of icon during perception
@@ -34,7 +28,7 @@ llm_config = {
     'model_server': 'openai',
 }
 
-env = ADBEnvironment(adb_path, groundingdino_dir)
+env = ADBEnvironment(adb_path)
 
 agent = MobileAgentV2(
     env=env,

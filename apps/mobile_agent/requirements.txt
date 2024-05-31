@@ -7,6 +7,7 @@ pyclipper
 pycocotools
 SentencePiece
 shapely
+supervision
 TensorFlow==2.9.1
 tf_keras
 tf_slim

@@ -8,16 +8,17 @@ from typing import List
 from modelscope_agent.utils.logger import agent_logger as logger
 from PIL import Image
 
+from modelscope.hub.snapshot_download import snapshot_download
 from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
 from .utils import (agenerate, crop, det, draw_coordinates_on_image,
-                    encode_image, get_all_files_in_folder, load_model,
-                    merge_text_blocks, ocr)
+                    encode_image, get_all_files_in_folder, merge_text_blocks,
+                    ocr)
 
 
 class ADBEnvironment:
 
-    def __init__(self, adb_path: str, groundingdino_dir: List[str]) -> None:
+    def __init__(self, adb_path: str) -> None:
         self.adb_path = adb_path
 
         # ocr pipeline
@@ -29,8 +30,9 @@ class ADBEnvironment:
             model='damo/cv_convnextTiny_ocr-recognition-document_damo')
 
         # groundingdino model
-        self.groundingdino_model = load_model(
-            groundingdino_dir[0], groundingdino_dir[1], device='cuda').eval()
+        model_dir = snapshot_download(
+            'AI-ModelScope/GroundingDINO', revision='v1.0.0')
+        self.groundingdino = pipeline('grounding-dino-task', model=model_dir)
 
         self.temp_dir = 'temp'
 
@@ -126,7 +128,7 @@ class ADBEnvironment:
             perception_infos.append(perception_info)
 
         logger.info('Start use groundino to detect icons')
-        coordinates = det(screenshot_file, 'icon', self.groundingdino_model)
+        coordinates = det(screenshot_file, 'icon', self.groundingdino)
         logger.info('End use groundino to detect icons')
 
         for i in range(len(coordinates)):
