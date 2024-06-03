@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List
 
 from modelscope_agent.agent import Agent
 from modelscope_agent.environment import Environment

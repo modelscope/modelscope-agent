@@ -49,7 +49,7 @@
 
 1. **将multi-agent的交互逻辑与single-agent的逻辑解耦:**
    - 使用**[AgentEnvMixin](../agent_env_util.py)**类基于Ray处理所有multi-agent通信逻辑，无需更改任何现有single-agent模块中的原始逻辑。
-   - 在**[Environment](../environment.py)**模块中管理环境信息，使用发布/订阅机制来推动agent之间的互动，而不会在执行层面阻塞agent。
+   - 在**[Environment](../environment/environment.py)**模块中管理环境信息，使用发布/订阅机制来推动agent之间的互动，而不会在执行层面阻塞agent。
    - 消息中心维护在Environment模块中，同时每个各个agent也单独管理自己的历史记录。
 
 2. **引入agent注册中心[Agent Registry Center](../agents_registry.py)概念:**
@@ -471,7 +471,7 @@ agent_env_mixin中的主要方法是`step`，它包含以下步骤：
 * 调用`publish`,将响应消息发布到环境，消息中包含了哪些角色应该接收消息的信息。
 
 
-### [environment](../environment.py)详细信息
+### [environment](../environment/environment.py)详细信息
 environment用来管理消息中心，它维护了以下信息：
 
 *在队列中存储发送给每个agent的消息，并且这些消息会在下一个步骤中从队列中弹出，并被每个agent拉取。
