@@ -53,6 +53,7 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     memory_agent_name = uuid_str + '_' + session + '_memory'
     memory = MemoryWithRag(
         urls=builder_cfg.knowledge,
+        llm=agent.llm,
         storage_path=storage_path,
         name=memory_agent_name,
         memory_path=memory_history_path,

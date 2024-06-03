@@ -9,14 +9,14 @@ from llama_index.core.llms.callbacks import (llm_chat_callback,
                                              llm_completion_callback)
 from llama_index.core.llms.llm import LLM
 from llama_index.core.types import BaseOutputParser, PydanticProgramMode
-from modelscope_agent.llm.dashscope import DashScopeLLM
+from modelscope_agent.llm.base import BaseChatModel
 
 
-class MSAgentLLM(LLM):
-    """dashscope LLM.
+class ModelscopeAgentLLM(LLM):
+    """ Using model classes from modelscope-agent in llama_index
     """
 
-    model: str = Field(description='The dashscope model to use.')
+    model: str = Field(description='The modelscope-agent to use.')
     temperature: float = Field(
         description='The temperature to use for sampling.')
     max_retries: int = Field(
@@ -28,7 +28,7 @@ class MSAgentLLM(LLM):
 
     def __init__(
         self,
-        llm: DashScopeLLM,
+        llm: BaseChatModel,
         model: str = 'qwen_max',
         temperature: float = 0.5,
         max_tokens: int = 2000,
@@ -144,23 +144,23 @@ class MSAgentLLM(LLM):
     @llm_chat_callback()
     async def achat(self, messages: Sequence[ChatMessage],
                     **kwargs: Any) -> ChatResponse:
-        raise NotImplementedError()
+        return self.chat(messages, **kwargs)
 
     @llm_completion_callback()
     async def acomplete(self,
                         prompt: str,
                         formatted: bool = False,
                         **kwargs: Any):
-        raise NotImplementedError()
+        return self.complete(prompt, formatted, **kwargs)
 
     @llm_chat_callback()
     async def astream_chat(self, messages: Sequence[ChatMessage],
                            **kwargs: Any):
-        raise NotImplementedError()
+        raise self.stream_chat(messages, **kwargs)
 
     @llm_completion_callback()
     async def astream_complete(self,
                                prompt: str,
                                formatted: bool = False,
                                **kwargs: Any):
-        raise NotImplementedError()
+        raise self.stream_complete(prompt, formatted, **kwargs)

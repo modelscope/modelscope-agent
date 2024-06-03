@@ -5,9 +5,6 @@ from typing import Any, Dict, List, Optional, Type, Union
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.base.base_selector import BaseSelector
-from llama_index.core.data_structs.data_structs import IndexDict
-from llama_index.core.indices.service_context import ServiceContext
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
@@ -18,9 +15,9 @@ from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import (MetadataFilter,
                                                   MetadataFilters)
 from modelscope_agent.llm import get_chat_model
-from modelscope_agent.llm.dashscope import DashScopeLLM
-from modelscope_agent.rag.emb.dashscope import DashscopeEmbedding
-from modelscope_agent.rag.llm import MSAgentLLM
+from modelscope_agent.llm.base import BaseChatModel
+from modelscope_agent.rag.emb import DashscopeEmbedding
+from modelscope_agent.rag.llm import ModelscopeAgentLLM
 
 
 @dataclass
@@ -32,48 +29,60 @@ class FileQueryBundle(QueryBundle):
 class BaseKnowledge(BaseLlamaPack):
     """ base knowledge pipeline.
 
-    从不同的源加载知识，支持：文件夹路径（str），文件路径列表（list），将不同源配置到不同的召回方式（dict）.
+    Better use of knowledge base content through LLM.
     Automatically select the best file reader given file extensions.
 
     Args:
-        files: Path to the directory，或文件路径列表。
-        cache_dir: 缓存indexing后的信息。
-        llm: 总结召回内容时使用的llm。
+        files: Path to the directory, or list of file_paths, defaults to empty list.
+        cache_dir: Directory to cache indexed content, defaults to `./run`.
+        llm: Language model is used to summarize retrieved content, defaults to Dashscope qwen-max.
+        retriever: The retriever strategies. It should be a subclass of llama-index BaseRetriever. The default
+            class is VectorIndexRetriever.
+        loaders: Additional file Readers. The parameter format is a dictionary mapping file extensions to
+            Reader classes. The reader classes should be subclasses of llama-index BaseReader. The file types
+            that already have corresponding readers are: `.hwp`, `.pdf`, `.docx`, `.pptx`, `.ppt`, `.pptm`,
+            `.jpg`, `.png`, `.jpeg`, `.mp3`, `.mp4`, `.csv`, `.epub`, `.md`, `.mbox`, `.ipynb`, `txt`, `.pd`,
+            `.html`.
+        transformations: The chunk or split strategies. It should be a subclass of llama-index TransformComponent.
+            The default is SentenceSplitter.
+        post_processors: The processors of retrieved contents, such of re-rank. The default is None.
     """
 
     def __init__(self,
-                 files: Union[Dict, List, str],
+                 files: Union[List, str] = [],
                  cache_dir: str = './run',
-                 llm: Optional[DashScopeLLM] = None,
+                 llm: Optional[BaseChatModel] = None,
                  retriever: Optional[Type[BaseRetriever]] = None,
                  loaders: Dict[str, Type[BaseReader]] = {},
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
                  use_cache: bool = True,
                  **kwargs) -> None:
-        # self.record_files(files)
+        self.retriever_cls = retriever
+        self.cache_dir = cache_dir
+        # self.register_files(files) # TODO: file manager
         self.extra_readers = self.get_extra_readers(loaders)
 
         documents = None
         if not use_cache:
             documents = self.read(files)
 
-        if llm and isinstance(llm, DashScopeLLM):
-            self.llm = MSAgentLLM(llm)
+        if llm and isinstance(llm, BaseChatModel):
+            self.llm = ModelscopeAgentLLM(llm)
         elif isinstance(llm, LLM):
-            self.llm = llm
+            self._llm = llm
         else:
             llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
             llm = get_chat_model(**llm_config)
-            self.llm = MSAgentLLM(llm)
+            self.llm = ModelscopeAgentLLM(llm)
+        Settings.llm = self.llm
 
         # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         self.transformations = self.get_transformations(transformations)
+
         self.postprocessors = self.get_postprocessors(post_processors,
                                                       **kwargs)
 
-        self.retriever_cls = retriever
-        self.cache_dir = cache_dir
         root_retriever = self.get_root_retriever(
             documents, use_cache=use_cache, **kwargs)
 
@@ -92,13 +101,13 @@ class BaseKnowledge(BaseLlamaPack):
                             **kwargs) -> Optional[List[TransformComponent]]:
         # rechunk，筛选文档内容等
         res = []
-        for t in transformations:
+        for t_cls in transformations:
             try:
-                t.from_defaults()
-                res.append(res)
+                t = t_cls()
+                res.append(t)
             except Exception as e:
                 print(
-                    f'node parser {t} cannot be used and it will be ignored. Detail: {e}'
+                    f'node parser {t_cls} cannot be used and it will be ignored. Detail: {e}'
                 )
         return res
 

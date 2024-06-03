@@ -46,7 +46,8 @@ class MemoryWithRag(Memory, Agent):
              **kwargs) -> Union[str, Iterator[str]]:
         if isinstance(url, str):
             url = [url]
-        self.store_knowledge.add(files=url)
+        if url and len(url):
+            self.store_knowledge.add(files=url)
         if query:
             summary_result = self.store_knowledge.run(query, files=url)
         # limit length
