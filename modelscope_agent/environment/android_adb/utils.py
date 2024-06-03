@@ -4,7 +4,6 @@ import base64
 import math
 import os
 
-import clip
 import cv2
 import numpy as np
 import torch
@@ -128,6 +127,7 @@ def clip_for_icon(clip_model, clip_preprocess, images, prompt):
         image_features.append(image_feature)
     image_features = torch.cat(image_features)
 
+    import clip
     text = clip.tokenize([prompt]).to(next(clip_model.parameters()).device)
     text_features = clip_model.encode_text(text)
 
