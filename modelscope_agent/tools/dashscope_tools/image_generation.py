@@ -22,6 +22,12 @@ class TextToImageTool(BaseTool):
         '格式是 数字*数字，表示希望生成的图像的分辨率大小，选项有[1024*1024, 720*1280, 1280*720]',
         'required': True,
         'type': 'string'
+    }, {
+        'name': 'lora_index',
+        'description':
+        '如果用户要求使用lora的情况下，则使用该参数，没有指定的情况下默认为wanx1.4.5_textlora_huiben2_20240518',
+        'required': False,
+        'type': 'string'
     }]
 
     def call(self, params: str, **kwargs) -> str:
@@ -39,6 +45,10 @@ class TextToImageTool(BaseTool):
             return None
         seed = kwargs.get('seed', None)
         model = kwargs.get('model', 'wanx-v1')
+        extra_input = {}
+        lora_index = params.get('lora_index', None)
+        if lora_index:
+            extra_input['lora_index'] = lora_index
         try:
             dashscope.api_key = get_api_key(ApiNames.dashscope_api_key,
                                             **kwargs)
@@ -51,6 +61,7 @@ class TextToImageTool(BaseTool):
             n=1,
             size=resolution,
             steps=10,
-            seed=seed)
+            seed=seed,
+            extra_input=extra_input)
         image_url = response.output['results'][0]['url']
         return f'![IMAGEGEN]({image_url})'
