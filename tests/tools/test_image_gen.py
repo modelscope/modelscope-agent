@@ -27,6 +27,14 @@ def test_image_gen_wrong_resolution():
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_image_gen_with_lora():
+    params = """{'text': '画一只小猫', 'resolution': '1024*1024', 'lora_index': 'wanx1.4.5_textlora_huiben2_20240518'}"""
+    t2i = TextToImageTool()
+    res = t2i.call(params)
+    assert (res.startswith('![IMAGEGEN]('))
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_image_gen_role():
     role_template = '你扮演一个画家，用尽可能丰富的描述调用工具绘制图像。'
 

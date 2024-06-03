@@ -5,10 +5,8 @@ from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.tools.dashscope_tools.image_generation_lite import \
     TextToImageLiteTool
 
-IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
-
-@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+@pytest.mark.skip(reason='only run with authorized keys')
 def test_image_gen_lite():
     params = """
     {'text': '一只可爱的小兔子正在花园里努力地拔一个大萝卜，周围是绿油油的草地和鲜艳的花朵，天空是清澈的蓝色，太阳公公笑眯眯地看着。',
@@ -21,7 +19,7 @@ def test_image_gen_lite():
     assert (res.startswith('![IMAGEGEN]('))
 
 
-@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+@pytest.mark.skip(reason='only run with authorized keys')
 def test_image_gen_lite_role():
     role_template = '扮演一个绘本小助手，可以利用工具来创建符合儿童的童话绘本图片'
 
