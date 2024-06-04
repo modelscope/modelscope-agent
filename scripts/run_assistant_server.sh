@@ -12,17 +12,17 @@ MODEL_NAME=""
 # Loop through arguments and process them
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --model_name)
+        --served-model-name)
         MODEL_NAME="$2"
         shift # past argument
         shift # past value
         ;;
-        --model_dir)
+        --model)
         MODEL_DIR="$2"
         shift # past argument
         shift # past value
         ;;
-        --model_server)
+        --model-server)
         MODEL_SERVER="$2"
         shift # past argument
         shift # past value
