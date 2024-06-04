@@ -4,17 +4,19 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import List, Optional
 
+import json
 import torch
 import torch.distributed as dist
-from swift import (HubStrategy, LoraConfig, Seq2SeqTrainer,
+from swift import (HubStrategy, LoRAConfig, Seq2SeqTrainer,
                    Seq2SeqTrainingArguments, Swift, get_logger)
-from swift.llm.utils import data_collate_fn, print_example, stat_dataset
+from swift.llm.utils import print_example, stat_dataset
 from swift.llm.utils.model import fix_gradient_checkpointing_warning
 from swift.utils import (add_version_to_work_dir, get_model_info, is_master,
                          parse_args, seed_everything)
 from transformers import BitsAndBytesConfig
+from transformers.integrations import is_deepspeed_zero3_enabled
 from utils import (DEFAULT_PROMPT, MODEL_MAPPING, broadcast_string,
-                   find_all_linear_for_lora, get_dist_setting,
+                   data_collate_fn, find_all_linear_for_lora, get_dist_setting,
                    get_model_tokenizer, get_ms_tool_dataset, is_dist,
                    plot_images, process_dataset, select_bnb, select_dtype,
                    show_layers, tokenize_function)
@@ -78,6 +80,7 @@ class SftArguments:
     eval_steps: int = 50
     save_steps: Optional[int] = None
     save_total_limit: int = 2
+    save_only_model: Optional[bool] = None
     logging_steps: int = 5
 
     skip_memory_metrics: bool = True
@@ -106,8 +109,7 @@ class SftArguments:
 
     def __post_init__(self):
         if is_dist():
-            rank, _, _ = get_dist_setting()
-            self.seed += rank  # Avoid the same dropout
+            self.seed += get_dist_setting()[0]  # Avoid the same dropout
             if self.ddp_backend is None:
                 self.ddp_backend = 'nccl'
             # Initialize in advance
@@ -129,6 +131,11 @@ class SftArguments:
         else:
             raise ValueError(f'sft_type: {self.sft_type}')
 
+        if self.deepspeed is not None:
+            with open(self.deepspeed, 'r', encoding='utf-8') as f:
+                self.deepspeed = json.load(f)
+            logger.info(f'Using deepspeed: {self.deepspeed}')
+
         self.output_dir = os.path.join(self.output_dir, self.model_type)
 
         if self.lora_target_modules is None:
@@ -143,6 +150,53 @@ class SftArguments:
         if self.use_flash_attn is None:
             self.use_flash_attn = 'auto'
 
+        output_dir = None
+        if is_master():
+            output_dir = add_version_to_work_dir(self.output_dir)
+        if is_dist():
+            output_dir = broadcast_string(output_dir)
+
+        self.trainer_args = Seq2SeqTrainingArguments(
+            output_dir=output_dir,
+            do_train=True,
+            do_eval=True,
+            evaluation_strategy='steps',
+            per_device_train_batch_size=self.batch_size,
+            per_device_eval_batch_size=1,
+            gradient_accumulation_steps=self.gradient_accumulation_steps,
+            learning_rate=self.learning_rate,
+            weight_decay=self.weight_decay,
+            max_grad_norm=self.max_grad_norm,
+            num_train_epochs=self.num_train_epochs,
+            lr_scheduler_type=self.lr_scheduler_type,
+            warmup_ratio=self.warmup_ratio,
+            logging_steps=self.logging_steps,
+            save_strategy='steps',
+            save_steps=self.save_steps,
+            save_total_limit=self.save_total_limit,
+            bf16=self.bf16,
+            fp16=self.fp16,
+            eval_steps=self.eval_steps,
+            dataloader_num_workers=1,
+            load_best_model_at_end=False,
+            metric_for_best_model='loss',
+            greater_is_better=False,
+            sortish_sampler=True,
+            optim=self.optim,
+            hub_model_id=self.hub_model_id,
+            hub_private_repo=self.hub_private_repo,
+            hub_strategy=self.hub_strategy,
+            hub_token=self.hub_token,
+            push_to_hub=self.push_to_hub,
+            resume_from_checkpoint=self.resume_from_ckpt,
+            ddp_backend=self.ddp_backend,
+            gradient_checkpointing=self.gradient_checkpoint,
+            local_rank=get_dist_setting()[1],
+            skip_memory_metrics=self.skip_memory_metrics,
+            fsdp=self.fsdp or False,
+            fsdp_config=self.fsdp_config,
+            deepspeed=self.deepspeed)
+
 
 def llm_sft(args: SftArguments) -> None:
     logger.info(f'device_count: {torch.cuda.device_count()}')
@@ -150,13 +204,18 @@ def llm_sft(args: SftArguments) -> None:
     logger.info(
         f'rank: {rank}, local_rank: {local_rank}, world_size: {world_size}')
     seed_everything(args.seed)
+    trainer_args = args.trainer_args
 
     # ### Loading Model and Tokenizer
-    kwargs = {'low_cpu_mem_usage': True}
-    if is_dist():
-        kwargs['device_map'] = {'': local_rank}
+    kwargs = {}
+    if is_deepspeed_zero3_enabled():
+        kwargs = {'device_map': None}
     else:
-        kwargs['device_map'] = 'auto'
+        kwargs = {'low_cpu_mem_usage': True}
+        if is_dist():
+            kwargs['device_map'] = {'': local_rank}
+        else:
+            kwargs['device_map'] = 'auto'
     if args.load_in_8bit or args.load_in_4bit:
         quantization_config = BitsAndBytesConfig(
             args.load_in_8bit,
@@ -180,7 +239,7 @@ def llm_sft(args: SftArguments) -> None:
             logger.info(
                 f'Setting lora_target_modules: {args.lora_target_modules}')
         if args.resume_from_ckpt is None:
-            lora_config = LoraConfig(
+            lora_config = LoRAConfig(
                 r=args.lora_rank,
                 target_modules=args.lora_target_modules,
                 lora_alpha=args.lora_alpha,
@@ -208,7 +267,11 @@ def llm_sft(args: SftArguments) -> None:
     #     model = model.bfloat16()
 
     show_layers(model)
-    get_model_info(model)
+    logger.info(model)
+    model_info = None
+    if not is_deepspeed_zero3_enabled():
+        model_info = get_model_info(model)
+        logger.info(model_info)
 
     # ### Loading Dataset
     dataset = get_ms_tool_dataset(args.dataset)
@@ -226,53 +289,6 @@ def llm_sft(args: SftArguments) -> None:
     stat_dataset(val_dataset)
     data_collator = partial(data_collate_fn, tokenizer=tokenizer)
     # print_example(train_dataset[0], tokenizer)
-
-    # ### Setting trainer_args
-    output_dir = None
-    if is_master():
-        output_dir = add_version_to_work_dir(args.output_dir)
-    if is_dist():
-        output_dir = broadcast_string(output_dir)
-    trainer_args = Seq2SeqTrainingArguments(
-        output_dir=output_dir,
-        do_train=True,
-        do_eval=True,
-        evaluation_strategy='steps',
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=1,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
-        max_grad_norm=args.max_grad_norm,
-        num_train_epochs=args.num_train_epochs,
-        lr_scheduler_type=args.lr_scheduler_type,
-        warmup_ratio=args.warmup_ratio,
-        logging_steps=args.logging_steps,
-        save_strategy='steps',
-        save_steps=args.save_steps,
-        save_total_limit=args.save_total_limit,
-        bf16=args.bf16,
-        fp16=args.fp16,
-        eval_steps=args.eval_steps,
-        dataloader_num_workers=1,
-        load_best_model_at_end=True,
-        metric_for_best_model='loss',
-        greater_is_better=False,
-        sortish_sampler=True,
-        optim=args.optim,
-        hub_model_id=args.hub_model_id,
-        hub_private_repo=args.hub_private_repo,
-        hub_strategy=args.hub_strategy,
-        hub_token=args.hub_token,
-        push_to_hub=args.push_to_hub,
-        resume_from_checkpoint=args.resume_from_ckpt,
-        ddp_backend=args.ddp_backend,
-        gradient_checkpointing=args.gradient_checkpoint,
-        local_rank=local_rank,
-        skip_memory_metrics=args.skip_memory_metrics,
-        fsdp=args.fsdp or False,
-        fsdp_config=args.fsdp_config,
-        deepspeed=args.deepspeed)
 
     if args.gradient_checkpoint:
         # fix: gradients will be None

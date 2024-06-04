@@ -19,8 +19,9 @@ def stream_output(response, **kwargs):
     text = ''
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
-            # logger at the first for the request_id, and the last time for whole output
-            if not text:  # or trunk.output.choices[0].finish_reason != 'null':
+            # logging at the first frame for request_id, and the last frame for the whole output
+            print(trunk)
+            if not text:
                 logger.info(
                     f'call dashscope generation api success, '
                     f'request_id: { trunk.request_id}, output: { trunk.output}'
@@ -63,6 +64,7 @@ def stream_output(response, **kwargs):
 
 
 @register_llm('dashscope')
+@register_llm('dashscope_llama3')
 class DashScopeLLM(BaseChatModel):
     """
     Universal LLM model interface on dashscope
@@ -80,15 +82,11 @@ class DashScopeLLM(BaseChatModel):
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
-        stop = stop or []
-        stop.append('<|im_end|>')
+        stop = self._update_stop_word(stop)
         generation_input = {
             'model': self.model,
             'messages': messages,  # noqa
-            'stop_words': [{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            'stop': [word for word in stop],
             'top_p': kwargs.get('top_p', 0.8),
             'result_format': 'message',
             'stream': True,
@@ -103,13 +101,15 @@ class DashScopeLLM(BaseChatModel):
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
         response = dashscope.Generation.call(**generation_input)
+        print(response)
+        response = self.stat_last_call_token_info(response)
         return stream_output(response, **kwargs)
 
     def _chat_no_stream(self,
                         messages: List[Dict],
                         stop: Optional[List[str]] = None,
                         **kwargs) -> str:
-        stop = stop or []
+        stop = self._update_stop_word(stop)
         top_p = kwargs.get('top_p', 0.8)
 
         response = dashscope.Generation.call(
@@ -117,13 +117,11 @@ class DashScopeLLM(BaseChatModel):
             messages=messages,  # noqa
             result_format='message',
             stream=False,
-            stop_words=[{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            stop=[word for word in stop],
             top_p=top_p,
         )
         if response.status_code == HTTPStatus.OK:
+            self.stat_last_call_token_info(response)
             return response.output.choices[0].message.content
         else:
             err = 'Error code: %s, error message: %s' % (
@@ -131,6 +129,24 @@ class DashScopeLLM(BaseChatModel):
                 response.message,
             )
             return err
+
+    def stat_last_call_token_info(self, response):
+        try:
+            self.last_call_usage_info = {
+                'prompt_tokens': response.usage.input_tokens,
+                'completion_tokens': response.usage.output_tokens,
+                'total_tokens': response.usage.total_tokens
+            }
+            return response
+        except AttributeError:
+            for chunk in response:
+                # if hasattr(chunk.output, 'usage'):
+                self.last_call_usage_info = {
+                    'prompt_tokens': chunk.usage.input_tokens,
+                    'completion_tokens': chunk.usage.output_tokens,
+                    'total_tokens': chunk.usage.total_tokens
+                }
+                yield chunk
 
 
 @register_llm('dashscope_qwen')
@@ -146,16 +162,13 @@ class QwenChatAtDS(DashScopeLLM):
                              **kwargs) -> str:
         if prompt == '':
             return ''
-        stop = stop or []
+        stop = self._update_stop_word(stop)
         top_p = kwargs.get('top_p', 0.8)
 
         response = dashscope.Generation.call(
             self.model,
             prompt=prompt,  # noqa
-            stop_words=[{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            stop=[word for word in stop],
             top_p=top_p,
             result_format='message',
             stream=False,
@@ -226,7 +239,7 @@ class QwenChatAtDS(DashScopeLLM):
             prompt = f'{system_prompt.replace("chat_records", chat_records).replace("recent_records", recent_records)}<|im_start|>assistant\n'  # noqa E501
         else:
             try:
-                re_pattern_config = re.compile(pattern=r'你是([\s\S]+)，请你根据对话')
+                re_pattern_config = re.compile(pattern=r'你是([\s\S]+)，角色介绍')
                 res = re_pattern_config.search(system_prompt)
                 cur_role_name = res.group(1).strip()
             except Exception:
@@ -237,7 +250,15 @@ class QwenChatAtDS(DashScopeLLM):
             if 'chat_records' in prompt:
                 prompt = f'{prompt.replace("chat_records", content)}\n<|im_start|>{cur_role_name}\n'
             else:
-                prompt = f'{prompt}<im_start>user\n{content}<|im_end|>\n<|im_start|>assistant\n{cur_role_name}: '
+                chat_records_list = content.strip().split('\n')
+                user_content = ''
+                for chat_role in chat_records_list:
+                    try:
+                        cur_role, cur_chat = chat_role.split(':')
+                    except Exception:
+                        continue
+                    user_content += f'<|im_start|>{cur_role.strip()}\n{cur_chat.strip()}<|im_end|>\n'
+                prompt = f'{prompt}{user_content}<|im_start|>{cur_role_name}\n'
 
         print('prompt: ', [prompt])
         return prompt
@@ -255,15 +276,11 @@ class QwenChatAtDS(DashScopeLLM):
                                      messages: List[Dict],
                                      stop: Optional[List[str]] = None,
                                      **kwargs) -> Iterator[str]:
-        stop = stop or []
-        stop.append('<|im_end|>')
+        stop = self._update_stop_word(stop)
         generation_input = {
             'model': self.model,
             'prompt': messages[0]['content'],
-            'stop_words': [{
-                'stop_str': word,
-                'mode': 'exclude'
-            } for word in stop],
+            'stop': [word for word in stop],
             'top_p': kwargs.get('top_p', 0.95),
             'temperature': kwargs.get('temperature', 0.92),
             'result_format': 'message',

@@ -57,6 +57,10 @@ jobs:
       with:
         python-version: "3.10.13"
 
+    # Add a step to check if it's a fork and set an environment variable
+    - name: Check if PR is from a fork
+      run: echo "IS_FORKED_PR=${{ github.event.pull_request.head.repo.fork }}" >> $GITHUB_ENV
+
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       run: pip install -r requirements.txt

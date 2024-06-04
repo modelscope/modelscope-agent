@@ -1,9 +1,7 @@
-import re
-
-from modelscope_agent.tools import WebBrowser
+from modelscope_agent.tools.web_browser import WebBrowser
 
 
-def test_web_browsing():
+def test_web_browser():
     # test web browsing
     params = """{'urls': 'https://blog.sina.com.cn/zhangwuchang'}"""
     web_browser = WebBrowser()
@@ -14,7 +12,7 @@ def test_web_browsing():
     assert '张五常' in res
 
 
-def test_web_browsing_with_length():
+def test_web_browser_with_length():
     # test web browsing
     params = """{'urls': 'https://blog.sina.com.cn/zhangwuchang'}"""
     web_browser = WebBrowser()
@@ -22,6 +20,14 @@ def test_web_browsing_with_length():
 
     assert isinstance(res, str)
     assert len(res) == 100
+
+
+def test_web_browser_with_adv():
+    params = """{'urls': ['https://www.bing.com/search?q=拜登当选总统的年份是哪一年']}"""
+    tool_config = {'web_browser': {'use_adv': True}}
+    web_browser = WebBrowser(tool_config)
+    res = web_browser.call(params=params)
+    assert isinstance(res, str)
 
 
 # def test_integrated_web_browser_agent():

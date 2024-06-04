@@ -2,10 +2,10 @@ import os
 import time
 
 import json
-import pandas as pd
 import requests
-from modelscope_agent.tools import register_tool
-from modelscope_agent.utils.utils import get_upload_url
+from modelscope_agent.constants import ApiNames
+from modelscope_agent.tools.base import register_tool
+from modelscope_agent.utils.utils import get_api_key, get_upload_url
 from requests.exceptions import RequestException, Timeout
 
 from .style_repaint import StyleRepaint
@@ -51,9 +51,10 @@ class ImageEnhancement(StyleRepaint):
             'https://dashscope.aliyuncs.com/api/v1/services/enhance/image-enhancement/generation'
         )
         retry_times = MAX_RETRY_TIMES
-        self.token = self.cfg.get('token',
-                                  os.environ.get('DASHSCOPE_API_KEY', ''))
-        assert self.token != '', 'dashscope api token must be acquired'
+        try:
+            self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
         # 参考api详情，确定headers参数
         headers = {
             'Content-Type': 'application/json',

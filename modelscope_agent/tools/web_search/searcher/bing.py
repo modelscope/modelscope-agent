@@ -1,9 +1,8 @@
-import os
-
 import json
 import requests
-from modelscope_agent.tools.web_search.search_util import (AuthenticationKey,
-                                                           SearchResult)
+from modelscope_agent.constants import ApiNames
+from modelscope_agent.tools.web_search.search_util import SearchResult
+from modelscope_agent.utils.utils import get_api_key
 
 from .base_searcher import WebSearcher
 
@@ -20,13 +19,17 @@ class BingWebSearcher(WebSearcher):
         self.mkt = mkt
         self.endpoint = endpoint
         self.timeout = timeout
-        self.token = os.environ.get(AuthenticationKey.bing.value, '')
-        assert self.token != '', 'bing web search api token must be acquired through ' \
-                                 'https://www.microsoft.com/en-us/bing/apis/bing-web-search-api' \
-                                 'and set by BING_SEARCH_V7_SUBSCRIPTION_KEY'
 
     def __call__(self, query, **kwargs):
         params = {'q': query, 'mkt': self.mkt}
+        try:
+            self.token = get_api_key(ApiNames.bing_api_key, **kwargs)
+        except AssertionError:
+            raise AssertionError(
+                'bing web search api token must be acquired through ',
+                'https://www.microsoft.com/en-us/bing/apis/bing-web-search-api',
+                'and set by BING_SEARCH_V7_SUBSCRIPTION_KEY')
+
         headers = {'Ocp-Apim-Subscription-Key': self.token}
         if kwargs:
             params.update(kwargs)

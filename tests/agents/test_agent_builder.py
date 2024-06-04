@@ -1,7 +1,12 @@
+import os
+
 import pytest
 from modelscope_agent.agents.agent_builder import AgentBuilder
 
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_agent_builder():
     llm_config = {'model': 'qwen-turbo', 'model_server': 'dashscope'}
 

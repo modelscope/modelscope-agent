@@ -1,5 +1,5 @@
 import json
-from modelscope_agent.tools import register_tool
+from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.utils.output_wrapper import VideoWrapper
 
 from modelscope.utils.constant import Tasks

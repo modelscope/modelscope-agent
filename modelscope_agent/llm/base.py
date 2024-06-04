@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Union
 
+from modelscope_agent.llm.utils.llm_templates import get_model_stop_words
 from modelscope_agent.utils.retry import retry
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import print_traceback
@@ -43,6 +44,8 @@ class BaseChatModel(ABC):
         self.model = model
         self.model_server = model_server
         self.max_length = 6000
+
+        self.last_call_usage_info = {}
 
     # It is okay to use the same code to handle the output
     # regardless of whether stream is True or False, as follows:
@@ -152,6 +155,15 @@ class BaseChatModel(ABC):
         """
         raise NotImplementedError
 
+    def _update_stop_word(self, stop=None):
+        stop_words_from_model = get_model_stop_words(self.model)
+        if stop is None:
+            stop = stop_words_from_model
+        else:
+            stop = stop_words_from_model + stop
+
+        return stop
+
     @abstractmethod
     def _chat_no_stream(self,
                         messages: List[Dict],
@@ -199,6 +211,9 @@ class BaseChatModel(ABC):
                 if response.get('function_call', None):
                     # logger.info('Support of function calling is detected.')
                     self._support_fn_call = True
+                if response.get('tool_calls', None):
+                    # logger.info('Support of function calling is detected.')
+                    self._support_fn_call = True
             except FnCallNotImplError:
                 pass
             except AttributeError:
@@ -229,3 +244,16 @@ class BaseChatModel(ABC):
 
     def get_max_length(self) -> int:
         return self.max_length
+
+    def get_usage(self) -> Dict:
+        return self.last_call_usage_info
+
+    def stat_last_call_token_info(self, response):
+        try:
+            self.last_call_usage_info = response.usage.dict()
+            return response
+        except AttributeError:
+            for chunk in response:
+                if hasattr(chunk, 'usage') and chunk.usage is not None:
+                    self.last_call_usage_info = chunk.usage.dict()
+                yield chunk

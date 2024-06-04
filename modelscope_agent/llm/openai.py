@@ -2,6 +2,7 @@ import os
 from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.llm.base import BaseChatModel, register_llm
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
 from openai import OpenAI
 
@@ -17,11 +18,13 @@ class OpenAi(BaseChatModel):
                  support_stream: Optional[bool] = None,
                  **kwargs):
         super().__init__(model, model_server, is_function_call)
-
-        api_base = kwargs.get('api_base', 'https://api.openai.com/v1').strip()
+        default_api_base = os.getenv('OPENAI_API_BASE',
+                                     'https://api.openai.com/v1')
+        api_base = kwargs.get('api_base', default_api_base).strip()
         api_key = kwargs.get('api_key',
                              os.getenv('OPENAI_API_KEY',
                                        default='EMPTY')).strip()
+        logger.info(f'client url {api_base}, client key: {api_key}')
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.is_function_call = is_function_call
         self.is_chat = is_chat
@@ -31,29 +34,48 @@ class OpenAi(BaseChatModel):
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
                      **kwargs) -> Iterator[str]:
+        stop = self._update_stop_word(stop)
+        logger.info(
+            f'call openai api, model: {self.model}, messages: {str(messages)}, '
+            f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
+        stream_options = {'include_usage': True}
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             stop=stop,
             stream=True,
+            stream_options=stream_options,
             **kwargs)
+        response = self.stat_last_call_token_info(response)
         # TODO: error handling
         for chunk in response:
             # sometimes delta.content is None by vllm, we should not yield None
-            if hasattr(chunk.choices[0].delta,
-                       'content') and chunk.choices[0].delta.content:
+            if len(chunk.choices) > 0 and hasattr(
+                    chunk.choices[0].delta,
+                    'content') and chunk.choices[0].delta.content:
+                logger.info(
+                    f'call openai api success, output: {chunk.choices[0].delta.content}'
+                )
                 yield chunk.choices[0].delta.content
 
     def _chat_no_stream(self,
                         messages: List[Dict],
                         stop: Optional[List[str]] = None,
                         **kwargs) -> str:
+        stop = self._update_stop_word(stop)
+        logger.info(
+            f'call openai api, model: {self.model}, messages: {str(messages)}, '
+            f'stop: {str(stop)}, stream: False, args: {str(kwargs)}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             stop=stop,
             stream=False,
             **kwargs)
+        self.stat_last_call_token_info(response)
+        logger.info(
+            f'call openai api success, output: {response.choices[0].message.content}'
+        )
         # TODO: error handling
         return response.choices[0].message.content
 
@@ -119,6 +141,10 @@ class OpenAi(BaseChatModel):
                             functions: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
         if functions:
+            functions = [{
+                'type': 'function',
+                'function': item
+            } for item in functions]
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
@@ -130,3 +156,29 @@ class OpenAi(BaseChatModel):
                 model=self.model, messages=messages, **kwargs)
         # TODO: error handling
         return response.choices[0].message
+
+
+@register_llm('vllm')
+class Vllm(BaseChatModel):
+
+    def _chat_stream(self,
+                     messages: List[Dict],
+                     stop: Optional[List[str]] = None,
+                     **kwargs) -> Iterator[str]:
+        stop = self._update_stop_word(stop)
+        logger.info(
+            f'call openai api, model: {self.model}, messages: {str(messages)}, '
+            f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
+        response = self.client.chat.completions.create(
+            model=self.model, messages=messages, stop=stop, stream=True)
+        response = self.stat_last_call_token_info(response)
+        # TODO: error handling
+        for chunk in response:
+            # sometimes delta.content is None by vllm, we should not yield None
+            if len(chunk.choices) > 0 and hasattr(
+                    chunk.choices[0].delta,
+                    'content') and chunk.choices[0].delta.content:
+                logger.info(
+                    f'call openai api success, output: {chunk.choices[0].delta.content}'
+                )
+                yield chunk.choices[0].delta.content

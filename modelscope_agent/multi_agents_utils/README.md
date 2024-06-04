@@ -48,7 +48,7 @@ Considering the current status of ModelScope-Agent, the following design solutio
 
 1. **Decouple multi-agent interactive logic from single-agent Logic:**
    - Use **[AgentEnvMixin](../agent_env_util.py)** class to handle all of multi-agent communication logic based on **Ray**, without changing any origin logic in single agent modules.
-   - Extract environment information in **[Environment](../environment.py)** module, using a publishing/subscribe mechanism to advance interactions without execution-level blocking between agents.
+   - Extract environment information in **[Environment](../environment/environment.py)** module, using a publishing/subscribe mechanism to advance interactions without execution-level blocking between agents.
    - Message hub is maintained in **Environment** module, meanwhile each multi-agent actor manage their own history
 
 2. **Introduce an *[Agent Registry Center](../agents_registry.py)* Concept:**

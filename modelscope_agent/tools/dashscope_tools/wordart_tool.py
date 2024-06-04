@@ -3,7 +3,9 @@ import time
 
 import json
 import requests
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
+from modelscope_agent.utils.utils import get_api_key
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -45,9 +47,11 @@ class WordArtTexture(BaseTool):
         if isinstance(params, str):
             return 'Parameter Error'
         remote_parsed_input = json.dumps(self._remote_parse_input(**params))
-        self.token = kwargs.get('token',
-                                os.environ.get('DASHSCOPE_API_KEY', ''))
-        assert self.token != '', 'dashscope api token must be acquired with wordart'
+        try:
+            self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+
         retry_times = MAX_RETRY_TIMES
         headers = {
             'Content-Type': 'application/json',

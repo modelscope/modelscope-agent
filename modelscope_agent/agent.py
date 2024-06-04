@@ -3,7 +3,8 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.tools.base import TOOL_REGISTRY
+from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
+                                         ToolServiceProxy)
 from modelscope_agent.utils.utils import has_chinese_chars
 
 
@@ -18,6 +19,7 @@ class Agent(ABC):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
+                 use_tool_api: bool = False,
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -33,6 +35,7 @@ class Agent(ABC):
             name: the name of agent
             description: the description of agent, which is used for multi_agent
             instruction: the system instruction of this agent
+            use_tool_api: whether to use the tool service api, else to use the tool cls instance
             kwargs: other potential parameters
         """
         if isinstance(llm, Dict):
@@ -40,7 +43,8 @@ class Agent(ABC):
             self.llm = get_chat_model(**self.llm_config)
         else:
             self.llm = llm
-        self.stream = True
+        self.stream = kwargs.get('stream', True)
+        self.use_tool_api = use_tool_api
 
         self.function_list = []
         self.function_map = {}
@@ -91,16 +95,18 @@ class Agent(ABC):
             result += f'Details: {str(e)[:200]}'
         return result
 
-    def _register_tool(self, tool: Union[str, Dict]):
+    def _register_tool(self,
+                       tool: Union[str, Dict],
+                       tenant_id: str = 'default'):
         """
-        Instantiate the global tool for the agent
+        Instantiate the tool for the agent
 
         Args:
             tool: the tool should be either in a string format with name as value
             and in a dict format, example
             (1) When str: amap_weather
             (2) When dict: {'amap_weather': {'token': 'xxx'}}
-
+            tenant_id: the tenant_id of the tool is now  for code interpreter that need to keep track of the tenant
         Returns:
 
         """
@@ -113,14 +119,40 @@ class Agent(ABC):
             raise NotImplementedError
         if tool not in self.function_list:
             self.function_list.append(tool)
-            tool_class = TOOL_REGISTRY[tool_name]
+
+            tool_class_with_tenant = TOOL_REGISTRY[tool_name]
+
+            # adapt the TOOL_REGISTRY[tool_name] to origin tool class
+
+            if isinstance(tool_class_with_tenant, BaseTool):
+                tool_class_with_tenant = {'class': TOOL_REGISTRY[tool_name]}
+                TOOL_REGISTRY[tool_name] = tool_class_with_tenant
+
+            # check if the tenant_id of tool instance or tool service are exists
+            # TODO: change from use_tool_api=True to False, to get the tenant_id of the tool changes to
+            if tenant_id in tool_class_with_tenant and self.use_tool_api:
+                return
+
             try:
-                self.function_map[tool_name] = tool_class(tool_cfg)
+                if self.use_tool_api:
+                    # get service proxy as tool instance, call method will call remote tool service
+                    tool_instance = ToolServiceProxy(tool_name, tool_cfg,
+                                                     tenant_id)
+                else:
+                    # instantiation tool class as tool instance
+                    tool_instance = TOOL_REGISTRY[tool_name]['class'](tool_cfg)
+
+                self.function_map[tool_name] = tool_instance
+
             except TypeError:
                 # When using OpenAPI, tool_class is already an instantiated object, not a corresponding class
-                self.function_map[tool_name] = tool_class
+                self.function_map[tool_name] = TOOL_REGISTRY[tool_name][
+                    'class']
             except Exception as e:
                 raise RuntimeError(e)
+
+            # store the instance of tenant to tool registry on this tool
+            tool_class_with_tenant[tenant_id] = self.function_map[tool_name]
 
     def _detect_tool(self, message: Union[str,
                                           dict]) -> Tuple[bool, str, str, str]:
@@ -156,7 +188,28 @@ class Agent(ABC):
 
         return (func_name is not None), func_name, func_args, text
 
+    def _parse_image_url(self, image_url: List[Union[str, Dict]],
+                         messages: List[Dict]) -> List[Dict]:
+
+        assert len(messages) > 0
+
+        if isinstance(image_url[0], str):
+            image_url = [{'url': url} for url in image_url]
+
+        images = [{
+            'type': 'image_url',
+            'image_url': image
+        } for image in image_url]
+
+        origin_message: str = messages[-1]['content']
+        parsed_message = [{'type': 'text', 'text': origin_message}, *images]
+        messages[-1]['content'] = parsed_message
+        return messages
+
     # del the tools as well while del the agent
     def __del__(self):
-        for tool_instance in self.function_map.items():
-            del tool_instance
+        try:
+            for tool_instance in self.function_map.items():
+                del tool_instance
+        except Exception:
+            pass

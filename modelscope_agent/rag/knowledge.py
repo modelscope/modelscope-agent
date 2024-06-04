@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
@@ -19,6 +19,9 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.rag.emb import DashscopeEmbedding
 from modelscope_agent.rag.llm import ModelscopeAgentLLM
+from modelscope_agent.utils.nltk_utils import install_nltk_data
+
+install_nltk_data()
 
 
 @dataclass
@@ -169,6 +172,7 @@ class BaseKnowledge(BaseLlamaPack):
                     print(
                         f'Can not load index from cache_dir {self.cache_dir}, detail: {e}'
                     )
+
         if documents is not None:
             if not index:
                 index = VectorStoreIndex.from_documents(
@@ -285,7 +289,6 @@ class BaseKnowledge(BaseLlamaPack):
         return str(self.query_engine.query(query_bundle, **kwargs))
 
     def add(self, files: List[str]):
-
         if isinstance(files, str):
             files = [files]
 

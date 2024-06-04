@@ -1,7 +1,11 @@
 import os
 
+import dashscope
+from dashscope.audio.tts import SpeechSynthesizer
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
+from modelscope_agent.utils.utils import get_api_key
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
 
@@ -28,8 +32,9 @@ class SambertTtsTool(BaseTool):
         super().__init__(cfg)
 
     def call(self, params: str, **kwargs) -> str:
-        from dashscope.audio.tts import SpeechSynthesizer
         params = self._verify_args(params)
+        dashscope.api_key = get_api_key(ApiNames.dashscope_api_key,
+                                        self.api_key, **kwargs)
         tts_text = params['text']
         if tts_text is None or len(tts_text) == 0 or tts_text == '':
             raise ValueError('tts input text is valid')

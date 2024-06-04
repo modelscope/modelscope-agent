@@ -1,7 +1,7 @@
 import pytest
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm import BaseChatModel
-from modelscope_agent.tools import TOOL_REGISTRY, BaseTool
+from modelscope_agent.tools.base import TOOL_REGISTRY
 
 from .ut_utils import MockTool
 
@@ -13,8 +13,8 @@ class MockTool1(MockTool):
 # Using RolePlay as a concrete agent
 @pytest.fixture
 def tester_agent(mocker):
-    TOOL_REGISTRY['mock_tool'] = MockTool
-    TOOL_REGISTRY['mock_tool1'] = MockTool1
+    TOOL_REGISTRY['mock_tool'] = {'class': MockTool}
+    TOOL_REGISTRY['mock_tool1'] = {'class': MockTool1}
     function_list = ['mock_tool', {'mock_tool1': {'config': 'some_config'}}]
     llm_config = {
         'model': 'qwen-max',
@@ -61,3 +61,18 @@ def test_agent_call_tool(tester_agent):
     # Mocking a simple response from the tool for testing purposes
     response = tester_agent._call_tool('mock_tool', 'tool response')
     assert response == 'tool response'
+
+
+def test_agent_parse_image_url(tester_agent):
+    image_url = ['https://example.com/image.jpg']
+    tester_agent.llm.model = 'gpt-4o'
+    messages = [{'role': 'user', 'content': 'hello'}]
+    messages = tester_agent._parse_image_url(image_url, messages)
+
+    assert messages[0]['role'] == 'user'
+    assert messages[0]['content'][0]['type'] == 'text'
+    assert messages[0]['content'][0]['text'] == 'hello'
+    assert messages[0]['content'][1]['type'] == 'image_url'
+    assert isinstance(messages[0]['content'][1]['image_url'], dict)
+    assert messages[0]['content'][1]['image_url'][
+        'url'] == 'https://example.com/image.jpg'
