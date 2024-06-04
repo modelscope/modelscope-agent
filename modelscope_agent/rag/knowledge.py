@@ -14,6 +14,7 @@ from llama_index.core.schema import Document, QueryBundle, TransformComponent
 from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import (MetadataFilter,
                                                   MetadataFilters)
+from llama_index.legacy.core.embeddings.base import BaseEmbedding
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.rag.emb import DashscopeEmbedding
@@ -53,6 +54,7 @@ class BaseKnowledge(BaseLlamaPack):
                  cache_dir: str = './run',
                  llm: Optional[BaseChatModel] = None,
                  retriever: Optional[Type[BaseRetriever]] = None,
+                 emb: Optional[Type[BaseEmbedding]] = None,
                  loaders: Dict[str, Type[BaseReader]] = {},
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
@@ -62,6 +64,7 @@ class BaseKnowledge(BaseLlamaPack):
         self.cache_dir = cache_dir
         # self.register_files(files) # TODO: file manager
         self.extra_readers = self.get_extra_readers(loaders)
+        self.embed_model = self.get_emb_model(emb)
 
         documents = None
         if not use_cache:
@@ -88,6 +91,20 @@ class BaseKnowledge(BaseLlamaPack):
 
         if root_retriever:
             self.query_engine = self.get_query_engine(root_retriever, **kwargs)
+
+    def get_emb_model(self,
+                      emb_cls: Optional[Type[BaseEmbedding]]) -> BaseEmbedding:
+        emb_model = None
+        if emb_cls:
+            try:
+                emb_model = emb_cls()
+            except Exception as e:
+                print(
+                    f'Unable to initialize {emb_cls}, using dashscope embedding instead. Details:{e}'
+                )
+        if not emb_model:
+            emb_model = DashscopeEmbedding()
+        return emb_model
 
     def get_query_engine(self, root_retriever: BaseRetriever,
                          **kwargs) -> BaseQueryEngine:
@@ -147,7 +164,7 @@ class BaseKnowledge(BaseLlamaPack):
                     # load index
 
                     index = load_index_from_storage(
-                        storage_context, embed_model=DashscopeEmbedding())
+                        storage_context, embed_model=self.embed_model)
                 except Exception as e:
                     print(
                         f'Can not load index from cache_dir {self.cache_dir}, detail: {e}'
@@ -157,7 +174,7 @@ class BaseKnowledge(BaseLlamaPack):
                 index = VectorStoreIndex.from_documents(
                     documents=documents,
                     transformations=self.transformations,
-                    embed_model=DashscopeEmbedding())
+                    embed_model=self.embed_model)
             else:
                 for doc in documents:
                     index.insert(doc)
