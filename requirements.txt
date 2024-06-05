@@ -1,4 +1,6 @@
+aliyun-python-sdk-core
 dashscope
+diffusers>=0.21.0
 faiss-cpu
 grpcio
 jieba
@@ -9,6 +11,7 @@ langchain-community
 langchain-experimental
 modelscope >=1.10.0,<=1.12.0
 moviepy
+nls>=1.0.0
 ollama
 openai
 opencv-python
@@ -26,6 +29,3 @@ tiktoken
 transformers>=4.33
 unstructured
 zhipuai
-diffusers>=0.21.0
-nls>=1.0.0
-aliyun-python-sdk-core

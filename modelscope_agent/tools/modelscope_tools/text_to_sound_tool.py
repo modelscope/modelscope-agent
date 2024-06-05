@@ -2,7 +2,6 @@ from typing import Dict, Optional
 
 import torch
 from diffusers import AudioLDM2Pipeline
-
 from modelscope_agent.tools.base import BaseTool
 
 
@@ -10,7 +9,7 @@ class TexttoSoundTool(BaseTool):
     default_model: str = ''
     task: str = ''
     model_revision = None
-    name: str = "text-to-sound"
+    name: str = 'text-to-sound'
     description: str = '根据给定的描述，生成符合描述的音效'
 
     parameters: list = [{
@@ -43,8 +42,9 @@ class TexttoSoundTool(BaseTool):
         if self.is_initialized:
             return
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.pipeline = AudioLDM2Pipeline.from_pretrained("cvssp/audioldm2")
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
+        self.pipeline = AudioLDM2Pipeline.from_pretrained('cvssp/audioldm2')
         self.pipeline = self.pipeline.to(self.device)
         self.is_initialized = True
 
@@ -55,11 +55,11 @@ class TexttoSoundTool(BaseTool):
 
         try:
             self.setup()
-            prompts = params["prompts"]
-            seed = params.get("seed", 0)
-            n_candidate_per_text = params.get("n_candidate_per_text", 3)
-            guidance_scale = params.get("guidance_scale", 3.5)
-            n_steps = params.get("n_steps", 200)
+            prompts = params['prompts']
+            seed = params.get('seed', 0)
+            n_candidate_per_text = params.get('n_candidate_per_text', 3)
+            guidance_scale = params.get('guidance_scale', 3.5)
+            n_steps = params.get('n_steps', 200)
             generator = torch.Generator(device=self.device).manual_seed(seed)
             audios = self.pipeline(
                 prompts,
@@ -67,8 +67,7 @@ class TexttoSoundTool(BaseTool):
                 audio_length_in_s=10.0,
                 guidance_scale=guidance_scale,
                 num_waveforms_per_prompt=n_candidate_per_text,
-                generator=generator
-            ).audios
+                generator=generator).audios
             audios = audios[::n_candidate_per_text]
             return audios
 
