@@ -102,7 +102,7 @@ class BaseKnowledge(BaseLlamaPack):
                 print(
                     f'Unable to initialize llm throuth {llm}, using dashscope:qwen-max instead. Failed reason: {e}'
                 )
-        else:
+        elif llm:
             print(
                 f'Unsupported parameter type: llm={llm}. Expecting llama_index.core.llms.LLM,'
                 'modelscope_agent.llm.base.BaseChatModel or llm_config from modelscope_agent'
@@ -211,7 +211,7 @@ class BaseKnowledge(BaseLlamaPack):
         # init retriever tool
         if self.retriever_cls:
             try:
-                return self.retriever_cls.from_defaults(index)
+                return self.retriever_cls(index)
             except Exception as e:
                 print(
                     f'Retriever {self.retriever_cls} cannot be used, using default retriever instead. Detail: {e}'
