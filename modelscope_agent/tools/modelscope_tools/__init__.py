@@ -11,6 +11,8 @@ _import_structure = {
     'text_to_video_tool': ['TextToVideoTool'],
     'translation_en2zh_tool': ['TranslationEn2ZhTool'],
     'translation_zh2en_tool': ['TranslationZh2EnTool'],
+    'story_diffusion_tool': ['StoryDiffusionTool'],
+    'text_to_sound_tool': ['TexttoSoundTool'],
 }
 
 sys.modules[__name__] = _LazyModule(

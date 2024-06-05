@@ -26,3 +26,6 @@ tiktoken
 transformers>=4.33
 unstructured
 zhipuai
+diffusers>=0.21.0
+nls>=1.0.0
+aliyun-python-sdk-core

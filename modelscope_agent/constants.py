@@ -17,3 +17,6 @@ class ApiNames(Enum):
     modelscope_api_key = 'MODELSCOPE_API_TOKEN'
     amap_api_key = 'AMAP_TOKEN'
     bing_api_key = 'BING_SEARCH_V7_SUBSCRIPTION_KEY'
+    aliyun_access_key_id = 'ALIYUN_ACCESS_KEY_ID'
+    aliyun_access_key_secret = 'ALIYUN_ACCESS_KEY_SECRET'
+    aliyun_app_key = 'ALIYUN_APP_KEY'

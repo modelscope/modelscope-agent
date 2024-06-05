@@ -10,7 +10,8 @@ _import_structure = {
     'style_repaint': ['StyleRepaint'],
     'wordart_tool': ['WordArtTexture'],
     'sambert_tts_tool': ['SambertTtsTool'],
-    'paraformer_asr_tool': ['ParaformerAsrTool']
+    'paraformer_asr_tool': ['ParaformerAsrTool'],
+    'cosyvoice_tts_tool': ['CosyvoiceTtsTool'],
 }
 
 sys.modules[__name__] = _LazyModule(
