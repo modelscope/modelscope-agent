@@ -151,7 +151,7 @@ User could also use the chat api with the same manner of vllm, by passing `--ser
 An using case is shown below.
 
 ```shell
-sh run_script_2.sh --model_name Qwen2-1.5B-Instruct --model_dir /path/to/Qwen2-1___5B-Instruct
+sh scripts/run_assistant_server.sh --served-model-name Qwen2-1.5B-Instruct --model /path/to/Qwen2-1___5B-Instruct
 ```
 
 Then you could use `curl` to request this API or call python api as shown before
