@@ -14,7 +14,7 @@ def test_memory_with_rag_simple():
 
 
 def test_memory_with_rag_update():
-    memory = MemoryWithRag(use_knowledge_cache=False, )
+    memory = MemoryWithRag(use_knowledge_cache=False)
 
     summary_str = memory.run(
         query='模型大文件上传失败怎么办', url=['tests/samples/modelscope_qa_2.txt'])

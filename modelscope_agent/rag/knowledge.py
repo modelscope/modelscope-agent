@@ -55,7 +55,7 @@ class BaseKnowledge(BaseLlamaPack):
     def __init__(self,
                  files: Union[List, str] = [],
                  cache_dir: str = './run',
-                 llm: Optional[BaseChatModel] = None,
+                 llm: Union[LLM, BaseChatModel, Dict] = {},
                  retriever: Optional[Type[BaseRetriever]] = None,
                  emb: Optional[Type[BaseEmbedding]] = None,
                  loaders: Dict[str, Type[BaseReader]] = {},
@@ -68,20 +68,13 @@ class BaseKnowledge(BaseLlamaPack):
         # self.register_files(files) # TODO: file manager
         self.extra_readers = self.get_extra_readers(loaders)
         self.embed_model = self.get_emb_model(emb)
-
+        Settings._embed_model = self.embed_model
         documents = None
         if not use_cache:
             documents = self.read(files)
 
-        if llm and isinstance(llm, BaseChatModel):
-            self.llm = ModelscopeAgentLLM(llm)
-        elif isinstance(llm, LLM):
-            self._llm = llm
-        else:
-            llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
-            llm = get_chat_model(**llm_config)
-            self.llm = ModelscopeAgentLLM(llm)
-        Settings.llm = self.llm
+        self.llm = self.get_llm(llm)
+        Settings._llm = self.llm
 
         # 可对本召回器的文本范围 进行过滤、筛选、rechunk。transformations为空时，默认按语义rechunk。
         self.transformations = self.get_transformations(transformations)
@@ -94,6 +87,32 @@ class BaseKnowledge(BaseLlamaPack):
 
         if root_retriever:
             self.query_engine = self.get_query_engine(root_retriever, **kwargs)
+
+    def get_llm(self, llm: Union[LLM, BaseChatModel, Dict]) -> LLM:
+        llama_index_llm = None
+        if llm and isinstance(llm, BaseChatModel):
+            llama_index_llm = ModelscopeAgentLLM(llm)
+        elif isinstance(llm, LLM):
+            llama_index_llm = llm
+        elif isinstance(llm, dict):
+            try:
+                ms_agent_llm = get_chat_model(**llm)
+                llama_index_llm = ModelscopeAgentLLM(ms_agent_llm)
+            except Exception as e:
+                print(
+                    f'Unable to initialize llm throuth {llm}, using dashscope:qwen-max instead. Failed reason: {e}'
+                )
+        else:
+            print(
+                f'Unsupported parameter type: llm={llm}. Expecting llama_index.core.llms.LLM,'
+                'modelscope_agent.llm.base.BaseChatModel or llm_config from modelscope_agent'
+            )
+
+        if not llama_index_llm:
+            llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
+            ms_agent_llm = get_chat_model(**llm_config)
+            llama_index_llm = ModelscopeAgentLLM(ms_agent_llm)
+        return llama_index_llm
 
     def get_emb_model(self,
                       emb_cls: Optional[Type[BaseEmbedding]]) -> BaseEmbedding:
