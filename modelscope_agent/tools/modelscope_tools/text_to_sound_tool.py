@@ -42,12 +42,12 @@ class TexttoSoundTool(BaseTool):
     def setup(self):
         if self.is_initialized:
             return
-        
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.pipeline = AudioLDM2Pipeline.from_pretrained("cvssp/audioldm2")
         self.pipeline = self.pipeline.to(self.device)
         self.is_initialized = True
-    
+
     def call(self, params: str, **kwargs):
         params: dict = self._verify_args(params)
         if isinstance(params, str):

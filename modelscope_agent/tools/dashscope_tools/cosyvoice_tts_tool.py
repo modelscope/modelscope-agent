@@ -63,7 +63,7 @@ class CosyvoiceTtsTool(BaseTool):
         client = AcsClient(
             self.access_key_id,
             self.access_key_secret,
-           "cn-shanghai"
+            "cn-shanghai"
         )
         request = CommonRequest()
         request.set_method('POST')
@@ -71,7 +71,7 @@ class CosyvoiceTtsTool(BaseTool):
         request.set_version('2019-02-28')
         request.set_action_name('CreateToken')
 
-        try: 
+        try:
             response = client.do_action_with_exception(request)
             jss = json.loads(response)
             if 'Token' in jss and 'Id' in jss['Token']:
@@ -82,7 +82,6 @@ class CosyvoiceTtsTool(BaseTool):
             raise RuntimeError(
                 f'Request token failed with error: {e}, with detail {traceback.format_exc()}'
             )
-
 
     def call(self, params: str, **kwargs) -> str:
         params = self._verify_args(params)
@@ -121,7 +120,7 @@ class CosyvoiceTtsTool(BaseTool):
         def close_file(*args):
             if writer is not None:
                 writer.close()
-        
+
         sdk = nls.NlsStreamInputTtsSynthesizer(
             url="wss://nls-gateway-cn-beijing.aliyuncs.com/ws/v1",
             token=self.token,

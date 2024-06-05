@@ -27,17 +27,17 @@ def cal_attn_mask_xl(total_length,
                      dtype=torch.float16):
     nums_1024 = (height // 32) * (width // 32)
     nums_4096 = (height // 16) * (width // 16)
-    bool_matrix1024 = torch.rand((1, total_length * nums_1024),device = device,dtype = dtype) < sa32
-    bool_matrix4096 = torch.rand((1, total_length * nums_4096),device = device,dtype = dtype) < sa64
-    bool_matrix1024 = bool_matrix1024.repeat(total_length,1)
-    bool_matrix4096 = bool_matrix4096.repeat(total_length,1)
+    bool_matrix1024 = torch.rand((1, total_length * nums_1024), device = device, dtype = dtype) < sa32
+    bool_matrix4096 = torch.rand((1, total_length * nums_4096), device = device, dtype = dtype) < sa64
+    bool_matrix1024 = bool_matrix1024.repeat(total_length, 1)
+    bool_matrix4096 = bool_matrix4096.repeat(total_length, 1)
     for i in range(total_length):
-        bool_matrix1024[i:i+1,id_length*nums_1024:] = False
-        bool_matrix4096[i:i+1,id_length*nums_4096:] = False
-        bool_matrix1024[i:i+1,i*nums_1024:(i+1)*nums_1024] = True
-        bool_matrix4096[i:i+1,i*nums_4096:(i+1)*nums_4096] = True
-    mask1024 = bool_matrix1024.unsqueeze(1).repeat(1,nums_1024,1).reshape(-1,total_length * nums_1024)
-    mask4096 = bool_matrix4096.unsqueeze(1).repeat(1,nums_4096,1).reshape(-1,total_length * nums_4096)
+        bool_matrix1024[i:i + 1, id_length * nums_1024:] = False
+        bool_matrix4096[i:i + 1, id_length * nums_4096:] = False
+        bool_matrix1024[i:i + 1, i * nums_1024:(i + 1) * nums_1024] = True
+        bool_matrix4096[i:i + 1, i * nums_4096:(i + 1) * nums_4096] = True
+    mask1024 = bool_matrix1024.unsqueeze(1).repeat(1, nums_1024, 1).reshape(-1, total_length * nums_1024)
+    mask4096 = bool_matrix4096.unsqueeze(1).repeat(1, nums_4096, 1).reshape(-1, total_length * nums_4096)
     return mask1024, mask4096
 
 
@@ -173,7 +173,6 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
 
         self.global_attn_args = global_attn_args
 
-
     def __call__(
         self,
         attn,
@@ -211,11 +210,11 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
                     else:
                         attention_mask = mask4096[mask4096.shape[0] // self.total_length * self.id_length:]
                 else:
-                    if hidden_states.shape[1] == (self.height//32) * (self.width//32):
+                    if hidden_states.shape[1] == (self.height // 32) * (self.width // 32):
                         attention_mask = mask1024[:mask1024.shape[0] // self.total_length * self.id_length,
                                                   :mask1024.shape[0] // self.total_length * self.id_length]
                     else:
-                        attention_mask = mask4096[:mask4096.shape[0] // self.total_length * self.id_length, 
+                        attention_mask = mask4096[:mask4096.shape[0] // self.total_length * self.id_length,
                                                   :mask4096.shape[0] // self.total_length * self.id_length]
                 hidden_states = self.__call1__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
             else:
@@ -230,7 +229,7 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
                                                   self.sa64,
                                                   self.height,
                                                   self.width,
-                                                  device=self.device, 
+                                                  device=self.device,
                                                   dtype=self.dtype)
             self.global_attn_args["mask1024"] = mask1024
             self.global_attn_args["mask4096"] = mask4096
@@ -239,7 +238,7 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
         self.global_attn_args["cur_step"] = cur_step
 
         return hidden_states
-    
+
     def __call1__(
         self,
         attn,
@@ -258,7 +257,8 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
             hidden_states = hidden_states.view(total_batch_size, channel, height * width).transpose(1, 2)
         total_batch_size, nums_token, channel = hidden_states.shape
         img_nums = total_batch_size // 2
-        hidden_states = hidden_states.view(-1, img_nums, nums_token, channel).reshape(-1, img_nums * nums_token, channel)
+        hidden_states = hidden_states.view(-1, img_nums, nums_token, channel).reshape(
+            -1, img_nums * nums_token, channel)
 
         batch_size, sequence_length, _ = hidden_states.shape
 
@@ -275,7 +275,6 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
 
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
-
 
         inner_dim = key.shape[-1]
         head_dim = inner_dim // attn.heads
@@ -296,7 +295,6 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
         # dropout
         hidden_states = attn.to_out[1](hidden_states)
 
-
         if input_ndim == 4:
             hidden_states = hidden_states.transpose(-1, -2).reshape(total_batch_size, channel, height, width)
         if attn.residual_connection:
@@ -304,14 +302,15 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
         hidden_states = hidden_states / attn.rescale_output_factor
         # print(hidden_states.shape)
         return hidden_states
-    
+
     def __call2__(
         self,
         attn,
         hidden_states,
         encoder_hidden_states=None,
         attention_mask=None,
-        temb=None):
+        temb=None
+    ):
         residual = hidden_states
 
         if attn.spatial_norm is not None:
@@ -341,7 +340,8 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states  # B, N, C
         else:
-            encoder_hidden_states = encoder_hidden_states.view(-1, self.id_length + 1, sequence_length, channel).reshape(
+            encoder_hidden_states = encoder_hidden_states.view(
+                -1, self.id_length + 1, sequence_length, channel).reshape(
                 -1, (self.id_length + 1) * sequence_length, channel)
 
         key = attn.to_k(encoder_hidden_states)
@@ -412,7 +412,7 @@ class StoryDiffusionTool(BaseTool):
         self.is_initialized = False
 
     def setup(self):
-        
+
         if self.is_initialized:
             return
 
@@ -436,29 +436,64 @@ class StoryDiffusionTool(BaseTool):
                 '{prompt}',
                 ''),
             'Japanese Anime': (
-                'anime artwork illustrating {prompt}. created by japanese anime studio. highly emotional. best quality, high resolution, (Anime Style, Manga Style:1.3), Low detail, sketch, concept art, line art, webtoon, manhua, hand drawn, defined lines, simple shades, minimalistic, High contrast, Linear compositions, Scalable artwork, Digital art, High Contrast Shadows',
-                'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
+                'anime artwork illustrating {prompt}. created by japanese anime studio. highly emotional. '
+                'best quality, high resolution, (Anime Style, Manga Style:1.3), Low detail, sketch, concept art, '
+                'line art, webtoon, manhua, hand drawn, defined lines, simple shades, minimalistic, High contrast, '
+                'Linear compositions, Scalable artwork, Digital art, High Contrast Shadows',
+                'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, '
+                'cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, '
+                'username, blurry'),
             'Digital/Oil Painting': (
-                '{prompt} . (Extremely Detailed Oil Painting:1.2), glow effects, godrays, Hand drawn, render, 8k, octane render, cinema 4d, blender, dark, atmospheric 4k ultra detailed, cinematic sensual, Sharp focus, humorous illustration, big depth of field',
-                'anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
+                '{prompt} . (Extremely Detailed Oil Painting:1.2), glow effects, godrays, Hand drawn, render, '
+                '8k, octane render, cinema 4d, blender, dark, atmospheric 4k ultra detailed, cinematic sensual, '
+                'Sharp focus, humorous illustration, big depth of field',
+                'anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, '
+                'ugly, disfigured, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, '
+                'fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, '
+                'watermark, username, blurry'),
             'Pixar/Disney Character': (
-                'Create a Disney Pixar 3D style illustration on {prompt} . The scene is vibrant, motivational, filled with vivid colors and a sense of wonder.',
-                'lowres, bad anatomy, bad hands, text, bad eyes, bad arms, bad legs, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, blurry, grayscale, noisy, sloppy, messy, grainy, highly detailed, ultra textured, photo'),
+                'Create a Disney Pixar 3D style illustration on {prompt} . The scene is vibrant, motivational, '
+                'filled with vivid colors and a sense of wonder.',
+                'lowres, bad anatomy, bad hands, text, bad eyes, bad arms, bad legs, error, missing fingers, '
+                'extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, '
+                'signature, watermark, blurry, grayscale, noisy, sloppy, messy, grainy, highly detailed, '
+                'ultra textured, photo'),
             'Photographic': (
-                'cinematic photo {prompt} . Hyperrealistic, Hyperdetailed, detailed skin, matte skin, soft lighting, realistic, best quality, ultra realistic, 8k, golden ratio, Intricate, High Detail, film photography, soft focus',
-                'drawing, painting, crayon, sketch, graphite, impressionist, noisy, blurry, soft, deformed, ugly, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
+                'cinematic photo {prompt} . Hyperrealistic, Hyperdetailed, detailed skin, matte skin, soft lighting, '
+                'realistic, best quality, ultra realistic, 8k, golden ratio, Intricate, High Detail, film photography, '
+                'soft focus',
+                'drawing, painting, crayon, sketch, graphite, impressionist, noisy, blurry, soft, deformed, ugly, '
+                'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, '
+                'worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
             'Comic book': (
                 'comic {prompt} . graphic illustration, comic art, graphic novel art, vibrant, highly detailed',
-                'photograph, deformed, glitch, noisy, realistic, stock photo, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
+                'photograph, deformed, glitch, noisy, realistic, stock photo, lowres, bad anatomy, bad hands, text, '
+                'error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, '
+                'normal quality, jpeg artifacts, signature, watermark, username, blurry'),
             'Line art': (
-                'line art drawing {prompt} . professional, sleek, modern, minimalist, graphic, line art, vector graphics',
-                'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, expressionism, oil, acrylic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
+                'line art drawing {prompt} . professional, sleek, modern, minimalist, graphic, line art, '
+                'vector graphics',
+                'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, '
+                'cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, '
+                'expressionism, oil, acrylic, lowres, bad anatomy, bad hands, text, error, missing fingers, '
+                'extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, '
+                'signature, watermark, username, blurry'),
             'Black and White Film Noir': (
-                '{prompt} . (b&w, Monochromatic, Film Photography:1.3), film noir, analog style, soft lighting, subsurface scattering, realistic, heavy shadow, masterpiece, best quality, ultra realistic, 8k',
-                'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, expressionism, oil, acrylic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry'),
+                '{prompt} . (b&w, Monochromatic, Film Photography:1.3), film noir, analog style, soft lighting, '
+                'subsurface scattering, realistic, heavy shadow, masterpiece, best quality, ultra realistic, 8k',
+                'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, '
+                'cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, '
+                'expressionism, oil, acrylic, lowres, bad anatomy, bad hands, text, error, missing fingers, '
+                'extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, '
+                'signature, watermark, username, blurry'),
             'Isometric Rooms': (
-                'Tiny cute isometric {prompt} . in a cutaway box, soft smooth lighting, soft colors, 100mm lens, 3d blender render',
-                'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, expressionism, oil, acrylic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry')
+                'Tiny cute isometric {prompt} . in a cutaway box, soft smooth lighting, soft colors, 100mm lens, '
+                '3d blender render',
+                'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, '
+                'cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, '
+                'expressionism, oil, acrylic, lowres, bad anatomy, bad hands, text, error, missing fingers, '
+                'extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, '
+                'signature, watermark, username, blurry')
         }
 
         pipe = StableDiffusionXLPipeline.from_pretrained(
@@ -475,18 +510,18 @@ class StoryDiffusionTool(BaseTool):
         unet = pipe.unet
 
         attn_procs = {}
-        ### Insert PairedAttention
+        # Insert PairedAttention
         for name in unet.attn_processors.keys():
             cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-            if name.startswith("mid_block"):
-                hidden_size = unet.config.block_out_channels[-1]
-            elif name.startswith("up_blocks"):
-                block_id = int(name[len("up_blocks.")])
-                hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-            elif name.startswith("down_blocks"):
-                block_id = int(name[len("down_blocks.")])
-                hidden_size = unet.config.block_out_channels[block_id]
-            if cross_attention_dim is None and (name.startswith("up_blocks") ) :
+            # if name.startswith("mid_block"):
+            #     hidden_size = unet.config.block_out_channels[-1]
+            # elif name.startswith("up_blocks"):
+            #     block_id = int(name[len("up_blocks.")])
+            #     hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
+            # elif name.startswith("down_blocks"):
+            #     block_id = int(name[len("down_blocks.")])
+            #     hidden_size = unet.config.block_out_channels[block_id]
+            if cross_attention_dim is None and (name.startswith("up_blocks")):
                 attn_procs[name] = SpatialAttnProcessor2_0(
                     id_length=self.id_length,
                     device=self.device,
@@ -520,9 +555,10 @@ class StoryDiffusionTool(BaseTool):
         })
 
         self.pipe = pipe
-        self.negative_prompt = "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation," \
-                               "extra limb, ugly, disgusting, poorly drawn hands, missing limb, floating" \
-                               "limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
+        self.negative_prompt = "naked, deformed, bad anatomy, disfigured, poorly drawn face, " \
+                               "mutation, extra limb, ugly, disgusting, poorly drawn hands, " \
+                               "missing limb, floating limbs, disconnected limbs, blurry, " \
+                               "watermarks, oversaturated, distorted hands, amputation"
 
         self.is_initialized = True
 
@@ -532,18 +568,17 @@ class StoryDiffusionTool(BaseTool):
         for name, processor in unet.attn_processors.items():
             cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
             if cross_attention_dim is None:
-                if name.startswith("up_blocks") :
+                if name.startswith("up_blocks"):
                     assert isinstance(processor, SpatialAttnProcessor2_0)
                     processor.write = value
 
     def apply_style(self, style_name: str, positives: list, negative: str = ""):
         p, n = self.styles.get(style_name, self.styles["(No style)"])
         return [p.replace("{prompt}", positive) for positive in positives], n + ' ' + negative
-    
+
     def apply_style_positive(self, style_name: str, positive: str):
         p, n = self.styles.get(style_name, self.styles["(No style)"])
-        return p.replace("{prompt}", positive) 
-    
+        return p.replace("{prompt}", positive)
 
     def call(self, params: str, **kwargs):
         params: dict = self._verify_args(params)
@@ -573,11 +608,11 @@ class StoryDiffusionTool(BaseTool):
                 id_prompts,
                 num_inference_steps=self.num_steps,
                 guidance_scale=guidance_scale,
-                height=self.height, 
+                height=self.height,
                 width=self.width,
                 negative_prompt=negative_prompt,
                 generator=generator).images
-        
+
             self.set_attn_write(False)
             real_images = []
             for real_prompt in real_prompts:
@@ -586,14 +621,14 @@ class StoryDiffusionTool(BaseTool):
                 real_images.append(self.pipe(
                     real_prompt,
                     num_inference_steps=self.num_steps,
-                    guidance_scale=guidance_scale, 
-                    height=self.height, 
+                    guidance_scale=guidance_scale,
+                    height=self.height,
                     width=self.width,
                     negative_prompt=negative_prompt,
                     generator=generator).images[0]
                 )
 
-            images = id_images + real_images             
+            images = id_images + real_images
             return images
         except RuntimeError as e:
             import traceback
