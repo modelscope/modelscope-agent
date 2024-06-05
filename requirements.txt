@@ -8,6 +8,7 @@ langchain
 langchain-community
 langchain-experimental
 llama-index
+llama-index-readers-json
 llama-index-retrievers-bm25
 modelscope >=1.10.0,<=1.12.0
 moviepy
