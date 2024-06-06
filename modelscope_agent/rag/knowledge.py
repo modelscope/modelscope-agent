@@ -58,7 +58,7 @@ class BaseKnowledge(BaseLlamaPack):
                  llm: Union[LLM, BaseChatModel, Dict] = {},
                  retriever: Optional[Type[BaseRetriever]] = None,
                  emb: Optional[Type[BaseEmbedding]] = None,
-                 loaders: Dict[str, Type[BaseReader]] = {},
+                 loaders: Dict[str, Union[BaseReader,Type[BaseReader]]] = {},
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
                  use_cache: bool = True,
@@ -220,16 +220,18 @@ class BaseKnowledge(BaseLlamaPack):
         return index.as_retriever()
 
     def get_extra_readers(
-            self, loaders: Dict[str,
-                                Type[BaseReader]]) -> Dict[str, BaseReader]:
+            self, loaders: Dict[str, Union[BaseReader,
+                                Type[BaseReader]]]) -> Dict[str, BaseReader]:
         extra_readers = {}
-        for file_type, loader_cls in loaders.items():
+        for file_type, loader_or_cls in loaders.items():
+            if isinstance(loader_or_cls, BaseReader):
+                extra_readers[file_type] = loader_or_cls
             try:
-                loader = loader_cls()
+                loader = loader_or_cls()
                 extra_readers[file_type] = loader
             except Exception as e:
                 print(
-                    f'Using {loader_cls} failed. Can not read {file_type} file. Detail: {e}'
+                    f'Using {loader_or_cls} failed. Can not read {file_type} file. Detail: {e}'
                 )
 
         # lazy import
