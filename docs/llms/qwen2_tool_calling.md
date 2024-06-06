@@ -5,7 +5,6 @@
 - [环境准备](#环境准备)
 - [模型准备](#模型准备)
 - [服务调用](#服务调用)
-- [接口调用](#接口调用)
 
 
 ## 环境准备
@@ -147,6 +146,3 @@ chat_completion = client.chat.completions.create(
     tool_choice=tool_choice
 )
 ```
-
-
-## 接口调用
