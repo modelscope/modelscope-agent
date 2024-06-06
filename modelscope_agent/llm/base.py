@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Dict, Iterator, List, Optional, Union
 
+from modelscope_agent.callbacks import BaseCallback
 from modelscope_agent.llm.utils.llm_templates import get_model_stop_words
 from modelscope_agent.utils.retry import retry
 from modelscope_agent.utils.tokenization_utils import count_tokens
@@ -16,6 +18,28 @@ def register_llm(name):
         return cls
 
     return decorator
+
+
+def enable_llm_callback(func):
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        callbacks = kwargs.pop('callbacks', None)
+        stream = kwargs.get('stream', True)
+        if callbacks:
+            callbacks.on_llm_start(*args, **kwargs)
+        response = func(self, *args, **kwargs)
+        if callbacks:
+            if stream:
+                for s in response:
+                    callbacks.on_llm_new_token(self.model, s)
+                    yield s
+
+            callbacks.on_llm_end(self.model, response, stream=stream)
+        if not stream:
+            return response
+
+    return wrapper
 
 
 class FnCallNotImplError(NotImplementedError):
@@ -80,11 +104,17 @@ class BaseChatModel(ABC):
                 messages = [{'role': 'user', 'content': prompt}]
 
         assert len(messages) > 0, 'messages list must not be empty'
-
+        callbacks = kwargs.pop('callbacks', None)
+        if callbacks:
+            callbacks.on_llm_start(messages, **kwargs)
         if stream:
-            return self._chat_stream(messages, stop=stop, **kwargs)
+            response = self._chat_stream(messages, stop=stop, **kwargs)
+            response = self.enable_stream_callback(response, callbacks)
         else:
-            return self._chat_no_stream(messages, stop=stop, **kwargs)
+            response = self._chat_no_stream(messages, stop=stop, **kwargs)
+            if callbacks:
+                callbacks.on_llm_end(self.model, response, stream=stream)
+        return response
 
     @retry(max_retries=3, delay_seconds=0.5)
     def chat_with_functions(self,
@@ -257,3 +287,11 @@ class BaseChatModel(ABC):
                 if hasattr(chunk, 'usage') and chunk.usage is not None:
                     self.last_call_usage_info = chunk.usage.dict()
                 yield chunk
+
+    def enable_stream_callback(self, gen, callbacks):
+        for s in gen:
+            if callbacks:
+                callbacks.on_llm_new_token(self.model, s)
+            yield s
+
+        callbacks.on_llm_end(self.model, '', stream=True)

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
@@ -20,6 +21,7 @@ class Agent(ABC):
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
                  use_tool_api: bool = False,
+                 callbacks=[],
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -59,13 +61,20 @@ class Agent(ABC):
         self.instruction = instruction
         self.uuid_str = kwargs.get('uuid_str', None)
 
+        if isinstance(callbacks, BaseCallback):
+            callbacks = [callbacks]
+        self.callback_manager = CallbackManager(callbacks)
+
     def run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
+        self.callback_manager.on_run_start()
         if 'lang' not in kwargs:
             if has_chinese_chars([args, kwargs]):
                 kwargs['lang'] = 'zh'
             else:
                 kwargs['lang'] = 'en'
-        return self._run(*args, **kwargs)
+        result = self._run(*args, **kwargs)
+        self.callback_manager.on_run_end()
+        return result
 
     @abstractmethod
     def _run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
@@ -88,11 +97,13 @@ class Agent(ABC):
         Use when calling tools in bot()
 
         """
+        self.callback_manager.on_tool_start(tool_name, tool_args)
         try:
             result = self.function_map[tool_name].call(tool_args, **kwargs)
         except BaseException as e:
             result = f'Tool api {tool_name} failed to call. Args: {tool_args}.'
             result += f'Details: {str(e)[:200]}'
+        self.callback_manager.on_tool_end(tool_name, result)
         return result
 
     def _register_tool(self,
