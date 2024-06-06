@@ -1,4 +1,4 @@
-# Qwen2 agent应用最佳实践
+# Qwen2 Agent应用最佳实践
 
 
 ## 目录
@@ -21,7 +21,7 @@ cd modelscope-agent
 模型下载:
 ```python
 from modelscope import snapshot_download
-model_dir = snapshot_download('qweb/Qwen2-7B-Instruct')
+model_dir = snapshot_download('qwen/Qwen2-7B-Instruct')
 ```
 
 ## 服务调用
@@ -135,6 +135,7 @@ tool_choice = 'auto'
 
 client = OpenAI(
     base_url=api_base,
+    api_key="empty",
 )
 chat_completion = client.chat.completions.create(
     messages=[{
