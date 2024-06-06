@@ -58,7 +58,7 @@ class BaseKnowledge(BaseLlamaPack):
                  llm: Union[LLM, BaseChatModel, Dict] = {},
                  retriever: Optional[Type[BaseRetriever]] = None,
                  emb: Optional[Type[BaseEmbedding]] = None,
-                 loaders: Dict[str, Union[BaseReader,Type[BaseReader]]] = {},
+                 loaders: Dict[str, Union[BaseReader, Type[BaseReader]]] = {},
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
                  use_cache: bool = True,
@@ -220,8 +220,8 @@ class BaseKnowledge(BaseLlamaPack):
         return index.as_retriever()
 
     def get_extra_readers(
-            self, loaders: Dict[str, Union[BaseReader,
-                                Type[BaseReader]]]) -> Dict[str, BaseReader]:
+        self, loaders: Dict[str, Union[BaseReader, Type[BaseReader]]]
+    ) -> Dict[str, BaseReader]:
         extra_readers = {}
         for file_type, loader_or_cls in loaders.items():
             if isinstance(loader_or_cls, BaseReader):
