@@ -74,3 +74,7 @@ class RunStateCallback(BaseCallback):
     @property
     def run_states(self):
         return self._run_states
+
+    @property
+    def history_states(self):
+        return self._history_states
