@@ -1,4 +1,6 @@
 import time
+import uuid
+from copy import deepcopy
 from typing import Dict, List, Union
 
 from pydantic import BaseModel, Field
@@ -13,17 +15,23 @@ class RunState(BaseModel):
     create_time: int = Field(default_factory=lambda: int(time.time()))
 
 
-class RunStateList(BaseModel):
-    run_states: List[RunState]
-
-
 class RunStateCallback(BaseCallback):
 
     def __init__(self):
         super().__init__()
 
         self._run_states = {}
+        self._history_states = {}
         self.step = 0
+        self.run_id = ''
+
+    def on_run_start(self, *args, **kwargs):
+        self.run_id = str(uuid.uuid4())
+        self._run_states = {}
+        self.step = 0
+
+    def on_run_end(self, *args, **kwargs):
+        self._history_states[self.run_id] = deepcopy(self._run_states)
 
     def on_step_start(self, *args, **kwargs):
         self.step += 1
@@ -47,6 +55,13 @@ class RunStateCallback(BaseCallback):
         chunk = last_chunk + chunk
         self._run_states[self.step].append(
             RunState(name=name, type='llm_chunk', content=chunk))
+
+    def on_rag_start(self, *args, **kwargs):
+        self.on_step_start(*args, **kwargs)
+
+    def on_rag_end(self, name, response, **kwargs):
+        self._run_states[self.step].append(
+            RunState(name=name, type='rag', content=response))
 
     def on_tool_start(self, func_name, params={}):
         self._run_states[self.step].append(

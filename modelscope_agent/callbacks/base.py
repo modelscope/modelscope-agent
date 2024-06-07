@@ -15,6 +15,12 @@ class BaseCallback:
     def on_llm_new_token(self, *args, **kwargs):
         pass
 
+    def on_rag_start(self, *args, **kwargs):
+        pass
+
+    def on_rag_end(self, *args, **kwargs):
+        pass
+
     def on_tool_start(self, *args, **kwargs):
         pass
 
@@ -52,6 +58,12 @@ class CallbackManager(BaseCallback):
 
     def on_llm_new_token(self, *args, **kwargs):
         self.call_event('on_llm_new_token', *args, **kwargs)
+
+    def on_rag_start(self, *args, **kwargs):
+        self.call_event('on_rag_start', *args, **kwargs)
+
+    def on_rag_end(self, *args, **kwargs):
+        self.call_event('on_rag_end', *args, **kwargs)
 
     def on_tool_start(self, *args, **kwargs):
         self.call_event('on_tool_start', *args, **kwargs)

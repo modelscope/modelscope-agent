@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
@@ -7,6 +8,34 @@ from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          ToolServiceProxy)
 from modelscope_agent.utils.utils import has_chinese_chars
+
+
+def enable_run_callback(func):
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        callbacks = self.callback_manager
+        callbacks.on_run_start(*args, **kwargs)
+        response = func(self, *args, **kwargs)
+        name = self.name or self.__class__.__name__
+        if self.stream:
+            response = enable_stream_callback(name, response, callbacks)
+        else:
+            response = enable_no_stream_callback(name, response, callbacks)
+        return response
+
+    return wrapper
+
+
+def enable_stream_callback(name, rsp, callbacks):
+    for s in rsp:
+        yield s
+    callbacks.on_run_end(name, rsp)
+
+
+def enable_no_stream_callback(name, rsp, callbacks):
+    callbacks.on_run_end(name, rsp)
+    return rsp
 
 
 class Agent(ABC):
@@ -65,15 +94,14 @@ class Agent(ABC):
             callbacks = [callbacks]
         self.callback_manager = CallbackManager(callbacks)
 
+    @enable_run_callback
     def run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
-        self.callback_manager.on_run_start()
         if 'lang' not in kwargs:
             if has_chinese_chars([args, kwargs]):
                 kwargs['lang'] = 'zh'
             else:
                 kwargs['lang'] = 'en'
         result = self._run(*args, **kwargs)
-        self.callback_manager.on_run_end()
         return result
 
     @abstractmethod
