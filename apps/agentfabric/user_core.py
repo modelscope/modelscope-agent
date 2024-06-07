@@ -5,7 +5,7 @@ from typing import List
 import json
 from config_utils import get_user_preview_history_dir, parse_configuration
 from modelscope_agent.agents.role_play import RolePlay
-from modelscope_agent.memory import MemoryWithRetrievalKnowledge
+from modelscope_agent.memory import MemoryWithRag
 from modelscope_agent.tools.base import TOOL_REGISTRY
 from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
 from modelscope_agent.utils.logger import agent_logger as logger
@@ -51,18 +51,14 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     memory_history_path = os.path.join(preview_history_dir,
                                        session + '_user.json')
     memory_agent_name = uuid_str + '_' + session + '_memory'
-    memory = MemoryWithRetrievalKnowledge(
+    memory = MemoryWithRag(
+        urls=builder_cfg.knowledge,
+        llm=agent.llm,
         storage_path=storage_path,
         name=memory_agent_name,
         memory_path=memory_history_path,
         use_knowledge_cache=False,
     )
-
-    # memory knowledge
-    memory.run(
-        query=None,
-        url=json.dumps(builder_cfg.knowledge, ensure_ascii=False),
-        uuid=uuid_str)
 
     return agent, memory
 

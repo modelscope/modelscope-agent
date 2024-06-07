@@ -16,7 +16,6 @@ from modelscope_agent_servers.service_utils import (create_error_msg,
 DEFAULT_KNOWLEDGE_PATH = 'knowledges'
 DEFAULT_INDEX_PATH = 'index'
 
-model_server = os.environ.get('MODEL_SERVER', 'dashscope')
 app = FastAPI()
 
 
@@ -129,12 +128,12 @@ async def chat_completion(chat_request: ChatCompletionRequest,
     user = chat_request.user
     model = chat_request.model
     # remove the prefix 'Bearer ' from the authorization header
-    auth = authorization[7:] if authorization else ''
+    auth = authorization[7:] if authorization else 'EMPTY'
 
     # llm_config
     llm_config = {
         'model': model,
-        'model_server': model_server,
+        'model_server': os.environ.get('MODEL_SERVER', 'dashscope'),
         'api_key': auth
     }
 
