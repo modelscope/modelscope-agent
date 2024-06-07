@@ -65,4 +65,3 @@ class VllmLLM(BaseChatModel):
             messages = [{'role': 'user', 'content': prompt}]
         return super().chat(
             messages=messages, stop=stop, stream=stream, **kwargs)
-
