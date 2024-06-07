@@ -1,16 +1,19 @@
 from typing import Dict, Iterator, List, Optional, Union
+
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
-from .base import BaseChatModel, register_llm
-from vllm import LLM, SamplingParams
 from transformers import AutoTokenizer
+from vllm import LLM, SamplingParams
+
+from .base import BaseChatModel, register_llm
 
 
 @register_llm('vllm')
 class VllmLLM(BaseChatModel):
 
-    def __init__(self, model: str, model_server: str, llm: LLM, tokenizer: AutoTokenizer,
-                 sampling_params: SamplingParams, **kwargs):
+    def __init__(self, model: str, model_server: str, llm: LLM,
+                 tokenizer: AutoTokenizer, sampling_params: SamplingParams,
+                 **kwargs):
         super().__init__(model, model_server)
         self.llm = llm
         self.tokenizer = tokenizer
@@ -23,7 +26,8 @@ class VllmLLM(BaseChatModel):
         logger.info(
             f'chat stream vllm, model: {self.model}, messages: {str(messages)}, '
             f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
-        inputs = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True)
         self.llm._validate_and_add_requests(
             inputs=inputs,
             params=self.sampling_params,
@@ -45,8 +49,10 @@ class VllmLLM(BaseChatModel):
         logger.info(
             f'call vllm, model: {self.model}, messages: {str(messages)}, '
             f'stop: {str(stop)}, stream: False, args: {str(kwargs)}')
-        inputs = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        outputs = self.llm.generate(prompts=inputs, sampling_params=self.sampling_params)
+        inputs = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True)
+        outputs = self.llm.generate(
+            prompts=inputs, sampling_params=self.sampling_params)
         logger.info(f'call vllm success, output: {outputs[0].outputs[0].text}')
         # TODO: support stop word
         return outputs[0].outputs[0].text

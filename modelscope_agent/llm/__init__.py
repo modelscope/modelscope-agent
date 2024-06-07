@@ -5,8 +5,8 @@ from .dashscope import DashScopeLLM, QwenChatAtDS
 from .modelscope import ModelScopeChatGLM, ModelScopeLLM
 from .ollama import OllamaLLM
 from .openai import OpenAi
-from .zhipu import ZhipuLLM
 from .vllm import VllmLLM
+from .zhipu import ZhipuLLM
 
 
 def get_chat_model(model: str, model_server: str, **kwargs) -> BaseChatModel:
