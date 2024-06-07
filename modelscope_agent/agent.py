@@ -18,7 +18,7 @@ def enable_run_callback(func):
         callbacks.on_run_start(*args, **kwargs)
         response = func(self, *args, **kwargs)
         name = self.name or self.__class__.__name__
-        if self.stream:
+        if not isinstance(response, str):
             response = enable_stream_callback(name, response, callbacks)
         else:
             response = enable_no_stream_callback(name, response, callbacks)
