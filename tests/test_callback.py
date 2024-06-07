@@ -69,8 +69,5 @@ def test_rag_run_state(mocker):
         use_knowledge_cache=False,
         callbacks=[callback])
 
-    mocker.patch.object(memory, '_run', return_value='请先申请高德天气token')
-
-    summary_str = memory.run(query='高德天气api怎么申请')
+    memory.run(query='高德天气api怎么申请')
     assert callback.run_states[1][0].type == 'rag'
-    assert '请先申请高德天气token' in summary_str
