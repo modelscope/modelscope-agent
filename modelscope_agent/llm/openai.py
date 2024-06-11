@@ -158,7 +158,7 @@ class OpenAi(BaseChatModel):
         return response.choices[0].message
 
 
-@register_llm('vllm_server')
+@register_llm('vllm-server')
 class Vllm(BaseChatModel):
 
     def _chat_stream(self,
