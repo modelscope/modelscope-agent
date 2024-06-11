@@ -44,7 +44,9 @@ class TexttoSoundTool(BaseTool):
 
         self.device = torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu')
-        self.pipeline = AudioLDM2Pipeline.from_pretrained('cvssp/audioldm2')
+        self.pipeline = AudioLDM2Pipeline.from_pretrained(
+            self.cfg.get("audioldm2_path", 'cvssp/audioldm2')
+        )
         self.pipeline = self.pipeline.to(self.device)
         self.is_initialized = True
 

@@ -561,7 +561,7 @@ class StoryDiffusionTool(BaseTool):
         }
 
         pipe = StableDiffusionXLPipeline.from_pretrained(
-            'SG161222/RealVisXL_V4.0',
+            self.cfg.get("real_vis_path", 'SG161222/RealVisXL_V4.0'),
             torch_dtype=torch.float16,
             use_safetensors=False)
 
