@@ -28,4 +28,5 @@ sentencepiece
 tiktoken
 transformers>=4.33
 unstructured
+vllm
 zhipuai
