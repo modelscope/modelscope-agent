@@ -2,19 +2,23 @@ from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
-from transformers import AutoTokenizer
-from vllm import LLM, SamplingParams
 
 from .base import BaseChatModel, register_llm
 
 
 @register_llm('vllm')
 class VllmLLM(BaseChatModel):
-
-    def __init__(self, model: str, model_server: str, llm: LLM,
-                 tokenizer: AutoTokenizer, sampling_params: SamplingParams,
-                 **kwargs):
+    # from vllm import LLM, SamplingParams
+    def __init__(self, model: str, model_server: str, llm, tokenizer,
+                 sampling_params, **kwargs):
         super().__init__(model, model_server)
+        try:
+            from vllm import LLM, SamplingParams
+            from transformers import AutoTokenizer
+        except ImportError as e:
+            raise ImportError(
+                "The package 'vllm' and 'transformers' are required for this module. Please install it using 'pip "
+                "install vllm transformers>=4.33'.") from e
         self.llm = llm
         self.tokenizer = tokenizer
         self.sampling_params = sampling_params
