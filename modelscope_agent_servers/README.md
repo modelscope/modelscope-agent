@@ -54,6 +54,7 @@ We provide compatibility with parts of the OpenAI API `chat/completions`, especi
 Here is an code snippet using `OpenAI` SDK with `dashscope` model server:
 
 ```Python
+from openai import OpenAI
 api_base = "http://localhost:31512/v1/"
 model = 'qwen-max'
 
@@ -74,8 +75,9 @@ tools = [{
 tool_choice = 'auto'
 
 client = OpenAI(
-    api_key="YOUR_DASHSCOPE_API_KEY",
     base_url=api_base,
+    api_key="empty",
+
 )
 chat_completion = client.chat.completions.create(
     messages=[{

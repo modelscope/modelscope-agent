@@ -5,6 +5,7 @@ from .dashscope import DashScopeLLM, QwenChatAtDS
 from .modelscope import ModelScopeChatGLM, ModelScopeLLM
 from .ollama import OllamaLLM
 from .openai import OpenAi
+from .vllm import VllmLLM
 from .zhipu import ZhipuLLM
 
 
@@ -26,5 +27,5 @@ def get_chat_model(model: str, model_server: str, **kwargs) -> BaseChatModel:
 
 __all__ = [
     'LLM_REGISTRY', 'BaseChatModel', 'OpenAi', 'DashScopeLLM', 'QwenChatAtDS',
-    'ModelScopeLLM', 'ModelScopeChatGLM', 'ZhipuLLM', 'OllamaLLM'
+    'ModelScopeLLM', 'ModelScopeChatGLM', 'ZhipuLLM', 'OllamaLLM', 'VllmLLM'
 ]
