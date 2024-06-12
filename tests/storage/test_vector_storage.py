@@ -7,7 +7,6 @@ current_file_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_file_dir)
 
 
-@pytest.mark.skip()
 @pytest.fixture
 def knowledge_vector_storage(tmpdir):
     # Use a temporary directory for testing storage
@@ -19,7 +18,6 @@ def knowledge_vector_storage(tmpdir):
     return knowledge_vector
 
 
-@pytest.mark.skip()
 def test_add_method_with_single_file(knowledge_vector_storage):
 
     # Define some test files
@@ -31,7 +29,6 @@ def test_add_method_with_single_file(knowledge_vector_storage):
     assert len(knowledge_vector_storage.vs.index_to_docstore_id) > 0
 
 
-@pytest.mark.skip()
 def test_add_method_with_dir(knowledge_vector_storage):
     # Define some test files
     test_file = os.path.join(parent_dir, 'samples')
@@ -42,7 +39,6 @@ def test_add_method_with_dir(knowledge_vector_storage):
     assert len(knowledge_vector_storage.vs.index_to_docstore_id) > 0
 
 
-@pytest.mark.skip()
 def test_search_method(knowledge_vector_storage):
 
     # Define some test files
@@ -64,7 +60,6 @@ def test_search_method(knowledge_vector_storage):
     assert len(search_results) == 2
 
 
-@pytest.mark.skip()
 def test_save_and_load_methods(knowledge_vector_storage):
 
     # Test the save and load methods

@@ -25,4 +25,5 @@ ray>=2.9.4
 seaborn
 sentencepiece
 tiktoken
+transformers
 unstructured
