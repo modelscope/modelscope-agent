@@ -78,3 +78,15 @@ def test_memory_with_rag_multi_modal():
     summary_str = memory.run('我想看rag的流程图')
     print(summary_str)
     assert 'rag.png' in summary_str
+
+
+def test_memory_with_rag_no_use_llm():
+    memory = MemoryWithRag(use_knowledge_cache=False)
+
+    summary_str = memory.run(
+        query='模型大文件上传失败怎么办',
+        url=['tests/samples/modelscope_qa_2.txt'],
+        use_llm=False)
+    print(summary_str)
+    assert 'file_path' in summary_str
+    assert 'git-lfs' in summary_str
