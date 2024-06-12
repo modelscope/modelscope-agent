@@ -1,6 +1,7 @@
 import pytest
 from modelscope_agent.tools.hf_tool import HFTool
-from transformers import load_tool
+
+# from transformers import load_tool
 
 
 @pytest.mark.skip()
