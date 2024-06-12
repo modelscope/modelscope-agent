@@ -5,7 +5,6 @@ from io import BytesIO
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import requests
-from transformers import PreTrainedTokenizerBase
 
 DEFAULT_SYSTEM = 'You are a helpful assistant.'
 History = List[Union[Tuple[str, str], List[str]]]
@@ -126,7 +125,7 @@ class Template:
         self._is_init = False
 
     @staticmethod
-    def _preprocess_prompt(tokenizer: PreTrainedTokenizerBase,
+    def _preprocess_prompt(tokenizer,
                            value: Optional[Prompt]) -> Optional[Prompt]:
         # e.g. [['eos_token_id']] -> [[2]]
         if value is None:
@@ -144,7 +143,7 @@ class Template:
         return res_value
 
     def _init_template(self,
-                       tokenizer: PreTrainedTokenizerBase,
+                       tokenizer,
                        default_system: Optional[str] = None,
                        max_length: Optional[int] = None,
                        truncation_strategy: Literal[
