@@ -86,6 +86,7 @@ class BaseKnowledge(BaseLlamaPack):
         root_retriever = self.get_root_retriever(
             documents, use_cache=use_cache, **kwargs)
 
+        self.query_engine = None
         if root_retriever:
             self.query_engine = self.get_query_engine(root_retriever, **kwargs)
 
@@ -308,9 +309,13 @@ class BaseKnowledge(BaseLlamaPack):
         query_bundle = FileQueryBundle(query)
         if isinstance(files, str):
             files = [files]
-
         if files and len(files) > 0:
             self.set_filter(files)
+
+        if not self.query_engine:
+            print('No valid document. Return `Empty Response`.')
+            return 'Empty Response'
+
         if use_llm:
             return str(self.query_engine.query(query_bundle))
         else:
