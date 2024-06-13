@@ -40,7 +40,7 @@ Furthermore, if the tool is a `langchain tool`, you can directly use our `Langch
 from langchain.tools import ShellTool
 from modelscope_agent.tools.langchain_proxy_tool import LangchainTool
 from modelscope_agent.agents import RolePlay
-from modelscope_agent.tools import TOOL_REGISTRY
+from modelscope_agent.tools.base import TOOL_REGISTRY
 
 # All LangchainTools should be registered in this manner, with 'terminal' being the tool name that will change according to the task.
 TOOL_REGISTRY['terminal'] = LangchainTool

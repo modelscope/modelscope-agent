@@ -47,7 +47,7 @@ if [ "$MODEL_DIR" != "" ]; then
     echo "Running vllm server, please make sure install vllm"
     # Start the first server in the background on port 8000
     python -m vllm.entrypoints.openai.api_server --served-model-name $MODEL_NAME --model $MODEL_DIR  & SERVER_1_PID=$!
-    export MODEL_SERVER=vllm
+    export MODEL_SERVER=vllm-server
     export OPENAI_API_BASE=http://localhost:8000/v1
     echo "Model server: $MODEL_SERVER"
     echo "OPENAI_API_BASE: $OPENAI_API_BASE"

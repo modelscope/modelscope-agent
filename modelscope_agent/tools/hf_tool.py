@@ -3,11 +3,6 @@ from typing import Dict, List
 import json
 from modelscope_agent.tools.base import BaseTool, register_tool
 
-try:
-    from transformers.tools import Tool as HFTool
-except ImportError:
-    from transformers import Tool as HFTool
-
 
 @register_tool('hf-tool')
 class HFTool(BaseTool):
@@ -15,8 +10,17 @@ class HFTool(BaseTool):
 
     """
 
-    def __init__(self, tool: HFTool, description: str, name: str,
+    def __init__(self, tool, description: str, name: str,
                  parameters: List[Dict]):
+        try:
+            from transformers.tools import Tool as HFTool
+        except ImportError:
+            try:
+                from transformers import Tool as HFTool
+            except ImportError as e:
+                raise ImportError(
+                    "The package 'transformers' is required for this module. Please install it using 'pip install "
+                    "transformers>=4.33'.") from e
         self.tool = tool
         self.description = description
         self.name = name
