@@ -7,7 +7,7 @@ import json
 import ray
 from modelscope_agent import create_component
 from modelscope_agent.agent_env_util import AgentEnvMixin
-from modelscope_agent.agents import MultiRolePlay
+from modelscope_agent.agents.multi_role_play import MultiRolePlay
 from modelscope_agent.task_center import TaskCenter
 from story_holder import get_story_by_id
 
