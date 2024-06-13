@@ -402,15 +402,15 @@ def preview_chat(uuid_str, session_str):
                 f'load history method: time consumed {time.time() - start_time}'
             )
 
-            # get knowledge from memory, currently get one file
-            uploaded_file = None
-            if len(file_paths) > 0:
-                uploaded_file = file_paths[0]
+            use_llm = True if len(user_agent.function_list) else False
             ref_doc = user_memory.run(
-                query=input_content, url=uploaded_file, checked=True)
+                query=input_content,
+                url=file_paths,
+                checked=True,
+                use_llm=use_llm)
             logger.info(
                 f'load knowledge method: time consumed {time.time() - start_time}, '
-                f'the uploaded_file name is {uploaded_file}')  # noqa
+                f'the uploaded_file name is {file_paths}')  # noqa
 
             response = ''
 

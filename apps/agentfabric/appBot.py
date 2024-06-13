@@ -124,12 +124,9 @@ with demo:
         # get short term memory history
         history = user_memory.get_history()
 
-        # get long term memory knowledge, currently get one file
-        uploaded_file = None
-        if len(append_files) > 0:
-            uploaded_file = append_files[0]
+        use_llm = True if len(user_agent.function_list) else False
         ref_doc = user_memory.run(
-            query=input.text, url=uploaded_file, checked=True)
+            query=input.text, url=append_files, checked=True, use_llm=use_llm)
 
         response = ''
         try:

@@ -10,7 +10,8 @@ from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import BaseQueryEngine, RetrieverQueryEngine
 from llama_index.core.readers.base import BaseReader
-from llama_index.core.schema import Document, QueryBundle, TransformComponent
+from llama_index.core.schema import (Document, MetadataMode, QueryBundle,
+                                     TransformComponent)
 from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import (MetadataFilter,
                                                   MetadataFilters)
@@ -299,15 +300,26 @@ class BaseKnowledge(BaseLlamaPack):
         ]
         retriever._filters = MetadataFilters(filters=filters)
 
-    def run(self, query: str, files: List[str] = [], **kwargs) -> str:
+    def run(self,
+            query: str,
+            files: List[str] = [],
+            use_llm: bool = True,
+            **kwargs) -> Union[str, List[str]]:
         query_bundle = FileQueryBundle(query)
         if isinstance(files, str):
             files = [files]
 
         if files and len(files) > 0:
             self.set_filter(files)
-
-        return str(self.query_engine.query(query_bundle, **kwargs))
+        if use_llm:
+            return str(self.query_engine.query(query_bundle))
+        else:
+            nodes = self.query_engine.retrieve(query_bundle)
+            msg = [
+                n.node.get_content(metadata_mode=MetadataMode.LLM)
+                for n in nodes
+            ]
+            return msg
 
     def add(self, files: List[str]):
         if isinstance(files, str):
@@ -329,4 +341,4 @@ if __name__ == '__main__':
     knowledge = BaseKnowledge('./data2', use_cache=False, llm=llm)
 
     knowledge.add(['./data/常见QA.pdf'])
-    print(knowledge.run('高德天气API申请', files=['常见QA.pdf']))
+    print(knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False))

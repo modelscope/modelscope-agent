@@ -603,16 +603,14 @@ with demo:
         # get chat history from memory
         history = user_memory.get_history()
 
-        # get knowledge from memory, currently get one file
-        uploaded_file = None
-        if len(append_files) > 0:
-            uploaded_file = append_files[0]
+        use_llm = True if len(user_agent.function_list) else False
         ref_doc = user_memory.run(
             query=input.text,
-            url=uploaded_file,
+            url=append_files,
             max_token=4000,
             top_k=2,
-            checked=True)
+            checked=True,
+            use_llm=use_llm)
 
         response = ''
         try:
