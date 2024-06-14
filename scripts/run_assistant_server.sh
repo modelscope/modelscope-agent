@@ -55,7 +55,7 @@ if [ "$MODEL_DIR" != "" ]; then
     # Function to check if the first server is up
     check_first_server() {
         echo "Checking if Server 1 is up..."
-        for i in {1..10}; do # try up to 10 times
+        for i in {1..1000000000}; do
             curl -s http://localhost:8000 > /dev/null
             if [ $? -eq 0 ]; then
                 echo "Server 1 is up and running."
