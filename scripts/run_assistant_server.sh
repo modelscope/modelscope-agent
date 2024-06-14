@@ -46,7 +46,7 @@ export PYTHONPATH=$PYTHONPATH:modelscope_agent_servers
 if [ "$MODEL_DIR" != "" ]; then
     echo "Running vllm server, please make sure install vllm"
     # Start the first server in the background on port 8000
-    python -m vllm.entrypoints.openai.api_server --served-model-name $MODEL_NAME --model $MODEL_DIR --quantization gptq --kv-cache-dtype fp8_e5m2 --tensor-parallel-size 8  & SERVER_1_PID=$!
+    python -m vllm.entrypoints.openai.api_server --served-model-name $MODEL_NAME --model $MODEL_DIR  & SERVER_1_PID=$!
     export MODEL_SERVER=vllm-server
     export OPENAI_API_BASE=http://localhost:8000/v1
     echo "Model server: $MODEL_SERVER"
@@ -55,7 +55,7 @@ if [ "$MODEL_DIR" != "" ]; then
     # Function to check if the first server is up
     check_first_server() {
         echo "Checking if Server 1 is up..."
-        for i in {1..10000}; do
+        for i in {1..10}; do # try up to 10 times
             curl -s http://localhost:8000 > /dev/null
             if [ $? -eq 0 ]; then
                 echo "Server 1 is up and running."
