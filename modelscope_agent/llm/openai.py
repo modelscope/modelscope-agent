@@ -159,7 +159,7 @@ class OpenAi(BaseChatModel):
 
 
 @register_llm('vllm-server')
-class Vllm(BaseChatModel):
+class Vllm(OpenAi):
 
     def _chat_stream(self,
                      messages: List[Dict],
