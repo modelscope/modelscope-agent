@@ -1,4 +1,8 @@
+import copy
+import ctypes
+import gc
 import os
+import platform
 import random
 import shutil
 import traceback
@@ -76,13 +80,24 @@ def check_uuid(uuid_str):
     return uuid_str
 
 
+def delete(state):
+    keys = copy.deepcopy(list(state.keys()))
+    for key in keys:
+        logger.info(f'Deleting the key {key}, value {state[key]}')
+        del state[key]
+        gc.collect()
+        if platform.uname()[0] != 'Darwin':
+            libc = ctypes.cdll.LoadLibrary('libc.{}'.format('so.6'))
+            libc.malloc_trim(0)
+
+
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
 
     uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
-    state = gr.State({'session_seed': draw_seed})
+    state = gr.State({'session_seed': draw_seed}, delete_callback=delete)
     i18n = I18n('zh-cn')
     with gr.Row():
         with gr.Column(scale=5):

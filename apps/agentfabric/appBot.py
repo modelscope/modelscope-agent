@@ -1,4 +1,8 @@
+import copy
+import ctypes
+import gc
 import os
+import platform
 import random
 import shutil
 import traceback
@@ -54,6 +58,17 @@ def init_user(state):
     return state
 
 
+def delete(state):
+    keys = copy.deepcopy(list(state.keys()))
+    for key in keys:
+        logger.info(f'Deleting the key {key}, value {state[key]}')
+        del state[key]
+        gc.collect()
+        if platform.uname()[0] != 'Darwin':
+            libc = ctypes.cdll.LoadLibrary('libc.{}'.format('so.6'))
+            libc.malloc_trim(0)
+
+
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/appBot.css', theme=customTheme)
 with demo:
@@ -61,7 +76,7 @@ with demo:
         '# <center class="agent_title"> \N{fire} AgentFabric powered by Modelscope-agent [github star](https://github.com/modelscope/modelscope-agent/tree/main)</center>'  # noqa E501
     )
     draw_seed = random.randint(0, 1000000000)
-    state = gr.State({'session_seed': draw_seed})
+    state = gr.State({'session_seed': draw_seed}, delete_callback=delete)
     with gr.Row(elem_classes='container'):
         with gr.Column(scale=4):
             with gr.Column():
