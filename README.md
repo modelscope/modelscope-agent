@@ -218,7 +218,7 @@ bot = RolePlay(function_list=function_list, ...)
 
 ### Multi-agent
 
-Please refer the multi-agent [readme](modelscope_agent/multi_agents_tasks/README.md).
+Please refer the multi-agent [readme](modelscope_agent/multi_agents_utils/README.md).
 
 
 ## Related Tutorials

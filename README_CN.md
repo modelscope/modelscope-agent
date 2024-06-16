@@ -218,7 +218,7 @@ bot = RolePlay(function_list=function_list, ...)
 ```
 
 ### Multi-Agent
-请参考相关[文档](modelscope_agent/multi_agents_tasks/README_CN.md)。
+请参考相关[文档](modelscope_agent/multi_agents_utils/README_CN.md)。
 
 #### Built-in tools
 - `image_gen`: [Wanx 图像生成](https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang). [DASHSCOPE_API_KEY](https://help.aliyun.com/zh/dashscope/developer-reference/activate-dashscope-and-create-an-api-key) 需要在环境变量中进行配置。
