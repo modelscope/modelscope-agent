@@ -7,9 +7,11 @@ jupyter>=1.0.0
 langchain
 langchain-community
 langchain-experimental
+llama-index
+llama-index-readers-json
+llama-index-retrievers-bm25
 modelscope >=1.10.0,<=1.12.0
 moviepy
-ollama
 openai
 opencv-python
 openpyxl
@@ -23,6 +25,5 @@ ray>=2.9.4
 seaborn
 sentencepiece
 tiktoken
-transformers>=4.33
+transformers
 unstructured
-zhipuai

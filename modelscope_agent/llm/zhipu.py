@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Iterator, List, Optional
 
-from zhipuai import ZhipuAI
+from modelscope_agent.utils.logger import agent_logger as logger
 
 from .base import BaseChatModel, register_llm
 
@@ -31,9 +31,19 @@ class ZhipuLLM(BaseChatModel):
     Universal LLM model interface on zhipu
     """
 
-    def __init__(self, model: str, model_server: str, **kwargs):
-        super().__init__(model, model_server)
-        self._support_fn_call = True
+    def __init__(self,
+                 model: str,
+                 model_server: str,
+                 support_fn_call: bool = True,
+                 **kwargs):
+
+        try:
+            from zhipuai import ZhipuAI
+        except ImportError as e:
+            raise ImportError(
+                "The package 'zhipuai' is required for this module. Please install it using 'pip install zhipuai'."
+            ) from e
+        super().__init__(model, model_server, support_fn_call=support_fn_call)
         api_key = kwargs.get('api_key', os.getenv('ZHIPU_API_KEY', '')).strip()
         assert api_key, 'ZHIPU_API_KEY is required.'
         self.client = ZhipuAI(api_key=api_key)
@@ -45,7 +55,8 @@ class ZhipuLLM(BaseChatModel):
                      **kwargs) -> Iterator[str]:
         if not functions or not len(functions):
             tool_choice = 'none'
-        print(f'====> stream messages: {messages}')
+        logger.info(
+            f'====> stream messages: {messages}, functions: {functions}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -62,18 +73,15 @@ class ZhipuLLM(BaseChatModel):
                         **kwargs) -> str:
         if not functions or not len(functions):
             tool_choice = 'none'
-        print(f'====> no stream messages: {messages}')
+        logger.info(
+            f'====> no stream messages: {messages}, functions: {functions}')
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             tools=functions,
             tool_choice=tool_choice,
         )
-        return response.choices[0].message
+        message = response.choices[0].message
+        output = message.content if not functions else [message.model_dump()]
 
-
-@register_llm('glm-4')
-class GLM4(ZhipuLLM):
-    """
-    glm-4 from zhipu
-    """
+        return output

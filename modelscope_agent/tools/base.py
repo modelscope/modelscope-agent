@@ -21,6 +21,8 @@ register_map = {
     'WebSearch',
     'image_gen':
     'TextToImageTool',
+    'image_gen_lite':
+    'TextToImageLiteTool',
     'image_enhancement':
     'ImageEnhancement',
     'qwen_vl':

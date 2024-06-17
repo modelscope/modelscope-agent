@@ -1,5 +1,6 @@
 import time
 from functools import wraps
+from traceback import format_exc
 
 from modelscope_agent.utils.logger import agent_logger as logger
 
@@ -26,9 +27,9 @@ def retry(max_retries=3, delay_seconds=1, return_str=False):
                     return func(*args, **kwargs)
                 except AssertionError as e:
                     raise AssertionError(e)
-                except Exception as e:
+                except Exception:
                     logger.warning(
-                        f'Attempt to run {func.__name__} {attempts + 1} failed: {e}'
+                        f'Attempt to run {func.__name__} {attempts + 1} failed: {format_exc()}'
                     )
                     attempts += 1
                     time.sleep(delay_seconds)

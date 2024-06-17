@@ -39,8 +39,11 @@ cd modelscope-agent
 sh scripts/run_assistant_server.sh
 
 # start the assistant server with specified backend
-sh scripts/run_assistant_server.sh dashscope
+sh scripts/run_assistant_server.sh --model-server dashscope
 ```
+
+# start the assistant server with specified model as vllm
+sh scripts/run_assistant_server.sh --served-model-name Qwen2-1.5B-Instruct --model path/to/weights
 
 ### Use case
 
@@ -51,6 +54,7 @@ We provide compatibility with parts of the OpenAI API `chat/completions`, especi
 Here is an code snippet using `OpenAI` SDK with `dashscope` model server:
 
 ```Python
+from openai import OpenAI
 api_base = "http://localhost:31512/v1/"
 model = 'qwen-max'
 
@@ -71,8 +75,9 @@ tools = [{
 tool_choice = 'auto'
 
 client = OpenAI(
-    api_key="YOUR_DASHSCOPE_API_KEY",
     base_url=api_base,
+    api_key="empty",
+
 )
 chat_completion = client.chat.completions.create(
     messages=[{
@@ -140,6 +145,84 @@ With above examples, the output should be like this:
         "object":"chat.completion",
         "usage":{"prompt_tokens":267,"completion_tokens":15,"total_tokens":282}}
 ```
+
+#### Chat with vllm
+
+User could also use the chat api with the same manner of vllm, by passing `--served-model-name` and `--model`.
+
+An using case is shown below.
+
+```shell
+sh scripts/run_assistant_server.sh --served-model-name Qwen2-1.5B-Instruct --model /path/to/Qwen2-1___5B-Instruct
+```
+
+Then you could use `curl` to request this API or call python api as shown before
+
+```Shell
+curl -X POST 'http://localhost:31512/v1/chat/completions' \
+-H 'Content-Type: application/json' \
+-d '{
+    "tools": [{
+        "type": "function",
+        "function": {
+            "name": "amap_weather",
+            "description": "amap weather tool",
+            "parameters": [{
+                "name": "location",
+                "type": "string",
+                "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
+                "required": true
+            }]
+        }
+    }],
+    "tool_choice": "auto",
+    "model": "Qwen2-1.5B-Instruct",
+    "messages": [
+        {"content": "海淀区天气", "role": "user"}
+    ]
+}'
+
+```
+
+With above examples, the output should be like this:
+```shell
+{
+  "request_id": "chatcmpl_3f020464-e98d-4c7b-8717-9fca56784fe6",
+  "message": "",
+  "output": null,
+  "id": "chatcmpl_3f020464-e98d-4c7b-8717-9fca56784fe6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "好的，我已经调用了amap_weather工具查询了海淀区的天气情况。现在，让我为您展示一下查询结果吧。\n\n工具调用\nAction: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
+        "tool_calls": [
+          {
+            "type": "function",
+            "function": {
+              "name": "amap_weather",
+              "arguments": "{\"location\": \"海淀区\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "created": 1717485704,
+  "model": "Qwen2-1.5B-Instruct",
+  "system_fingerprint": "chatcmpl_3f020464-e98d-4c7b-8717-9fca56784fe6",
+  "object": "chat.completion",
+  "usage": {
+    "prompt_tokens": 237,
+    "completion_tokens": 48,
+    "total_tokens": 285
+  }
+}
+```
+
+
 
 #### Assistant
 

@@ -2,7 +2,7 @@ from typing import Union
 
 from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.constants import USER_REQUIREMENT
-from modelscope_agent.environment import Environment
+from modelscope_agent.environment.environment import Environment
 from modelscope_agent.schemas import Message
 
 
