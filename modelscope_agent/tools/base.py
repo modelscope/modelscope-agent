@@ -430,6 +430,8 @@ class ToolServiceProxy(BaseTool):
             MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
             'authorization': service_token
         }
+        print(f'reach here 1 {headers}')
+
         try:
             # visit tool node to call tool
             response = requests.post(
@@ -441,6 +443,8 @@ class ToolServiceProxy(BaseTool):
                     'kwargs': kwargs
                 },
                 headers=headers)
+            print(f'reach here 2 {response}')
+
             response.raise_for_status()
             return ToolServiceProxy.parse_service_response(response)
         except Exception as e:
