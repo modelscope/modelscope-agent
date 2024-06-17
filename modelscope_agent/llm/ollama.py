@@ -20,7 +20,15 @@ class OllamaLLM(BaseChatModel):
         host = kwargs.get('host', 'http://localhost:11434')
         self.client = ollama.Client(host=host)
         self.model = model
-        self.client.pull(self.model)
+        try:
+            logger.debug(f'Pulling model {self.model}')
+            self.client.pull(self.model)
+        except Exception as e:
+            logger.warning(
+                f'Warning: Failed to pull model {self.model} from {host}: {e}')
+
+        logger.info(
+            f'Initialization of OllamaLLM with model {self.model} done')
 
     def _chat_stream(self,
                      messages: List[Dict],
