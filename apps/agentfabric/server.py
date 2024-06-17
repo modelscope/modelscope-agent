@@ -333,12 +333,9 @@ def save_builder_config(uuid_str):
                 save_plugin_configuration(
                     openapi_plugin_cfg=openapi_plugin_cfg, uuid_str=uuid_str)
         except Exception as e:
-            logger.query_error(
-                uuid=uuid_str,
-                error=str(e),
-                details={'error_traceback': traceback.format_exc()})
+            logger.error(f'save_builder_config {uuid_str} error {str(e)}, details: {traceback.format_exc()}')
+
     save_builder_configuration(builder_cfg=builder_config, uuid_str=uuid_str)
-    # app.session_manager.clear_user_bot(uuid_str)
 
     return jsonify({'success': True, 'request_id': request_id_var.get('')})
 

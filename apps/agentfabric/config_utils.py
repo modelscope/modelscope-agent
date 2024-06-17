@@ -179,7 +179,7 @@ def parse_configuration(uuid_str=''):
             logger.query_error(
                 uuid=uuid_str,
                 error=str(e),
-                content={
+                details={
                     'error_traceback':
                     traceback.format_exc(),
                     'error_details':
