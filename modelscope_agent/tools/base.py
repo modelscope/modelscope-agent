@@ -8,6 +8,7 @@ import json5
 import requests
 from modelscope_agent.constants import (DEFAULT_TOOL_MANAGER_SERVICE_URL,
                                         MODELSCOPE_AGENT_TOKEN_HEADER_NAME)
+from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
 
 # ast?
