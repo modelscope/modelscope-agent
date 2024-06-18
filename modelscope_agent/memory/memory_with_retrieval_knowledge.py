@@ -7,7 +7,7 @@ from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.storage import KnowledgeVector
 from modelscope_agent.utils.logger import agent_logger as logger
 
-from .base import Memory
+from .base import Memory, enable_rag_callback
 
 
 class MemoryWithRetrievalKnowledge(Memory, Agent):
@@ -26,7 +26,9 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             function_list=function_list,
             llm=llm,
             name=name,
-            description=description)
+            description=description,
+            stream=False,
+            **kwargs)
 
         # allow vector storage to save knowledge
         embedding = kwargs.get('embedding', None)
@@ -36,6 +38,7 @@ class MemoryWithRetrievalKnowledge(Memory, Agent):
             use_cache=use_knowledge_cache,
             embedding=embedding)
 
+    @enable_rag_callback
     def _run(self,
              query: str = None,
              url: str = None,

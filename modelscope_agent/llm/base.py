@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Dict, Iterator, List, Optional, Union
 
+from modelscope_agent.callbacks import BaseCallback
 from modelscope_agent.llm.utils.llm_templates import get_model_stop_words
 from modelscope_agent.utils.retry import retry
 from modelscope_agent.utils.tokenization_utils import count_tokens
@@ -16,6 +18,41 @@ def register_llm(name):
         return cls
 
     return decorator
+
+
+def enable_llm_callback(func):
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        callbacks = kwargs.pop('callbacks', None)
+        stream = kwargs.get('stream', True)
+        if callbacks:
+            callbacks.on_llm_start(*args, **kwargs)
+        response = func(self, *args, **kwargs)
+        if callbacks:
+            if stream:
+                response = enable_stream_callback(self.model, response,
+                                                  callbacks)
+            else:
+                response = enable_no_stream_callback(self.model, response,
+                                                     callbacks)
+        return response
+
+    return wrapper
+
+
+def enable_stream_callback(model, rsp, callbacks):
+    for s in rsp:
+        if callbacks:
+            callbacks.on_llm_new_token(model, s)
+        yield s
+
+    callbacks.on_llm_end(model, '', stream=True)
+
+
+def enable_no_stream_callback(model, rsp, callbacks):
+    callbacks.on_llm_end(model, rsp, stream=False)
+    return rsp
 
 
 class FnCallNotImplError(NotImplementedError):
@@ -56,6 +93,7 @@ class BaseChatModel(ABC):
     # ```
 
     @retry(max_retries=3, delay_seconds=0.5)
+    @enable_llm_callback
     def chat(self,
              prompt: Optional[str] = None,
              messages: Optional[List[Dict]] = None,
@@ -87,6 +125,7 @@ class BaseChatModel(ABC):
             return self._chat_no_stream(messages, stop=stop, **kwargs)
 
     @retry(max_retries=3, delay_seconds=0.5)
+    @enable_llm_callback
     def chat_with_functions(self,
                             messages: List[Dict],
                             functions: Optional[List[Dict]] = None,

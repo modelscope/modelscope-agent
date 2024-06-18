@@ -8,7 +8,7 @@ from modelscope_agent.rag.knowledge import BaseKnowledge
 from modelscope_agent.storage import KnowledgeVector
 from modelscope_agent.utils.logger import agent_logger as logger
 
-from .base import Memory
+from .base import Memory, enable_rag_callback
 
 
 class MemoryWithRag(Memory, Agent):
@@ -28,7 +28,9 @@ class MemoryWithRag(Memory, Agent):
             function_list=function_list,
             llm=llm,
             name=name,
-            description=description)
+            description=description,
+            stream=False,
+            **kwargs)
 
         # allow vector storage to save knowledge
         self.store_knowledge = BaseKnowledge(
@@ -38,6 +40,7 @@ class MemoryWithRag(Memory, Agent):
             use_cache=use_knowledge_cache,
             **kwargs)
 
+    @enable_rag_callback
     def _run(self,
              query: str = None,
              url: str = None,

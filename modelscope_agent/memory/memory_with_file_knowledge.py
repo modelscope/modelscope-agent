@@ -9,7 +9,7 @@ from modelscope_agent.storage import DocumentStorage
 from modelscope_agent.tools.similarity_search import (RefMaterialInput,
                                                       SimilaritySearch)
 
-from .base import Memory
+from .base import Memory, enable_rag_callback
 
 
 class MemoryWithFileKnowledge(Memory, Agent):
@@ -27,7 +27,9 @@ class MemoryWithFileKnowledge(Memory, Agent):
             function_list=function_list,
             llm=llm,
             name=name,
-            description=description)
+            description=description,
+            stream=False,
+            **kwargs)
 
         self.db = DocumentStorage(storage_path)
 
@@ -36,6 +38,7 @@ class MemoryWithFileKnowledge(Memory, Agent):
         self.keygen = GenKeyword(llm=llm)
         self.keygen.stream = False
 
+    @enable_rag_callback
     def _run(self,
              query: str = None,
              url: str = None,
