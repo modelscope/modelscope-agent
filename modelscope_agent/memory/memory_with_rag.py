@@ -42,21 +42,12 @@ class MemoryWithRag(Memory, Agent):
              query: str = None,
              url: str = None,
              max_token: int = 4000,
-<<<<<<< HEAD
-             top_k: int = 3,
-=======
->>>>>>> origin
              **kwargs) -> Union[str, Iterator[str]]:
         if isinstance(url, str):
             url = [url]
         if url and len(url):
             self.store_knowledge.add(files=url)
         if query:
-<<<<<<< HEAD
-            summary_result = self.store_knowledge.run(query, files=url)
-        # limit length
-        return summary_result[0:max_token - 1]
-=======
             summary_result = self.store_knowledge.run(
                 query, files=url, **kwargs)
             # limit length
@@ -69,4 +60,3 @@ class MemoryWithRag(Memory, Agent):
                 return concatenated_records
             else:
                 return summary_result[0:max_token - 1]
->>>>>>> origin

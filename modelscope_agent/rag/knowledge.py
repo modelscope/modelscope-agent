@@ -1,3 +1,4 @@
+import inspect
 import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Type, Union
@@ -5,6 +6,8 @@ from typing import Dict, List, Optional, Type, Union
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.graph_stores.types import GraphStore
+from llama_index.core.indices.base import BaseIndex
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
@@ -13,7 +16,10 @@ from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import (Document, MetadataMode, QueryBundle,
                                      TransformComponent)
 from llama_index.core.settings import Settings
-from llama_index.core.vector_stores.types import (MetadataFilter,
+from llama_index.core.storage.docstore.types import BaseDocumentStore
+from llama_index.core.storage.index_store.types import BaseIndexStore
+from llama_index.core.vector_stores.types import (BasePydanticVectorStore,
+                                                  MetadataFilter,
                                                   MetadataFilters)
 from llama_index.legacy.core.embeddings.base import BaseEmbedding
 from modelscope_agent.llm import get_chat_model
@@ -63,6 +69,17 @@ class BaseKnowledge(BaseLlamaPack):
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
                  use_cache: bool = True,
+                 docstore: Union[BaseDocumentStore, Type[BaseDocumentStore],
+                                 None] = None,
+                 index_store: Union[BaseIndexStore, Type[BaseIndexStore],
+                                    None] = None,
+                 vector_store: Union[BasePydanticVectorStore,
+                                     Type[BasePydanticVectorStore],
+                                     None] = None,
+                 image_store: Union[BasePydanticVectorStore,
+                                    Type[BasePydanticVectorStore],
+                                    None] = None,
+                 graph_store: Union[GraphStore, Type[GraphStore], None] = None,
                  **kwargs) -> None:
         self.retriever_cls = retriever
         self.cache_dir = cache_dir
@@ -70,6 +87,12 @@ class BaseKnowledge(BaseLlamaPack):
         self.extra_readers = self.get_extra_readers(loaders)
         self.embed_model = self.get_emb_model(emb)
         Settings._embed_model = self.embed_model
+        docstore = self.get_storage(docstore)
+        index_store = self.get_storage(index_store)
+        vector_store = self.get_storage(vector_store)
+        image_store = self.get_storage(image_store)
+        graph_store = self.get_storage(graph_store)
+
         documents = None
         if not use_cache:
             documents = self.read(files)
@@ -84,11 +107,30 @@ class BaseKnowledge(BaseLlamaPack):
                                                       **kwargs)
 
         root_retriever = self.get_root_retriever(
-            documents, use_cache=use_cache, **kwargs)
+            documents,
+            use_cache=use_cache,
+            docstore=docstore,
+            index_store=index_store,
+            vector_store=vector_store,
+            image_store=image_store,
+            graph_store=graph_store,
+            **kwargs)
 
         self.query_engine = None
         if root_retriever:
             self.query_engine = self.get_query_engine(root_retriever, **kwargs)
+
+    def get_storage(
+        self, storage_or_cls: Union[BaseDocumentStore, Type[BaseDocumentStore],
+                                    BaseIndexStore, Type[BaseIndexStore],
+                                    BasePydanticVectorStore,
+                                    Type[BasePydanticVectorStore], GraphStore,
+                                    Type[GraphStore], None]
+    ) -> Union[BaseDocumentStore, BaseIndexStore, BasePydanticVectorStore,
+               GraphStore, None]:
+        if inspect.isclass(storage_or_cls):
+            return storage_or_cls()
+        return storage_or_cls
 
     def get_llm(self, llm: Union[LLM, BaseChatModel, Dict]) -> LLM:
         llama_index_llm = None
@@ -168,13 +210,16 @@ class BaseKnowledge(BaseLlamaPack):
 
         return res
 
-    def get_root_retriever(self,
-                           documents: List[Document],
-                           use_cache: bool = True,
-                           **kwargs) -> BaseRetriever:
-
+    def get_index(self,
+                  documents: List[Document],
+                  use_cache: bool = True,
+                  docstore: Optional[BaseDocumentStore] = None,
+                  index_store: Optional[BaseIndexStore] = None,
+                  vector_store: Optional[BasePydanticVectorStore] = None,
+                  image_store: Optional[BasePydanticVectorStore] = None,
+                  graph_store: Optional[GraphStore] = None,
+                  **kwargs) -> BaseIndex:
         # indexing
-        # 可配置chunk_size等
         Settings.chunk_size = 512
         index = None
         if use_cache:
@@ -184,6 +229,11 @@ class BaseKnowledge(BaseLlamaPack):
                     from llama_index.core import StorageContext, load_index_from_storage
                     # rebuild storage context
                     storage_context = StorageContext.from_defaults(
+                        docstore=docstore,
+                        index_store=index_store,
+                        vector_store=vector_store,
+                        image_store=image_store,
+                        graph_store=graph_store,
                         persist_dir=self.cache_dir)
                     # load index
 
@@ -209,6 +259,27 @@ class BaseKnowledge(BaseLlamaPack):
 
         if self.cache_dir is not None:
             index.storage_context.persist(persist_dir=self.cache_dir)
+        return index
+
+    def get_root_retriever(
+            self,
+            documents: List[Document],
+            use_cache: bool = True,
+            docstore: Optional[BaseDocumentStore] = None,
+            index_store: Optional[BaseIndexStore] = None,
+            vector_store: Optional[BasePydanticVectorStore] = None,
+            image_store: Optional[BasePydanticVectorStore] = None,
+            graph_store: Optional[GraphStore] = None,
+            **kwargs) -> BaseRetriever:
+        index = self.get_index(
+            documents=documents,
+            use_cache=use_cache,
+            docstore=docstore,
+            index_store=index_store,
+            vector_store=vector_store,
+            image_store=image_store,
+            graph_store=graph_store,
+            **kwargs)
 
         # init retriever tool
         if self.retriever_cls:
@@ -344,8 +415,18 @@ if __name__ == '__main__':
     llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
     llm = get_chat_model(**llm_config)
 
-    knowledge = BaseKnowledge('./data2', use_cache=False, llm=llm)
+    from llama_index.storage.docstore.mongodb import MongoDocumentStore
+    from llama_index.storage.index_store.mongodb import MongoIndexStore
+    MONGO_URI = 'mongodb://localhost'
+    knowledge = BaseKnowledge(
+        './data2',
+        use_cache=True,
+        llm=llm,
+        docstore=MongoDocumentStore.from_uri(MONGO_URI),
+        index_store=MongoIndexStore.from_uri(MONGO_URI))
 
-    knowledge.add(['./data/常见QA.pdf'])
-    print(knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False))
-
+    # knowledge.add(['./data/常见QA.pdf'])
+    res = knowledge.run(
+        'Who decided to compile a book of interviews with startup founders?')
+    #res = knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False)
+    print(res)

@@ -78,8 +78,6 @@ def test_memory_with_rag_multi_modal():
     summary_str = memory.run('我想看rag的流程图')
     print(summary_str)
     assert 'rag.png' in summary_str
-<<<<<<< HEAD
-=======
 
 
 def test_memory_with_rag_no_use_llm():
@@ -92,4 +90,3 @@ def test_memory_with_rag_no_use_llm():
     print(summary_str)
     assert 'file_path' in summary_str
     assert 'git-lfs' in summary_str
->>>>>>> origin
