@@ -1,4 +1,8 @@
+import copy
+import ctypes
+import gc
 import os
+import platform
 import random
 import shutil
 import traceback
@@ -76,13 +80,24 @@ def check_uuid(uuid_str):
     return uuid_str
 
 
+def delete(state):
+    keys = copy.deepcopy(list(state.keys()))
+    for key in keys:
+        logger.info(f'Deleting the key {key}, value {state[key]}')
+        del state[key]
+        gc.collect()
+        if platform.uname()[0] != 'Darwin':
+            libc = ctypes.cdll.LoadLibrary('libc.{}'.format('so.6'))
+            libc.malloc_trim(0)
+
+
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
 
     uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
-    state = gr.State({'session_seed': draw_seed})
+    state = gr.State({'session_seed': draw_seed}, delete_callback=delete)
     i18n = I18n('zh-cn')
     with gr.Row():
         with gr.Column(scale=5):
@@ -603,16 +618,14 @@ with demo:
         # get chat history from memory
         history = user_memory.get_history()
 
-        # get knowledge from memory, currently get one file
-        uploaded_file = None
-        if len(append_files) > 0:
-            uploaded_file = append_files[0]
+        use_llm = True if len(user_agent.function_list) else False
         ref_doc = user_memory.run(
             query=input.text,
-            url=uploaded_file,
+            url=append_files,
             max_token=4000,
             top_k=2,
-            checked=True)
+            checked=True,
+            use_llm=use_llm)
 
         response = ''
         try:

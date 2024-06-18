@@ -1,6 +1,5 @@
 from typing import Dict, Iterator, List, Optional, Union
 
-import ollama
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
 
@@ -11,11 +10,25 @@ from .base import BaseChatModel, register_llm
 class OllamaLLM(BaseChatModel):
 
     def __init__(self, model: str, model_server: str, **kwargs):
+        try:
+            import ollama
+        except ImportError as e:
+            raise ImportError(
+                "The package 'ollama' is required for this module. Please install it using 'pip install ollama'."
+            ) from e
         super().__init__(model, model_server)
         host = kwargs.get('host', 'http://localhost:11434')
         self.client = ollama.Client(host=host)
         self.model = model
-        self.client.pull(self.model)
+        try:
+            logger.debug(f'Pulling model {self.model}')
+            self.client.pull(self.model)
+        except Exception as e:
+            logger.warning(
+                f'Warning: Failed to pull model {self.model} from {host}: {e}')
+
+        logger.info(
+            f'Initialization of OllamaLLM with model {self.model} done')
 
     def _chat_stream(self,
                      messages: List[Dict],

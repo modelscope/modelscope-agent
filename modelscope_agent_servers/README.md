@@ -54,6 +54,7 @@ We provide compatibility with parts of the OpenAI API `chat/completions`, especi
 Here is an code snippet using `OpenAI` SDK with `dashscope` model server:
 
 ```Python
+from openai import OpenAI
 api_base = "http://localhost:31512/v1/"
 model = 'qwen-max'
 
@@ -74,8 +75,9 @@ tools = [{
 tool_choice = 'auto'
 
 client = OpenAI(
-    api_key="YOUR_DASHSCOPE_API_KEY",
     base_url=api_base,
+    api_key="empty",
+
 )
 chat_completion = client.chat.completions.create(
     messages=[{
@@ -151,7 +153,7 @@ User could also use the chat api with the same manner of vllm, by passing `--ser
 An using case is shown below.
 
 ```shell
-sh run_script_2.sh --model_name Qwen2-1.5B-Instruct --model_dir /path/to/Qwen2-1___5B-Instruct
+sh scripts/run_assistant_server.sh --served-model-name Qwen2-1.5B-Instruct --model /path/to/Qwen2-1___5B-Instruct
 ```
 
 Then you could use `curl` to request this API or call python api as shown before

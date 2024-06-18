@@ -10,7 +10,8 @@ from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import BaseQueryEngine, RetrieverQueryEngine
 from llama_index.core.readers.base import BaseReader
-from llama_index.core.schema import Document, QueryBundle, TransformComponent
+from llama_index.core.schema import (Document, MetadataMode, QueryBundle,
+                                     TransformComponent)
 from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import (MetadataFilter,
                                                   MetadataFilters)
@@ -58,7 +59,7 @@ class BaseKnowledge(BaseLlamaPack):
                  llm: Union[LLM, BaseChatModel, Dict] = {},
                  retriever: Optional[Type[BaseRetriever]] = None,
                  emb: Optional[Type[BaseEmbedding]] = None,
-                 loaders: Dict[str, Type[BaseReader]] = {},
+                 loaders: Dict[str, Union[BaseReader, Type[BaseReader]]] = {},
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
                  use_cache: bool = True,
@@ -85,6 +86,7 @@ class BaseKnowledge(BaseLlamaPack):
         root_retriever = self.get_root_retriever(
             documents, use_cache=use_cache, **kwargs)
 
+        self.query_engine = None
         if root_retriever:
             self.query_engine = self.get_query_engine(root_retriever, **kwargs)
 
@@ -220,16 +222,18 @@ class BaseKnowledge(BaseLlamaPack):
         return index.as_retriever()
 
     def get_extra_readers(
-            self, loaders: Dict[str,
-                                Type[BaseReader]]) -> Dict[str, BaseReader]:
+        self, loaders: Dict[str, Union[BaseReader, Type[BaseReader]]]
+    ) -> Dict[str, BaseReader]:
         extra_readers = {}
-        for file_type, loader_cls in loaders.items():
+        for file_type, loader_or_cls in loaders.items():
+            if isinstance(loader_or_cls, BaseReader):
+                extra_readers[file_type] = loader_or_cls
             try:
-                loader = loader_cls()
+                loader = loader_or_cls()
                 extra_readers[file_type] = loader
             except Exception as e:
                 print(
-                    f'Using {loader_cls} failed. Can not read {file_type} file. Detail: {e}'
+                    f'Using {loader_or_cls} failed. Can not read {file_type} file. Detail: {e}'
                 )
 
         # lazy import
@@ -297,7 +301,11 @@ class BaseKnowledge(BaseLlamaPack):
         ]
         retriever._filters = MetadataFilters(filters=filters)
 
-    def run(self, query: str, files: List[str] = [], **kwargs) -> str:
+    def run(self,
+            query: str,
+            files: List[str] = [],
+            use_llm: bool = True,
+            **kwargs) -> Union[str, List[str]]:
         query_bundle = FileQueryBundle(query)
         if isinstance(files, str):
             files = [files]
@@ -305,7 +313,19 @@ class BaseKnowledge(BaseLlamaPack):
         if files and len(files) > 0:
             self.set_filter(files)
 
-        return str(self.query_engine.query(query_bundle, **kwargs))
+        if not self.query_engine:
+            print('No valid document. Return `Empty Response`.')
+            return 'Empty Response'
+
+        if use_llm:
+            return str(self.query_engine.query(query_bundle))
+        else:
+            nodes = self.query_engine.retrieve(query_bundle)
+            msg = [
+                n.node.get_content(metadata_mode=MetadataMode.LLM)
+                for n in nodes
+            ]
+            return msg
 
     def add(self, files: List[str]):
         if isinstance(files, str):
@@ -327,4 +347,5 @@ if __name__ == '__main__':
     knowledge = BaseKnowledge('./data2', use_cache=False, llm=llm)
 
     knowledge.add(['./data/常见QA.pdf'])
-    print(knowledge.run('高德天气API申请', files=['常见QA.pdf']))
+    print(knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False))
+
