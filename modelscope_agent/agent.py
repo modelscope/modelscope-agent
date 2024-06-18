@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
@@ -116,13 +117,8 @@ class Agent(ABC):
         if isinstance(tool, dict):
             tool_name = next(iter(tool))
             tool_cfg = tool[tool_name]
-        logger.query_info(
-            message=
-            f'############## tool is {tool}, tool name is {tool_name}, tool_cfg is {tool_cfg}'
-        )
         if tool_name not in TOOL_REGISTRY and not self.use_tool_api:
             raise NotImplementedError
-        logger.query_info(message='############## reach here1')
         if tool not in self.function_list:
             self.function_list.append(tool)
 
@@ -154,6 +150,13 @@ class Agent(ABC):
                     # get service proxy as tool instance, call method will call remote tool service
                     tool_instance = ToolServiceProxy(tool_name, tool_cfg,
                                                      tenant_id, **kwargs)
+
+                    # if the tool name has studio name prefix, remove the studio prefix from tool name
+                    # TODO: it might cause duplicated name from different studio
+                    has_studio_name = os.getenv('HAS_STUDIO_NAME', 'false')
+                    if has_studio_name == 'true':
+                        tool_name = tool_name.split('/')[-1]
+
                 else:
                     # instantiation tool class as tool instance
                     tool_instance = TOOL_REGISTRY[tool_name]['class'](tool_cfg)

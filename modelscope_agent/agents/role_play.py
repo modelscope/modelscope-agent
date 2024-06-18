@@ -263,9 +263,6 @@ class RolePlay(Agent, AgentEnvMixin):
         max_turn = 10
         call_llm_count = 0
         while True and max_turn > 0:
-            # print('=====one input planning_prompt======')
-            # print(planning_prompt)
-            # print('=============Answer=================')
             max_turn -= 1
             call_llm_count += 1
             if self.llm.support_function_calling():

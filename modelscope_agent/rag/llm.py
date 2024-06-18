@@ -131,7 +131,6 @@ class ModelscopeAgentLLM(LLM):
                     raw=r,
                 )
 
-        print(f'response: {response}')
         return gen()
 
     @llm_completion_callback()
