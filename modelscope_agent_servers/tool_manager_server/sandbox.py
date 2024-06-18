@@ -55,7 +55,10 @@ def init_docker_container(docker_client, tool: ToolRegisterInfo):
         name=tool.node_name,
         detach=True,
         ports=port_bindings,
-        environment={'TOOL_OSS_URL': tool.tool_url})
+        environment={
+            'TOOL_OSS_URL': tool.tool_url,
+            'TOOL_NAME': tool.tool_name
+        })
     return container
 
 
@@ -117,7 +120,7 @@ def start_docker_container(tool: ToolRegisterInfo):
             if elapsed > TIMEOUT:
                 break
         # make configuration for class or copy remote github repo to docker container
-        inject_tool_info_to_container(container, tool)
+        # inject_tool_info_to_container(container, tool)
         return container
     except Exception as e:
         raise Exception(

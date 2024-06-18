@@ -423,8 +423,8 @@ async def execute_tool(tool_input: ExecuteTool,
             status_code=400,
             request_id=request_id,
             message=
-            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
-        )
+            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, '
+            f'with error: {e} and origin error {response.message}')
 
 
 if __name__ == '__main__':
