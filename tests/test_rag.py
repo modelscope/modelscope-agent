@@ -90,3 +90,36 @@ def test_memory_with_rag_no_use_llm():
     print(summary_str)
     assert 'file_path' in summary_str
     assert 'git-lfs' in summary_str
+
+
+def test_memory_with_rag_mongodb_storage():
+    # $ mongo
+    import os
+    import shutil
+    from llama_index.storage.docstore.mongodb import MongoDocumentStore
+    from llama_index.storage.index_store.mongodb import MongoIndexStore
+    MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost')
+    cache_dir = './tmp'
+
+    MemoryWithRag(
+        urls=['tests/samples/modelscope_qa_1.txt'],
+        storage_path=cache_dir,
+        use_knowledge_cache=True,
+        docstore=MongoDocumentStore.from_uri(MONGO_URI),
+        index_store=MongoIndexStore.from_uri(MONGO_URI))
+
+    # clean local cache
+    if os.path.exists(cache_dir):
+        shutil.rmtree(cache_dir)
+
+    memory = MemoryWithRag(
+        use_knowledge_cache=True,
+        storage_path=cache_dir,
+        docstore=MongoDocumentStore.from_uri(MONGO_URI),
+        index_store=MongoIndexStore.from_uri(MONGO_URI))
+    summary_str = memory.run('环境安装报错 missing xcrun 怎么办？')
+    print(summary_str)
+    assert 'xcode-select --install' in summary_str
+
+
+test_memory_with_rag_mongodb_storage()

@@ -61,6 +61,7 @@ class BaseKnowledge(BaseLlamaPack):
 
     def __init__(self,
                  files: Union[List, str] = [],
+                 documents: List[Document] = [],
                  cache_dir: str = './run',
                  llm: Union[LLM, BaseChatModel, Dict] = {},
                  retriever: Optional[Type[BaseRetriever]] = None,
@@ -93,9 +94,7 @@ class BaseKnowledge(BaseLlamaPack):
         image_store = self.get_storage(image_store)
         graph_store = self.get_storage(graph_store)
 
-        documents = None
-        if not use_cache:
-            documents = self.read(files)
+        documents.extend(self.read(files))
 
         self.llm = self.get_llm(llm)
         Settings._llm = self.llm
@@ -129,7 +128,14 @@ class BaseKnowledge(BaseLlamaPack):
     ) -> Union[BaseDocumentStore, BaseIndexStore, BasePydanticVectorStore,
                GraphStore, None]:
         if inspect.isclass(storage_or_cls):
-            return storage_or_cls()
+            try:
+                storage = storage_or_cls()
+                return storage
+            except Exception as e:
+                print(
+                    f'Unable to initialize storage {storage_or_cls}, details: {e}'
+                )
+                return None
         return storage_or_cls
 
     def get_llm(self, llm: Union[LLM, BaseChatModel, Dict]) -> LLM:
@@ -244,7 +250,7 @@ class BaseKnowledge(BaseLlamaPack):
                         f'Can not load index from cache_dir {self.cache_dir}, detail: {e}'
                     )
 
-        if documents is not None:
+        if len(documents):
             if not index:
                 index = VectorStoreIndex.from_documents(
                     documents=documents,
@@ -280,6 +286,8 @@ class BaseKnowledge(BaseLlamaPack):
             image_store=image_store,
             graph_store=graph_store,
             **kwargs)
+        if not index:
+            return None
 
         # init retriever tool
         if self.retriever_cls:
@@ -398,12 +406,15 @@ class BaseKnowledge(BaseLlamaPack):
             ]
             return msg
 
-    def add(self, files: List[str]):
+    def add(self, files: List[str] = [], documents: List[Document] = []):
+        if not len(files) and not len(documents):
+            print('knowledge.add: Both `files` and `documents` are empty')
+
         if isinstance(files, str):
             files = [files]
 
         try:
-            documents = self.read(files)
+            documents.extend(self.read(files))
             root_retriever = self.get_root_retriever(documents, use_cache=True)
             self.query_engine = self.get_query_engine(root_retriever)
 
@@ -412,21 +423,19 @@ class BaseKnowledge(BaseLlamaPack):
 
 
 if __name__ == '__main__':
-    llm_config = {'model': 'qwen-max', 'model_server': 'dashscope'}
-    llm = get_chat_model(**llm_config)
+    from llama_index.readers.mongodb import SimpleMongoReader
 
-    from llama_index.storage.docstore.mongodb import MongoDocumentStore
-    from llama_index.storage.index_store.mongodb import MongoIndexStore
     MONGO_URI = 'mongodb://localhost'
+    reader = SimpleMongoReader(uri=MONGO_URI)
+    documents = reader.load_data(
+        db_name='test_db', collection_name='myCollection')
     knowledge = BaseKnowledge(
-        './data2',
+        documents=documents,
         use_cache=True,
-        llm=llm,
-        docstore=MongoDocumentStore.from_uri(MONGO_URI),
-        index_store=MongoIndexStore.from_uri(MONGO_URI))
+    )
 
     # knowledge.add(['./data/常见QA.pdf'])
     res = knowledge.run(
         'Who decided to compile a book of interviews with startup founders?')
-    #res = knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False)
+    # res = knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False)
     print(res)
