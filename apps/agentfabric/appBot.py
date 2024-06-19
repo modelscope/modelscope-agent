@@ -45,9 +45,11 @@ def check_uuid(uuid_str):
 
 def init_user(state, _user_token=None):
     try:
+        in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT', 'None') == 'studio'
         seed = state.get('session_seed', random.randint(0, 1000000000))
+        # use tool api in ms studio
         user_agent, user_memory = init_user_chatbot_agent(
-            uuid_str, user_token=_user_token)
+            uuid_str, use_tool_api=in_ms_studio, user_token=_user_token)
         user_agent.seed = seed
         state['user_agent'] = user_agent
         state['user_memory'] = user_memory

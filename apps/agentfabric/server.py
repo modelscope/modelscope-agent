@@ -310,14 +310,6 @@ def save_builder_config(uuid_str):
     builder_config_str = request.form.get('builder_config')
     logger.info(f'builder_config: {builder_config_str}')
     builder_config = json.loads(builder_config_str)
-    if 'tools' in builder_config:
-        if 'code_interpreter' in builder_config['tools']:
-            return jsonify({
-                'success': False,
-                'status': 404,
-                'message': 'Using code_interpreter.',
-                'request_id': request_id_var.get('')
-            }), 404
     if 'knowledge' in builder_config:
         builder_config['knowledge'] = [
             os.path.join(get_user_dir(uuid_str), os.path.basename(k))
