@@ -4,7 +4,7 @@ gradio==4.36.1
 langchain
 markdown-cjk-spacing
 mdx_truly_sane_lists
-modelscope-agent==0.4.1
+modelscope-agent==0.6.2
 modelscope_studio
 pymdown-extensions
 python-slugify
