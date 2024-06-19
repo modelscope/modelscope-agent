@@ -151,10 +151,10 @@ class Agent(ABC):
                     tool_instance = ToolServiceProxy(tool_name, tool_cfg,
                                                      tenant_id, **kwargs)
 
-                    # if the tool name has studio name prefix, remove the studio prefix from tool name
+                    # if the tool name is running in studio, remove the studio prefix from tool name
                     # TODO: it might cause duplicated name from different studio
-                    has_studio_name = os.getenv('HAS_STUDIO_NAME', 'false')
-                    if has_studio_name == 'true':
+                    in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT', 'none')
+                    if in_ms_studio == 'studio':
                         tool_name = tool_name.split('/')[-1]
 
                 else:
