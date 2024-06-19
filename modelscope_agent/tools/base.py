@@ -353,6 +353,7 @@ class ToolServiceProxy(BaseTool):
                 MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
                 'authorization': service_token
             }
+            print(f'reach here create {headers}')
             response = requests.post(
                 f'{self.tool_service_manager_url}/create_tool_service',
                 json={
@@ -373,7 +374,7 @@ class ToolServiceProxy(BaseTool):
                 )
         except Exception as e:
             raise RuntimeError(
-                f'Get error during registering tool from tool manager service with detail {e}'
+                f'Get error during registering tool from tool manager service with detail {e}.'
             )
 
     def _check_tool_status(self):
@@ -411,6 +412,7 @@ class ToolServiceProxy(BaseTool):
                 MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
                 'authorization': service_token
             }
+            print(f'reach here tool_info {headers}')
             response = requests.post(
                 f'{self.tool_service_manager_url}/tool_info',
                 json={

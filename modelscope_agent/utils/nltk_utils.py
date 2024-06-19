@@ -7,6 +7,7 @@ current_dir_abs_path = os.path.dirname(os.path.abspath(__file__))
 
 
 def install_nltk_data():
+    print('Starting install nltk data...')
     user_current_working_dir = os.getcwd()
     nltk_working_dir = os.path.join(user_current_working_dir, 'tmp',
                                     'nltk_data')
@@ -36,3 +37,6 @@ def install_nltk_data():
         with zipfile.ZipFile(averaged_perceptron_tagger_zip_file,
                              'r') as zip_ref:
             zip_ref.extractall(averaged_target_dir)
+    print('nltk data installed.')
+    os.environ['NLTK_DATA'] = nltk_working_dir
+    print(f'setting nltk data path to: {nltk_working_dir}')

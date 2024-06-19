@@ -187,7 +187,7 @@ with demo:
           inputs=[user_chatbot, user_chatbot_input, state, user_token],
           outputs=[user_chatbot, user_chatbot_input])
 
-    demo.load(init_user, inputs=[state], outputs=[state])
+    demo.load(init_user, inputs=[state, user_token], outputs=[state])
 
 demo.queue()
 demo.launch(show_error=True, max_threads=10)

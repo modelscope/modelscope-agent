@@ -20,9 +20,6 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.rag.emb import DashscopeEmbedding
 from modelscope_agent.rag.llm import ModelscopeAgentLLM
-from modelscope_agent.utils.nltk_utils import install_nltk_data
-
-install_nltk_data()
 
 
 @dataclass
