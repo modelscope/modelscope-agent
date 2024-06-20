@@ -11,7 +11,7 @@ import gradio as gr
 import modelscope_studio as mgr
 from config_utils import get_avatar_image, get_ci_dir, parse_configuration
 from gradio_utils import format_cover_html
-from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
+from modelscope_agent.constants import ApiNames
 from modelscope_agent.schemas import Message
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_studio.components.Chatbot.llm_thinking_presets import qwen
@@ -120,6 +120,12 @@ with demo:
         # 将发送的消息添加到聊天历史
         if 'user_agent' not in _state:
             init_user(_state, _user_token)
+
+        kwargs = {
+            name.lower(): os.getenv(value.value)
+            for name, value in ApiNames.__members__.items()
+        }
+
         # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
@@ -155,7 +161,8 @@ with demo:
                     history=history,
                     ref_doc=ref_doc,
                     append_files=append_files,
-                    user_token=_user_token):
+                    user_token=_user_token,
+                    **kwargs):
 
                 # important! do not change this
                 response += frame
