@@ -6,7 +6,6 @@ from langchain_community.document_loaders import (AsyncChromiumLoader,
                                                   AsyncHtmlLoader)
 from langchain_community.document_transformers import BeautifulSoupTransformer
 from modelscope_agent.tools.base import BaseTool, register_tool
-from ssrf_protect import AntiSSRF
 
 
 @register_tool('web_browser')
@@ -32,7 +31,6 @@ class WebBrowser(BaseTool):
         self.use_advantage = self.cfg.get('use_adv', False)
 
     def call(self, params: str, **kwargs) -> str:
-        AntiSSRF.startSSRFProtect()
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
@@ -47,7 +45,6 @@ class WebBrowser(BaseTool):
                 urls, **kwargs)
         else:
             text_result = self.simple_https_get(urls, **kwargs)
-        AntiSSRF.stopSSRFProtect()
         return text_result
 
     def advantage_https_get(self, urls, **kwargs):

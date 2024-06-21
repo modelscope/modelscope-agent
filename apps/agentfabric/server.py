@@ -25,7 +25,6 @@ from publish_util import (pop_user_info_from_config, prepare_agent_zip,
 from server_logging import logger, request_id_var
 from server_utils import (IMPORT_ZIP_TEMP_DIR, STATIC_FOLDER, SessionManager,
                           unzip_with_folder)
-from ssrf_protect import AntiSSRF
 
 app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 
@@ -235,9 +234,7 @@ def import_builder(uuid_str):
     else:
         url = request.get_json().get('url')
         # 发起请求获取数据
-        AntiSSRF.startSSRFProtect()
         response = requests.get(url)
-        AntiSSRF.stopSSRFProtect()
 
         file_name = 'archive.zip'
         file_path = os.path.join(IMPORT_ZIP_TEMP_DIR, uuid_str, file_name)
