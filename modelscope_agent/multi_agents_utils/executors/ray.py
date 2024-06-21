@@ -1,18 +1,25 @@
 import logging
 from typing import Union
 
-import ray
 from modelscope_agent.agents_registry import AgentRegistry
 from modelscope_agent.constants import USER_REQUIREMENT
 from modelscope_agent.environment.environment import Environment
 from modelscope_agent.schemas import Message
 from ray._raylet import ObjectRefGenerator
 
+try:
+    import ray
+except ImportError:
+    logging.error(
+        'Ray is not installed, please install ray first by running `pip install ray>=2.9.4`'
+    )
+
 
 class RayTaskExecutor:
 
     @staticmethod
     def init_ray():
+
         if ray.is_initialized:
             ray.shutdown()
         ray.init(logging_level=logging.ERROR)

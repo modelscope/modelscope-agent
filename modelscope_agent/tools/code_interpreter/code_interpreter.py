@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import json
+import json5
 import matplotlib
 import PIL.Image
 from jupyter_client import BlockingKernelClient
@@ -267,10 +268,10 @@ class CodeInterpreter(BaseTool):
         return result
 
     def call(self, params: str, timeout: Optional[int] = 30, **kwargs) -> str:
-        params = self._verify_args(params)
-        if isinstance(params, dict):
+        try:
+            params = json5.loads(params)
             code = params['code']
-        else:
+        except Exception:
             code = extract_code(params)
 
         if not code.strip():

@@ -19,7 +19,7 @@ class AgentEnvMixin:
                  use_history: bool = True,
                  human_input_mode: Optional[str] = 'CLOSE',
                  parse_env_prompt_function: Callable = None,
-                 remote=True,
+                 remote=False,
                  **kwargs):
         """
         Agent environment context mixin class to allow the agent to communicate with other agent, in the

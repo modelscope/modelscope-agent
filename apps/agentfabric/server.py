@@ -516,8 +516,13 @@ def get_preview_chat_history(uuid_str, session_str):
     logger.info(
         f'get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}'
     )
+    user_token = get_modelscope_agent_token()
+    if not user_token:
+        # If token is not found, return 401 Unauthorized response
+        return jsonify({'message': 'Token is missing!'}), 401
 
-    _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
+    _, user_memory = app.session_manager.get_user_bot(
+        uuid_str, session_str, user_token=user_token)
     return jsonify({
         'history': user_memory.get_history(),
         'success': True,

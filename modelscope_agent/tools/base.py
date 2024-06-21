@@ -412,7 +412,7 @@ class ToolServiceProxy(BaseTool):
                 MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
                 'authorization': service_token
             }
-            print(f'reach here tool_info {headers}')
+            logger.query_info(message=f'tool_info requests header {headers}')
             response = requests.post(
                 f'{self.tool_service_manager_url}/tool_info',
                 json={
@@ -436,7 +436,7 @@ class ToolServiceProxy(BaseTool):
             MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
             'authorization': service_token
         }
-        print(f'reach here 1 {headers}')
+        logger.query_info(message=f'calling tool header {headers}')
 
         try:
             # visit tool node to call tool
@@ -449,7 +449,8 @@ class ToolServiceProxy(BaseTool):
                     'kwargs': kwargs
                 },
                 headers=headers)
-            print(f'reach here 2 {response}')
+            logger.query_info(
+                message=f'calling tool message {response.json()}')
 
             response.raise_for_status()
             return ToolServiceProxy.parse_service_response(response)
