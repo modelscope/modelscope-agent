@@ -1,10 +1,10 @@
 dashscope
 faiss-cpu
 gradio==4.36.1
-https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/releases/v0.6.2/modelscope_agent-0.6.2-py3-none-any.whl
 langchain
 markdown-cjk-spacing
 mdx_truly_sane_lists
+modelscope-agent==0.6.3
 modelscope_studio
 pymdown-extensions
 python-slugify
