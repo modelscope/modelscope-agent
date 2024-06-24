@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import json
+import json5
 import matplotlib
 import PIL.Image
 from jupyter_client import BlockingKernelClient
@@ -50,7 +51,7 @@ class CodeInterpreter(BaseTool):
         should not be used the other code interpreter tool at the same time
     """
     name = 'code_interpreter'
-    description = '代码解释器，可用于执行Python代码。 Enclose the code within triple backticks (`) at the beginning and end of the code.'  # noqa E501
+    description = '代码解释器，可用于执行Python代码。'  # noqa E501
     parameters = [{'name': 'code', 'type': 'string', 'description': '待执行的代码'}]
 
     def __init__(self, cfg={}):
@@ -267,10 +268,10 @@ class CodeInterpreter(BaseTool):
         return result
 
     def call(self, params: str, timeout: Optional[int] = 30, **kwargs) -> str:
-        params = self._verify_args(params)
-        if isinstance(params, dict):
+        try:
+            params = json5.loads(params)
             code = params['code']
-        else:
+        except Exception:
             code = extract_code(params)
 
         if not code.strip():

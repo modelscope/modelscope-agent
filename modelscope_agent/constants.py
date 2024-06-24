@@ -10,6 +10,7 @@ AGENT_REGISTRY_NAME = 'agent_center'
 TASK_CENTER_NAME = 'task_center'
 DEFAULT_TOOL_MANAGER_SERVICE_URL = 'http://localhost:31511'
 DEFAULT_ASSISTANT_SERVICE_URL = 'http://localhost:31512'
+MODELSCOPE_AGENT_TOKEN_HEADER_NAME = 'X-Modelscope-Agent-Token'
 
 
 class ApiNames(Enum):
@@ -17,3 +18,4 @@ class ApiNames(Enum):
     modelscope_api_key = 'MODELSCOPE_API_TOKEN'
     amap_api_key = 'AMAP_TOKEN'
     bing_api_key = 'BING_SEARCH_V7_SUBSCRIPTION_KEY'
+    zhipu_api_key = 'ZHIPU_API_KEY'

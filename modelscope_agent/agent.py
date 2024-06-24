@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
@@ -50,7 +51,7 @@ class Agent(ABC):
         self.function_map = {}
         if function_list:
             for function in function_list:
-                self._register_tool(function)
+                self._register_tool(function, **kwargs)
 
         self.storage_path = storage_path
         self.mem = None
@@ -97,7 +98,8 @@ class Agent(ABC):
 
     def _register_tool(self,
                        tool: Union[str, Dict],
-                       tenant_id: str = 'default'):
+                       tenant_id: str = 'default',
+                       **kwargs):
         """
         Instantiate the tool for the agent
 
@@ -115,18 +117,28 @@ class Agent(ABC):
         if isinstance(tool, dict):
             tool_name = next(iter(tool))
             tool_cfg = tool[tool_name]
-        if tool_name not in TOOL_REGISTRY:
+        if tool_name not in TOOL_REGISTRY and not self.use_tool_api:
             raise NotImplementedError
         if tool not in self.function_list:
             self.function_list.append(tool)
 
-            tool_class_with_tenant = TOOL_REGISTRY[tool_name]
+            try:
+                tool_class_with_tenant = TOOL_REGISTRY[tool_name]
 
-            # adapt the TOOL_REGISTRY[tool_name] to origin tool class
+                # adapt the TOOL_REGISTRY[tool_name] to origin tool class
+                if isinstance(tool_class_with_tenant, BaseTool):
+                    tool_class_with_tenant = {
+                        'class': TOOL_REGISTRY[tool_name]
+                    }
+                    TOOL_REGISTRY[tool_name] = tool_class_with_tenant
 
-            if isinstance(tool_class_with_tenant, BaseTool):
-                tool_class_with_tenant = {'class': TOOL_REGISTRY[tool_name]}
-                TOOL_REGISTRY[tool_name] = tool_class_with_tenant
+            except KeyError as e:
+                print(e)
+                if not self.use_tool_api:
+                    raise KeyError(
+                        f'Tool {tool_name} is not registered in TOOL_REGISTRY, please register it first.'
+                    )
+                tool_class_with_tenant = {'class': ToolServiceProxy}
 
             # check if the tenant_id of tool instance or tool service are exists
             # TODO: change from use_tool_api=True to False, to get the tenant_id of the tool changes to
@@ -137,7 +149,14 @@ class Agent(ABC):
                 if self.use_tool_api:
                     # get service proxy as tool instance, call method will call remote tool service
                     tool_instance = ToolServiceProxy(tool_name, tool_cfg,
-                                                     tenant_id)
+                                                     tenant_id, **kwargs)
+
+                    # if the tool name is running in studio, remove the studio prefix from tool name
+                    # TODO: it might cause duplicated name from different studio
+                    in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT', 'none')
+                    if in_ms_studio == 'studio':
+                        tool_name = tool_name.split('/')[-1]
+
                 else:
                     # instantiation tool class as tool instance
                     tool_instance = TOOL_REGISTRY[tool_name]['class'](tool_cfg)

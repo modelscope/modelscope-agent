@@ -158,9 +158,14 @@ def parse_configuration(uuid_str=''):
     tools_info = builder_cfg.tools
     available_tool_list = []
     for key, value in tools_info.items():
+        if key in tool_cfg:
+            tool_cfg[key]['use'] = value['use']
+        else:
+            # for tool hub only
+            if '/' in key:
+                tool_cfg[key] = value
         if value['use']:
             available_tool_list.append(key)
-        tool_cfg[key]['use'] = value['use']
 
     openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}

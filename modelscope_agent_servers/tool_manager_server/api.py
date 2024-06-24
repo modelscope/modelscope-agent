@@ -1,10 +1,11 @@
 import os
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 import requests
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
 from modelscope_agent_servers.service_utils import (create_error_msg,
                                                     create_success_msg,
                                                     parse_service_response)
@@ -37,6 +38,34 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+# Dependency to extract the authentication token
+def get_auth_token(authorization: Optional[str] = Header(
+    None)) -> Optional[str]:  # noqa E125
+    if authorization:
+        schema, _, token = authorization.partition(' ')
+        if schema.lower() == 'bearer' and token:
+            # Assuming the token is a bearer token, return the token part
+            return token
+        elif token == '':
+            return authorization
+
+    # If the schema is not bearer or there is no token, raise an exception
+    raise HTTPException(status_code=403, detail='Invalid authentication')
+
+
+def get_user_token(authorization: Optional[str] = Header(
+    None, alias=MODELSCOPE_AGENT_TOKEN_HEADER_NAME)):  # noqa E125
+    if authorization:
+        # Assuming the token is a bearer token
+        schema, _, token = authorization.partition(' ')
+        if schema and token and schema.lower() == 'bearer':
+            return token
+        elif token == '':
+            return authorization
+    else:
+        return ''
 
 
 def start_docker_container_and_store_status(tool: ToolRegisterInfo,
@@ -199,7 +228,8 @@ async def root():
 
 @app.post('/create_tool_service/')
 async def create_tool_service(tool_info: CreateTool,
-                              background_tasks: BackgroundTasks):
+                              background_tasks: BackgroundTasks,
+                              auth_token: str = Depends(get_auth_token)):
     # todo: the tool name might be the repo dir for the tool, need to parse in this situation.
     tool_node_name = f'{tool_info.tool_name}_{tool_info.tenant_id}'
     tool_register_info = ToolRegisterInfo(
@@ -209,6 +239,7 @@ async def create_tool_service(tool_info: CreateTool,
         tenant_id=tool_info.tenant_id,
         image=tool_info.tool_image,
         workspace_dir=os.getcwd(),
+        tool_url=tool_info.tool_url,
     )
     background_tasks.add_task(start_docker_container_and_store_status,
                               tool_register_info, app)
@@ -222,11 +253,10 @@ async def create_tool_service(tool_info: CreateTool,
     return create_success_msg(output, request_id=request_id)
 
 
-@app.post('/check_tool_service_status/')
-async def check_tool_service_status(
-    tool_name: str,
-    tenant_id: str = 'default',
-):
+@app.get('/check_tool_service_status/')
+async def check_tool_service_status(tool_name: str,
+                                    tenant_id: str = 'default',
+                                    auth_token: str = Depends(get_auth_token)):
     # todo: the tool name might be the repo dir for the tool, need to parse in this situation.
     tool_node_name = f'{tool_name}_{tenant_id}'
     request_id = str(uuid4())
@@ -250,21 +280,18 @@ async def check_tool_service_status(
 
 
 @app.post('/update_tool_service/')
-async def update_tool_service(
-    tool_name: str,
-    background_tasks: BackgroundTasks,
-    tool_cfg: dict = {},
-    tenant_id: str = 'default',
-    tool_image: str = 'modelscope-agent/tool-node:latest',
-):
-    tool_node_name = f'{tool_name}_{tenant_id}'
+async def update_tool_service(tool_info: CreateTool,
+                              background_tasks: BackgroundTasks,
+                              auth_token: str = Depends(get_auth_token)):
+    tool_node_name = f'{tool_info.tool_name}_{tool_info.tenant_id}'
     tool_register_info = ToolRegisterInfo(
         node_name=tool_node_name,
-        tool_name=tool_name,
-        config=tool_cfg,
-        tenant_id=tenant_id,
-        image=tool_image,
+        tool_name=tool_info.tool_name,
+        config=tool_info.tool_cfg,
+        tenant_id=tool_info.tenant_id,
+        image=tool_info.tool_image,
         workspace_dir=os.getcwd(),
+        tool_url=tool_info.tool_url,
     )
     background_tasks.add_task(restart_docker_container_and_update_status,
                               tool_register_info, app)
@@ -281,7 +308,8 @@ async def update_tool_service(
 @app.post('/remove_tool/')
 async def deregister_tool(tool_name: str,
                           background_tasks: BackgroundTasks,
-                          tenant_id: str = 'default'):
+                          tenant_id: str = 'default',
+                          auth_token: str = Depends(get_auth_token)):
     tool_node_name = f'{tool_name}_{tenant_id}'
     tool_register = ToolRegisterInfo(
         node_name=tool_node_name,
@@ -302,7 +330,8 @@ async def deregister_tool(tool_name: str,
 
 
 @app.get('/tools/', response_model=List[ToolInstance])
-async def list_tools(tenant_id: str = 'default'):
+async def list_tools(tenant_id: str = 'default',
+                     auth_token: str = Depends(get_auth_token)):
     with Session(engine) as session:
         statement = select(ToolInstance).where(
             ToolInstance.tenant_id == tenant_id)
@@ -313,7 +342,9 @@ async def list_tools(tenant_id: str = 'default'):
 
 
 @app.post('/tool_info/')
-async def get_tool_info(tool_input: ExecuteTool):
+async def get_tool_info(tool_input: ExecuteTool,
+                        user_token: str = Depends(get_user_token),
+                        auth_token: str = Depends(get_auth_token)):
 
     # get tool instance
     request_id = str(uuid4())
@@ -333,7 +364,9 @@ async def get_tool_info(tool_input: ExecuteTool):
         tool_info_url = 'http://' + tool_instance.ip + ':' + str(
             tool_instance.port) + '/tool_info'
         response = requests.get(
-            tool_info_url, params={'request_id': request_id})
+            tool_info_url,
+            params={'request_id': request_id},
+            headers={'Authorization': f'Bearer {user_token}'})
         response.raise_for_status()
         return create_success_msg(
             parse_service_response(response), request_id=request_id)
@@ -347,7 +380,9 @@ async def get_tool_info(tool_input: ExecuteTool):
 
 
 @app.post('/execute_tool/')
-async def execute_tool(tool_input: ExecuteTool):
+async def execute_tool(tool_input: ExecuteTool,
+                       user_token: str = Depends(get_user_token),
+                       auth_token: str = Depends(get_auth_token)):
 
     request_id = str(uuid4())
 
@@ -378,7 +413,8 @@ async def execute_tool(tool_input: ExecuteTool):
                 'params': tool_input.params,
                 'kwargs': tool_input.kwargs,
                 'request_id': request_id
-            })
+            },
+            headers={'Authorization': f'Bearer {user_token}'})
         response.raise_for_status()
         return create_success_msg(
             parse_service_response(response), request_id=request_id)
@@ -387,8 +423,8 @@ async def execute_tool(tool_input: ExecuteTool):
             status_code=400,
             request_id=request_id,
             message=
-            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
-        )
+            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, '
+            f'with error: {e} and origin error {response.message}')
 
 
 if __name__ == '__main__':

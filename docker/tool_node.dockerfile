@@ -39,7 +39,9 @@ ENV BASE_TOOL_DIR /app/assets
 # install tool_node
 COPY modelscope_agent_servers /app/modelscope_agent_servers
 
-
+# start up script file
+COPY scripts/run_tool_node.sh /app/run_tool_node.sh
+RUN chmod +x /app/run_tool_node.sh
 #ENTRYPOINT exec uvicorn tool_service.tool_node.api:app --host 0.0.0.0 --port $PORT
 
 
