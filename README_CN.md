@@ -13,7 +13,7 @@
 
 <p align="center">
 <img src="https://img.shields.io/badge/python-%E2%89%A53.8-5be.svg">
-<a href="https://github.com/modelscope/modelscope-agent/"><img src="https://img.shields.io/badge/modelscope-%E2%89%A51.10.0%20%26%20%E2%89%A41.12.0-5D91D4.svg"></a>
+<a href="https://github.com/modelscope/modelscope-agent/"><img src="https://img.shields.io/badge/modelscope-%E2%89%A51.15.0-5D91D4.svg"></a>
 <a href="https://github.com/modelscope/modelscope-agent/actions?query=branch%3Amaster+workflow%3Acitest++"><img src="https://img.shields.io/github/actions/workflow/status/modelscope/modelscope-agent/citest.yaml?branch=master&logo=github&label=CI
 "></a>
 <a href="https://github.com/modelscope/modelscope-agent/blob/main/LICENSE"><img src="https://img.shields.io/github/license/modelscope/modelscope-agent"></a>
@@ -37,7 +37,8 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 
 ## 更新
-* 🔥🔥June 6, 2024: 通过利用[Modelscope-Agent-Server](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/README.md)，**Qwen2**可以通过OpenAI的SDK实现tool calling的能力，具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/docs/llms/qwen2_tool_calling.md).
+* 🔥🔥June 17, 2024: 基于llama-index的RAG链路升级，支持混合搜索（多策略，多模态），相关详情具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/rag/README_zh.md).
+* 🔥June 6, 2024: 通过利用[Modelscope-Agent-Server](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/README.md)，**Qwen2**可以通过OpenAI的SDK实现tool calling的能力，具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/docs/llms/qwen2_tool_calling.md).
 * 🔥June 4, 2024: modelscope agent支持了基于android adb环境的Mobile-Agent-v2[arxiv](https://arxiv.org/abs/2406.01014)，[相关应用](https://github.com/modelscope/modelscope-agent/tree/master/apps/mobile_agent).
 * 🔥May 17, 2024: 在Ray的基础上，支持了多人聊天室的应用，一键快速开发聊天室，参考[多人聊天应用](https://github.com/modelscope/modelscope-agent/tree/master/apps/multi_roles_chat_room)
 * May 14, 2024: 在`RolePlay` Agent中支持了基于OpenAI`GPT-4o`模型的图像输入。开发者可以通过指定`image_url`参数体验这一功能。
