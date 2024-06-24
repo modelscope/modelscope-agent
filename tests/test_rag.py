@@ -122,4 +122,13 @@ def test_memory_with_rag_mongodb_storage():
     assert 'xcode-select --install' in summary_str
 
 
-test_memory_with_rag_mongodb_storage()
+def test_memory_with_rag_mongodb_storage():
+    from pathlib import Path
+    from llama_index.readers.file import FlatReader
+    reader = FlatReader()
+    documents = reader.load_data(Path('tests/samples/code.py'))
+    memory = MemoryWithRag(use_knowledge_cache=False, documents=documents)
+
+    res = memory.run('BaseRetriever的import路径是哪?', use_llm=False)
+    print(res)
+    assert 'llama_index.core.base.base_retriever' in res

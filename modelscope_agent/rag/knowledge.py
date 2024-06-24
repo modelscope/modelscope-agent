@@ -144,7 +144,7 @@ class BaseKnowledge(BaseLlamaPack):
             llama_index_llm = ModelscopeAgentLLM(llm)
         elif isinstance(llm, LLM):
             llama_index_llm = llm
-        elif isinstance(llm, dict):
+        elif isinstance(llm, dict) and len(llm):
             try:
                 ms_agent_llm = get_chat_model(**llm)
                 llama_index_llm = ModelscopeAgentLLM(ms_agent_llm)
@@ -368,7 +368,6 @@ class BaseKnowledge(BaseLlamaPack):
             # documents = general_reader.load_data(num_workers=os.cpu_count())
             documents = general_reader.load_data()
         except ValueError as e:
-            print(f'No valid documents, {e}')
             documents = []
         return documents
 
@@ -423,19 +422,16 @@ class BaseKnowledge(BaseLlamaPack):
 
 
 if __name__ == '__main__':
-    from llama_index.readers.mongodb import SimpleMongoReader
-
-    MONGO_URI = 'mongodb://localhost'
-    reader = SimpleMongoReader(uri=MONGO_URI)
-    documents = reader.load_data(
-        db_name='test_db', collection_name='myCollection')
+    from pathlib import Path
+    from llama_index.readers.file import FlatReader
+    reader = FlatReader()
+    documents = reader.load_data(Path('tst_.py'))
     knowledge = BaseKnowledge(
         documents=documents,
         use_cache=True,
     )
 
     # knowledge.add(['./data/常见QA.pdf'])
-    res = knowledge.run(
-        'Who decided to compile a book of interviews with startup founders?')
+    res = knowledge.run('BaseRetriever的import路径是哪?')
     # res = knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False)
     print(res)
