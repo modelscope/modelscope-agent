@@ -367,7 +367,7 @@ class BaseKnowledge(BaseLlamaPack):
 
             # documents = general_reader.load_data(num_workers=os.cpu_count())
             documents = general_reader.load_data()
-        except ValueError as e:
+        except ValueError:
             documents = []
         return documents
 
@@ -423,15 +423,17 @@ class BaseKnowledge(BaseLlamaPack):
 
 if __name__ == '__main__':
     from pathlib import Path
-    from llama_index.readers.file import FlatReader
-    reader = FlatReader()
-    documents = reader.load_data(Path('tst_.py'))
+    from llama_index.readers.mongodb import SimpleMongoReader
+    MONGO_URI = 'mongodb://localhost'
+    reader = SimpleMongoReader(uri=MONGO_URI)
+    documents = reader.load_data(
+        db_name='test_db',
+        collection_name='myCollection',
+        field_names=['content'])
     knowledge = BaseKnowledge(
         documents=documents,
-        use_cache=True,
+        use_cache=False,
     )
 
-    # knowledge.add(['./data/常见QA.pdf'])
-    res = knowledge.run('BaseRetriever的import路径是哪?')
-    # res = knowledge.run('高德天气API申请', files=['常见QA.pdf'], use_llm=False)
+    res = knowledge.run('Who decided to compile a book?', use_llm=False)
     print(res)

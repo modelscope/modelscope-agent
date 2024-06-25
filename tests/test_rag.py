@@ -93,7 +93,7 @@ def test_memory_with_rag_no_use_llm():
 
 
 def test_memory_with_rag_mongodb_storage():
-    # $ mongo
+    # $ mongod --dbpath ./mongodb --logpath ./mongo.log --fork
     import os
     import shutil
     from llama_index.storage.docstore.mongodb import MongoDocumentStore
@@ -122,13 +122,29 @@ def test_memory_with_rag_mongodb_storage():
     assert 'xcode-select --install' in summary_str
 
 
-def test_memory_with_rag_mongodb_storage():
-    from pathlib import Path
-    from llama_index.readers.file import FlatReader
-    reader = FlatReader()
-    documents = reader.load_data(Path('tests/samples/code.py'))
+def test_memory_with_rag_mongodb_reader():
+    # $ mongod --dbpath ./mongodb --logpath ./mongo.log --fork
+
+    # insert msg
+    import pymongo
+    client = pymongo.MongoClient()
+    db = client['test_db']
+    collection = db['myCollection']
+    collection.insert_one({
+        'content':
+        'Alice decided to compile a book of interviews with startup founders.'
+    })
+
+    # read from mongodb
+    from llama_index.readers.mongodb import SimpleMongoReader
+    MONGO_URI = 'mongodb://localhost'
+    reader = SimpleMongoReader(uri=MONGO_URI)
+    documents = reader.load_data(
+        db_name='test_db',
+        collection_name='myCollection',
+        field_names=['content'])
     memory = MemoryWithRag(use_knowledge_cache=False, documents=documents)
 
-    res = memory.run('BaseRetriever的import路径是哪?', use_llm=False)
+    res = memory.run('Who decided to compile a book?', use_llm=False)
     print(res)
-    assert 'llama_index.core.base.base_retriever' in res
+    assert 'Alice' in res
