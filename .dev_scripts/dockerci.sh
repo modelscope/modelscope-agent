@@ -16,6 +16,7 @@ playwright install --with-deps chromium
 
 # install package
 pip install fastapi pydantic uvicorn docker sqlmodel transformers ray
+pip install pymongo llama-index-storage-docstore-mongodb llama-index-storage-index-store-mongodb
 
 # run ci
 pytest tests
