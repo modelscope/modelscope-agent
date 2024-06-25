@@ -137,29 +137,17 @@ class SessionManager:
             self,
             builder_id,
             session,
-            renew=False) -> Tuple[RolePlay, MemoryWithRetrievalKnowledge]:
+            renew=False,
+            user_token=None) -> Tuple[RolePlay, MemoryWithRetrievalKnowledge]:
         unique_id = builder_id + '_' + session
         user_agent = self.user_bots[unique_id]
         if renew or user_agent is None:
             logger.info(f'init_user_chatbot_agent: {builder_id} {session}')
 
-            # check code_interpreter
             builder_cfg, _, tool_cfg, _, _, _ = parse_configuration(builder_id)
-            if 'tools' in builder_cfg and 'code_interpreter' in builder_cfg[
-                    'tools']:
-                if builder_cfg['tools']['code_interpreter'].get(
-                        'is_active', False
-                ) and builder_cfg['tools']['code_interpreter'].get(
-                        'use', False):
-                    raise ValueError('Using code interpreter.')
-            if 'code_interpreter' in tool_cfg:
-                if tool_cfg['code_interpreter'].get(
-                        'is_active',
-                        False) and tool_cfg['code_interpreter'].get(
-                            'use', False):
-                    raise ValueError('Using code interpreter.')
 
-            user_agent = init_user_chatbot_agent(builder_id, session)
+            user_agent = init_user_chatbot_agent(
+                builder_id, session, use_tool_api=True, user_token=user_token)
             self.user_bots[unique_id] = user_agent
         return user_agent
 

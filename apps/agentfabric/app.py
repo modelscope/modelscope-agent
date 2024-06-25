@@ -28,10 +28,14 @@ from publish_util import (pop_user_info_from_config, prepare_agent_zip,
 from user_core import init_user_chatbot_agent
 
 
-def init_user(uuid_str, state):
+def init_user(uuid_str, state, _user_token=None):
     try:
+        allow_tool_hub = False  # modelscope-agent < 0.6.4 will be false to disable tool hub
+        in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT',
+                                 'None') == 'studio' and allow_tool_hub
         seed = state.get('session_seed', random.randint(0, 1000000000))
-        user_agent, user_memory = init_user_chatbot_agent(uuid_str)
+        user_agent, user_memory = init_user_chatbot_agent(
+            uuid_str, use_tool_api=in_ms_studio, user_token=_user_token)
         user_agent.seed = seed
         state['user_agent'] = user_agent
         state['user_memory'] = user_memory
@@ -94,7 +98,7 @@ def delete(state):
 # 创建 Gradio 界面
 demo = gr.Blocks(css='assets/app.css')
 with demo:
-
+    user_token = gr.Textbox(label='modelscope_agent_tool_token', visible=False)
     uuid_str = gr.Textbox(label='modelscope_uuid', visible=False)
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed}, delete_callback=delete)
@@ -591,7 +595,7 @@ with demo:
         ])
 
     # 配置 "Preview" 的消息发送功能
-    def preview_send_message(chatbot, input, _state, uuid_str):
+    def preview_send_message(chatbot, input, _state, uuid_str, _user_token):
         # 将发送的消息添加到聊天历史
         # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
@@ -634,7 +638,8 @@ with demo:
                     history=history,
                     ref_doc=ref_doc,
                     append_files=append_files,
-                    uuid_str=uuid_str):
+                    uuid_str=uuid_str,
+                    user_token=_user_token):
                 # append_files=new_file_paths):
                 # important! do not change this
                 response += frame
@@ -661,7 +666,7 @@ with demo:
 
     preview_chat_input.submit(
         preview_send_message,
-        inputs=[user_chatbot, preview_chat_input, state, uuid_str],
+        inputs=[user_chatbot, preview_chat_input, state, uuid_str, user_token],
         outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
 
     # configuration for publish
@@ -775,14 +780,14 @@ with demo:
             knowledge_upload_button
         ])
 
-    def init_all(uuid_str, _state):
+    def init_all(uuid_str, _state, _user_token):
         uuid_str = check_uuid(uuid_str)
         builder_cfg, model_cfg, tool_cfg, available_tool_list, _, _ = parse_configuration(
             uuid_str)
         ret = init_ui_config(uuid_str, _state, builder_cfg, model_cfg,
                              tool_cfg)
         yield ret
-        init_user(uuid_str, _state)
+        init_user(uuid_str, _state, _user_token)
         init_builder(uuid_str, _state)
         yield {
             state:
@@ -798,7 +803,9 @@ with demo:
         }
 
     demo.load(
-        init_all, inputs=[uuid_str, state], outputs=configure_updated_outputs)
+        init_all,
+        inputs=[uuid_str, state, user_token],
+        outputs=configure_updated_outputs)
 
 demo.queue()
 demo.launch(show_error=True, max_threads=10)

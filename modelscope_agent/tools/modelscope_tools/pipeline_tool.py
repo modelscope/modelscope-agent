@@ -64,7 +64,7 @@ class ModelscopePipelineTool(BaseTool):
             return self._remote_call(params, **kwargs)
 
     def _remote_call(self, params: dict, **kwargs):
-        data = json.dumps(params)
+        data = json.dumps(params, ensure_ascii=False)
         try:
             api_token = get_api_key(ApiNames.modelscope_api_key, **kwargs)
         except AssertionError:
@@ -101,7 +101,7 @@ class ModelscopePipelineTool(BaseTool):
         try:
             self.setup()
             origin_result = self.pipeline(**kwargs)
-            return json.dumps(origin_result, default=str)
+            return json.dumps(origin_result, default=str, ensure_ascii=False)
         except RuntimeError as e:
             import traceback
             raise RuntimeError(

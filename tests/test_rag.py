@@ -1,6 +1,12 @@
+import os
+
+import pytest
 from modelscope_agent.memory import MemoryWithRag
 
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_simple():
 
     memory = MemoryWithRag(
@@ -13,6 +19,7 @@ def test_memory_with_rag_simple():
     assert 'https://lbs.amap.com/api/javascript-api-v2/guide/services/weather' in summary_str
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_update():
     memory = MemoryWithRag(use_knowledge_cache=False)
 
@@ -22,6 +29,7 @@ def test_memory_with_rag_update():
     assert 'git-lfs' in summary_str
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_multi_sources():
 
     memory = MemoryWithRag(
@@ -34,6 +42,7 @@ def test_memory_with_rag_multi_sources():
     assert 'https://lbs.amap.com/api/javascript-api-v2/guide/services/weather' in summary_str
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_cache():
     MemoryWithRag(
         urls=['tests/samples/modelscope_qa_2.txt', 'tests/samples/常见QA.pdf'],
@@ -50,6 +59,7 @@ def test_memory_with_rag_cache():
     assert 'git-lfs' in summary_str
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_custom():
     from llama_index.retrievers.bm25 import BM25Retriever
     from llama_index.readers.json import JSONReader
@@ -69,6 +79,7 @@ def test_memory_with_rag_custom():
     assert 'git-lfs' in summary_str
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_multi_modal():
     memory = MemoryWithRag(
         urls=['tests/samples/rag.png'],
@@ -80,6 +91,7 @@ def test_memory_with_rag_multi_modal():
     assert 'rag.png' in summary_str
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_memory_with_rag_no_use_llm():
     memory = MemoryWithRag(use_knowledge_cache=False)
 
