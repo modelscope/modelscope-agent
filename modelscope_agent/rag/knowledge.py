@@ -243,11 +243,13 @@ class BaseKnowledge(BaseLlamaPack):
             )
             return extra_readers
 
-        return {
+        extra_readers.update({
             '.pb': PandasCSVReader(),
             '.html': HTMLTagReader(),
             '.txt': FlatReader()
-        }.update(extra_readers)
+        })
+
+        return extra_readers
 
     def read(self,
              knowledge_source: Union[str, List[str]],
