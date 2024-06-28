@@ -43,8 +43,9 @@ class ImageEnhancement(StyleRepaint):
 
         # 对入参格式调整和补充，比如解开嵌套的'.'连接的参数，还有导入你默认的一些参数，
         # 比如model，参考下面的_remote_parse_input函数。
-
-        remote_parsed_input = json.dumps(self._remote_parse_input(**params))
+        if 'base64_files' in kwargs:
+            params['base64_files'] = kwargs['base64_files']
+        remote_parsed_input = json.dumps(self._parse_input(**params))
 
         url = kwargs.get(
             'url',
@@ -90,7 +91,9 @@ class ImageEnhancement(StyleRepaint):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def _remote_parse_input(self, *args, **kwargs):
+    def _parse_input(self, *args, **kwargs):
+        kwargs = super()._parse_files_input(*args, **kwargs)
+
         restored_dict = {}
         for key, value in kwargs.items():
             if '.' in key:
@@ -110,7 +113,10 @@ class ImageEnhancement(StyleRepaint):
             ('.jpeg', '.png', '.jpg', '.bmp')):  # noqa E125
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
-            image_path = f'file://{os.path.join(WORK_DIR, image_path)}'
+            if 'local_file_paths' not in kwargs:
+                image_path = f'file://{os.path.join(WORK_DIR, image_path)}'
+            else:
+                image_path = f'file://{kwargs["local_file_paths"][image_path]}'
             image_url = get_upload_url(
                 model='phantom',  # The default setting here is "style_repaint".
                 file_to_upload=image_path,
