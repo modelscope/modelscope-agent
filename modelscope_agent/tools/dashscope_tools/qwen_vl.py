@@ -89,7 +89,6 @@ class QWenVL(BaseTool):
         # convert image_file_paths to a valid local file path
         if LOCAL_FILE_PATHS not in kwargs:
             # if image_file_paths is file path
-            image_file_paths = image_file_paths.split(',')
             for i, image_file_path in enumerate(image_file_paths):
                 image_file_paths[i] = os.path.join(WORK_DIR, image_file_path)
         else:
