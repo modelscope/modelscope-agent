@@ -62,11 +62,26 @@ class ModelscopeParser(ImageToTextParser):
                  **kwargs):
         super().__init__(model=model, **kwargs)
 
-        from modelscope.pipelines.builder import build_pipeline
-        self._pipeline = build_pipeline(model=model)
+        from modelscope.hub.file_download import model_file_download
+        from modelscope.hub.utils.utils import get_cache_dir
+        from modelscope.pipelines import pipeline
+        from modelscope.utils.config import Config
+        from modelscope.utils.constant import ModelFile
+        cache_root = get_cache_dir()
+        configuration_file = os.path.join(cache_root, model,
+                                          ModelFile.CONFIGURATION)
+        if not os.path.exists(configuration_file):
 
-    def generate(self, image: Path, prompt: str) -> str:
-        self._pipeline(image)
+            configuration_file = model_file_download(
+                model_id=model, file_path=ModelFile.CONFIGURATION)
+        cfg = Config.from_file(configuration_file)
+        task = cfg.safe_get('task')
+
+        self._pipeline = pipeline(task=task, model=model)
+
+    def generate(self, image: Path, **kwargs) -> str:
+        res = self._pipeline(image.__str__())
+        return res['text'][0]
 
 
 def get_image_parser(image_parser: Union[Type[ImageToTextParser],
@@ -129,7 +144,6 @@ class CustomImageReader(BaseReader):
         text_str: str = ''
         if self._parse_text:
             text_str = self._parser.generate(image=file, prompt=self._prompt)
-        print(f'text_str: {text_str}')
         return [
             ImageDocument(
                 text=text_str,
@@ -141,6 +155,7 @@ class CustomImageReader(BaseReader):
 
 
 if __name__ == '__main__':
-    fp = 'tests/samples/rag.png'
-    a = DashscopeParser()
-    a.generate(Path(fp))
+    fp = 'tests/samples/ms_intro.png'
+    a = ModelscopeParser()
+    res = a.generate(Path(fp))
+    print(res)

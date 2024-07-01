@@ -332,7 +332,6 @@ class BaseKnowledge(BaseLlamaPack):
             return str(self.query_engine.query(query_bundle))
         else:
             nodes = self.query_engine.retrieve(query_bundle)
-            print(f'nodes: {nodes}')
             msg = [
                 n.node.get_content(metadata_mode=MetadataMode.LLM)
                 for n in nodes
