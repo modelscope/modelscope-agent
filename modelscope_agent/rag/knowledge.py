@@ -20,6 +20,9 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.rag.emb import DashscopeEmbedding
 from modelscope_agent.rag.llm import ModelscopeAgentLLM
+from modelscope_agent.rag.reader.image import (CustomImageReader,
+                                               ImageToTextParser,
+                                               get_image_parser)
 
 
 @dataclass
@@ -59,12 +62,15 @@ class BaseKnowledge(BaseLlamaPack):
                  loaders: Dict[str, Union[BaseReader, Type[BaseReader]]] = {},
                  transformations: List[Type[TransformComponent]] = [],
                  post_processors: List[Type[BaseNodePostprocessor]] = [],
+                 image_parser: Union[Type[ImageToTextParser],
+                                     ImageToTextParser, None] = None,
                  use_cache: bool = True,
                  **kwargs) -> None:
         self.retriever_cls = retriever
         self.cache_dir = cache_dir
         # self.register_files(files) # TODO: file manager
-        self.extra_readers = self.get_extra_readers(loaders)
+        self.extra_readers = self.get_extra_readers(
+            loaders, image_parser=image_parser)
         self.embed_model = self.get_emb_model(emb)
         Settings._embed_model = self.embed_model
         documents = None
@@ -219,7 +225,10 @@ class BaseKnowledge(BaseLlamaPack):
         return index.as_retriever()
 
     def get_extra_readers(
-        self, loaders: Dict[str, Union[BaseReader, Type[BaseReader]]]
+        self,
+        loaders: Dict[str, Union[BaseReader, Type[BaseReader]]],
+        image_parser: Union[Type[ImageToTextParser], ImageToTextParser,
+                            None] = None,
     ) -> Dict[str, BaseReader]:
         extra_readers = {}
         for file_type, loader_or_cls in loaders.items():
@@ -242,12 +251,18 @@ class BaseKnowledge(BaseLlamaPack):
                 '`llama-index-readers-file` package not found. Can not read .pd .html .txt file.'
             )
             return extra_readers
+        image_parser = get_image_parser(image_parser)
+        image_reader = CustomImageReader(image_parser)
 
-        return {
+        extra_readers.update({
+            '.jpg': image_reader,
+            '.jpeg': image_reader,
+            '.png': image_reader,
             '.pb': PandasCSVReader(),
             '.html': HTMLTagReader(),
             '.txt': FlatReader()
-        }.update(extra_readers)
+        })
+        return extra_readers
 
     def read(self,
              knowledge_source: Union[str, List[str]],
@@ -317,6 +332,7 @@ class BaseKnowledge(BaseLlamaPack):
             return str(self.query_engine.query(query_bundle))
         else:
             nodes = self.query_engine.retrieve(query_bundle)
+            print(f'nodes: {nodes}')
             msg = [
                 n.node.get_content(metadata_mode=MetadataMode.LLM)
                 for n in nodes
