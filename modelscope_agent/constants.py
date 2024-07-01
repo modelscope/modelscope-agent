@@ -11,6 +11,9 @@ TASK_CENTER_NAME = 'task_center'
 DEFAULT_TOOL_MANAGER_SERVICE_URL = 'http://localhost:31511'
 DEFAULT_ASSISTANT_SERVICE_URL = 'http://localhost:31512'
 MODELSCOPE_AGENT_TOKEN_HEADER_NAME = 'X-Modelscope-Agent-Token'
+DEFAULT_CODE_INTERPRETER_DIR = '/tmp/ci_workspace'
+LOCAL_FILE_PATHS = 'local_file_paths'
+BASE64_FILES = 'base64_files'
 
 
 class ApiNames(Enum):
