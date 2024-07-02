@@ -6,10 +6,16 @@ from typing import Dict, List, Optional, Union
 import json
 import json5
 import requests
-from modelscope_agent.constants import (DEFAULT_TOOL_MANAGER_SERVICE_URL,
+from modelscope_agent.constants import (BASE64_FILES,
+                                        DEFAULT_CODE_INTERPRETER_DIR,
+                                        DEFAULT_TOOL_MANAGER_SERVICE_URL,
+                                        LOCAL_FILE_PATHS,
                                         MODELSCOPE_AGENT_TOKEN_HEADER_NAME)
+from modelscope_agent.utils.base64_utils import decode_base64_to_files
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
+
+WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', DEFAULT_CODE_INTERPRETER_DIR)
 
 # ast?
 register_map = {
@@ -174,6 +180,15 @@ class BaseTool(ABC):
                 if param['name'] not in params_json:
                     raise ValueError(f'param `{param["name"]}` is required')
         return params_json
+
+    def _parse_files_input(self, *args, **kwargs):
+        # convert image_file_paths from string to list
+        if BASE64_FILES in kwargs:
+            # if image_file_paths is base64
+            base64_files = kwargs[BASE64_FILES]
+            local_file_paths = decode_base64_to_files(base64_files, WORK_DIR)
+            kwargs[LOCAL_FILE_PATHS] = local_file_paths
+        return kwargs
 
     def _build_function(self):
         """

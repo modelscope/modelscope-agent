@@ -51,6 +51,7 @@ if [ "$MODEL_DIR" != "" ]; then
     python -m vllm.entrypoints.openai.api_server $ALL_ARGS & SERVER_1_PID=$!
     export MODEL_SERVER=vllm-server
     export OPENAI_API_BASE=http://localhost:8000/v1
+    export VLLM_USE_MODELSCOPE=false
     echo "Model server: $MODEL_SERVER"
     echo "OPENAI_API_BASE: $OPENAI_API_BASE"
 
