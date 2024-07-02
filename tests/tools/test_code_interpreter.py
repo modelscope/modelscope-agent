@@ -44,3 +44,15 @@ def test_code_interpreter_video():
     res = re_pattern1.search(res)
     # decide if file is .mp4 file
     assert res.group(2).endswith('.mp4')
+
+
+def test_code_interpreter_nd_mode():
+    input_1 = """a=1+2\na"""
+    input_2 = """a=a*2\na"""
+    code_interpreter = CodeInterpreter()
+    kwargs_1 = {'code': input_1, 'nb_mode': True}
+    kwargs_2 = {'code': input_2, 'nb_mode': True}
+    res_1 = code_interpreter.call(json.dumps(kwargs_1))
+    res_2 = code_interpreter.call(json.dumps(kwargs_2))
+    assert res_1 == '3'
+    assert res_2 == '6'
