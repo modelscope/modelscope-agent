@@ -50,6 +50,7 @@ class MemoryWithRag(Memory, Agent):
         if query:
             summary_result = self.store_knowledge.run(
                 query, files=url, **kwargs)
+            print(f'summary_result: {summary_result}')
             # limit length
             if isinstance(summary_result, list):
                 if len(summary_result) == 0:
