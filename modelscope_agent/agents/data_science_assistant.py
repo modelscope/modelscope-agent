@@ -1,3 +1,5 @@
+# Implementation inspired by the paper "DATA INTERPRETER: AN LLM AGENT FOR DATA SCIENCE"
+
 import os
 from datetime import datetime
 from typing import Dict, List, Optional, Union
@@ -13,7 +15,7 @@ from modelscope_agent.tools.code_interpreter import CodeInterpreter
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import parse_code
 
-DATA_SCIENTIST_TEMPLATE = """As a data scientist, you need to help user to achieve their goal step by step in a
+DATA_SCIENTIST_TEMPLATE = """As a data scientist, you need to help user to achieve their goal step by step in a \
 continuous Jupyter notebook.Since it is a notebook environment, don\'t use asyncio.run. Instead, use await if you
 need to call an async function."""
 PLAN_TEMPLATE = """
@@ -22,20 +24,35 @@ PLAN_TEMPLATE = """
 # Available Task Types:
 code - write code to solve the problem
 
-# Task: Based on the context, write a plan or modify an existing plan of what you should do to achieve the goal. A
-plan consists of one to four tasks. If you are modifying an existing plan, carefully follow the instruction,
-don't make unnecessary changes. Give the whole plan unless instructed to modify only one task of the plan. If you
-encounter errors on the current task, revise and output the current single task only. Output a list of jsons
-following the format: ```json [ {{ "task_id": str = "unique identifier for a task in plan, can be an ordinal",
-"dependent_task_ids": list[str] = "ids of tasks prerequisite to this task", "instruction": "what you should do in
-this task, one short phrase or sentence", "task_type": "type of this task, should be one of Available Task Types",
-}}, ... ] ```"""
-CODE_TEMPLATE = """you are a code interpreter, you need to generate a new jupyter notebook code block based on the
-instruction: {instruction}, the code format is as follows: ```python # the code you need to write ``` previous code
-are as follows, you need to generate python code that follows previous code, no need to repeat previous code: {
-previous_code} Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse
+# Task:
+Based on the context, write a plan or modify an existing plan of what you should do to achieve the goal. A plan \
+consists of one to four tasks.
+If you are modifying an existing plan, carefully follow the instruction, don't make unnecessary changes. \
+Give the whole plan unless instructed to modify only one task of the plan.
+If you encounter errors on the current task, revise and output the current single task only.
+Output a list of jsons following the format:
+```json
+[
+    {{
+        "task_id": str = "unique identifier for a task in plan, can be an ordinal",
+        "dependent_task_ids": list[str] = "ids of tasks prerequisite to this task",
+        "instruction": "what you should do in this task, one short phrase or sentence",
+        "task_type": "type of this task, should be one of Available Task Types",
+    }},
+    ...
+]
+```
+"""
+CODE_TEMPLATE = """you are a code interpreter, you need to generate a new jupyter notebook code block based on the \
+instruction: {instruction}, the code format is as follows:
+```python
+# the code you need to write
+```
+previous code are as follows, you need to generate python code that follows previous code, no need to repeat previous \
+code:
+{previous_code} Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse
 the code correctly,the code format is as follows: ```python # the code you need to write ```"""
-CODE_REFLECT_TEMPLATE = """you are a code fixer, you need to fix python code block in jupyter notebook to achieve the
+CODE_REFLECT_TEMPLATE = """you are a code fixer, you need to fix python code block in jupyter notebook to achieve the \
 goal: {instruction}, the code format is as follows: ```python # the code you need to write ```
 
 the code you need to fix is:
@@ -54,7 +71,7 @@ Attention: the code format MUST be followed, otherwise the code interpreter will
 correctly,the code format is as follows: ```python # the code you need to write ```"""
 
 
-class PlanAndActAgent(RolePlay):
+class DataScienceAssistant(RolePlay):
 
     def __init__(self,
                  function_list: Optional[List[Union[str, Dict]]] = None,
@@ -153,7 +170,7 @@ class PlanAndActAgent(RolePlay):
                     counter += 1
                 if success:
                     plan.finish_current_task()
-                # todo: add update plan logic
+                # todo: add update task logic
             # if data dir does not exist, create it
             if not os.path.exists('data'):
                 os.makedirs('data')
