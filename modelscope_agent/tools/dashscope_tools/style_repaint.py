@@ -3,7 +3,7 @@ import time
 
 import json
 import requests
-from modelscope_agent.constants import ApiNames
+from modelscope_agent.constants import BASE64_FILES, LOCAL_FILE_PATHS, ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.utils.utils import get_api_key, get_upload_url
 from requests.exceptions import RequestException, Timeout
@@ -43,7 +43,9 @@ class StyleRepaint(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-        remote_parsed_input = self._remote_parse_input(**params)
+        if BASE64_FILES in kwargs:
+            params[BASE64_FILES] = kwargs[BASE64_FILES]
+        remote_parsed_input = self._parse_input(**params)
         try:
             remote_parsed_input['input']['style_index'] = int(
                 remote_parsed_input['input']['style_index'])
@@ -93,7 +95,9 @@ class StyleRepaint(BaseTool):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def _remote_parse_input(self, *args, **kwargs):
+    def _parse_input(self, *args, **kwargs):
+        kwargs = super()._parse_files_input(*args, **kwargs)
+
         restored_dict = {}
         for key, value in kwargs.items():
             if '.' in key:
@@ -111,7 +115,10 @@ class StyleRepaint(BaseTool):
         if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
-            image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
+            if LOCAL_FILE_PATHS not in kwargs:
+                image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
+            else:
+                image_path = f'file://{kwargs["local_file_paths"][image_path]}'
             image_url = get_upload_url(
                 model=
                 'style_repaint',  # The default setting here is "style_repaint".

@@ -20,9 +20,6 @@ from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.rag.emb import DashscopeEmbedding
 from modelscope_agent.rag.llm import ModelscopeAgentLLM
-from modelscope_agent.utils.nltk_utils import install_nltk_data
-
-install_nltk_data()
 
 
 @dataclass
@@ -86,6 +83,7 @@ class BaseKnowledge(BaseLlamaPack):
         root_retriever = self.get_root_retriever(
             documents, use_cache=use_cache, **kwargs)
 
+        self.query_engine = None
         if root_retriever:
             self.query_engine = self.get_query_engine(root_retriever, **kwargs)
 
@@ -245,11 +243,13 @@ class BaseKnowledge(BaseLlamaPack):
             )
             return extra_readers
 
-        return {
+        extra_readers.update({
             '.pb': PandasCSVReader(),
             '.html': HTMLTagReader(),
             '.txt': FlatReader()
-        }.update(extra_readers)
+        })
+
+        return extra_readers
 
     def read(self,
              knowledge_source: Union[str, List[str]],
@@ -308,9 +308,13 @@ class BaseKnowledge(BaseLlamaPack):
         query_bundle = FileQueryBundle(query)
         if isinstance(files, str):
             files = [files]
-
         if files and len(files) > 0:
             self.set_filter(files)
+
+        if not self.query_engine:
+            print('No valid document. Return `Empty Response`.')
+            return 'Empty Response'
+
         if use_llm:
             return str(self.query_engine.query(query_bundle))
         else:

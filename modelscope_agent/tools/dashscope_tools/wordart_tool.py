@@ -46,7 +46,7 @@ class WordArtTexture(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-        remote_parsed_input = json.dumps(self._remote_parse_input(**params))
+        remote_parsed_input = json.dumps(self._parse_input(**params))
         try:
             self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
         except AssertionError:
@@ -86,7 +86,7 @@ class WordArtTexture(BaseTool):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def _remote_parse_input(self, *args, **kwargs):
+    def _parse_input(self, *args, **kwargs):
         restored_dict = {}
         for key, value in kwargs.items():
             if '.' in key:
