@@ -69,7 +69,6 @@ class CodeInterpreter(BaseTool):
         self.image_server = self.cfg.get('image_server', False)
         self.kernel_clients: Dict[int, BlockingKernelClient] = {}
         atexit.register(self._kill_kernels)
-
         # pid: int = os.getpid()
         pid = random.randint(1, 9999999)
         if pid in self.kernel_clients:
@@ -83,10 +82,10 @@ class CodeInterpreter(BaseTool):
                                                 repr(ALIB_FONT_FILE)[1:-1])
             print(self._execute_code(kc, start_code))
             self.kernel_clients[pid] = kc
-        nb: NotebookNode
-        nb_client: NotebookClient
-        console: Console
-        interaction: str
+        self.nb = nbformat.v4.new_notebook()  # noqa E501
+        self.nb_client = NotebookClient(self.nb, timeout=600)
+        self.console = Console()
+        self.interaction: str
         # timeout: int = 600
         self.kc = kc
 
@@ -229,7 +228,7 @@ class CodeInterpreter(BaseTool):
         returns the success or failure of the cell execution, and an optional error message.
         """
         try:
-            self.nb_client.async_execute_cell(cell, cell_index)
+            self.nb_client.execute_cell(cell, cell_index)
             return self.parse_outputs(self.nb.cells[-1].outputs)
         except CellTimeoutError:
             assert self.nb_client.km is not None
@@ -469,7 +468,7 @@ class CodeInterpreter(BaseTool):
     def call(self,
              params: str,
              timeout: Optional[int] = 30,
-             nb_mode: bool = False,
+             nb_mode: bool = True,
              **kwargs) -> str:
         params = self._verify_args(params)
         if isinstance(params, dict):
@@ -480,8 +479,8 @@ class CodeInterpreter(BaseTool):
         if not code.strip():
             return ''
 
-        if timeout:
-            code = f'_M6CountdownTimer.start({timeout})\n{code}'
+        # if timeout:
+        #     code = f'_M6CountdownTimer.start({timeout})\n{code}'
 
         fixed_code = []
         for line in code.split('\n'):
@@ -494,15 +493,16 @@ class CodeInterpreter(BaseTool):
             result, success = self.run(code=fixed_code)
             print('result', result)
             print('success', success)
+            return result if success else 'Error: ' + result
             pass
 
         else:
             result = self._execute_code(self.kc, fixed_code)
 
-        if timeout:
-            self._execute_code(self.kc, '_M6CountdownTimer.cancel()')
+            # if timeout:
+            #     self._execute_code(self.kc, '_M6CountdownTimer.cancel()')
 
-        return result
+            return result
 
     def _handle_input_fallback(self, **kwargs):
         """
@@ -548,3 +548,7 @@ class CodeInterpreter(BaseTool):
                 return code
         else:
             return code
+
+
+if __name__ == '__main__':
+    code_interpreter = CodeInterpreter()
