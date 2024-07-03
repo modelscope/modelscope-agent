@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Type, Union
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.graph_stores.types import GraphStore
 from llama_index.core.indices.base import BaseIndex
 from llama_index.core.llama_pack.base import BaseLlamaPack
@@ -21,7 +22,6 @@ from llama_index.core.storage.index_store.types import BaseIndexStore
 from llama_index.core.vector_stores.types import (BasePydanticVectorStore,
                                                   MetadataFilter,
                                                   MetadataFilters)
-from llama_index.legacy.core.embeddings.base import BaseEmbedding
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.rag.emb import DashscopeEmbedding
