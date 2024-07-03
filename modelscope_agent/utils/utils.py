@@ -319,3 +319,16 @@ def get_api_key(api_enum: ApiNames, key=None, **kwargs):
 
     assert api_key != '', f'{api_enum.name} must be acquired'
     return api_key
+
+
+def parse_code(text: str, lang: str = '') -> str:
+    pattern = rf'```{lang}.*?\s+(.*?)```'
+    match = re.search(pattern, text, re.DOTALL)
+    if match:
+        code = match.group(1)
+    else:
+        logger.error(f'{pattern} not match following text:')
+        logger.error(text)
+        # raise Exception
+        return ''  # just assume original text is code
+    return code
