@@ -471,7 +471,6 @@ class CodeInterpreter(BaseTool):
              timeout: Optional[int] = 30,
              nb_mode: bool = False,
              **kwargs) -> str:
-        params = self._verify_args(params)
         try:
             params = json5.loads(params)
             code = params['code']

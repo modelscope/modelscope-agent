@@ -321,7 +321,7 @@ def get_api_key(api_enum: ApiNames, key=None, **kwargs):
     return api_key
 
 
-def parse_code(block: str, text: str, lang: str = '') -> str:
+def parse_code(text: str, lang: str = '') -> str:
     pattern = rf'```{lang}.*?\s+(.*?)```'
     match = re.search(pattern, text, re.DOTALL)
     if match:
@@ -330,5 +330,5 @@ def parse_code(block: str, text: str, lang: str = '') -> str:
         logger.error(f'{pattern} not match following text:')
         logger.error(text)
         # raise Exception
-        return text  # just assume original text is code
+        return ''  # just assume original text is code
     return code
