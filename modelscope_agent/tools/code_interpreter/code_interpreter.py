@@ -466,13 +466,17 @@ class CodeInterpreter(BaseTool):
             result += 'The code executed successfully.'
         return result
 
-    def call(self, params: str, timeout: Optional[int] = 30, **kwargs) -> str:
+    def call(self,
+             params: str,
+             timeout: Optional[int] = 30,
+             nb_mode: bool = False,
+             **kwargs) -> str:
+        params = self._verify_args(params)
         try:
             params = json5.loads(params)
             code = params['code']
         except Exception:
             code = extract_code(params)
-
         if not code.strip():
             return ''
 
