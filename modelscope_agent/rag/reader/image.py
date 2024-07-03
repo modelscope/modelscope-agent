@@ -24,18 +24,24 @@ class OpenaiAPIParser(ImageToTextParser):
         model: str = 'qwen-vl-max',
         base_url: str = 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         api_key: str = os.getenv('DASHSCOPE_API_KEY', '')):  # noqa
-        from openai import OpenAI
-
-        assert len(api_key), 'api_key is not set.'
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-        )
+        self.base_url = base_url
+        self.api_key = api_key
         super().__init__(model)
 
-    def generate(self, image: Path, prompt: str) -> str:
+    def generate(self, image: Path, prompt: str, **kwargs) -> str:
         import base64
         import mimetypes
+        from openai import OpenAI
+
+        if self.base_url == 'https://dashscope.aliyuncs.com/compatible-mode/v1' and not len(
+                self.api_key):
+            self.api_key = kwargs.get('api_key',
+                                      os.getenv('DASHSCOPE_API_KEY', ''))
+        assert len(self.api_key), 'api_key is not set.'
+        client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url,
+        )
 
         image_path = image.__str__()
         mime_type, _ = mimetypes.guess_type(image_path)
@@ -49,7 +55,7 @@ class OpenaiAPIParser(ImageToTextParser):
                 data_uri_prefix = f'data:{mime_type};base64,'
                 encoded_image_str = data_uri_prefix + encoded_image_str
 
-                completion = self.client.chat.completions.create(
+                completion = client.chat.completions.create(
                     model=self.model,
                     messages=[{
                         'role':
