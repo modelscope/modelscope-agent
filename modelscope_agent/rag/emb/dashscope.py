@@ -4,10 +4,9 @@ from http import HTTPStatus
 from typing import Any, List, Optional
 
 import dashscope
-from llama_index.legacy.bridge.pydantic import Field
-from llama_index.legacy.callbacks import CallbackManager
-from llama_index.legacy.core.embeddings.base import (DEFAULT_EMBED_BATCH_SIZE,
-                                                     BaseEmbedding)
+from llama_index.core.bridge.pydantic import Field
+from llama_index.core.callbacks import CallbackManager
+from llama_index.core.embeddings import DEFAULT_EMBED_BATCH_SIZE, BaseEmbedding
 
 # Enums for validation and type safety
 DashscopeModelName = [
