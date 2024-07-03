@@ -116,6 +116,3 @@ def test_memory_with_rag_no_use_llm():
     print(summary_str)
     assert 'file_path' in summary_str
     assert 'git-lfs' in summary_str
-
-
-test_memory_with_rag_multi_modal_ms()
