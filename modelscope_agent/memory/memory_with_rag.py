@@ -52,6 +52,8 @@ class MemoryWithRag(Memory, Agent):
                 query, files=url, **kwargs)
             # limit length
             if isinstance(summary_result, list):
+                if len(summary_result) == 0:
+                    return ''
                 single_max_token = int(max_token / len(summary_result))
                 concatenated_records = '\n'.join([
                     record[0:single_max_token - 1] for record in summary_result

@@ -15,7 +15,7 @@ pip install playwright
 playwright install --with-deps chromium
 
 # install package
-pip install fastapi pydantic uvicorn docker sqlmodel
+pip install fastapi pydantic uvicorn docker sqlmodel transformers ray
 
 # run ci
 pytest tests

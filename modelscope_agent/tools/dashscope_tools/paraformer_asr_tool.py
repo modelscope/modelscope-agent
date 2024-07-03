@@ -3,7 +3,7 @@ import subprocess
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 
-from modelscope_agent.constants import ApiNames
+from modelscope_agent.constants import LOCAL_FILE_PATHS, ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.utils.utils import get_api_key
 
@@ -41,13 +41,18 @@ class ParaformerAsrTool(BaseTool):
     def call(self, params: str, **kwargs):
         from dashscope.audio.asr import Recognition
         params = self._verify_args(params)
+        kwargs = super()._parse_files_input(**kwargs)
+
         try:
             self.api_key = get_api_key(ApiNames.dashscope_api_key,
                                        self.api_key, **kwargs)
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
-        raw_audio_file = WORK_DIR + '/' + params['audio_path']
+        if LOCAL_FILE_PATHS not in kwargs:
+            raw_audio_file = WORK_DIR + '/' + params['audio_path']
+        else:
+            raw_audio_file = kwargs[LOCAL_FILE_PATHS]['audio_path']
         if not os.path.exists(raw_audio_file):
             raise ValueError(f'audio file {raw_audio_file} not exists')
         pcm_file = WORK_DIR + '/' + 'audio.pcm'

@@ -26,6 +26,7 @@ class ToolRegisterInfo(BaseModel):
     tenant_id: str
     config: dict = {}
     port: Optional[int] = 31513
+    tool_url: str = ''
 
 
 class CreateTool(BaseModel):
@@ -33,6 +34,7 @@ class CreateTool(BaseModel):
     tenant_id: str = 'default'
     tool_cfg: dict = {}
     tool_image: str = 'modelscope-agent/tool-node:latest'
+    tool_url: str = ''
 
 
 class ExecuteTool(BaseModel):
