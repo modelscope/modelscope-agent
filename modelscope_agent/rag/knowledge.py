@@ -74,6 +74,9 @@ class BaseKnowledge(BaseLlamaPack):
                  vector_store: Union[BasePydanticVectorStore,
                                      Type[BasePydanticVectorStore],
                                      None] = None,
+                 vector_stores: Dict[
+                     str, Union[BasePydanticVectorStore,
+                                Type[BasePydanticVectorStore]]] = {},
                  image_store: Union[BasePydanticVectorStore,
                                     Type[BasePydanticVectorStore],
                                     None] = None,
@@ -90,6 +93,10 @@ class BaseKnowledge(BaseLlamaPack):
         vector_store = self.get_storage(vector_store)
         image_store = self.get_storage(image_store)
         graph_store = self.get_storage(graph_store)
+        v_stores = dict()
+        if vector_stores:
+            for key, value in vector_stores.items():
+                v_stores[key] = self.get_storage(value)
 
         documents.extend(self.read(files))
 
@@ -108,6 +115,7 @@ class BaseKnowledge(BaseLlamaPack):
             docstore=docstore,
             index_store=index_store,
             vector_store=vector_store,
+            vector_stores=v_stores,
             image_store=image_store,
             graph_store=graph_store,
             **kwargs)
@@ -219,6 +227,8 @@ class BaseKnowledge(BaseLlamaPack):
                   docstore: Optional[BaseDocumentStore] = None,
                   index_store: Optional[BaseIndexStore] = None,
                   vector_store: Optional[BasePydanticVectorStore] = None,
+                  vector_stores: Optional[Dict[
+                      str, BasePydanticVectorStore]] = None,
                   image_store: Optional[BasePydanticVectorStore] = None,
                   graph_store: Optional[GraphStore] = None,
                   **kwargs) -> BaseIndex:
@@ -235,6 +245,7 @@ class BaseKnowledge(BaseLlamaPack):
                         docstore=docstore,
                         index_store=index_store,
                         vector_store=vector_store,
+                        vector_stores=vector_stores,
                         image_store=image_store,
                         graph_store=graph_store,
                         persist_dir=self.cache_dir)
@@ -271,6 +282,7 @@ class BaseKnowledge(BaseLlamaPack):
             docstore: Optional[BaseDocumentStore] = None,
             index_store: Optional[BaseIndexStore] = None,
             vector_store: Optional[BasePydanticVectorStore] = None,
+            vector_stores: Optional[Dict[str, BasePydanticVectorStore]] = None,
             image_store: Optional[BasePydanticVectorStore] = None,
             graph_store: Optional[GraphStore] = None,
             **kwargs) -> BaseRetriever:
@@ -280,6 +292,7 @@ class BaseKnowledge(BaseLlamaPack):
             docstore=docstore,
             index_store=index_store,
             vector_store=vector_store,
+            vector_stores=vector_stores,
             image_store=image_store,
             graph_store=graph_store,
             **kwargs)
