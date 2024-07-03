@@ -12,6 +12,7 @@ llama-index-readers-json
 llama-index-retrievers-bm25
 modelscope >=1.15.0
 moviepy
+nbformat
 openai
 opencv-python
 openpyxl
