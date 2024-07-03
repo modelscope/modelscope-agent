@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Type, Union
 import fsspec
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.embeddings import BaseEmbedding
+from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llama_pack.base import BaseLlamaPack
 from llama_index.core.llms.llm import LLM
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
