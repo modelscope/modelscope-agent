@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Type, Union
 
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document, ImageDocument
-from PIL.PngImagePlugin import PngImageFile
 
 
 class ImageToTextParser:
@@ -18,40 +17,67 @@ class ImageToTextParser:
         pass
 
 
-class DashscopeParser(ImageToTextParser):
+class OpenaiAPIParser(ImageToTextParser):
+
+    def __init__(
+        self,
+        model: str = 'qwen-vl-max',
+        base_url: str = 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        api_key: str = os.getenv('DASHSCOPE_API_KEY', '')):
+        from openai import OpenAI
+
+        assert len(api_key), 'api_key is not set.'
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+        )
+        super().__init__(model)
 
     def generate(self, image: Path, prompt: str) -> str:
-        import dashscope
-        from http import HTTPStatus
-        if not os.getenv('DASHSCOPE_API_KEY', None):
+        import base64
+        import mimetypes
+
+        image_path = image.__str__()
+        mime_type, _ = mimetypes.guess_type(image_path)
+
+        # 校验MIME类型为支持的图片格式, 限制图片大小在5M内
+        if mime_type and mime_type.startswith(
+                'image') and os.path.getsize(image_path) < 5000000:
+            with open(image_path, 'rb') as image_file:
+                encoded_image = base64.b64encode(image_file.read())
+                encoded_image_str = encoded_image.decode('utf-8')
+                data_uri_prefix = f'data:{mime_type};base64,'
+                encoded_image_str = data_uri_prefix + encoded_image_str
+
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{
+                        'role':
+                        'user',
+                        'content': [{
+                            'type': 'text',
+                            'text': prompt
+                        }, {
+                            'type': 'image_url',
+                            'image_url': {
+                                'url': encoded_image_str
+                            }
+                        }]
+                    }],
+                    top_p=0.8,
+                    stream=True,
+                    stream_options={'include_usage': True})
+            res = ''
+            for chunk in completion:
+                if len(chunk.choices) > 0 and hasattr(
+                        chunk.choices[0].delta,
+                        'content') and chunk.choices[0].delta.content:
+                    res += chunk.choices[0].delta.content
+            return res
+        else:
             print(
-                'Can not parse image to text through dashscope: `DASHSCOPE_API_KEY` is required to be set '
-                'to the environment variable. Therefore, only the path and file name information of the '
-                'image can be obtained when retrieving. Or you can choose to use other text2image methods.'
+                'image file type unsupported, image file size exceeds 5M or file not found.'
             )
-            return ''
-        """Sample of use local file.
-        linux&mac file schema: file:///home/images/test.png
-        windows file schema: file://D:/images/abc.png
-        """
-        local_file_path = f'file://{image.__str__()}'
-
-        messages = [{
-            'role': 'user',
-            'content': [{
-                'image': local_file_path
-            }, {
-                'text': prompt
-            }]
-        }]
-        response = dashscope.MultiModalConversation.call(
-            model=self.model, messages=messages)
-
-        if response.status_code == HTTPStatus.OK:
-            return response['output']['choices'][0]['message']['content'][0][
-                'text']
-        else:  # 如果调用失败
-            print(response)
             return ''
 
 
@@ -98,9 +124,9 @@ def get_image_parser(image_parser: Union[Type[ImageToTextParser],
                 )
         else:
             print(
-                f'image_parser {image_parser} has not supported yet. Using default image parser dashscope: qwen-vl-max.'
+                f'image_parser {image_parser} has not supported yet. Using default image parser: dashscope qwen-vl-max.'
             )
-    return DashscopeParser()
+    return OpenaiAPIParser()
 
 
 class CustomImageReader(BaseReader):
@@ -111,7 +137,7 @@ class CustomImageReader(BaseReader):
                             None] = None,
         keep_image: bool = False,
         parse_text: bool = True,
-        prompt: str = 'Question: describe what you see in this image. Answer:',
+        prompt: str = '图片的内容是什么？',
     ):
         """Init params."""
         self._parser = None
@@ -155,7 +181,7 @@ class CustomImageReader(BaseReader):
 
 
 if __name__ == '__main__':
-    fp = 'tests/samples/ms_intro.png'
-    a = ModelscopeParser()
-    res = a.generate(Path(fp))
+    fp = 'tests/samples/rag.png'
+    a = OpenaiAPIParser()
+    res = a.generate(Path(fp), '图片的内容是什么？')
     print(res)
