@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Dict, List, Union
 
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from pydantic import BaseModel
@@ -21,11 +21,11 @@ class Document(BaseModel):
     url: str
     time: str
     source: str
-    raw: list
+    raw: List
     title: str
     topic: str
     checked: bool
-    session: list
+    session: List
 
 
 class AgentAttr(BaseModel):
@@ -35,7 +35,8 @@ class AgentAttr(BaseModel):
     session: str = ''
     uuid: str = ''
     history: List[Message] = []
-    knowledge: List = ''  # in case retrieval cost is much higher than storage
+
+    knowledge: str = ''  # in case retrieval cost is much higher than storage
 
 
 class TaskResult(BaseModel):
@@ -48,7 +49,7 @@ class TaskResult(BaseModel):
 
 class Task(BaseModel):
     task_id: str = ''
-    dependent_task_ids: list[str] = []  # Tasks prerequisite to this Task
+    dependent_task_ids: List[str] = []  # Tasks prerequisite to this Task
     instruction: str = ''
     task_type: str = ''
     code: str = ''
@@ -71,11 +72,11 @@ class Task(BaseModel):
 class Plan(BaseModel):
     goal: str
     context: str = ''
-    tasks: list[Task] = []
-    task_map: dict[str, Task] = {}
+    tasks: List[Task] = []
+    task_map: Dict[str, Task] = {}
     current_task_id: str = ''
 
-    def _topological_sort(self, tasks: list[Task]):
+    def _topological_sort(self, tasks: List[Task]):
         task_map = {task.task_id: task for task in tasks}
         dependencies = {
             task.task_id: set(task.dependent_task_ids)
@@ -97,7 +98,7 @@ class Plan(BaseModel):
 
         return sorted_tasks
 
-    def add_tasks(self, tasks: list[Task]):
+    def add_tasks(self, tasks: List[Task]):
         """
         Integrates new tasks into the existing plan, ensuring dependency order is maintained.
 
@@ -109,7 +110,7 @@ class Plan(BaseModel):
         of the new tasks. The current task is updated to the first unfinished task in this merged list.
 
         Args:
-            tasks (list[Task]): A list of tasks (may be unordered) to add to the plan.
+            tasks (List[Task]): A List of tasks (may be unordered) to add to the plan.
 
         Returns:
             None: The method updates the internal state of the plan but does not return anything.
@@ -228,10 +229,9 @@ class Plan(BaseModel):
             self.current_task.is_finished = True
             self._update_current_task()  # set to next task
 
-    def get_finished_tasks(self) -> list[Task]:
+    def get_finished_tasks(self) -> List[Task]:
         """return all finished tasks in correct linearized order
-
         Returns:
-            list[Task]: list of finished tasks
+            List[Task]: List of finished tasks
         """
         return [task for task in self.tasks if task.is_finished]
