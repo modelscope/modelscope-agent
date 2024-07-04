@@ -316,6 +316,7 @@ class RolePlay(Agent, AgentEnvMixin):
                     # convert all files with base64, for the tool instance usage in case.
                     encoded_files = encode_files_to_base64(append_files)
                     kwargs['base64_files'] = encoded_files
+                    kwargs['use_tool_api'] = True
 
                 observation = self._call_tool(action, action_input, **kwargs)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(

@@ -1,3 +1,4 @@
+import json5
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.tools.utils.output_wrapper import AudioWrapper
 
@@ -16,8 +17,9 @@ class TexttoSpeechTool(ModelscopePipelineTool):
         'required': True,
         'type': 'string'
     }, {
-        'name': 'gender',
-        'description': '用户身份',
+        'name': 'voice',
+        'description':
+        '允许的声音类型：zhitian_emo（女声），zhiyan_emo（少女声），zhizhe_emo（男声），zhibei_emo（男童声）。',
         'required': True,
         'type': 'string'
     }]
@@ -30,4 +32,13 @@ class TexttoSpeechTool(ModelscopePipelineTool):
             print('speech_generation error: ', result)
             return None
         audio = result['Data']['output_wav']
-        return str(AudioWrapper(audio))
+        if 'use_tool_api' in kwargs:
+            return audio
+        else:
+            return str(AudioWrapper(audio))
+
+    def _verify_args(self, params: str):
+        # override the args
+        params_json = super()._verify_args(params)
+        params_json['parameters'] = {'voice': params_json.pop('voice')}
+        return params_json

@@ -22,6 +22,7 @@ pydantic>=2.3.0
 pytest
 pytest-mock
 python-dotenv
+requests>=2.32.3
 seaborn
 sentencepiece
 tiktoken
