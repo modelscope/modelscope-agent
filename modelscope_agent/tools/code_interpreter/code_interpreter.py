@@ -491,8 +491,6 @@ class CodeInterpreter(BaseTool):
         fixed_code = '\n'.join(fixed_code)
         if nb_mode:
             result, success = self.run(code=fixed_code)
-            print('result', result)
-            print('success', success)
             return result if success else 'Error: ' + result
             pass
 

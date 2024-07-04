@@ -50,25 +50,41 @@ instruction: {instruction}, the code format is as follows:
 ```
 previous code are as follows, you need to generate python code that follows previous code, no need to repeat previous \
 code:
-{previous_code} Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse
-the code correctly,the code format is as follows: ```python # the code you need to write ```"""
-CODE_REFLECT_TEMPLATE = """you are a code fixer, you need to fix python code block in jupyter notebook to achieve the \
-goal: {instruction}, the code format is as follows: ```python # the code you need to write ```
+{previous_code} 
+Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse\
+the code correctly,the code format is as follows: 
+```python 
+# the code you need to write 
+```
+"""
+CODE_REFLECT_TEMPLATE = """you are a code fixer, you need to fix python a code block in jupyter notebook to achieve the \
+goal: {instruction},
+the code format is as follows: 
+```python 
+# the code you need to write 
+```
 
-the code you need to fix is:
+the code you need to fix is as follows:
 ```python
 {code}
 ```
 
-but the code is not correct, the code caused the following error:
+but the code is not correct, and caused the following error:
 {error}
 please correct the code and try again
 
-previous code blocks are as follows, you need to generate python code that follows previous code, no need to repeat
-previous code: {previous_code}
+previous code are as follows and have been executed successfully in the previous jupyter notebook code blocks, \
+which means you can use the variables defined in the previous code blocks.
+the code you need to fix should follow previous code, no need to repeat
+previous code: 
+{previous_code}
 
-Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse the code
-correctly,the code format is as follows: ```python # the code you need to write ```"""
+Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse the code \
+correctly,the code format is as follows: 
+```python 
+# the code you need to write 
+```
+"""
 
 
 class DataScienceAssistant(RolePlay):
@@ -90,29 +106,62 @@ class DataScienceAssistant(RolePlay):
             instruction=instruction,
             **kwargs)
 
+    def _update_plan(self, user_request: str, curr_plan: Plan = None) -> Plan:
+        resp = self._call_llm(
+            prompt=PLAN_TEMPLATE.format(
+                context='User Request: ' + user_request + '\n', ),
+            messages=None,
+            stop=None)
+        tasks_text = ''
+        for r in resp:
+            tasks_text += r
+        tasks_text = parse_code(text=tasks_text, lang='json')
+        logger.info(f'tasks: {tasks_text}')
+        tasks = json5.loads(tasks_text)
+        tasks = [Task(**task) for task in tasks]
+        if curr_plan is None:
+            new_plan = Plan(goal=user_request)
+            new_plan.add_tasks(tasks=tasks)
+            return new_plan
+        else:
+            if len(tasks) == 1 or tasks[0].dependent_task_ids:
+                if tasks[0].dependent_task_ids and len(tasks) > 1:
+                    # tasks[0].dependent_task_ids means the generated tasks are not a complete plan
+                    # for they depend on tasks in the current plan, in this case, we only support updating one task each time
+                    logger.warning(
+                        "Current plan will take only the first generated task if the generated tasks are not a complete plan"
+                    )
+                # handle a single task
+                if curr_plan.has_task_id(tasks[0].task_id):
+                    # replace an existing task
+                    curr_plan.replace_task(tasks[0])
+                else:
+                    # append one task
+                    curr_plan.append_task(tasks[0])
+            else:
+                # add tasks in general
+                curr_plan.add_tasks(tasks)
+            return curr_plan
+
+    @staticmethod
+    def _save(nb: nbformat.NotebookNode):
+        if not os.path.exists('data'):
+            os.makedirs('data')
+        file_name = 'data/' + str(
+            datetime.now().strftime('%Y-%m-%d-%H-%M-%S')) + '.ipynb'
+        with open(file_name, 'w', encoding='utf-8') as file:
+            nbformat.write(nb, file)
+
     def _run(self,
              user_request,
              history: Optional[List[Dict]] = None,
              ref_doc: str = None,
              image_url: Optional[List[Union[str, Dict]]] = None,
              lang: str = 'zh',
+             save: bool = True,
              **kwargs):
         try:
-            resp = self._call_llm(
-                prompt=PLAN_TEMPLATE.format(
-                    context='User Request: ' + user_request + '\n', ),
-                messages=None,
-                stop=None,
-                **kwargs)
-            tasks_text = ''
-            for r in resp:
-                tasks_text += r
-            logger.info(f'tasks: {tasks_text}')
-            tasks_text = parse_code(text=tasks_text, lang='json')
-            tasks = json5.loads(tasks_text)
-            tasks = [Task(**task) for task in tasks]
-            plan = Plan(goal=user_request)
-            plan.add_tasks(tasks=tasks)
+            plan = self._update_plan(user_request=user_request)
             logger.info(f'plan: {plan}')
             code_interpreter = CodeInterpreter()
             while plan.current_task_id:
@@ -132,52 +181,47 @@ class DataScienceAssistant(RolePlay):
                 counter = 0
                 resp = ''
                 code = ''
-                print('previous_code:\n', previous_code)
-                while not success and counter < 5:
+                print(f'previous_code:\n {previous_code}')
+                while not success and counter < 6:
+                    print(f'task_id: {task.task_id}, counter: {counter}')
+                    print("code:\n", code)
                     if counter == 0:
-                        resp = self._call_llm(
-                            prompt=CODE_TEMPLATE.format(
-                                instruction=task.instruction,
-                                previous_code=previous_code),
-                            messages=None,
-                            stop=None,
-                            **kwargs)
+                        prompt = CODE_TEMPLATE.format(
+                            instruction=task.instruction,
+                            previous_code=previous_code)
                     else:
-                        resp = self._call_llm(
-                            prompt=CODE_REFLECT_TEMPLATE.format(
-                                instruction=task.instruction,
-                                previous_code=previous_code,
-                                code=code,
-                                error=resp[:10000]),
-                            messages=None,
-                            stop=None,
-                            **kwargs)
+                        prompt = CODE_REFLECT_TEMPLATE.format(
+                            instruction=task.instruction,
+                            previous_code=previous_code,
+                            code=code,
+                            error=resp[:10000])
+                    resp = self._call_llm(
+                        prompt=prompt,
+                        messages=None,
+                        stop=None,
+                        )
 
+                    code = ''
                     for chunk in resp:
                         code += chunk
                     code = parse_code(text=code, lang='python')
-
-                    kwargs = {'code': code}
                     try:
-                        resp = code_interpreter.call(params=json.dumps(kwargs))
-                        if 'Error: ' in resp:
+                        resp = code_interpreter.call(params=json.dumps({'code': code}), nb_mode=True)
+                        print("code interpreter response:\n", resp)
+                        if 'Error' in resp or 'error' in resp or 'ERROR' in resp or 'Traceback' in resp or 'exception' in resp:
                             success = False
                         else:
                             success = True
                     except Exception as e:
                         print(f'error: {e}')
-                    print('code interpreter response:\n', resp)
+
                     counter += 1
                 if success:
                     plan.finish_current_task()
-                # todo: add update task logic
-            # if data dir does not exist, create it
-            if not os.path.exists('data'):
-                os.makedirs('data')
-            file_name = 'data/' + str(
-                datetime.now().strftime('%Y-%m-%d-%H-%M-%S')) + '.ipynb'
-            with open(file_name, 'w', encoding='utf-8') as file:
-                nbformat.write(code_interpreter.nb, file)
+                else:
+                    plan = self._update_plan(user_request=user_request, curr_plan=plan)
+            if save:
+                self._save(code_interpreter.nb)
         except Exception as e:
             logger.error(f'error: {e}')
             raise e
