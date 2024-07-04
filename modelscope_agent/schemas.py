@@ -231,7 +231,6 @@ class Plan(BaseModel):
 
     def get_finished_tasks(self) -> List[Task]:
         """return all finished tasks in correct linearized order
-1
         Returns:
             List[Task]: List of finished tasks
         """
