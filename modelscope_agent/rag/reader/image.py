@@ -98,8 +98,8 @@ class OcrParser(ImageToTextParser):
         except Exception as e:
             print(
                 f'Using OcrParser requires the installation of tensorflow, pyclipper and shapely '
-                f'dependencies, which you can install using `pip install tensorflow, , pyclipper '
-                f'and shapely`. Error details: {e}')
+                f'dependencies, which you can install using `pip install tensorflow pyclipper '
+                f'shapely`. Error details: {e}')
             raise ImportError(e)
         from modelscope.pipelines import pipeline
         from modelscope.utils.constant import Tasks
