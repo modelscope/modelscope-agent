@@ -48,7 +48,7 @@ class TaskResult(BaseModel):
 
 class Task(BaseModel):
     task_id: str = ''
-    dependent_task_ids: list[str] = []  # Tasks prerequisite to this Task
+    dependent_task_ids: List[str] = []  # Tasks prerequisite to this Task
     instruction: str = ''
     task_type: str = ''
     code: str = ''
@@ -71,11 +71,11 @@ class Task(BaseModel):
 class Plan(BaseModel):
     goal: str
     context: str = ''
-    tasks: list[Task] = []
+    tasks: List[Task] = []
     task_map: dict[str, Task] = {}
     current_task_id: str = ''
 
-    def _topological_sort(self, tasks: list[Task]):
+    def _topological_sort(self, tasks: List[Task]):
         task_map = {task.task_id: task for task in tasks}
         dependencies = {
             task.task_id: set(task.dependent_task_ids)
@@ -97,7 +97,7 @@ class Plan(BaseModel):
 
         return sorted_tasks
 
-    def add_tasks(self, tasks: list[Task]):
+    def add_tasks(self, tasks: List[Task]):
         """
         Integrates new tasks into the existing plan, ensuring dependency order is maintained.
 
@@ -109,7 +109,7 @@ class Plan(BaseModel):
         of the new tasks. The current task is updated to the first unfinished task in this merged list.
 
         Args:
-            tasks (list[Task]): A list of tasks (may be unordered) to add to the plan.
+            tasks (List[Task]): A List of tasks (may be unordered) to add to the plan.
 
         Returns:
             None: The method updates the internal state of the plan but does not return anything.
