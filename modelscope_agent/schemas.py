@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Dict
 
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from pydantic import BaseModel
@@ -35,7 +35,7 @@ class AgentAttr(BaseModel):
     session: str = ''
     uuid: str = ''
     history: List[Message] = []
-    knowledge: List = ''  # in case retrieval cost is much higher than storage
+    knowledge: str = ''  # in case retrieval cost is much higher than storage
 
 
 class TaskResult(BaseModel):
@@ -72,7 +72,7 @@ class Plan(BaseModel):
     goal: str
     context: str = ''
     tasks: List[Task] = []
-    task_map: dict[str, Task] = {}
+    task_map: Dict[str, Task] = {}
     current_task_id: str = ''
 
     def _topological_sort(self, tasks: List[Task]):
