@@ -33,7 +33,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
             return None
         audio = result['Data']['output_wav']
         if 'use_tool_api' in kwargs:
-            return audio
+            return f'<audio src="{audio}"/>'
         else:
             return str(AudioWrapper(audio))
 
