@@ -1,4 +1,4 @@
-from typing import List, Union, Dict
+from typing import Dict, List, Union
 
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from pydantic import BaseModel
@@ -35,6 +35,7 @@ class AgentAttr(BaseModel):
     session: str = ''
     uuid: str = ''
     history: List[Message] = []
+
     knowledge: str = ''  # in case retrieval cost is much higher than storage
 
 
