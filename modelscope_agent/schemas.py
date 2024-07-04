@@ -21,11 +21,11 @@ class Document(BaseModel):
     url: str
     time: str
     source: str
-    raw: list
+    raw: List
     title: str
     topic: str
     checked: bool
-    session: list
+    session: List
 
 
 class AgentAttr(BaseModel):
@@ -228,10 +228,10 @@ class Plan(BaseModel):
             self.current_task.is_finished = True
             self._update_current_task()  # set to next task
 
-    def get_finished_tasks(self) -> list[Task]:
+    def get_finished_tasks(self) -> List[Task]:
         """return all finished tasks in correct linearized order
-
+1
         Returns:
-            list[Task]: list of finished tasks
+            List[Task]: List of finished tasks
         """
         return [task for task in self.tasks if task.is_finished]
