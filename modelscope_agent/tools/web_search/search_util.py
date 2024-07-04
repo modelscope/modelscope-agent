@@ -26,18 +26,13 @@ class AuthenticationKey(Enum):
         return {member.name: member.value for member in cls}
 
 
-def get_websearcher_cls():
+def get_websearcher_cls(searcher: str = None):
 
-    def get_env(authentication_key: str):
-        env = os.environ
-        return env.get(authentication_key, None)
-
-    cls_dict = {}
-    if get_env(AuthenticationKey.bing.value):
-        from .searcher.bing import BingWebSearcher
-        cls_dict[AuthenticationKey.bing.name] = BingWebSearcher
-    if get_env(AuthenticationKey.kuake.value):
-        from .searcher.kuake import KuakeWebSearcher
-        cls_dict[AuthenticationKey.kuake.name] = KuakeWebSearcher
-
-    return cls_dict
+    if searcher:
+        if AuthenticationKey.bing.name == searcher:
+            from .searcher.bing import BingWebSearcher
+            return BingWebSearcher
+        elif AuthenticationKey.kuake.name == searcher:
+            from .searcher.kuake import KuakeWebSearcher
+            return KuakeWebSearcher
+    return None
