@@ -20,30 +20,19 @@ class WebSearch(BaseTool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
-        available_searchers = get_websearcher_cls()
         all_searchers = AuthenticationKey.to_dict()
-        if not len(available_searchers):
-            raise ValueError(
-                f'At least one of web search api token should be set: {all_searchers}'
-            )
-
         searcher = self.cfg.get('searcher', None)
 
         if not searcher:
-            available_searchers = list(available_searchers.values())
-            if len(available_searchers) == 0:
-                raise ValueError(
-                    f'At least one of web search api token should be set: {all_searchers}'
-                )
-            self.searcher = available_searchers[0](**self.cfg)
+            # set default as searcher
+            from .searcher.bing import BingWebSearcher
+            self.searcher = BingWebSearcher(**self.cfg)
         else:
-            if isinstance(searcher,
-                          str) and len(searcher) and all_searchers.get(
-                              searcher, None):
-                cls = available_searchers.get(searcher, None)
+            if isinstance(searcher, str) and len(searcher):
+                cls = get_websearcher_cls(searcher)
                 if not cls:
                     raise ValueError(
-                        f'The searcher {searcher}\'s token is not set: {all_searchers.get(searcher, None)}'
+                        f'The searcher {searcher}\'s is not a valid name, please double check.'
                     )
                 self.searcher = cls(**cfg)
             else:
