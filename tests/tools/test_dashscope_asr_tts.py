@@ -1,10 +1,12 @@
 import os
 
 import pytest
+from modelscope_agent.constants import DEFAULT_CODE_INTERPRETER_DIR
 from modelscope_agent.tools.dashscope_tools.paraformer_asr_tool import \
     ParaformerAsrTool
 from modelscope_agent.tools.dashscope_tools.sambert_tts_tool import \
     SambertTtsTool
+from modelscope_agent.utils.base64_utils import encode_files_to_base64
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
@@ -16,6 +18,27 @@ def test_paraformer_asr():
     params = """{'audio_path': '34aca18b-17a1-4558-9064-22fdfcef7a94.wav'}"""
     asr_tool = ParaformerAsrTool()
     res = asr_tool.call(params)
+    assert res == 'today is a beautiful day. '
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_base64_paraformer_asr():
+    work_dir = os.getenv('CODE_INTERPRETER_WORK_DIR',
+                         DEFAULT_CODE_INTERPRETER_DIR)
+    params = """{'audio_path': '34aca18b-17a1-4558-9064-22fdfcef7a94.wav'}"""
+
+    file_paths = '34aca18b-17a1-4558-9064-22fdfcef7a94.wav'.split(',')
+    for i, file_path in enumerate(file_paths):
+        file_path = os.path.join(work_dir, file_path)
+        file_paths[i] = file_path
+
+    base64_files = encode_files_to_base64(file_paths)
+
+    asr_tool = ParaformerAsrTool()
+    kwargs = {}
+    kwargs['base64_files'] = base64_files
+    res = asr_tool.call(params, **kwargs)
+    print(res)
     assert res == 'today is a beautiful day. '
 
 

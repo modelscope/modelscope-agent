@@ -115,6 +115,6 @@ class ImageEnhancement(StyleRepaint):
 
                 # 继续轮询，等待一段时间后再次调用
                 time.sleep(1)  # 等待 1 秒钟
-                result = self._get_task_result()
+                result = self.get_result()
         except Exception as e:
             print('get request Error:', str(e))

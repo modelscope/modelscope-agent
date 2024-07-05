@@ -29,6 +29,7 @@ class SambertTtsTool(BaseTool):
         params = self._verify_args(params)
         try:
             token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+            dashscope.api_key = token
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
