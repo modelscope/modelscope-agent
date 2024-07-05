@@ -1,4 +1,4 @@
-dashscope
+dashscope>=1.20.1
 faiss-cpu
 grpcio
 jieba
