@@ -32,10 +32,7 @@ class TexttoSpeechTool(ModelscopePipelineTool):
             print('speech_generation error: ', result)
             return None
         audio = result['Data']['output_wav']
-        if 'use_tool_api' in kwargs:
-            return audio
-        else:
-            return str(AudioWrapper(audio))
+        return str(AudioWrapper(audio, **kwargs))
 
     def _verify_args(self, params: str):
         # override the args

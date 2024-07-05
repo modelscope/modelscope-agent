@@ -21,7 +21,7 @@ def test_modelscope_speech_generation_with_tool_api():
     kwargs = {'use_tool_api': True}
     txt2speech = TexttoSpeechTool()
     res = txt2speech.call(params, **kwargs)
-    assert res.startswith('https://')
+    assert res.startswith('<audio src="https://')
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
