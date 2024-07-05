@@ -97,17 +97,18 @@ class AudioWrapper(OutputWrapper):
 
         super().__init__()
         if isinstance(audio, str):
-            if os.path.isfile(audio):
-                self._path = audio
-            elif 'use_tool_api' in kwargs and 'https://' in audio:
+            if 'use_tool_api' in kwargs and 'https://' in audio:
                 self._path = audio
             else:
-                self._path = self.get_remote_file(audio, 'wav')
-            try:
-                with open(self._path, 'rb') as f:
-                    self._raw_data = f.read()
-            except FileNotFoundError:
-                raise FileNotFoundError(f'Invalid path: {audio}')
+                if os.path.isfile(audio):
+                    self._path = audio
+                else:
+                    self._path = self.get_remote_file(audio, 'wav')
+                try:
+                    with open(self._path, 'rb') as f:
+                        self._raw_data = f.read()
+                except FileNotFoundError:
+                    raise FileNotFoundError(f'Invalid path: {audio}')
         else:
             self._raw_data = audio
             directory = tempfile.mkdtemp(dir=self.root_path)
