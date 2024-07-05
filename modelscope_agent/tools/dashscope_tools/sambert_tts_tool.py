@@ -49,4 +49,4 @@ class SambertTtsTool(BaseTool):
             raise ValueError(
                 f'call sambert tts failed, request id: {response.get_response()}'
             )
-        return str(AudioWrapper(wav_file))
+        return str(AudioWrapper(wav_file, **kwargs))

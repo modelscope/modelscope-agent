@@ -93,11 +93,13 @@ class AudioWrapper(OutputWrapper):
     Audio wrapper, raw_data is a binary file
     """
 
-    def __init__(self, audio) -> None:
+    def __init__(self, audio, **kwargs) -> None:
 
         super().__init__()
         if isinstance(audio, str):
             if os.path.isfile(audio):
+                self._path = audio
+            elif 'use_tool_api' in kwargs and 'https://' in audio:
                 self._path = audio
             else:
                 self._path = self.get_remote_file(audio, 'wav')
