@@ -23,9 +23,6 @@ class SambertTtsTool(BaseTool):
 
     def __init__(self, cfg={}):
         self.cfg = cfg.get(self.name, {})
-        if self.api_key is None:
-            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
-
         super().__init__(cfg)
 
     def call(self, params: str, **kwargs) -> str:

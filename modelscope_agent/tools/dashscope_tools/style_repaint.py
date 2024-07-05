@@ -183,7 +183,7 @@ class StyleRepaint(BaseTool):
                 else:
                     # 继续轮询，等待一段时间后再次调用
                     time.sleep(0.5)  # 等待 0.5 秒钟
-                    result = self._get_task_result()
+                    result = self._get_task_result(token)
                     print(f'Running:{result}')
 
         except Exception as e:

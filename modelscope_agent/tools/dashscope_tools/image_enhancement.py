@@ -40,6 +40,11 @@ class ImageEnhancement(StyleRepaint):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
+        try:
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+            params['token'] = token
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         # 对入参格式调整和补充，比如解开嵌套的'.'连接的参数，还有导入你默认的一些参数，
         # 比如model，参考下面的_remote_parse_input函数。
@@ -55,11 +60,7 @@ class ImageEnhancement(StyleRepaint):
             'https://dashscope.aliyuncs.com/api/v1/services/enhance/image-enhancement/generation'
         )
         retry_times = MAX_RETRY_TIMES
-        try:
-            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
-            params['token'] = token
-        except AssertionError:
-            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+
         # 参考api详情，确定headers参数
         headers = {
             'Content-Type': 'application/json',
