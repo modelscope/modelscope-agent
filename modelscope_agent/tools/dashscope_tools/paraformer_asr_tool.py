@@ -43,6 +43,8 @@ class ParaformerAsrTool(BaseTool):
 
         try:
             token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+
+            # TODO: should remove while asr support passing api_key
             dashscope.api_key = token
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
@@ -53,7 +55,10 @@ class ParaformerAsrTool(BaseTool):
             raw_audio_file = kwargs[LOCAL_FILE_PATHS][params['audio_path']]
         if not os.path.exists(raw_audio_file):
             raise ValueError(f'audio file {raw_audio_file} not exists')
-        pcm_file = WORK_DIR + '/' + 'audio.pcm'
+
+        pcm_file = os.path.join(
+            WORK_DIR,
+            os.path.basename(params['audio_path']).split('.')[0] + '.pcm')
         _preprocess(raw_audio_file, pcm_file)
         if not os.path.exists(pcm_file):
             raise ValueError(f'convert audio to pcm file {pcm_file} failed')

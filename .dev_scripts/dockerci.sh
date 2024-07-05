@@ -1,8 +1,10 @@
 #!/bin/bash
 
 # install dependencies for ci
-wget -O ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
+wget -O ffmpeg.tar.xz https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/ffmpeg.tar.xz
 tar xvf ffmpeg.tar.xz
+
+export PATH=`pwd`/ffmpeg-git-20240629-amd64-static:$PATH
 
 sudo apt-get install libcurl4 openssl
 wget https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2004-7.0.11.tgz
