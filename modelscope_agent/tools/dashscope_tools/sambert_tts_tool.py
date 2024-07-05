@@ -23,9 +23,6 @@ class SambertTtsTool(BaseTool):
 
     def __init__(self, cfg={}):
         self.cfg = cfg.get(self.name, {})
-
-        self.api_key = self.cfg.get('dashscope_api_key',
-                                    os.environ.get('DASHSCOPE_API_KEY'))
         if self.api_key is None:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
@@ -33,15 +30,21 @@ class SambertTtsTool(BaseTool):
 
     def call(self, params: str, **kwargs) -> str:
         params = self._verify_args(params)
-        dashscope.api_key = get_api_key(ApiNames.dashscope_api_key,
-                                        self.api_key, **kwargs)
+        try:
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+
         tts_text = params['text']
         if tts_text is None or len(tts_text) == 0 or tts_text == '':
             raise ValueError('tts input text is valid')
         os.makedirs(WORK_DIR, exist_ok=True)
         wav_file = WORK_DIR + '/sambert_tts_audio.wav'
         response = SpeechSynthesizer.call(
-            model='sambert-zhijia-v1', format='wav', text=tts_text)
+            model='sambert-zhijia-v1',
+            format='wav',
+            text=tts_text,
+            api_key=token)
         if response.get_audio_data() is not None:
             with open(wav_file, 'wb') as f:
                 f.write(response.get_audio_data())

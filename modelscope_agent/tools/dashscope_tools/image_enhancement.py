@@ -3,7 +3,7 @@ import time
 
 import json
 import requests
-from modelscope_agent.constants import ApiNames
+from modelscope_agent.constants import BASE64_FILES, ApiNames
 from modelscope_agent.tools.base import register_tool
 from modelscope_agent.utils.utils import get_api_key, get_upload_url
 from requests.exceptions import RequestException, Timeout
@@ -43,9 +43,12 @@ class ImageEnhancement(StyleRepaint):
 
         # 对入参格式调整和补充，比如解开嵌套的'.'连接的参数，还有导入你默认的一些参数，
         # 比如model，参考下面的_remote_parse_input函数。
-        if 'base64_files' in kwargs:
-            params['base64_files'] = kwargs['base64_files']
-        remote_parsed_input = json.dumps(self._parse_input(**params))
+        if BASE64_FILES in kwargs:
+            params[BASE64_FILES] = kwargs.pop(BASE64_FILES)
+        remote_parsed_input = self._parse_input(**params)
+        remote_parsed_input['model'] = 'wanx-image-enhancement-v1'
+        print('The parameteres pass to image enhancement:', kwargs)
+        remote_parsed_input = json.dumps(remote_parsed_input)
 
         url = kwargs.get(
             'url',
@@ -53,13 +56,14 @@ class ImageEnhancement(StyleRepaint):
         )
         retry_times = MAX_RETRY_TIMES
         try:
-            self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+            params['token'] = token
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
         # 参考api详情，确定headers参数
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.token}',
+            'Authorization': f'Bearer {token}',
             'X-DashScope-Async': 'enable'
         }
         # 解析oss
@@ -79,7 +83,7 @@ class ImageEnhancement(StyleRepaint):
                 self.final_result = origin_result
 
                 # 下面是对异步api的额外get result操作，同步api可以直接得到结果的，                  # 这里返回final_result即可。
-                return self.get_phantom_result()
+                return self.get_phantom_result(token)
             except Timeout:
                 continue
             except RequestException as e:
@@ -91,47 +95,9 @@ class ImageEnhancement(StyleRepaint):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def _parse_input(self, *args, **kwargs):
-        kwargs = super()._parse_files_input(*args, **kwargs)
-
-        restored_dict = {}
-        for key, value in kwargs.items():
-            if '.' in key:
-                # Split keys by "." and create nested dictionary structures
-                keys = key.split('.')
-                temp_dict = restored_dict
-                for k in keys[:-1]:
-                    temp_dict = temp_dict.setdefault(k, {})
-                temp_dict[keys[-1]] = value
-            else:
-                # f the key does not contain ".", directly store the key-value pair into restored_dict
-                restored_dict[key] = value
-        kwargs = restored_dict
-
-        image_path = kwargs['input'].pop('image_path', None)
-        if image_path and image_path.endswith(
-            ('.jpeg', '.png', '.jpg', '.bmp')):  # noqa E125
-            # 生成 image_url，然后设置到 kwargs['input'] 中
-            # 复用dashscope公共oss
-            if 'local_file_paths' not in kwargs:
-                image_path = f'file://{os.path.join(WORK_DIR, image_path)}'
-            else:
-                image_path = f'file://{kwargs["local_file_paths"][image_path]}'
-            image_url = get_upload_url(
-                model='phantom',  # The default setting here is "style_repaint".
-                file_to_upload=image_path,
-                api_key=os.environ.get('DASHSCOPE_API_KEY', ''))
-            kwargs['input']['image_url'] = image_url
-        else:
-            raise ValueError('请先上传一张正确格式的图片')
-
-        kwargs['model'] = 'wanx-image-enhancement-v1'
-        print('传给tool的参数:', kwargs)
-        return kwargs
-
-    def get_phantom_result(self):
+    def get_phantom_result(self, token: str):
         try:
-            result = self.get_result()
+            result = self._get_task_result(token)
             while True:
                 result_data = result
                 output = result_data.get('output', {})
@@ -148,6 +114,6 @@ class ImageEnhancement(StyleRepaint):
 
                 # 继续轮询，等待一段时间后再次调用
                 time.sleep(1)  # 等待 1 秒钟
-                result = self.get_result()
+                result = self._get_task_result()
         except Exception as e:
             print('get request Error:', str(e))

@@ -93,7 +93,7 @@ class AudioWrapper(OutputWrapper):
     Audio wrapper, raw_data is a binary file
     """
 
-    def __init__(self, audio) -> None:
+    def __init__(self, audio, **kwargs) -> None:
 
         super().__init__()
         if isinstance(audio, str):

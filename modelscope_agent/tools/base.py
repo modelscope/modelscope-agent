@@ -185,7 +185,7 @@ class BaseTool(ABC):
         # convert image_file_paths from string to list
         if BASE64_FILES in kwargs:
             # if image_file_paths is base64
-            base64_files = kwargs[BASE64_FILES]
+            base64_files = kwargs.pop(BASE64_FILES)
             local_file_paths = decode_base64_to_files(base64_files, WORK_DIR)
             kwargs[LOCAL_FILE_PATHS] = local_file_paths
         return kwargs

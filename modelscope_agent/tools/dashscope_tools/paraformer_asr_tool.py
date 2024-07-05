@@ -33,9 +33,6 @@ class ParaformerAsrTool(BaseTool):
 
     def __init__(self, cfg: Optional[Dict] = {}):
         self.cfg = cfg.get(self.name, {})
-
-        self.api_key = self.cfg.get('dashscope_api_key',
-                                    os.environ.get('DASHSCOPE_API_KEY', ''))
         super().__init__(cfg)
 
     def call(self, params: str, **kwargs):
@@ -44,8 +41,7 @@ class ParaformerAsrTool(BaseTool):
         kwargs = super()._parse_files_input(**kwargs)
 
         try:
-            self.api_key = get_api_key(ApiNames.dashscope_api_key,
-                                       self.api_key, **kwargs)
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
@@ -64,7 +60,10 @@ class ParaformerAsrTool(BaseTool):
             format='pcm',
             sample_rate=16000,
             callback=None)
-        response = recognition.call(pcm_file)
+        response = recognition.call(
+            pcm_file,
+            api_key=token,
+        )
         result = ''
         if response.status_code == HTTPStatus.OK:
             sentences: List[Any] = response.get_sentence()
