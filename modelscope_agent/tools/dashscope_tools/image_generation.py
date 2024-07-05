@@ -34,6 +34,10 @@ class TextToImageTool(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
+        try:
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         if params['resolution'] in ['1024*1024', '720*1280', '1280*720']:
             resolution = params['resolution']
@@ -49,11 +53,6 @@ class TextToImageTool(BaseTool):
         lora_index = params.get('lora_index', None)
         if lora_index:
             extra_input['lora_index'] = lora_index
-        try:
-            dashscope.api_key = get_api_key(ApiNames.dashscope_api_key,
-                                            **kwargs)
-        except AssertionError:
-            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         response = ImageSynthesis.call(
             model=model,
@@ -62,6 +61,7 @@ class TextToImageTool(BaseTool):
             size=resolution,
             steps=10,
             seed=seed,
-            extra_input=extra_input)
+            extra_input=extra_input,
+            api_key=token)
         image_url = response.output['results'][0]['url']
         return f'![IMAGEGEN]({image_url})'

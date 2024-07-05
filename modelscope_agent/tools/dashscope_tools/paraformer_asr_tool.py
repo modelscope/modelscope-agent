@@ -3,6 +3,7 @@ import subprocess
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 
+import dashscope
 from modelscope_agent.constants import LOCAL_FILE_PATHS, ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.utils.utils import get_api_key
@@ -33,9 +34,6 @@ class ParaformerAsrTool(BaseTool):
 
     def __init__(self, cfg: Optional[Dict] = {}):
         self.cfg = cfg.get(self.name, {})
-
-        self.api_key = self.cfg.get('dashscope_api_key',
-                                    os.environ.get('DASHSCOPE_API_KEY', ''))
         super().__init__(cfg)
 
     def call(self, params: str, **kwargs):
@@ -44,18 +42,23 @@ class ParaformerAsrTool(BaseTool):
         kwargs = super()._parse_files_input(**kwargs)
 
         try:
-            self.api_key = get_api_key(ApiNames.dashscope_api_key,
-                                       self.api_key, **kwargs)
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+
+            # TODO: should remove while asr support passing api_key
+            dashscope.api_key = token
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         if LOCAL_FILE_PATHS not in kwargs:
             raw_audio_file = WORK_DIR + '/' + params['audio_path']
         else:
-            raw_audio_file = kwargs[LOCAL_FILE_PATHS]['audio_path']
+            raw_audio_file = kwargs[LOCAL_FILE_PATHS][params['audio_path']]
         if not os.path.exists(raw_audio_file):
             raise ValueError(f'audio file {raw_audio_file} not exists')
-        pcm_file = WORK_DIR + '/' + 'audio.pcm'
+
+        pcm_file = os.path.join(
+            WORK_DIR,
+            os.path.basename(params['audio_path']).split('.')[0] + '.pcm')
         _preprocess(raw_audio_file, pcm_file)
         if not os.path.exists(pcm_file):
             raise ValueError(f'convert audio to pcm file {pcm_file} failed')
@@ -64,7 +67,10 @@ class ParaformerAsrTool(BaseTool):
             format='pcm',
             sample_rate=16000,
             callback=None)
-        response = recognition.call(pcm_file)
+        response = recognition.call(
+            pcm_file,
+            api_key=token,
+        )
         result = ''
         if response.status_code == HTTPStatus.OK:
             sentences: List[Any] = response.get_sentence()

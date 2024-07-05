@@ -2,7 +2,7 @@ import os
 
 import dashscope
 from dashscope import MultiModalConversation
-from modelscope_agent.constants import LOCAL_FILE_PATHS, ApiNames
+from modelscope_agent.constants import BASE64_FILES, LOCAL_FILE_PATHS, ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.utils.utils import get_api_key
 from requests.exceptions import RequestException, Timeout
@@ -32,10 +32,14 @@ class QWenVL(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-        if 'base64_files' in kwargs:
-            params['base64_files'] = kwargs['base64_files']
+        if BASE64_FILES in kwargs:
+            params[BASE64_FILES] = kwargs.pop(BASE64_FILES)
+        try:
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+
         input_params = self._parse_input(**params)
-        dashscope.api_key = get_api_key(ApiNames.dashscope_api_key, **kwargs)
         """Sample of use local file.
         linux&mac file schema: file:///home/images/test.png
         windows file schema: file://D:/images/abc.png
@@ -63,7 +67,7 @@ class QWenVL(BaseTool):
                         'content': content
                     }]
                     response = MultiModalConversation.call(
-                        model='qwen-vl-plus', messages=messages)
+                        model='qwen-vl-plus', messages=messages, api_key=token)
                     return response['output']['choices'][0]['message'][
                         'content'][0]
                 else:
@@ -88,7 +92,7 @@ class QWenVL(BaseTool):
         # current paths are deducted from llm, only contains basename, so need to add WORK_DIR
         # convert image_file_paths to a valid local file path
         if LOCAL_FILE_PATHS not in kwargs:
-            # if image_file_paths is file path
+            # if no local file path exists, only a name of file paths exist
             for i, image_file_path in enumerate(image_file_paths):
                 image_file_paths[i] = os.path.join(WORK_DIR, image_file_path)
         else:

@@ -1,6 +1,5 @@
 import os
 
-import json
 import pytest
 from modelscope_agent.constants import DEFAULT_CODE_INTERPRETER_DIR
 from modelscope_agent.tools.dashscope_tools.qwen_vl import QWenVL

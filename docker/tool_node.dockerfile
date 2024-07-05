@@ -39,6 +39,11 @@ ENV BASE_TOOL_DIR /app/assets
 # install tool_node
 COPY modelscope_agent_servers /app/modelscope_agent_servers
 
+# install ffmpeg
+RUN  wget -O ffmpeg.tar.xz https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/ffmpeg.tar.xz && \
+     tar xvf ffmpeg.tar.xz  && \
+     export PATH=`pwd`/ffmpeg-git-20240629-amd64-static:$PATH
+
 # start up script file
 COPY scripts/run_tool_node.sh /app/run_tool_node.sh
 RUN chmod +x /app/run_tool_node.sh
