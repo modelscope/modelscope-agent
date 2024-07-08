@@ -52,22 +52,29 @@ class ParaformerAsrTool(BaseTool):
             raw_audio_file = kwargs[LOCAL_FILE_PATHS][params['audio_path']]
         if not os.path.exists(raw_audio_file):
             raise ValueError(f'audio file {raw_audio_file} not exists')
-
-        pcm_file = os.path.join(
-            WORK_DIR,
-            os.path.basename(params['audio_path']).split('.')[0] + '.pcm')
-        _preprocess(raw_audio_file, pcm_file)
-        if not os.path.exists(pcm_file):
-            raise ValueError(f'convert audio to pcm file {pcm_file} failed')
-        recognition = Recognition(
-            model='paraformer-realtime-v1',
-            format='pcm',
-            sample_rate=16000,
-            callback=None)
-        response = recognition.call(
-            pcm_file,
-            api_key=token,
-        )
+        try:
+            pcm_file = os.path.join(
+                WORK_DIR,
+                os.path.basename(params['audio_path']).split('.')[0] + '.pcm')
+            _preprocess(raw_audio_file, pcm_file)
+            if not os.path.exists(pcm_file):
+                raise ValueError(
+                    f'convert audio to pcm file {pcm_file} failed')
+            recognition = Recognition(
+                model='paraformer-realtime-v1',
+                format='pcm',
+                sample_rate=16000,
+                callback=None)
+            response = recognition.call(
+                pcm_file,
+                api_key=token,
+            )
+        except Exception as e:
+            import traceback
+            print(
+                f'call paraformer asr failed, error: {e}, and traceback {traceback.format_exc()}'
+            )
+            raise ValueError(f'call paraformer asr failed, error: {e}')
         result = ''
         if response.status_code == HTTPStatus.OK:
             sentences: List[Any] = response.get_sentence()

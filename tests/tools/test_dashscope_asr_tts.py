@@ -51,6 +51,15 @@ def test_sambert_tts():
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_sambert_tts_with_tool_api():
+    params = """{'text': '今天天气怎么样？'}"""
+    tts_tool = SambertTtsTool()
+    kwargs = {'use_tool_api': True}
+    res = tts_tool.call(params, **kwargs)
+    assert res.startswith('<audio src="http://')
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_paraformer_asr_agent():
     role_template = '你扮演一个语音专家，用尽可能丰富的描述调用工具处理语音。'
 

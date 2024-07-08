@@ -97,7 +97,8 @@ class AudioWrapper(OutputWrapper):
 
         super().__init__()
         if isinstance(audio, str):
-            if 'use_tool_api' in kwargs and 'https://' in audio:
+            # use_tool_api should use no file, just bypass url or base64
+            if 'use_tool_api' in kwargs and kwargs['use_tool_api']:
                 self._path = audio
             else:
                 if os.path.isfile(audio):
