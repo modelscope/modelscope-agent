@@ -9,7 +9,7 @@ langchain-community
 langchain-experimental
 llama-index
 llama-index-readers-json
-llama-index-retrievers-bm25
+llama-index-retrievers-bm25==0.1.5
 modelscope[framework]>=1.16.0
 moviepy
 nbformat
