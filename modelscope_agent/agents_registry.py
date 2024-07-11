@@ -6,7 +6,7 @@ from modelscope_agent.environment import Environment
 
 class AgentRegistry:
 
-    def __init__(self, remote=True, **kwargs):
+    def __init__(self, remote=False, **kwargs):
         self._agents = {}
         self._agents_state = {}
         self.remote = remote

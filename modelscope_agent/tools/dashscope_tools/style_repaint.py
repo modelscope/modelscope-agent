@@ -3,7 +3,7 @@ import time
 
 import json
 import requests
-from modelscope_agent.constants import ApiNames
+from modelscope_agent.constants import BASE64_FILES, LOCAL_FILE_PATHS, ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.utils.utils import get_api_key, get_upload_url
 from requests.exceptions import RequestException, Timeout
@@ -43,7 +43,18 @@ class StyleRepaint(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-        remote_parsed_input = self._remote_parse_input(**params)
+        try:
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+            params['token'] = token
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+        if BASE64_FILES in kwargs:
+            params[BASE64_FILES] = kwargs.pop(BASE64_FILES)
+
+        remote_parsed_input = self._parse_input(**params)
+        remote_parsed_input['model'] = 'wanx-style-repaint-v1'
+        print('传给style_repaint tool的参数：', kwargs)
+
         try:
             remote_parsed_input['input']['style_index'] = int(
                 remote_parsed_input['input']['style_index'])
@@ -56,15 +67,11 @@ class StyleRepaint(BaseTool):
             'url',
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation'
         )
-        try:
-            self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
-        except AssertionError:
-            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         retry_times = MAX_RETRY_TIMES
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.token}',
+            'Authorization': f'Bearer {token}',
             'X-DashScope-Async': 'enable'
         }
         # 解析oss
@@ -81,7 +88,7 @@ class StyleRepaint(BaseTool):
                 origin_result = json.loads(response.content.decode('utf-8'))
 
                 self.final_result = origin_result
-                return self.get_stylerepaint_result()
+                return self._get_dashscope_image_result(token)
             except Timeout:
                 continue
             except RequestException as e:
@@ -93,7 +100,9 @@ class StyleRepaint(BaseTool):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def _remote_parse_input(self, *args, **kwargs):
+    def _parse_input(self, *args, **kwargs):
+        kwargs = super()._parse_files_input(*args, **kwargs)
+
         restored_dict = {}
         for key, value in kwargs.items():
             if '.' in key:
@@ -111,24 +120,26 @@ class StyleRepaint(BaseTool):
         if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
-            image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
+            if LOCAL_FILE_PATHS not in kwargs:
+                image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
+            else:
+                image_path = f'file://{kwargs["local_file_paths"][image_path]}'
             image_url = get_upload_url(
                 model=
                 'style_repaint',  # The default setting here is "style_repaint".
                 file_to_upload=image_path,
-                api_key=os.environ.get('DASHSCOPE_API_KEY', ''))
+                api_key=kwargs['token'])
             kwargs['input']['image_url'] = image_url
         else:
             raise ValueError('请先上传一张正确格式的图片')
-        kwargs['model'] = 'wanx-style-repaint-v1'
-        print('传给style_repaint tool的参数：', kwargs)
+
         return kwargs
 
-    def get_result(self):
+    def _get_task_result(self, token: str):
         if 'task_id' in self.final_result['output']:
             task_id = self.final_result['output']['task_id']
         get_url = f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}'
-        get_header = {'Authorization': f'Bearer {self.token}'}
+        get_header = {'Authorization': f'Bearer {token}'}
 
         retry_times = MAX_RETRY_TIMES
         while retry_times:
@@ -153,9 +164,9 @@ class StyleRepaint(BaseTool):
             'Remote call max retry times exceeded! Please try to use local call.'
         )
 
-    def get_stylerepaint_result(self):
+    def _get_dashscope_image_result(self, token: str):
         try:
-            result = self.get_result()
+            result = self._get_task_result(token)
             while True:
                 result_data = result
                 output = result_data.get('output', {})
@@ -172,7 +183,7 @@ class StyleRepaint(BaseTool):
                 else:
                     # 继续轮询，等待一段时间后再次调用
                     time.sleep(0.5)  # 等待 0.5 秒钟
-                    result = self.get_result()
+                    result = self._get_task_result(token)
                     print(f'Running:{result}')
 
         except Exception as e:

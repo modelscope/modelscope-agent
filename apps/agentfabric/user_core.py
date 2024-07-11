@@ -12,7 +12,10 @@ from modelscope_agent.utils.logger import agent_logger as logger
 
 
 # init user chatbot_agent
-def init_user_chatbot_agent(uuid_str='', session='default'):
+def init_user_chatbot_agent(uuid_str='',
+                            session='default',
+                            use_tool_api=False,
+                            user_token=None):
     builder_cfg, model_cfg, tool_cfg, _, plugin_cfg, _ = parse_configuration(
         uuid_str)
     # set top_p and stop_words for role play
@@ -21,16 +24,17 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
     model_cfg[builder_cfg.model]['generate_cfg']['top_p'] = 0.5
     model_cfg[builder_cfg.model]['generate_cfg']['stop'] = 'Observation'
 
-    # build model
-    logger.query_info(
-        uuid=uuid_str,
-        message=f'using model {builder_cfg.model}',
-        details={'model_config': model_cfg[builder_cfg.model]})
-
     # update function_list
     function_list = parse_tool_cfg(tool_cfg)
     function_list = add_openapi_plugin_to_additional_tool(
         plugin_cfg, function_list)
+
+    # build model
+    logger.query_info(
+        uuid=uuid_str,
+        message=
+        f'using model {builder_cfg.model} with tool {tool_cfg} and function list {function_list}',
+        details={'model_config': model_cfg[builder_cfg.model]})
 
     llm_config = copy.deepcopy(model_cfg[builder_cfg.model])
     llm_config['model_server'] = llm_config.pop('type')
@@ -43,7 +47,10 @@ def init_user_chatbot_agent(uuid_str='', session='default'):
         function_list=function_list,
         llm=llm_config,
         instruction=instruction,
-        uuid_str=uuid_str)
+        uuid_str=uuid_str,
+        use_tool_api=use_tool_api,
+        user_token=user_token,
+    )
 
     # build memory
     preview_history_dir = get_user_preview_history_dir(uuid_str, session)

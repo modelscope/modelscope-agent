@@ -20,7 +20,6 @@ def stream_output(response, **kwargs):
     for trunk in response:
         if trunk.status_code == HTTPStatus.OK:
             # logging at the first frame for request_id, and the last frame for the whole output
-            print(trunk)
             if not text:
                 logger.info(
                     f'call dashscope generation api success, '
@@ -101,7 +100,6 @@ class DashScopeLLM(BaseChatModel):
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
         response = dashscope.Generation.call(**generation_input)
-        print(response)
         response = self.stat_last_call_token_info(response)
         return stream_output(response, **kwargs)
 
@@ -141,10 +139,14 @@ class DashScopeLLM(BaseChatModel):
         except AttributeError:
             for chunk in response:
                 # if hasattr(chunk.output, 'usage'):
+                if not chunk.usage.get('total_tokens'):
+                    total_tokens = chunk.usage.input_tokens + chunk.usage.output_tokens
+                else:
+                    total_tokens = chunk.usage.total_tokens
                 self.last_call_usage_info = {
                     'prompt_tokens': chunk.usage.input_tokens,
                     'completion_tokens': chunk.usage.output_tokens,
-                    'total_tokens': chunk.usage.total_tokens
+                    'total_tokens': total_tokens
                 }
                 yield chunk
 
@@ -226,7 +228,6 @@ class QwenChatAtDS(DashScopeLLM):
         prompt = ''
         im_start = '<|im_start|>'
         im_end = '<|im_end|>'
-        print('build_raw_prompt', messages)
         if messages[0]['role'] == 'system':
             system_prompt = messages[0]['content']
         else:
@@ -260,7 +261,6 @@ class QwenChatAtDS(DashScopeLLM):
                     user_content += f'<|im_start|>{cur_role.strip()}\n{cur_chat.strip()}<|im_end|>\n'
                 prompt = f'{prompt}{user_content}<|im_start|>{cur_role_name}\n'
 
-        print('prompt: ', [prompt])
         return prompt
 
     def _chat_stream(self,

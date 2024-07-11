@@ -1,7 +1,9 @@
 import os
 
 import pytest
+from modelscope_agent.constants import DEFAULT_CODE_INTERPRETER_DIR
 from modelscope_agent.tools.dashscope_tools.style_repaint import StyleRepaint
+from modelscope_agent.utils.base64_utils import encode_files_to_base64
 
 from modelscope_agent.agents.role_play import RolePlay  # NOQA
 
@@ -16,6 +18,27 @@ def test_style_repaint():
     style_repaint = StyleRepaint()
     res = style_repaint.call(params)
     assert (res.startswith('![IMAGEGEN](http'))
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_base64_qwen_vl():
+    work_dir = os.getenv('CODE_INTERPRETER_WORK_DIR',
+                         DEFAULT_CODE_INTERPRETER_DIR)
+    params = """{'input.image_path': 'girl.png', 'input.style_index': 1}"""
+
+    file_paths = 'girl.png'.split(',')
+    for i, file_path in enumerate(file_paths):
+        file_path = os.path.join(work_dir, file_path)
+        file_paths[i] = file_path
+
+    base64_files = encode_files_to_base64(file_paths)
+
+    style_repainter = StyleRepaint()
+    kwargs = {}
+    kwargs['base64_files'] = base64_files
+    res = style_repainter.call(params, **kwargs)
+    print(res)
+    assert (res.startswith('![IMAGEGEN](https://'))
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')

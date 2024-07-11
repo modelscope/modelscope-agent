@@ -19,7 +19,7 @@ def test_word_art():
     wa = WordArtTexture()
     res = wa.call(params)
     print(res)
-    assert (res.startswith('http'))
+    assert (res.startswith('![IMAGEGEN](https://'))
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')

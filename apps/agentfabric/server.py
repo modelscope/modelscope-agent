@@ -15,8 +15,10 @@ from config_utils import (DEFAULT_AGENT_DIR, Config, get_ci_dir,
                           is_valid_plugin_configuration, parse_configuration,
                           save_builder_configuration,
                           save_plugin_configuration)
-from flask import (Flask, Response, jsonify, make_response, request,
+from flask import (Flask, Response, g, jsonify, make_response, request,
                    send_from_directory)
+from modelscope_agent.constants import (MODELSCOPE_AGENT_TOKEN_HEADER_NAME,
+                                        ApiNames)
 from modelscope_agent.schemas import Message
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_dir)
@@ -27,6 +29,28 @@ from server_utils import (IMPORT_ZIP_TEMP_DIR, STATIC_FOLDER, SessionManager,
 app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 
 app.session_manager = SessionManager()
+
+
+def get_auth_token():
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        return auth_header[7:]  # Slice off the 'Bearer ' prefix
+    return None
+
+
+def get_modelscope_agent_token():
+    token = None
+    # Check if authorization header is present
+    if MODELSCOPE_AGENT_TOKEN_HEADER_NAME in request.headers:
+        auth_header = request.headers[MODELSCOPE_AGENT_TOKEN_HEADER_NAME]
+        # Check if the value of the header starts with 'Bearer'
+        if auth_header.startswith('Bearer '):
+            # Extract the token part from 'Bearer token_value'
+            token = auth_header[7:]
+        else:
+            # Extract the token part from auth_header
+            token = auth_header
+    return token
 
 
 @app.before_request
@@ -94,8 +118,6 @@ def builder_chat(uuid_str):
                 llm_result = frame.get('llm_text', '')
                 exec_result = frame.get('exec_result', '')
                 step_result = frame.get('step', '')
-                logger.info('frame, {}'.format(
-                    str(frame).replace('\n', '\\n')))
                 if len(exec_result) != 0:
                     if isinstance(exec_result, dict):
                         exec_result = exec_result['result']
@@ -285,14 +307,6 @@ def save_builder_config(uuid_str):
     builder_config_str = request.form.get('builder_config')
     logger.info(f'builder_config: {builder_config_str}')
     builder_config = json.loads(builder_config_str)
-    if 'tools' in builder_config:
-        if 'code_interpreter' in builder_config['tools']:
-            return jsonify({
-                'success': False,
-                'status': 404,
-                'message': 'Using code_interpreter.',
-                'request_id': request_id_var.get('')
-            }), 404
     if 'knowledge' in builder_config:
         builder_config['knowledge'] = [
             os.path.join(get_user_dir(uuid_str), os.path.basename(k))
@@ -367,6 +381,11 @@ def preview_publish_get_zip(uuid_str):
 @app.route('/preview/chat/<uuid_str>/<session_str>', methods=['POST'])
 @with_request_id
 def preview_chat(uuid_str, session_str):
+    user_token = get_modelscope_agent_token()
+    if not user_token:
+        # If token is not found, return 401 Unauthorized response
+        return jsonify({'message': 'Token is missing!'}), 401
+
     logger.info(f'preview_chat: uuid_str_{uuid_str}_session_str_{session_str}')
 
     params_str = request.form.get('params')
@@ -383,13 +402,18 @@ def preview_chat(uuid_str, session_str):
         file.save(file_path)
         file_paths.append(file_path)
     logger.info(f'/preview/chat/{uuid_str}/{session_str}: files: {file_paths}')
+    # Generating the kwargs dictionary
+    kwargs = {
+        name.lower(): os.getenv(value.value)
+        for name, value in ApiNames.__members__.items()
+    }
 
     def generate():
         try:
             start_time = time.time()
             seed = random.randint(0, 1000000000)
             user_agent, user_memory = app.session_manager.get_user_bot(
-                uuid_str, session_str)
+                uuid_str, session_str, user_token=user_token)
             user_agent.seed = seed
             logger.info(
                 f'get method: time consumed {time.time() - start_time}')
@@ -402,15 +426,15 @@ def preview_chat(uuid_str, session_str):
                 f'load history method: time consumed {time.time() - start_time}'
             )
 
-            # get knowledge from memory, currently get one file
-            uploaded_file = None
-            if len(file_paths) > 0:
-                uploaded_file = file_paths[0]
+            use_llm = True if len(user_agent.function_list) else False
             ref_doc = user_memory.run(
-                query=input_content, url=uploaded_file, checked=True)
+                query=input_content,
+                url=file_paths,
+                checked=True,
+                use_llm=use_llm)
             logger.info(
                 f'load knowledge method: time consumed {time.time() - start_time}, '
-                f'the uploaded_file name is {uploaded_file}')  # noqa
+                f'the uploaded_file name is {file_paths}')  # noqa
 
             response = ''
 
@@ -422,12 +446,15 @@ def preview_chat(uuid_str, session_str):
                     'request_id': request_id_var.get('')
                 },
                 ensure_ascii=False)
+
             for frame in user_agent.run(
                     input_content,
                     history=history,
                     ref_doc=ref_doc,
                     append_files=file_paths,
-                    uuid_str=uuid_str):
+                    uuid_str=uuid_str,
+                    user_token=user_token,
+                    **kwargs):
                 logger.info('frame, {}'.format(
                     str(frame).replace('\n', '\\n')))
                 # important! do not change this
@@ -486,8 +513,13 @@ def get_preview_chat_history(uuid_str, session_str):
     logger.info(
         f'get_preview_chat_history: uuid_str_{uuid_str}_session_str_{session_str}'
     )
+    user_token = get_modelscope_agent_token()
+    if not user_token:
+        # If token is not found, return 401 Unauthorized response
+        return jsonify({'message': 'Token is missing!'}), 401
 
-    _, user_memory = app.session_manager.get_user_bot(uuid_str, session_str)
+    _, user_memory = app.session_manager.get_user_bot(
+        uuid_str, session_str, user_token=user_token)
     return jsonify({
         'history': user_memory.get_history(),
         'success': True,

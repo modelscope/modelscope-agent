@@ -32,14 +32,22 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install fastapi uvicorn
 
-COPY modelscope_agent /app/modelscope_agent
+# install ffmpeg
+RUN  wget -O ffmpeg.tar.xz https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/resources/ffmpeg.tar.xz && \
+     tar xvf ffmpeg.tar.xz
+
+
 ENV PYTHONPATH $PYTHONPATH:/app/modelscope_agent:/app/modelscope_agent_servers
 ENV BASE_TOOL_DIR /app/assets
+ENV PATH=/app/ffmpeg-git-20240629-amd64-static:$PATH
 
 # install tool_node
 COPY modelscope_agent_servers /app/modelscope_agent_servers
+COPY modelscope_agent /app/modelscope_agent
 
-
+# start up script file
+COPY scripts/run_tool_node.sh /app/run_tool_node.sh
+RUN chmod +x /app/run_tool_node.sh
 #ENTRYPOINT exec uvicorn tool_service.tool_node.api:app --host 0.0.0.0 --port $PORT
 
 

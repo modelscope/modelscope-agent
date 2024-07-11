@@ -2,7 +2,7 @@ import argparse
 import os
 
 from modelscope_agent.agents.mobile_agent_v2 import MobileAgentV2
-from modelscope_agent.environment import ADBEnvironment
+from modelscope_agent.environment.android_adb import ADBEnvironment
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--adb_path', type=str, default='./adb/adb')

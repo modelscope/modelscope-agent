@@ -2,7 +2,6 @@ import os
 from typing import Dict, Iterator, List, Optional
 
 from modelscope_agent.utils.logger import agent_logger as logger
-from zhipuai import ZhipuAI
 
 from .base import BaseChatModel, register_llm
 
@@ -37,6 +36,13 @@ class ZhipuLLM(BaseChatModel):
                  model_server: str,
                  support_fn_call: bool = True,
                  **kwargs):
+
+        try:
+            from zhipuai import ZhipuAI
+        except ImportError as e:
+            raise ImportError(
+                "The package 'zhipuai' is required for this module. Please install it using 'pip install zhipuai'."
+            ) from e
         super().__init__(model, model_server, support_fn_call=support_fn_call)
         api_key = kwargs.get('api_key', os.getenv('ZHIPU_API_KEY', '')).strip()
         assert api_key, 'ZHIPU_API_KEY is required.'

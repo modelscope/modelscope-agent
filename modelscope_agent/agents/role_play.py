@@ -6,6 +6,7 @@ from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import BaseTool
+from modelscope_agent.utils.base64_utils import encode_files_to_base64
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from modelscope_agent.utils.utils import check_and_limit_input_length
@@ -263,9 +264,6 @@ class RolePlay(Agent, AgentEnvMixin):
         max_turn = 10
         call_llm_count = 0
         while True and max_turn > 0:
-            # print('=====one input planning_prompt======')
-            # print(planning_prompt)
-            # print('=============Answer=================')
             self.callback_manager.on_step_start()
             max_turn -= 1
             call_llm_count += 1
@@ -316,6 +314,13 @@ class RolePlay(Agent, AgentEnvMixin):
             if use_tool:
                 if self.llm.support_function_calling():
                     yield f'Action: {action}\nAction Input: {action_input}'
+
+                if self.use_tool_api:
+                    # convert all files with base64, for the tool instance usage in case.
+                    encoded_files = encode_files_to_base64(append_files)
+                    kwargs['base64_files'] = encoded_files
+                    kwargs['use_tool_api'] = True
+
                 observation = self._call_tool(action, action_input, **kwargs)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
