@@ -36,6 +36,10 @@ class TextToImageLiteTool(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
+        try:
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+        except AssertionError:
+            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         if params['resolution'] in ['1024*1024', '720*1280', '1280*720']:
             resolution = params['resolution']
@@ -53,11 +57,6 @@ class TextToImageLiteTool(BaseTool):
         else:
             extra_input = None
             model = kwargs.get('model', 'wanx-lite-v1')
-        try:
-            dashscope.api_key = get_api_key(ApiNames.dashscope_api_key,
-                                            **kwargs)
-        except AssertionError:
-            raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
         response = ImageSynthesis.call(
             model=model,
@@ -66,6 +65,7 @@ class TextToImageLiteTool(BaseTool):
             size=resolution,
             steps=10,
             seed=seed,
-            extra_input=extra_input)
+            extra_input=extra_input,
+            api_key=token)
         image_url = response.output['results'][0]['url']
         return f'![IMAGEGEN]({image_url})'

@@ -1,4 +1,4 @@
-dashscope
+dashscope>=1.20.1
 faiss-cpu
 grpcio
 jieba
@@ -9,8 +9,8 @@ langchain-community
 langchain-experimental
 llama-index
 llama-index-readers-json
-llama-index-retrievers-bm25
-modelscope >=1.15.0
+llama-index-retrievers-bm25==0.1.5
+modelscope[framework]>=1.16.0
 moviepy
 nbformat
 openai
@@ -22,6 +22,7 @@ pydantic>=2.3.0
 pytest
 pytest-mock
 python-dotenv
+requests>=2.32.3
 seaborn
 sentencepiece
 tiktoken

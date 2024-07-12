@@ -34,7 +34,7 @@ else
         # Optionally, remove the now-empty subdirectory
         rmdir "$subfolder"
     fi
-done
+  done
   echo "from .new_tool import *" >> /app/modelscope_agent/tools/contrib/__init__.py
 
   # check if extraction is successful

@@ -1,10 +1,8 @@
-import os
-import time
-
 import json
 import requests
 from modelscope_agent.constants import ApiNames
 from modelscope_agent.tools.base import BaseTool, register_tool
+from modelscope_agent.tools.dashscope_tools.style_repaint import StyleRepaint
 from modelscope_agent.utils.utils import get_api_key
 from requests.exceptions import RequestException, Timeout
 
@@ -12,7 +10,7 @@ MAX_RETRY_TIMES = 3
 
 
 @register_tool('wordart_texture_generation')
-class WordArtTexture(BaseTool):
+class WordArtTexture(StyleRepaint):
     description = '生成艺术字纹理图片'
     name = 'wordart_texture_generation'
     parameters: list = [{
@@ -46,16 +44,16 @@ class WordArtTexture(BaseTool):
         params = self._verify_args(params)
         if isinstance(params, str):
             return 'Parameter Error'
-        remote_parsed_input = json.dumps(self._parse_input(**params))
         try:
-            self.token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
+            token = get_api_key(ApiNames.dashscope_api_key, **kwargs)
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
+        remote_parsed_input = json.dumps(self._parse_input(**params))
 
         retry_times = MAX_RETRY_TIMES
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.token}',
+            'Authorization': f'Bearer {token}',
             'X-DashScope-Async': 'enable'
         }
         while retry_times:
@@ -74,7 +72,7 @@ class WordArtTexture(BaseTool):
                 origin_result = json.loads(response.content.decode('utf-8'))
 
                 self.final_result = origin_result
-                return self.get_wordart_result()
+                return self._get_dashscope_image_result(token)
             except Timeout:
                 continue
             except RequestException as e:
@@ -103,55 +101,3 @@ class WordArtTexture(BaseTool):
             kwargs['model'] = 'wordart-texture'
         print('传给tool的参数：', kwargs)
         return kwargs
-
-    def get_result(self):
-        result_data = json.loads(json.dumps(self.final_result))
-        if 'task_id' in result_data['output']:
-            task_id = result_data['output']['task_id']
-        get_url = f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}'
-        get_header = {'Authorization': f'Bearer {self.token}'}
-        origin_result = None
-        retry_times = MAX_RETRY_TIMES
-        while retry_times:
-            retry_times -= 1
-            try:
-                response = requests.request(
-                    'GET', url=get_url, headers=get_header)
-                if response.status_code != requests.codes.ok:
-                    response.raise_for_status()
-                origin_result = json.loads(response.content.decode('utf-8'))
-                return origin_result
-            except Timeout:
-                continue
-            except RequestException as e:
-                raise ValueError(
-                    f'Remote call failed with error code: {e.response.status_code},\
-                    error message: {e.response.content.decode("utf-8")}')
-
-        raise ValueError(
-            'Remote call max retry times exceeded! Please try to use local call.'
-        )
-
-    def get_wordart_result(self):
-        try:
-            result = self.get_result()
-            while True:
-                result_data = result
-                output = result_data.get('output', {})
-                task_status = output.get('task_status', '')
-
-                if task_status == 'SUCCEEDED':
-                    print('任务已完成')
-                    # 取出result里url的部分，提高url图片展示稳定性
-                    output_url = result['output']['results'][0]['url']
-                    return output_url
-
-                elif task_status == 'FAILED':
-                    raise Exception(output.get('message', '任务失败，请重试'))
-                else:
-                    # 继续轮询，等待一段时间后再次调用
-                    time.sleep(1)  # 等待 1 秒钟
-                    result = self.get_result()
-                    print(f'Running:{result}')
-        except Exception as e:
-            print('get Remote Error:', str(e))

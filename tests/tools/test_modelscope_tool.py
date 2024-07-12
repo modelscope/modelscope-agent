@@ -5,13 +5,23 @@ import pytest
 IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
 
-@pytest.mark.skip()
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_speech_generation():
     from modelscope_agent.tools.modelscope_tools.text_to_speech_tool import TexttoSpeechTool
-    kwargs = """{'input': '北京今天天气怎样?', 'gender': 'man'}"""
+    kwargs = """{'input': '北京今天天气怎样?', 'voice': 'zhitian_emo'}"""
     txt2speech = TexttoSpeechTool()
     res = txt2speech.call(kwargs)
     assert isinstance(res, str)
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_modelscope_speech_generation_with_tool_api():
+    from modelscope_agent.tools.modelscope_tools.text_to_speech_tool import TexttoSpeechTool
+    params = """{'input': '北京今天天气怎样?', 'voice': 'zhitian_emo'}"""
+    kwargs = {'use_tool_api': True}
+    txt2speech = TexttoSpeechTool()
+    res = txt2speech.call(params, **kwargs)
+    assert res.startswith('<audio src="https://')
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')

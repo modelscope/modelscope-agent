@@ -230,10 +230,10 @@ def get_upload_url(model: str, file_to_upload: str, api_key: str):
 
     Args:
         model(str): Theoretically, you can set this parameter freely. It will only affect
-                    the information of the oss url and will not affect the function function.
+                    the information of the oss url and will not affect the function.
         file_to_upload(str): the local file path which you need to convert to oss url.And it should
                             start with 'file://'.
-        api_key(str): dashscope_api_key which you have set in enviroment.
+        api_key(str): dashscope_api_key which you have set in environment.
 
     Returns:
         An oss type url.
