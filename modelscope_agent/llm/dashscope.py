@@ -101,7 +101,7 @@ class DashScopeLLM(BaseChatModel):
             generation_input['seed'] = kwargs.get('seed')
 
         response = dashscope.Generation.call(**generation_input)
-        response = self._stat_last_call_token_info(response)
+        response = self.stat_last_call_token_info(response)
         return stream_output(response, **kwargs)
 
     def _chat_no_stream(self,
@@ -120,7 +120,7 @@ class DashScopeLLM(BaseChatModel):
             top_p=top_p,
         )
         if response.status_code == HTTPStatus.OK:
-            self._stat_last_call_token_info(response)
+            self.stat_last_call_token_info(response)
             return response.output.choices[0].message.content
         else:
             err = 'Error code: %s, error message: %s' % (
@@ -129,7 +129,7 @@ class DashScopeLLM(BaseChatModel):
             )
             return err
 
-    def _stat_last_call_token_info(self, response):
+    def stat_last_call_token_info(self, response):
         try:
             if response.usage is not None:
                 if not response.usage.get('total_tokens'):
