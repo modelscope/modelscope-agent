@@ -99,6 +99,7 @@ class DashScopeLLM(BaseChatModel):
             generation_input['temperature'] = kwargs.get('temperature')
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
+
         response = dashscope.Generation.call(**generation_input)
         response = self.stat_last_call_token_info(response)
         return stream_output(response, **kwargs)
@@ -138,16 +139,18 @@ class DashScopeLLM(BaseChatModel):
             return response
         except AttributeError:
             for chunk in response:
-                # if hasattr(chunk.output, 'usage'):
-                if not chunk.usage.get('total_tokens'):
-                    total_tokens = chunk.usage.input_tokens + chunk.usage.output_tokens
-                else:
-                    total_tokens = chunk.usage.total_tokens
-                self.last_call_usage_info = {
-                    'prompt_tokens': chunk.usage.input_tokens,
-                    'completion_tokens': chunk.usage.output_tokens,
-                    'total_tokens': total_tokens
-                }
+                try:
+                    if not chunk.usage.get('total_tokens'):
+                        total_tokens = chunk.usage.input_tokens + chunk.usage.output_tokens
+                    else:
+                        total_tokens = chunk.usage.total_tokens
+                    self.last_call_usage_info = {
+                        'prompt_tokens': chunk.usage.input_tokens,
+                        'completion_tokens': chunk.usage.output_tokens,
+                        'total_tokens': total_tokens
+                    }
+                except AttributeError:
+                    logger.warning('No usage info in response')
                 yield chunk
 
 
