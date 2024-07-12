@@ -99,6 +99,7 @@ class DashScopeLLM(BaseChatModel):
             generation_input['temperature'] = kwargs.get('temperature')
         if kwargs.get('seed', None):
             generation_input['seed'] = kwargs.get('seed')
+
         response = dashscope.Generation.call(**generation_input)
         response = self.stat_last_call_token_info(response)
         return stream_output(response, **kwargs)
@@ -130,24 +131,33 @@ class DashScopeLLM(BaseChatModel):
 
     def stat_last_call_token_info(self, response):
         try:
-            self.last_call_usage_info = {
-                'prompt_tokens': response.usage.input_tokens,
-                'completion_tokens': response.usage.output_tokens,
-                'total_tokens': response.usage.total_tokens
-            }
+            if response.usage is not None:
+                if not response.usage.get('total_tokens'):
+                    total_tokens = response.usage.input_tokens + response.usage.output_tokens
+                else:
+                    total_tokens = response.usage.total_tokens
+                self.last_call_usage_info = {
+                    'prompt_tokens': response.usage.input_tokens,
+                    'completion_tokens': response.usage.output_tokens,
+                    'total_tokens': total_tokens
+                }
+            else:
+                logger.warning('No usage info in response')
             return response
         except AttributeError:
             for chunk in response:
-                # if hasattr(chunk.output, 'usage'):
-                if not chunk.usage.get('total_tokens'):
-                    total_tokens = chunk.usage.input_tokens + chunk.usage.output_tokens
-                else:
-                    total_tokens = chunk.usage.total_tokens
-                self.last_call_usage_info = {
-                    'prompt_tokens': chunk.usage.input_tokens,
-                    'completion_tokens': chunk.usage.output_tokens,
-                    'total_tokens': total_tokens
-                }
+                try:
+                    if not chunk.usage.get('total_tokens'):
+                        total_tokens = chunk.usage.input_tokens + chunk.usage.output_tokens
+                    else:
+                        total_tokens = chunk.usage.total_tokens
+                    self.last_call_usage_info = {
+                        'prompt_tokens': chunk.usage.input_tokens,
+                        'completion_tokens': chunk.usage.output_tokens,
+                        'total_tokens': total_tokens
+                    }
+                except AttributeError:
+                    logger.warning('No usage info in response')
                 yield chunk
 
 
