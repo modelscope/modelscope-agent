@@ -86,7 +86,7 @@ class CodeInterpreter(BaseTool):
         self.nb = nbformat.v4.new_notebook()  # noqa E501
         self.nb_client = NotebookClient(self.nb, timeout=600)
         self.console = Console()
-        self.interaction: str
+        self.interaction = 'ipython'
         # timeout: int = 600
         self.kc = kc
 
@@ -491,8 +491,6 @@ class CodeInterpreter(BaseTool):
         fixed_code = '\n'.join(fixed_code)
         if nb_mode:
             result, success = self.run(code=fixed_code)
-            print('result', result)
-            print('success', success)
             return result if success else 'Error: ' + result
             pass
 
