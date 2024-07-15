@@ -1,4 +1,5 @@
 import os
+from functools import wraps
 from pathlib import Path
 from typing import Dict, Iterable, List, Union
 
@@ -6,6 +7,21 @@ import json
 from modelscope_agent.schemas import AgentAttr, Message
 from modelscope_agent.utils.tokenization_utils import count_tokens
 from pydantic import ConfigDict
+
+
+def enable_rag_callback(func):
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        callbacks = self.callback_manager
+        if callbacks:
+            callbacks.on_rag_start(*args, **kwargs)
+        response = func(self, *args, **kwargs)
+        if callbacks:
+            callbacks.on_rag_end('retrieval', response)
+        return response
+
+    return wrapper
 
 
 class Memory(AgentAttr):

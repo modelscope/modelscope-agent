@@ -1,12 +1,42 @@
 import os
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          ToolServiceProxy)
 from modelscope_agent.utils.utils import has_chinese_chars
+
+
+def enable_run_callback(func):
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        callbacks = self.callback_manager
+        callbacks.on_run_start(*args, **kwargs)
+        response = func(self, *args, **kwargs)
+        name = self.name or self.__class__.__name__
+        if not isinstance(response, str):
+            response = enable_stream_callback(name, response, callbacks)
+        else:
+            response = enable_no_stream_callback(name, response, callbacks)
+        return response
+
+    return wrapper
+
+
+def enable_stream_callback(name, rsp, callbacks):
+    for s in rsp:
+        yield s
+    callbacks.on_run_end(name, rsp)
+
+
+def enable_no_stream_callback(name, rsp, callbacks):
+    callbacks.on_run_end(name, rsp)
+    return rsp
 
 
 class Agent(ABC):
@@ -21,6 +51,7 @@ class Agent(ABC):
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
                  use_tool_api: bool = False,
+                 callbacks=[],
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -60,13 +91,19 @@ class Agent(ABC):
         self.instruction = instruction
         self.uuid_str = kwargs.get('uuid_str', None)
 
+        if isinstance(callbacks, BaseCallback):
+            callbacks = [callbacks]
+        self.callback_manager = CallbackManager(callbacks)
+
+    @enable_run_callback
     def run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
         if 'lang' not in kwargs:
             if has_chinese_chars([args, kwargs]):
                 kwargs['lang'] = 'zh'
             else:
                 kwargs['lang'] = 'en'
-        return self._run(*args, **kwargs)
+        result = self._run(*args, **kwargs)
+        return result
 
     @abstractmethod
     def _run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
@@ -89,11 +126,13 @@ class Agent(ABC):
         Use when calling tools in bot()
 
         """
+        self.callback_manager.on_tool_start(tool_name, tool_args)
         try:
             result = self.function_map[tool_name].call(tool_args, **kwargs)
         except BaseException as e:
             result = f'Tool api {tool_name} failed to call. Args: {tool_args}.'
             result += f'Details: {str(e)[:200]}'
+        self.callback_manager.on_tool_end(tool_name, result)
         return result
 
     def _register_tool(self,

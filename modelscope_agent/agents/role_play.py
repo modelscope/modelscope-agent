@@ -264,6 +264,7 @@ class RolePlay(Agent, AgentEnvMixin):
         max_turn = 10
         call_llm_count = 0
         while True and max_turn > 0:
+            self.callback_manager.on_step_start()
             max_turn -= 1
             call_llm_count += 1
             if self.llm.support_function_calling():
@@ -273,6 +274,7 @@ class RolePlay(Agent, AgentEnvMixin):
                     functions=[
                         func.function for func in self.function_map.values()
                     ],
+                    callbacks=self.callback_manager,
                     **kwargs)
             else:
                 output = self.llm.chat(
@@ -280,6 +282,7 @@ class RolePlay(Agent, AgentEnvMixin):
                     stream=self.stream,
                     stop=['Observation:', 'Observation:\n'],
                     messages=messages,
+                    callbacks=self.callback_manager,
                     **kwargs)
 
             llm_result = ''
@@ -341,6 +344,7 @@ class RolePlay(Agent, AgentEnvMixin):
             if not self.llm.check_max_length(planning_prompt):
                 if self.llm.support_raw_prompt():
                     planning_prompt = self.llm.build_raw_prompt(messages)
+            self.callback_manager.on_step_end()
 
     def _limit_observation_length(self, observation):
         """
