@@ -44,7 +44,7 @@ class OutputWrapper:
         except RequestException:
             return remote_path
 
-    def _get_oss_url(self):
+    def _upload_and_get_oss_url(self):
         try:
             file_name = os.path.basename(self._path)
             oss_path = os.path.join('tmp', 'video', file_name)
@@ -159,7 +159,7 @@ class VideoWrapper(OutputWrapper):
             if os.path.isfile(video):
                 self._path = video
                 if use_remote_url:
-                    self._path = self._get_oss_url()
+                    self._path = self._upload_and_get_oss_url()
             else:
                 if use_remote_url:
                     self._path = video
