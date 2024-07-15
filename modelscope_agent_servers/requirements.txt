@@ -1,6 +1,6 @@
 docker
 fastapi
-modelscope-agent>=0.5.0
+modelscope-agent>=0.6.2
 pydantic
 sqlmodel
 uvicorn
