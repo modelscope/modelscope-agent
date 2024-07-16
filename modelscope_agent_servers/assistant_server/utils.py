@@ -7,23 +7,6 @@ from modelscope_agent_servers.assistant_server.models import (
     ChatCompletionResponseStreamChoice, ChatMessage, DeltaMessage)
 
 
-def parse_tool_result(llm_result: str):
-    """
-    Args:
-        llm_result: the result from the model
-
-    Returns: dict
-
-    """
-    try:
-        result = re.search(r'Action: (.+)\nAction Input: (.+)', llm_result)
-        action = result.group(1)
-        action_input = json.loads(result.group(2))
-        return action, action_input
-    except Exception:
-        return None, None
-
-
 def parse_messages(messages: List[ChatMessage]):
     """
     Args:

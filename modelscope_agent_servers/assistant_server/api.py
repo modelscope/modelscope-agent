@@ -11,7 +11,7 @@ from modelscope_agent.rag.knowledge import BaseKnowledge
 from modelscope_agent_servers.assistant_server.models import (
     AgentRequest, ChatCompletionRequest, ChatCompletionResponse, ToolResponse)
 from modelscope_agent_servers.assistant_server.utils import (
-    choice_wrapper, parse_messages, parse_tool_result, stream_choice_wrapper)
+    choice_wrapper, parse_messages, stream_choice_wrapper)
 from modelscope_agent_servers.service_utils import (create_error_msg,
                                                     create_success_msg)
 
