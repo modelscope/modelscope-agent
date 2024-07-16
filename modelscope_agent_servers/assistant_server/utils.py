@@ -99,7 +99,7 @@ def choice_wrapper(response: str, tool_list: list = []):
       ],
 
     Args:
-        action_dict: the action dictionary
+        tool_list:  the tool list from the output of llm
         response: the chat response object
 
     Returns: dict

@@ -142,8 +142,10 @@ async def chat_completion(chat_request: ChatCompletionRequest,
     # tool related config
     tools = chat_request.tools
     tool_choice = None
+    parallel_tool_calls = True
     if tools:
         tool_choice = chat_request.tool_choice
+        parallel_tool_calls = chat_request.parallel_tool_calls
 
     # parse meesage
     query, history, image_url = parse_messages(chat_request.messages)
@@ -157,6 +159,7 @@ async def chat_completion(chat_request: ChatCompletionRequest,
         tools=tools,
         tool_choice=tool_choice,
         chat_mode=True,
+        parallel_tool_calls=parallel_tool_calls,
         # **kwargs)
     )
 

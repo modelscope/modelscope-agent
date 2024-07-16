@@ -145,6 +145,79 @@ With above examples, the output should be like this:
         "object":"chat.completion",
         "usage":{"prompt_tokens":267,"completion_tokens":15,"total_tokens":282}}
 ```
+We also support the `parallel_tool_calls` ability, the `parallel_tool_calls` are default on, for the parallel tool calling scenarios, the query and output would be
+
+```Shell
+curl -X POST 'http://localhost:31512/v1/chat/completions' \
+-H 'Content-Type: application/json' \
+-H "Authorization: Bearer $DASHSCOPE_API_KEY" \
+-d '{
+    "tools": [{
+        "type": "function",
+        "function": {
+            "name": "amap_weather",
+            "description": "amap weather tool",
+            "parameters": [{
+                "name": "location",
+                "type": "string",
+                "description": "城市/区具体名称，如`北京市海淀区`请描述为`海淀区`",
+                "required": true
+            }]
+        }
+    }],
+    "tool_choice": "auto",
+    "model": "qwen-max",
+    "messages": [
+        {"content": "请同时调用工具查找北京和上海的天气", "role": "user"}
+    ]
+}'
+
+```
+
+With above examples, the output should be like this:
+```Python
+{
+  "request_id": "chatcmpl_058fd645-4a7a-41ca-a1db-29c9330814d6",
+  "message": "",
+  "output": null,
+  "id": "chatcmpl_058fd645-4a7a-41ca-a1db-29c9330814d6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Action: amap_weather\nAction Input: {\"location\": \"北京\"}\nAction: amap_weather\nAction Input: {\"location\": \"上海\"}\n\n",
+        "tool_calls": [
+          {
+            "type": "function",
+            "function": {
+              "name": "amap_weather",
+              "arguments": "{\"location\": \"北京\"}"
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "amap_weather",
+              "arguments": "{\"location\": \"上海\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "created": 1721123488,
+  "model": "Qwen2-7B-Instruct",
+  "system_fingerprint": "chatcmpl_058fd645-4a7a-41ca-a1db-29c9330814d6",
+  "object": "chat.completion",
+  "usage": {
+    "prompt_tokens": 333,
+    "completion_tokens": 33,
+    "total_tokens": 366
+  }
+}
+```
 
 #### Chat with vllm
 
