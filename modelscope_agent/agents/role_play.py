@@ -6,9 +6,9 @@ from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.llm.utils.function_call_with_raw_prompt import (
-    ACTION_TOKEN, ARGS_TOKEN, DEFAULT_EXEC_TEMPLATE, OBSERVATION_TOKEN,
-    SPECIAL_PREFIX_TEMPLATE_TOOL, SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT,
-    TOOL_TEMPLATE, convert_tools_to_prompt, detect_multi_tool)
+    DEFAULT_EXEC_TEMPLATE, SPECIAL_PREFIX_TEMPLATE_TOOL,
+    SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT, TOOL_TEMPLATE,
+    convert_tools_to_prompt, detect_multi_tool)
 from modelscope_agent.tools.base import BaseTool
 from modelscope_agent.utils.base64_utils import encode_files_to_base64
 from modelscope_agent.utils.logger import agent_logger as logger

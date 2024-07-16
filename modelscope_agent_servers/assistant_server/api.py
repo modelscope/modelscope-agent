@@ -175,8 +175,8 @@ async def chat_completion(chat_request: ChatCompletionRequest,
 
     del agent
 
-    has_action, action_dict, _ = detect_multi_tool(llm_result)
-    choices = choice_wrapper(llm_result, action_dict)
+    has_action, tool_list, _ = detect_multi_tool(llm_result)
+    choices = choice_wrapper(llm_result, tool_list)
 
     chat_response = ChatCompletionResponse(
         choices=choices,

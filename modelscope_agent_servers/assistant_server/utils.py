@@ -74,7 +74,7 @@ def stream_choice_wrapper(response, model, request_id, llm):
     yield 'data: [DONE]\n\n'
 
 
-def choice_wrapper(response: str, action_dict: dict = {}):
+def choice_wrapper(response: str, tool_list: list = []):
     """
     output should be in the format of openai choices
     "choices": [
@@ -113,16 +113,10 @@ def choice_wrapper(response: str, action_dict: dict = {}):
             'content': response,
         }
     }
-    if action_dict != {}:
+    if len(tool_list) > 0:
         tool_calls = []
-        for key, value in action_dict.items():
-            tool_dict = {
-                'type': 'function',
-                'function': {
-                    'name': key,
-                    'arguments': value
-                }
-            }
+        for item in tool_list:
+            tool_dict = {'type': 'function', 'function': item}
             tool_calls.append(tool_dict)
         choice['message']['tool_calls'] = tool_calls
         choice['finish_reason'] = 'tool_calls'
