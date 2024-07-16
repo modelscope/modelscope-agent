@@ -31,7 +31,9 @@ class AttributeExtractor(ast.NodeVisitor):
 
     def get_value(self, node):
         """Get the value of a node from different types."""
-        if isinstance(node, ast.Str):
+        if isinstance(node, ast.Constant):
+            return node.s
+        elif isinstance(node, ast.Str):
             return node.s
         elif isinstance(node, ast.Name):
             return node.id
@@ -61,10 +63,10 @@ def get_attribute_from_tool_cls(tool_cls):
 
 if __name__ == '__main__':
     from modelscope_agent.tools import BaseTool
-
+    from modelscope_agent.tools.modelscope_tools.text_to_video_tool import TextToVideoTool
     s1 = time.time()
 
-    test = get_attribute_from_tool_cls(BaseTool)
+    test = get_attribute_from_tool_cls(TextToVideoTool)
     print(test)
     print(type(test))
     print(time.time() - s1)

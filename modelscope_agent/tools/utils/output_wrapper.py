@@ -1,11 +1,11 @@
 import os
-import re
 import tempfile
 import uuid
 from typing import Dict
 
 import numpy as np
 import requests
+from modelscope_agent.tools.utils.oss import OssStorage
 from PIL import Image
 from requests.exceptions import RequestException
 
@@ -23,6 +23,7 @@ class OutputWrapper:
         self._repr = None
         self._path = None
         self._raw_data = None
+        self.oss = None
 
         self.root_path = os.environ.get('OUTPUT_FILE_DIRECTORY', None)
         if self.root_path and not os.path.exists(self.root_path):
@@ -42,6 +43,18 @@ class OutputWrapper:
             return path
         except RequestException:
             return remote_path
+
+    def _upload_and_get_oss_url(self):
+        try:
+            file_name = os.path.basename(self._path)
+            oss_path = os.path.join('tmp', 'video', file_name)
+            self.oss.upload(self._path, oss_path)
+            return self.oss.get_signed_url(oss_path)
+        except Exception as e:
+            print(
+                f'Failed to save the file to oss with error: {e}, please check the oss information'
+            )
+            return ''
 
     def __repr__(self) -> str:
         return self._repr
@@ -126,27 +139,39 @@ class VideoWrapper(OutputWrapper):
     Video wrapper
     """
 
-    def __init__(self, video) -> None:
-        try:
-            from moviepy.editor import VideoFileClip
-        except Exception:
-            raise ImportError(
-                'moviepy is required when output is video, please install it first by `pip install moviepy`'
-            )
-
+    def __init__(self, video, **kwargs) -> None:
         super().__init__()
         if isinstance(video, str):
+            # use_tool_api should use no file, just bypass url or base64
+            use_remote_url = False
+            if 'use_tool_api' in kwargs and kwargs['use_tool_api']:
+                use_remote_url = True
+                if self.oss is None:
+                    self.oss = OssStorage()
+            else:
+                try:
+                    from moviepy.editor import VideoFileClip
+                except Exception:
+                    raise ImportError(
+                        'moviepy is required when output is video, please install it first by `pip install moviepy`'
+                    )
 
             if os.path.isfile(video):
                 self._path = video
+                if use_remote_url:
+                    self._path = self._upload_and_get_oss_url()
             else:
-                self._path = self.get_remote_file(video, 'gif')
+                if use_remote_url:
+                    self._path = video
+                else:
+                    self._path = self.get_remote_file(video, 'gif')
 
-            try:
-                video = VideoFileClip(self._path)
+            if not use_remote_url:
+                try:
+                    video = VideoFileClip(self._path)
 
-            except (ValueError, OSError):
-                raise FileNotFoundError(f'Invalid path: {video}')
+                except (ValueError, OSError):
+                    raise FileNotFoundError(f'Invalid path: {video}')
         else:
             raise TypeError(
                 'Current only support load from filepath when it is video')
