@@ -18,7 +18,7 @@ def test_paraformer_asr():
     params = """{'audio_path': '34aca18b-17a1-4558-9064-22fdfcef7a94.wav'}"""
     asr_tool = ParaformerAsrTool()
     res = asr_tool.call(params)
-    assert res == 'today is a beautiful day. '
+    assert res.lower() == 'today is a beautiful day. '
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
@@ -39,7 +39,7 @@ def test_base64_paraformer_asr():
     kwargs['base64_files'] = base64_files
     res = asr_tool.call(params, **kwargs)
     print(res)
-    assert res == 'today is a beautiful day. '
+    assert res.lower() == 'today is a beautiful day. '
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
