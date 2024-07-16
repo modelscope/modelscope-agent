@@ -24,7 +24,7 @@ class TextToVideoTool(ModelscopePipelineTool):
     def call(self, params: str, **kwargs) -> str:
         result = super().call(params, **kwargs)
         video = result['Data']['output_video']
-        return str(VideoWrapper(video))
+        return str(VideoWrapper(video, **kwargs))
 
     def _remote_call(self, params: dict, **kwargs):
         text = params['input']

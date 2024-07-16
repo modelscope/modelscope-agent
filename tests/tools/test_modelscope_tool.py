@@ -34,6 +34,16 @@ def test_modelscope_video_generation():
 
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_modelscope_video_generation_with_use_tool():
+    from modelscope_agent.tools.modelscope_tools.text_to_video_tool import TextToVideoTool
+    params = "{'input': '一个正在打篮球的人'}"
+    video_gen = TextToVideoTool()
+    kwargs = {'use_tool_api': True}
+    res = video_gen.call(params, **kwargs)
+    assert isinstance(res, str)
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_modelscope_text_address():
     from modelscope_agent.tools.modelscope_tools.text_address_tool import TextAddressTool
     kwargs = """{'input': '北京朝阳望京东金辉大厦'}"""
