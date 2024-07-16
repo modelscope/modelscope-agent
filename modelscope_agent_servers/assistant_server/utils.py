@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 import json
@@ -15,8 +16,6 @@ def parse_tool_result(llm_result: str):
 
     """
     try:
-        import re
-        import json
         result = re.search(r'Action: (.+)\nAction Input: (.+)', llm_result)
         action = result.group(1)
         action_input = json.loads(result.group(2))
@@ -75,9 +74,7 @@ def stream_choice_wrapper(response, model, request_id, llm):
     yield 'data: [DONE]\n\n'
 
 
-def choice_wrapper(response: str,
-                   tool_name: str = None,
-                   tool_inputs: dict = None):
+def choice_wrapper(response: str, action_dict: dict = {}):
     """
     output should be in the format of openai choices
     "choices": [
@@ -102,7 +99,8 @@ def choice_wrapper(response: str,
       ],
 
     Args:
-        response: the chatresponse object
+        action_dict: the action dictionary
+        response: the chat response object
 
     Returns: dict
 
@@ -115,14 +113,18 @@ def choice_wrapper(response: str,
             'content': response,
         }
     }
-    if tool_name is not None:
-        choice['message']['tool_calls'] = [{
-            'type': 'function',
-            'function': {
-                'name': tool_name,
-                'arguments': json.dumps(tool_inputs, ensure_ascii=False)
+    if action_dict != {}:
+        tool_calls = []
+        for key, value in action_dict.items():
+            tool_dict = {
+                'type': 'function',
+                'function': {
+                    'name': key,
+                    'arguments': value
+                }
             }
-        }]
+            tool_calls.append(tool_dict)
+        choice['message']['tool_calls'] = tool_calls
         choice['finish_reason'] = 'tool_calls'
     else:
         choice['finish_reason'] = 'stop'

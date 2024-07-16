@@ -5,6 +5,8 @@ from uuid import uuid4
 from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import StreamingResponse
 from modelscope_agent.agents.role_play import RolePlay
+from modelscope_agent.llm.utils.function_call_with_raw_prompt import \
+    detect_multi_tool
 from modelscope_agent.rag.knowledge import BaseKnowledge
 from modelscope_agent_servers.assistant_server.models import (
     AgentRequest, ChatCompletionRequest, ChatCompletionResponse, ToolResponse)
@@ -173,8 +175,8 @@ async def chat_completion(chat_request: ChatCompletionRequest,
 
     del agent
 
-    action, action_input = parse_tool_result(llm_result)
-    choices = choice_wrapper(llm_result, action, action_input)
+    has_action, action_dict, _ = detect_multi_tool(llm_result)
+    choices = choice_wrapper(llm_result, action_dict)
 
     chat_response = ChatCompletionResponse(
         choices=choices,
