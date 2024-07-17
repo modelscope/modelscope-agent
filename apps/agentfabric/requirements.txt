@@ -1,11 +1,8 @@
-dashscope
-faiss-cpu
 gradio==4.36.1
-langchain
 markdown-cjk-spacing
 mdx_truly_sane_lists
-modelscope-agent==0.6.4
-modelscope_studio
+modelscope-agent>=0.6.4
+modelscope_studio>=0.4.0
 pymdown-extensions
 python-slugify
 unstructured

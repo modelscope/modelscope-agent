@@ -121,11 +121,14 @@ class Agent(ABC):
             stream=self.stream,
             **kwargs)
 
-    def _call_tool(self, tool_name: str, tool_args: str, **kwargs):
+    def _call_tool(self, tool_list: list, **kwargs):
         """
         Use when calling tools in bot()
 
         """
+        # version < 0.6.6 only one tool is in the tool_list
+        tool_name = tool_list[0]['name']
+        tool_args = tool_list[0]['arguments']
         self.callback_manager.on_tool_start(tool_name, tool_args)
         try:
             result = self.function_map[tool_name].call(tool_args, **kwargs)
@@ -213,7 +216,7 @@ class Agent(ABC):
             tool_class_with_tenant[tenant_id] = self.function_map[tool_name]
 
     def _detect_tool(self, message: Union[str,
-                                          dict]) -> Tuple[bool, str, str, str]:
+                                          dict]) -> Tuple[bool, list, str]:
         """
         A built-in tool call detection for func_call format
 
@@ -225,26 +228,26 @@ class Agent(ABC):
 
         Returns:
             - bool: need to call tool or not
-            - str: tool name
-            - str: tool args
+            - list: tool list
             - str: text replies except for tool calls
         """
-        func_name = None
-        func_args = None
+
+        func_calls = []
         assert isinstance(message, dict)
+        # deprecating
         if 'function_call' in message and message['function_call']:
             func_call = message['function_call']
-            func_name = func_call.get('name', '')
-            func_args = func_call.get('arguments', '')
-        # Compatible with OpenAI API
+            func_calls.append(func_call)
+
+        # Follow OpenAI API, allow multi func_calls
         if 'tool_calls' in message and message['tool_calls']:
-            func_call = message['tool_calls'][0]['function']
-            func_name = func_call.get('name', '')
-            func_args = func_call.get('arguments', '')
+            for item in message['tool_calls']:
+                func_call = item['function']
+                func_calls.append(func_call)
 
         text = message.get('content', '')
 
-        return (func_name is not None), func_name, func_args, text
+        return (len(func_calls) > 0), func_calls, text
 
     def _parse_image_url(self, image_url: List[Union[str, Dict]],
                          messages: List[Dict]) -> List[Dict]:
