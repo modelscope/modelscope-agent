@@ -83,10 +83,11 @@ class CodeInterpreter(BaseTool):
                                                 repr(ALIB_FONT_FILE)[1:-1])
             print(self._execute_code(kc, start_code))
             self.kernel_clients[pid] = kc
+        self.timeout = 300
         self.nb = nbformat.v4.new_notebook()  # noqa E501
-        self.nb_client = NotebookClient(self.nb, timeout=600)
+        self.nb_client = NotebookClient(self.nb, timeout=300)
         self.console = Console()
-        self.interaction = 'ipython'
+        self.interaction = ''
         # timeout: int = 600
         self.kc = kc
 

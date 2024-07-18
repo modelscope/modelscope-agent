@@ -1,0 +1,42 @@
+type: class
+description: Generate image using stable diffusion model. This class provides methods
+  to interact with a stable diffusion service to generate images based on text inputs.
+methods:
+  __init__:
+    type: function
+    description: 'Initialize the SDEngine instance with configuration. '
+    signature: (self, sd_url='')
+    parameters: 'Args: sd_url (str, optional): URL of the stable diffusion service.
+      Defaults to "".'
+  construct_payload:
+    type: function
+    description: 'Modify and set the API parameters for image generation. '
+    signature: (self, prompt, negtive_prompt='(easynegative:0.8),black, dark,Low resolution',
+      width=512, height=512, sd_model='galaxytimemachinesGTM_photoV20')
+    parameters: 'Args: prompt (str): Text input for image generation. negtive_prompt
+      (str, optional): Text input for negative prompts. Defaults to None. width (int,
+      optional): Width of the generated image in pixels. Defaults to 512. height (int,
+      optional): Height of the generated image in pixels. Defaults to 512. sd_model
+      (str, optional): The model to use for image generation. Defaults to "galaxytimemachinesGTM_photoV20".
+      Returns: dict: Updated parameters for the stable diffusion API.'
+  run_t2i:
+    type: async_function
+    description: 'Run the stable diffusion API for multiple prompts asynchronously. '
+    signature: '(self, payloads: ''list'')'
+    parameters: 'Args: payloads (list): list of payload, each payload is a dictionary
+      of input parameters for the stable diffusion API.'
+  save:
+    type: function
+    description: 'Save generated images to the output directory. '
+    signature: (self, imgs, save_name='')
+    parameters: 'Args: imgs (str): Generated images. save_name (str, optional): Output
+      image name. Default is empty.'
+  simple_run_t2i:
+    type: function
+    description: 'Run the stable diffusion API for multiple prompts, calling the stable
+      diffusion API to generate images. '
+    signature: '(self, payload: ''dict'', auto_save: ''bool'' = True)'
+    parameters: 'Args: payload (dict): Dictionary of input parameters for the stable
+      diffusion API. auto_save (bool, optional): Save generated images automatically.
+      Defaults to True. Returns: list: The generated images as a result of the API
+      call.'

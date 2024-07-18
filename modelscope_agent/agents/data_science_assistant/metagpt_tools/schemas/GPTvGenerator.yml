@@ -1,0 +1,30 @@
+type: class
+description: Class for generating webpage code from a given webpage screenshot. This
+  class provides methods to generate webpages including all code (HTML, CSS, and JavaScript)
+  based on an image. It utilizes a vision model to analyze the layout from an image
+  and generate webpage codes accordingly.
+methods:
+  __init__:
+    type: function
+    description: Initialize GPTvGenerator class with default values from the configuration.
+    signature: (self)
+    parameters: ''
+  generate_webpages:
+    type: async_function
+    description: 'Asynchronously generate webpages including all code (HTML, CSS,
+      and JavaScript) in one go based on the image. '
+    signature: '(self, image_path: str) -> str'
+    parameters: 'Args: image_path (str): The path of the image file. Returns: str:
+      Generated webpages content.'
+  save_webpages:
+    type: function
+    description: 'staticmethod(function) -> method Convert a function to be a static
+      method. A static method does not receive an implicit first argument. To declare
+      a static method, use this idiom: class C: @staticmethod def f(arg1, arg2, ...):
+      ... It can be called either on the class (e.g. C.f()) or on an instance (e.g.
+      C().f()). Both the class and the instance are ignored, and neither is passed
+      implicitly as the first argument to the method. Static methods in Python are
+      similar to those found in Java or C++. For a more advanced concept, see the
+      classmethod builtin.'
+    signature: '(webpages: str, save_folder_name: str = ''example'') -> pathlib.Path'
+    parameters: ''
