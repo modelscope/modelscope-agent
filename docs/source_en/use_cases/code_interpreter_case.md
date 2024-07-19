@@ -2,7 +2,7 @@
 This article introduces the advanced and practical capabilities of the Code Interpreter that comes with the Agent.
 
 ### What is the Code Interpreter?
-Simply put, it gives the language model the ability to run Python code. Users can tell the model the task using natural language, and the model will write and execute the corresponding Python code to solve the task. As a built-in tool for the Agent, when the Agent can write and execute code, the boundaries of imagination will be infinitely expanded. Even if you don't know how to code, you can efficiently and quickly accomplish tasks with the large model plus code.
+Simply, it gives the language model the ability to run Python code. Users can tell the model the task using natural language, and the model will write and execute the corresponding Python code to solve the task. As a built-in tool for the Agent, when the Agent can write and execute code, the boundaries of imagination will be infinitely expanded. Even if you don't know how to code, you can efficiently and quickly accomplish tasks with the large model plus code.
 
 ### What can the Code Interpreter do?
 - Generate QR codes: Instantly convert link addresses to QR code images.

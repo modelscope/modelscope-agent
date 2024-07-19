@@ -1,8 +1,8 @@
 ## Long-term memory with Langchain VectorStore
 
-We have already incorporated short-term memory in agent through simply concatenation of history. However, long-term memory can also be introduced through `langchain.vectorstores`. Here is a simple example.
+We have already applied short-term memory in agent through simply concatenation of history. However, long-term memory can also be introduced through `langchain.vectorstores`. Here is a simple example.
 
-In this example, we build a local vectorstore with some local documents. With each task, a retrieval in vectorstore will be executed first to get relevant information. And this information will be concated with origin query and feed to LLM.
+In this example, we build a local vector store with some local documents. With each task, a retrieval in vector store will be executed first to get relevant information. And this information will be concated with origin query and feed to LLM.
 
 
 ### Initialize agent
@@ -16,9 +16,9 @@ agent = AgentExecutor(llm, tool_cfg, additional_tool_list=additional_tool_list, 
 
 ```
 
-### Build vectorstores
+### Build vector stores
 
-Then we will use `langchain` components to build local vectorstores.
+Then we will use `langchain` components to build local vector stores.
 
 First, We need to specify the embedding to be used. `langchain` have already supported both `ModelScopeEmbeddings` and `DashScopeEmbeddings`
 
@@ -32,7 +32,7 @@ embeddings = DashScopeEmbeddings(dashscope_api_key="my-api-key", model="text-emb
 
 ```
 
-The we should load local files and use `TextSplitter` to split files into sentences. Here we use `damo/nlp_bert_document-segmentation_chinese-base` model in **ModelScope** as `TextSplitter`.
+Then we should load local files and use `TextSplitter` to split files into sentences. Here we use `damo/nlp_bert_document-segmentation_chinese-base` model in **ModelScope** as `TextSplitter`.
 
 ```Python
 # ref: https://github.com/chatchat-space/langchain-ChatGLM/blob/master/textsplitter/ali_text_splitter.py
@@ -63,7 +63,7 @@ def load_file(filepaths, sentence_size=100):
 
 ```
 
-With embedding and splited sentences, we can use `FAISS` to build index for further retrieval.
+With embedding and splitting sentences, we can use `FAISS` to build index for further retrieval.
 
 ```Python
 filepaths = ['tmp/ms.txt', 'tmp/china.txt', 'tmp/xiyouji.txt']
@@ -76,7 +76,6 @@ vector_store = FAISS.from_documents(docs, embeddings)
 ```
 
 ### Rewrite query with retrieval
-
 
 
 ```Python

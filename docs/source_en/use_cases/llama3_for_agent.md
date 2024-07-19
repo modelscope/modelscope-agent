@@ -2,7 +2,7 @@
 Since the Llama3 model was announced on April 18, Chinese developers have conducted extensive training and adaptation on the Llama3 model. In addition to the Chinese pure text model, multi-modal versions are also being released.
 
 ### Introduction
-Since the Llama3 model was announced on April 18, Chinese developers have conducted extensive training and adaptation on the Llama3 model. In addition to the Chinese pure text model, multi-modal versions are also being released. Considering the demand for Agent scenarios among domestic users, Modda Community's LLM&AIGC model fine-tuning and inference framework SWIFT has trained a general Chinese model based on the original Llama3-8b-instruct version, retaining and adapting Chinese Agent capabilities. This is the first general Agent Llama3 model in the open-source community that is fully adapted to the Chinese environment, with a more comprehensive evaluation report to follow.
+Since the Llama3 model was announced on April 18, Chinese developers have conducted extensive training and adaptation on the Llama3 model. In addition to the Chinese pure text model, multi-modal versions are also being released. Considering the demand for Agent scenarios among domestic users, Modelscope Community's LLM&AIGC model fine-tuning and inference framework SWIFT has trained a general Chinese model based on the original Llama3-8b-instruct version, retaining and adapting Chinese Agent capabilities. This is the first general Agent Llama3 model in the open-source community that is fully adapted to the Chinese environment, with a more comprehensive evaluation report to follow.
 
 [Model Link](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
 
@@ -24,7 +24,7 @@ swift infer --model_type llama3-8b-instruct --model_id_or_path swift/Llama3-Chin
 swift deploy --model_type llama3-8b-instruct --model_id_or_path swift/Llama3-Chinese-8B-Instruct-Agent-v1
 ```
 
-This model can be used in conjunction with the ModelScopeAgent framework. Please refer to:
+This model can be used with the ModelScope-Agent framework. Please refer to:
 [Using with ModelScopeAgent Framework](https://github.com/modelscope/swift/blob/main/docs/source/LLM/Agent%E5%BE%AE%E8%B0%83%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5.md#%E6%90%AD%E9%85%8Dmodelscope-agent%E4%BD%BF%E7%94%A8)
 
 We also encourage developers to perform secondary fine-tuning on this model and future versions like v2 or v3 to achieve better capabilities.
@@ -32,7 +32,7 @@ We also encourage developers to perform secondary fine-tuning on this model and 
 Below is an introduction on how to train a Llama3 Chinese Agent model using the SWIFT framework.
 
 ### Environment Setup
-We used Modda's official framework SWIFT for model training: [Jump to here](https://github.com/modelscope/swift/tree/main). Developers who want to train a Chinese version of Llama3 can refer to the following installation method:
+We used Modelscope's official framework SWIFT for model training: [Jump to here](https://github.com/modelscope/swift/tree/main). Developers who want to train a Chinese version of Llama3 can refer to the following installation method:
 
 ```shell
 pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
@@ -49,9 +49,9 @@ pip install -r requirements/llm.txt  -U
 To adapt to Chinese and Agent scenarios, we mixed the corpus in a certain ratio. The corpus used to train Llama3 includes:
 
 - [COIG-CQIA](https://modelscope.cn/datasets/AI-ModelScope/COIG-CQIA/summary) This dataset contains Chinese internet information from sources like traditional Chinese knowledge, Douban, Zhihu, etc.
-- [Modda General Agent Training Dataset](https://modelscope.cn/datasets/AI-ModelScope/ms-agent-for-agentfabric/summary)
+- [Modelscope General Agent Training Dataset](https://modelscope.cn/datasets/AI-ModelScope/ms-agent-for-agentfabric/summary)
 - [alpaca-en](https://modelscope.cn/datasets/AI-ModelScope/alpaca-gpt4-data-en/summary)
-- [ms-bench Modda General Chinese Q&A Dataset](https://modelscope.cn/datasets/iic/ms_bench/summary)
+- [ms-bench Modelscope General Chinese Q&A Dataset](https://modelscope.cn/datasets/iic/ms_bench/summary)
 
 SWIFT supports many other open-source datasets beneficial for training, such as:
 - Firefly Chinese Dataset
@@ -104,8 +104,8 @@ swift sft \
   --lora_alpha 32
 ```
 
-To improve the accuracy of the ReACT format, we increased the weight of some loss fields to retain agent capability performance in Chinese training.
-The trained model can be downloaded from the Modda official website: [Download Link](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
+To improve the accuracy of the ReAct format, we increased the weight of some loss fields to retain agent capability performance in Chinese training.
+The trained model can be downloaded from the Modelscope official website: [Download Link](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
 
 ### Inference Results
 This model has excellent Chinese Q&A capabilities, as shown in the following examples:
