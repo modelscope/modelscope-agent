@@ -1,13 +1,12 @@
-## Long-term memory with Langchain VectorStore
+## 使用 Langchain VectorStore 实现长期记忆
 
-We have already incorporated short-term memory in agent through simply concatenation of history. However, long-term memory can also be introduced through `langchain.vectorstores`. Here is a simple example.
+我们已经通过简单地拼接历史记录在agent中实现了短期记忆。然而，长期记忆也可以通过`langchain.vectorstores`引入。这里是一个简单的例子。
 
-In this example, we build a local vectorstore with some local documents. With each task, a retrieval in vectorstore will be executed first to get relevant information. And this information will be concated with origin query and feed to LLM.
+在这个例子中，我们使用一些本地文档建立了一个本地向量存储。对于每个任务，首先会在向量存储中执行检索以获取相关信息。然后，这些信息将与原始查询拼接并输入到 LLM（大型语言模型）。
 
+### 初始化agent
+这一步骤与其他教程相同。
 
-### Initialize agent
-
-This step is the same as other tutorials.
 ```Python
 # initialize agent
 ...
@@ -16,11 +15,10 @@ agent = AgentExecutor(llm, tool_cfg, additional_tool_list=additional_tool_list, 
 
 ```
 
-### Build vectorstores
+### 构建向量存储
+接下来我们将使用`langchain`组件来构建本地向量存储。
 
-Then we will use `langchain` components to build local vectorstores.
-
-First, We need to specify the embedding to be used. `langchain` have already supported both `ModelScopeEmbeddings` and `DashScopeEmbeddings`
+首先，我们需要指定要使用的嵌入。 `langchain`已经支持`ModelScopeEmbeddings`和`DashScopeEmbeddings`。
 
 ```Python
 # modelscope embeddings
@@ -32,7 +30,7 @@ embeddings = DashScopeEmbeddings(dashscope_api_key="my-api-key", model="text-emb
 
 ```
 
-The we should load local files and use `TextSplitter` to split files into sentences. Here we use `damo/nlp_bert_document-segmentation_chinese-base` model in **ModelScope** as `TextSplitter`.
+然后我们应该加载本地文件，并使用`TextSplitter`将文件按句子分割。这里我们在**ModelScope**中使用`damo/nlp_bert_document-segmentation_chinese-base`模型作为`TextSplitter`。
 
 ```Python
 # ref: https://github.com/chatchat-space/langchain-ChatGLM/blob/master/textsplitter/ali_text_splitter.py
@@ -63,7 +61,7 @@ def load_file(filepaths, sentence_size=100):
 
 ```
 
-With embedding and splited sentences, we can use `FAISS` to build index for further retrieval.
+通过嵌入和分割的句子，我们可以使用`FAISS`来构建索引，以便进行进一步的检索。
 
 ```Python
 filepaths = ['tmp/ms.txt', 'tmp/china.txt', 'tmp/xiyouji.txt']
@@ -75,9 +73,7 @@ docs = load_file(filepaths)
 vector_store = FAISS.from_documents(docs, embeddings)
 ```
 
-### Rewrite query with retrieval
-
-
+### 使用检索重写查询
 
 ```Python
 top_k = 3
@@ -96,7 +92,3 @@ query_without_search = '魔搭安装'
 # rewrite query
 query_with_search = search_query_wrapper(query_without_search)
 ```
-
-
-
-## Gradio demo of ModelScopeGPT

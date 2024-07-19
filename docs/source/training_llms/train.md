@@ -27,7 +27,7 @@ Assistants:
 ```
 
 - 每个数据实例由三个角色组成：system、user和assistant。 LLM应该只关注**assistant**部分。
-- **assistant**部分通常由三个部分组成。 LLM应该只考虑代理通话的内容和最终总结。
+- **assistant**部分通常由三个部分组成。 LLM应该只考虑agent通话的内容和最终总结。
 - 其他不必要的部分使用`IGNORE_INDEX`进行屏蔽，以将它们排除在损失计算之外。
 
 

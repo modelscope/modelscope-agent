@@ -31,4 +31,5 @@ class Retrieval:
                                              **self.vs_params)
         elif isinstance(docs[0], Document):
             self.vs = self.vs_cls.from_documents(docs, self.embedding,
-```                                                 **self.vs_params)
+                                                **self.vs_params)
+```
