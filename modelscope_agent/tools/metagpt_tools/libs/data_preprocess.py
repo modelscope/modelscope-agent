@@ -4,8 +4,7 @@ from typing import Literal
 import json
 import numpy as np
 import pandas as pd
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_registry import \
-    register_tool
+from modelscope_agent.tools.metagpt_tools.tool_registry import register_tool
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import (LabelEncoder, MaxAbsScaler, MinMaxScaler,
                                    OneHotEncoder, OrdinalEncoder, RobustScaler,

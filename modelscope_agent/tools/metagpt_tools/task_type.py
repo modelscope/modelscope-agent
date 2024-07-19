@@ -5,11 +5,10 @@ from pydantic import BaseModel
 # Prompt for taking on "eda" tasks
 EDA_PROMPT = """
 The current task is about exploratory data analysis, please note the following:
-- Distinguish column types with `select_dtypes` for tailored analysis and visualization, such as correlation.
+- Distinguish column types with `select_dtypes` for tailored analysis and visualization.
 - Remember to `import numpy as np` before using Numpy functions.
-- Don't plot every column.
-- Don't check the correlation between all columns.
-- If the dataset is too large no need to calculate all the correlation.
+- don't plot any columns
+
 """
 
 # Prompt for taking on "data_preprocess" tasks
@@ -46,6 +45,10 @@ test separately at the same time.
 MODEL_TRAIN_PROMPT = """
 The current task is about training a model, please ensure high performance:
 - If non-numeric columns exist, perform label encode together with all steps.
+- Keep in mind that your user prioritizes results and is highly focused on model \
+performance. So, when needed, feel free to use models of any complexity to improve \
+effectiveness, such as XGBoost, CatBoost, etc.
+- If the model caused timeout error, please don't use this model again.
 - Use the data from previous task result directly, do not mock or reload data yourself.
 - Set suitable hyperparameters for the model, make metrics as high as possible.
 """

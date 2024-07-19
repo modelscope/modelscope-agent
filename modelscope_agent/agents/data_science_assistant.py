@@ -1,30 +1,25 @@
 # Implementation inspired by the paper "DATA INTERPRETER: AN LLM AGENT FOR DATA SCIENCE"
 import asyncio
-import copy
 import os
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterator, List, Optional, Union
 
 import json
 import json5
 import nbformat
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.task_type import \
-    TaskType
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_recommend import (
-    ToolRecommender, TypeMatchToolRecommender)
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.schemas import CodeCell, Plan, Task
-from modelscope_agent.tools.base import BaseTool
 from modelscope_agent.tools.code_interpreter.code_interpreter_nb import \
     CodeInterpreter
+from modelscope_agent.tools.metagpt_tools.task_type import TaskType
+from modelscope_agent.tools.metagpt_tools.tool_recommend import ToolRecommender
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import parse_code
 
 DATA_SCIENTIST_TEMPLATE = """As a data scientist, you need to help user to achieve their goal step by step in a \
-continuous Jupyter notebook.Since it is a notebook environment, don\'t use asyncio.run. Instead, use await if you
-need to call an async function."""
+continuous Jupyter notebook."""
 PLAN_TEMPLATE = """
 # Context:
 {context}
@@ -77,6 +72,7 @@ the code you need to generate should follow previous code, no need to repeat.
 
 {previous_code}
 
+{data_info}
 
 # Constraints
 - Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
@@ -111,6 +107,8 @@ you can ignore this part.
 
 {previous_code}
 
+{data_info}
+
 ## Generated Code and Error
 the code we have generated for current task is as follows, you can use it as a reference to generate the correct code:
 {code_and_error}
@@ -121,6 +119,8 @@ the code we have generated for current task is as follows, you can use it as a r
 you MUST follow the 'tool_path' in order to successfully import the tool.
 - the code format MUST be followed, otherwise the code interpreter will not be able to parse\
 the code correctly,the code format is as follows:
+- If certain package are not installed in the environment, you can install them by adding the following code:
+!pip install <package_name>
 
 ```python
 # the code you need to write
@@ -145,6 +145,8 @@ which means you can use the variables defined in the previous code blocks.\
 the code you need to generate should follow previous code, no need to repeat.
 
 {previous_code}
+
+{data_info}
 
 # Tool Info (If is empty, you can ignore this part)
 {tool_info}
@@ -183,6 +185,8 @@ you can ignore this part.
 
 {previous_code}
 
+{data_info}
+
 ## Generated Code and Error
 the code we have generated for current task is as follows, you can use it as a reference to generate the correct code:
 {code_and_error}
@@ -195,6 +199,8 @@ the code we have generated for current task is as follows, you can use it as a r
 - Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
 - Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, \
 you MUST follow the 'tool_path' in order to successfully import the tool.
+- If certain package are not installed in the environment, you can install them by adding the following code:
+!pip install <package_name>
 - the code format MUST be followed, otherwise the code interpreter will not be able to parse\
 the code correctly,the code format is as follows:
 
@@ -222,7 +228,49 @@ these are the previous code blocks, which have been executed successfully in the
 Attention: your response should be one of the following:
 - correct, [reason]
 - incorrect, [reason and advice]
+
+don't generate code , just give the reason why the code is correct or incorrect.
 """
+
+CHECK_DATA_PROMPT = """
+# Background
+Check latest data info to guide subsequent tasks.
+
+## Finished Tasks
+```python
+{code_written}
+```end
+
+# Task
+Check code in finished tasks, print key variables to guide your following actions.
+Specifically, if it is a data analysis or machine learning task, print the the latest column information using \
+the following code, with DataFrame variable from 'Finished Tasks' in place of df:
+```python
+from modelscope_agent.tools.metagpt_tools.libs.data_preprocess import get_column_info
+
+column_info = get_column_info(df)
+print("column_info")
+print(column_info)
+```end
+Otherwise, print out any key variables you see fit. Return an empty string if you think there \
+is no important data to check.
+
+# Constraints:
+- Your code is to be added to a new cell in jupyter.
+
+# Instruction
+Output code following the format:
+```python
+your code
+```
+"""
+
+DATA_INFO = """
+# Latest Data Info
+Latest data info after previous tasks:
+{info}
+"""
+
 ERROR_KEYWORDS = ['Error']
 
 
@@ -247,7 +295,6 @@ class DataScienceAssistant(RolePlay):
                  instruction: Union[str, dict] = None,
                  tool_recommender: Optional[ToolRecommender] = None,
                  **kwargs):
-
         super().__init__(
             function_list=function_list,
             llm=llm,
@@ -259,6 +306,7 @@ class DataScienceAssistant(RolePlay):
         self.tool_recommender = tool_recommender
         self.code_interpreter = CodeInterpreter()
         self.plan = None
+        self.total_token = 0
 
     def _update_plan(self, user_request: str, curr_plan: Plan = None) -> Plan:
         call_llm_success = False
@@ -345,7 +393,7 @@ class DataScienceAssistant(RolePlay):
         return task_codes
 
     def _generate_code(self, code_counter: int, task: Task, user_request: str):
-
+        data_info = self._check_data()
         if code_counter == 0:
             # first time to generate code
             if self.tool_recommender:
@@ -357,7 +405,8 @@ class DataScienceAssistant(RolePlay):
                     user_request=user_request,
                     task_guidance=TaskType.get_type(task.task_type).guidance,
                     previous_code=self._get_previous_code_blocks(),
-                    tool_info=tool_info)
+                    tool_info=tool_info,
+                    data_info=data_info)
 
             else:
                 prompt = CODE_TEMPLATE.format(
@@ -365,7 +414,8 @@ class DataScienceAssistant(RolePlay):
                     user_request=user_request,
                     task_guidance=TaskType.get_type(task.task_type).guidance,
                     previous_code=self._get_previous_code_blocks(),
-                )
+                    data_info=data_info)
+
         else:
             # reflect the error and ask user to fix the code
             if self.tool_recommender:
@@ -378,14 +428,16 @@ class DataScienceAssistant(RolePlay):
                     previous_code=self._get_previous_code_blocks(),
                     code_and_error=self._get_task_codes(task),
                     user_request=user_request,
-                    tool_info=tool_info)
+                    tool_info=tool_info,
+                    data_info=data_info)
             else:
                 prompt = CODE_REFLECT_TEMPLATE.format(
                     instruction=task.instruction,
                     task_guidance=TaskType.get_type(task.task_type).guidance,
                     previous_code=self._get_previous_code_blocks(),
                     code_and_error=self._get_task_codes(task),
-                    user_request=user_request)
+                    user_request=user_request,
+                    data_info=data_info)
         print(
             f'code generate prompt for task{task.task_id} count{code_counter}: \n{prompt}'
         )
@@ -403,6 +455,7 @@ class DataScienceAssistant(RolePlay):
             try:
                 for s in resp:
                     llm_result += s
+                self._get_total_tokens()
                 if 'Error code' in llm_result:
                     raise AttributeError
                 code = parse_code(text=llm_result, lang='python')
@@ -433,6 +486,54 @@ class DataScienceAssistant(RolePlay):
                 previous_code_blocks += task.code + '\n'
         return previous_code_blocks
 
+    def _check_data(self):
+        if (not self.plan.get_finished_tasks()
+                or self.plan.current_task.task_type not in [
+                    TaskType.DATA_PREPROCESS.type_name,
+                    TaskType.FEATURE_ENGINEERING.type_name,
+                    TaskType.MODEL_TRAIN.type_name
+                ]):  # noqa
+            return ''
+
+        prompt = CHECK_DATA_PROMPT.format(
+            code_written=self._get_previous_code_blocks_without_outputs())
+        print(f'check data prompt: \n {prompt}')
+        messages = [{'role': 'user', 'content': prompt}]
+        call_llm_count = 0
+        call_llm_success = False
+        code = ''
+        while call_llm_count < 5 and not call_llm_success:
+            try:
+                resp = self._call_llm(
+                    prompt=None,
+                    messages=messages,
+                    stop=None,
+                )
+                code = ''
+                for s in resp:
+                    code += s
+                self._get_total_tokens()
+                if 'Error code' in code:
+                    call_llm_count += 1
+                    time.sleep(10)
+                else:
+                    call_llm_success = True
+                code = parse_code(text=code, lang='python')
+            except Exception as e:
+                logger.error(e)
+                call_llm_count += 1
+                call_llm_success = False
+                time.sleep(10)
+        if not call_llm_success:
+            raise Exception('call llm failed')
+        print(f'check data code: \n {code}')
+        success, result = self.code_interpreter.call(
+            params=json.dumps({'code': code}), nb_mode=True)
+        del self.code_interpreter.nb.cells[-1]
+        if success:
+            print(f'check data result: \n {result}')
+            return DATA_INFO.format(info=result)
+
     def _judge_code(self, task, previous_code_blocks, code,
                     code_interpreter_resp):
         success = True
@@ -455,6 +556,7 @@ class DataScienceAssistant(RolePlay):
             judge_result = ''
             for s in resp:
                 judge_result += s
+            self._get_total_tokens()
             if 'Error code' in judge_result:
                 call_llm_count += 1
                 time.sleep(10)
@@ -550,7 +652,12 @@ class DataScienceAssistant(RolePlay):
             if save:
                 after_time = time.time()
                 time_cost = after_time - before_time
-                plan_dict = {'time_cost': time_cost, 'plan': self.plan.tasks}
+                total_token = self.total_token
+                plan_dict = {
+                    'time_cost': time_cost,
+                    'total_token': total_token,
+                    'plan': self.plan.tasks
+                }
                 with open(
                         dir_name + 'plan.json', 'w', encoding='utf-8') as file:
                     file.write(
@@ -559,3 +666,12 @@ class DataScienceAssistant(RolePlay):
         except Exception as e:
             logger.error(f'error: {e}')
             raise e
+
+    def _get_total_tokens(self):
+        try:
+            print(f'usage: {str(self.llm.get_usage())}')
+            self.total_token += self.llm.get_usage().get('total_tokens')
+            print(f'total token: {self.total_token}')
+        except Exception as e:
+            print(f'get total token error: {e}')
+        pass

@@ -4,13 +4,11 @@ from typing import Any
 import json
 import numpy as np
 from modelscope_agent import Agent
-from modelscope_agent.agents.data_science_assistant.metagpt_tools import \
-    TOOL_REGISTRY
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_data_type import \
-    Tool
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_registry import \
-    validate_tool_names
 from modelscope_agent.schemas import Plan
+from modelscope_agent.tools.metagpt_tools import TOOL_REGISTRY
+from modelscope_agent.tools.metagpt_tools.tool_data_type import Tool
+from modelscope_agent.tools.metagpt_tools.tool_registry import \
+    validate_tool_names
 from modelscope_agent.utils.utils import parse_code
 from pydantic import BaseModel, field_validator
 from rank_bm25 import BM25Okapi

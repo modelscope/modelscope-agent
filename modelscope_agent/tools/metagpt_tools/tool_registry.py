@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-"""
-@Time    : 2023/01/12 17:07
-@Author  : garylin2099
-@File    : tool_registry.py
-"""
 from __future__ import annotations
 import inspect
 import os
@@ -11,13 +5,13 @@ from collections import defaultdict
 from pathlib import Path
 
 import yaml
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_convert import (
+from modelscope_agent.tools.metagpt_tools.tool_convert import (
     convert_code_to_tool_schema, convert_code_to_tool_schema_ast)
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_data_type import (
-    Tool, ToolSchema)
+from modelscope_agent.tools.metagpt_tools.tool_data_type import (Tool,
+                                                                 ToolSchema)
 from pydantic import BaseModel
 
-TOOL_SCHEMA_PATH = 'modelscope_agent.agents.data_science_assistant.metagpt_tools.schemas'
+TOOL_SCHEMA_PATH = 'modelscope_agent/tools/metagpt_tools/schemas'
 
 
 class ToolRegistry(BaseModel):

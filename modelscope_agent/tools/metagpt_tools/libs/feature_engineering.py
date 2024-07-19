@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# @Time    : 2023/11/17 10:33
-# @Author  : lidanyang
-# @File    : feature_engineering.py
-# @Desc    : Feature Engineering Tools
 from __future__ import annotations
 import itertools
 
@@ -10,10 +5,8 @@ import itertools
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.libs.data_preprocess import \
-    MLProcess
-from modelscope_agent.agents.data_science_assistant.metagpt_tools.tool_registry import \
-    register_tool
+from modelscope_agent.tools.metagpt_tools.libs.data_preprocess import MLProcess
+from modelscope_agent.tools.metagpt_tools.tool_registry import register_tool
 from pandas.core.dtypes.common import is_object_dtype
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import KFold
