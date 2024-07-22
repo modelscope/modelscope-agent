@@ -45,9 +45,7 @@ def check_uuid(uuid_str):
 
 def init_user(state, _user_token=None):
     try:
-        allow_tool_hub = False  # modelscope-agent < 0.6.4 will be false to disable tool hub
-        in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT',
-                                 'None') == 'studio' and allow_tool_hub
+        in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT', 'None') == 'studio'
         seed = state.get('session_seed', random.randint(0, 1000000000))
         # use tool api in ms studio
         user_agent, user_memory = init_user_chatbot_agent(

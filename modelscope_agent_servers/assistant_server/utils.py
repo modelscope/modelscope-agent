@@ -1,28 +1,10 @@
+import re
 from typing import List
 
 import json
 from modelscope_agent_servers.assistant_server.models import (
     ChatCompletionResponse, ChatCompletionResponseChoice,
     ChatCompletionResponseStreamChoice, ChatMessage, DeltaMessage)
-
-
-def parse_tool_result(llm_result: str):
-    """
-    Args:
-        llm_result: the result from the model
-
-    Returns: dict
-
-    """
-    try:
-        import re
-        import json
-        result = re.search(r'Action: (.+)\nAction Input: (.+)', llm_result)
-        action = result.group(1)
-        action_input = json.loads(result.group(2))
-        return action, action_input
-    except Exception:
-        return None, None
 
 
 def parse_messages(messages: List[ChatMessage]):
@@ -75,9 +57,7 @@ def stream_choice_wrapper(response, model, request_id, llm):
     yield 'data: [DONE]\n\n'
 
 
-def choice_wrapper(response: str,
-                   tool_name: str = None,
-                   tool_inputs: dict = None):
+def choice_wrapper(response: str, tool_list: list = []):
     """
     output should be in the format of openai choices
     "choices": [
@@ -102,7 +82,8 @@ def choice_wrapper(response: str,
       ],
 
     Args:
-        response: the chatresponse object
+        tool_list:  the tool list from the output of llm
+        response: the chat response object
 
     Returns: dict
 
@@ -115,14 +96,12 @@ def choice_wrapper(response: str,
             'content': response,
         }
     }
-    if tool_name is not None:
-        choice['message']['tool_calls'] = [{
-            'type': 'function',
-            'function': {
-                'name': tool_name,
-                'arguments': json.dumps(tool_inputs, ensure_ascii=False)
-            }
-        }]
+    if len(tool_list) > 0:
+        tool_calls = []
+        for item in tool_list:
+            tool_dict = {'type': 'function', 'function': item}
+            tool_calls.append(tool_dict)
+        choice['message']['tool_calls'] = tool_calls
         choice['finish_reason'] = 'tool_calls'
     else:
         choice['finish_reason'] = 'stop'

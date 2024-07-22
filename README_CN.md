@@ -13,6 +13,9 @@
 
 <p align="center">
 <img src="https://img.shields.io/badge/python-%E2%89%A53.8-5be.svg">
+<a href='https://modelscope-agent.readthedocs.io/zh-cn/latest/?badge=latest'>
+    <img src='https://readthedocs.org/projects/modelscope-agent/badge/?version=latest' alt='Documentation Status' />
+</a>
 <a href="https://github.com/modelscope/modelscope-agent/"><img src="https://img.shields.io/badge/modelscope[framework]-%E2%89%A51.16.0-5D91D4.svg"></a>
 <a href="https://github.com/modelscope/modelscope-agent/actions?query=branch%3Amaster+workflow%3Acitest++"><img src="https://img.shields.io/github/actions/workflow/status/modelscope/modelscope-agent/citest.yaml?branch=master&logo=github&label=CI
 "></a>
@@ -37,7 +40,8 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 
 ## 更新
-* 🔥🔥June 17, 2024: 基于llama-index的RAG链路升级，支持混合搜索（多策略，多模态），相关详情具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/rag/README_zh.md).
+* 🔥July 17, 2024: Modelscope-Agent-Server支持并行工具生成(parallel_tool_calls)[doc](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/README.md).
+* 🔥June 17, 2024: 基于llama-index的RAG链路升级，支持混合搜索（多策略，多模态），相关详情具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/rag/README_zh.md).
 * 🔥June 6, 2024: 通过利用[Modelscope-Agent-Server](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/README.md)，**Qwen2**可以通过OpenAI的SDK实现tool calling的能力，具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/docs/llms/qwen2_tool_calling.md).
 * 🔥June 4, 2024: modelscope agent支持了基于android adb环境的Mobile-Agent-v2[arxiv](https://arxiv.org/abs/2406.01014)，[相关应用](https://github.com/modelscope/modelscope-agent/tree/master/apps/mobile_agent).
 * 🔥May 17, 2024: 在Ray的基础上，支持了多人聊天室的应用，一键快速开发聊天室，参考[多人聊天应用](https://github.com/modelscope/modelscope-agent/tree/master/apps/multi_roles_chat_room)

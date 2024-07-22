@@ -85,6 +85,9 @@ class ChatCompletionRequest(BaseModel):
     messages: List[ChatMessage]
     tools: Optional[List[Dict]] = Field(None, title='Tools config')
     tool_choice: Optional[str] = Field('auto', title='tool usage choice')
+    parallel_tool_calls: Optional[bool] = Field(
+        True,
+        title='Whether to enable parallel function calling during tool use.')
     stream: Optional[bool] = Field(False, title='Stream output')
     user: str = Field('default_user', title='User name')
 

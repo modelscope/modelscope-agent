@@ -59,8 +59,12 @@ def test_agent_run(tester_agent):
 
 def test_agent_call_tool(tester_agent):
     # Mocking a simple response from the tool for testing purposes
-    response = tester_agent._call_tool('mock_tool', 'tool response')
-    assert response == 'tool response'
+    tool_list = [{
+        'name': 'mock_tool',
+        'arguments': '{\"test\": \"tool response\"}'
+    }]
+    response = tester_agent._call_tool(tool_list)
+    assert response == '{\"test\": \"tool response\"}'
 
 
 def test_agent_parse_image_url(tester_agent):

@@ -5,6 +5,10 @@ from typing import Dict, List, Optional, Tuple, Union
 from modelscope_agent import Agent
 from modelscope_agent.agent_env_util import AgentEnvMixin
 from modelscope_agent.llm.base import BaseChatModel
+from modelscope_agent.llm.utils.function_call_with_raw_prompt import (
+    DEFAULT_EXEC_TEMPLATE, SPECIAL_PREFIX_TEMPLATE_TOOL,
+    SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT, TOOL_TEMPLATE,
+    convert_tools_to_prompt, detect_multi_tool)
 from modelscope_agent.tools.base import BaseTool
 from modelscope_agent.utils.base64_utils import encode_files_to_base64
 from modelscope_agent.utils.logger import agent_logger as logger
@@ -16,23 +20,6 @@ KNOWLEDGE_TEMPLATE_ZH = """
 # 知识库
 
 {ref_doc}
-
-"""
-
-TOOL_TEMPLATE_ZH = """
-# 工具
-
-## 你拥有如下工具：
-
-{tool_descs}
-
-## 当你需要调用工具时，请在你的回复中穿插如下的工具调用命令，可以根据需求调用零次或多次：
-
-工具调用
-Action: 工具的名称，必须是[{tool_names}]之一
-Action Input: 工具的输入
-Observation: <result>工具返回的结果</result>
-Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请使用如下格式展示出来：![图片](url)
 
 """
 
@@ -52,24 +39,6 @@ KNOWLEDGE_TEMPLATE_EN = """
 
 """
 
-TOOL_TEMPLATE_EN = """
-# Tools
-
-## You have the following tools:
-
-{tool_descs}
-
-## When you need to call a tool, please intersperse the following tool command in your reply. %s
-
-Tool Invocation
-Action: The name of the tool, must be one of [{tool_names}]
-Action Input: Tool input
-Observation: <result>Tool returns result</result>
-Answer: Summarize the results of this tool call based on Observation. If the result contains url, %s
-
-""" % ('You can call zero or more times according to your needs:',
-       'please display it in the following format:![Image](URL)')
-
 PROMPT_TEMPLATE_EN = """
 #Instructions
 
@@ -79,11 +48,6 @@ Note: you have the ability to display images and videos, as well as the ability 
 """
 
 KNOWLEDGE_TEMPLATE = {'zh': KNOWLEDGE_TEMPLATE_ZH, 'en': KNOWLEDGE_TEMPLATE_EN}
-
-TOOL_TEMPLATE = {
-    'zh': TOOL_TEMPLATE_ZH,
-    'en': TOOL_TEMPLATE_EN,
-}
 
 PROMPT_TEMPLATE = {
     'zh': PROMPT_TEMPLATE_ZH,
@@ -105,16 +69,6 @@ SPECIAL_PREFIX_TEMPLATE_ROLE = {
     'en': 'You are playing as {role_name}',
 }
 
-SPECIAL_PREFIX_TEMPLATE_TOOL = {
-    'zh': '。你可以使用工具：[{tool_names}]',
-    'en': '. you can use tools: [{tool_names}]',
-}
-
-SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT = {
-    'zh': '。你必须使用工具中的一个或多个：[{tool_names}]',
-    'en': '. you must use one or more tools: [{tool_names}]',
-}
-
 SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE = {
     'zh': '。请查看前面的知识库',
     'en': '. Please read the knowledge base at the beginning',
@@ -124,13 +78,6 @@ SPECIAL_PREFIX_TEMPLATE_FILE = {
     'zh': '[上传文件 "{file_names}"]',
     'en': '[Upload file "{file_names}"]',
 }
-
-DEFAULT_EXEC_TEMPLATE = """\nObservation: <result>{exec_result}</result>\nAnswer:"""
-
-ACTION_TOKEN = 'Action:'
-ARGS_TOKEN = 'Action Input:'
-OBSERVATION_TOKEN = 'Observation:'
-ANSWER_TOKEN = 'Answer:'
 
 
 class RolePlay(Agent, AgentEnvMixin):
@@ -147,6 +94,33 @@ class RolePlay(Agent, AgentEnvMixin):
                        description, instruction, **kwargs)
         AgentEnvMixin.__init__(self, **kwargs)
 
+    def _prepare_tool_system(self,
+                             tools: Optional[List] = None,
+                             parallel_tool_calls: bool = False,
+                             lang='zh'):
+        # prepare the tool description and tool names with parallel function calling
+        tool_desc_template = TOOL_TEMPLATE[
+            lang + ('_parallel' if parallel_tool_calls else '')]
+
+        if tools is not None:
+            tool_descs = BaseTool.parser_function(tools)
+            tool_name_list = []
+            for tool in tools:
+                func_info = tool.get('function', {})
+                if func_info == {}:
+                    continue
+                if 'name' in func_info:
+                    tool_name_list.append(func_info['name'])
+            tool_names = ','.join(tool_name_list)
+        else:
+            tool_descs = '\n\n'.join(tool.function_plain_text
+                                     for tool in self.function_map.values())
+            tool_names = ','.join(tool.name
+                                  for tool in self.function_map.values())
+        tool_system = tool_desc_template.format(
+            tool_descs=tool_descs, tool_names=tool_names)
+        return tool_names, tool_system
+
     def _run(self,
              user_request,
              history: Optional[List[Dict]] = None,
@@ -158,24 +132,11 @@ class RolePlay(Agent, AgentEnvMixin):
         chat_mode = kwargs.pop('chat_mode', False)
         tools = kwargs.get('tools', None)
         tool_choice = kwargs.get('tool_choice', 'auto')
+        parallel_tool_calls = kwargs.get('parallel_tool_calls',
+                                         True if chat_mode else False)
 
-        if tools is not None:
-            self.tool_descs = BaseTool.parser_function(tools)
-            tool_name_list = []
-            for tool in tools:
-                func_info = tool.get('function', {})
-                if func_info == {}:
-                    continue
-                if 'name' in func_info:
-                    tool_name_list.append(func_info['name'])
-            self.tool_names = ','.join(tool_name_list)
-        else:
-            self.tool_descs = '\n\n'.join(
-                tool.function_plain_text
-                for tool in self.function_map.values())
-            self.tool_names = ','.join(tool.name
-                                       for tool in self.function_map.values())
-
+        tool_names, tool_system = self._prepare_tool_system(
+            tools, parallel_tool_calls, lang)
         self.system_prompt = ''
         self.query_prefix = ''
         self.query_prefix_dict = {'role': '', 'tool': '', 'knowledge': ''}
@@ -197,11 +158,10 @@ class RolePlay(Agent, AgentEnvMixin):
                 'knowledge'] = SPECIAL_PREFIX_TEMPLATE_KNOWLEDGE[lang]
 
         # concat tools information
-        if self.tool_descs and not self.llm.support_function_calling():
-            self.system_prompt += TOOL_TEMPLATE[lang].format(
-                tool_descs=self.tool_descs, tool_names=self.tool_names)
+        if tool_system and not self.llm.support_function_calling():
+            self.system_prompt += tool_system
             self.query_prefix_dict['tool'] = SPECIAL_PREFIX_TEMPLATE_TOOL[
-                lang].format(tool_names=self.tool_names)
+                lang].format(tool_names=tool_names)
 
         # concat instruction
         if isinstance(self.instruction, dict):
@@ -242,7 +202,7 @@ class RolePlay(Agent, AgentEnvMixin):
         # concat the new messages
         if chat_mode and tool_choice == 'required':
             required_prefix = SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT[
-                lang].format(tool_names=self.tool_names)
+                lang].format(tool_names=tool_names)
             messages.append({
                 'role': 'user',
                 'content': required_prefix + user_request
@@ -295,25 +255,25 @@ class RolePlay(Agent, AgentEnvMixin):
                     llm_result += s
                 yield s
 
+            use_tool = False
+            tool_list = []
             if isinstance(llm_result, str):
-                use_tool, action, action_input, output = self._detect_tool(
-                    llm_result)
+                use_tool, tool_list, output = detect_multi_tool(llm_result)
             elif isinstance(llm_result, dict):
-                use_tool, action, action_input, output = super()._detect_tool(
-                    llm_result)
+                use_tool, tool_list, output = super()._detect_tool(llm_result)
             else:
                 assert 'llm_result must be an instance of dict or str'
 
             if chat_mode:
                 if use_tool and tool_choice != 'none':
-                    return f'Action: {action}\nAction Input: {action_input}\nResult: {output}'
+                    return convert_tools_to_prompt(tool_list)
                 else:
                     return f'Result: {output}'
 
             # yield output
             if use_tool:
                 if self.llm.support_function_calling():
-                    yield f'Action: {action}\nAction Input: {action_input}'
+                    yield convert_tools_to_prompt(tool_list)
 
                 if self.use_tool_api:
                     # convert all files with base64, for the tool instance usage in case.
@@ -321,7 +281,8 @@ class RolePlay(Agent, AgentEnvMixin):
                     kwargs['base64_files'] = encoded_files
                     kwargs['use_tool_api'] = True
 
-                observation = self._call_tool(action, action_input, **kwargs)
+                # currently only one observation execute, parallel
+                observation = self._call_tool(tool_list, **kwargs)
                 format_observation = DEFAULT_EXEC_TEMPLATE.format(
                     exec_result=observation)
                 yield format_observation
@@ -359,26 +320,6 @@ class RolePlay(Agent, AgentEnvMixin):
             DEFAULT_EXEC_TEMPLATE.format(exec_result=' '))
         limited_observation = str(observation)[:int(reasonable_length)]
         return DEFAULT_EXEC_TEMPLATE.format(exec_result=limited_observation)
-
-    def _detect_tool(self, message: Union[str,
-                                          dict]) -> Tuple[bool, str, str, str]:
-        assert isinstance(message, str)
-        text = message
-        func_name, func_args = None, None
-        i = text.rfind(ACTION_TOKEN)
-        j = text.rfind(ARGS_TOKEN)
-        k = text.rfind(OBSERVATION_TOKEN)
-        if 0 <= i < j:  # If the text has `Action` and `Action input`,
-            if k < j:  # but does not contain `Observation`,
-                # then it is likely that `Observation` is ommited by the LLM,
-                # because the output text may have discarded the stop word.
-                text = text.rstrip() + OBSERVATION_TOKEN  # Add it back.
-            k = text.rfind(OBSERVATION_TOKEN)
-            func_name = text[i + len(ACTION_TOKEN):j].strip()
-            func_args = text[j + len(ARGS_TOKEN):k].strip()
-            text = text[:k]  # Discard '\nObservation:'.
-
-        return (func_name is not None), func_name, func_args, text
 
     def _parse_role_config(self, config: dict, lang: str = 'zh') -> str:
         """
