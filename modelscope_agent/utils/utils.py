@@ -331,6 +331,6 @@ def parse_code(text: str, lang: str = '') -> str:
     else:
         logger.error(f'{pattern} not match following text:')
         logger.error(text)
-        raise Exception
+        raise Exception('Code Pattern Not Matched')
         return ''  # just assume original text is code
     return code
