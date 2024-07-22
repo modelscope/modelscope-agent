@@ -1,12 +1,12 @@
-## Llama3 Chinese General Agent Fine-Tuned Model
+# Llama3 Chinese General Agent Fine-Tuned Model
 Since the Llama3 model was announced on April 18, Chinese developers have conducted extensive training and adaptation on the Llama3 model. In addition to the Chinese pure text model, multi-modal versions are also being released.
 
-### Introduction
+## Introduction
 Since the Llama3 model was announced on April 18, Chinese developers have conducted extensive training and adaptation on the Llama3 model. In addition to the Chinese pure text model, multi-modal versions are also being released. Considering the demand for Agent scenarios among domestic users, Modelscope Community's LLM&AIGC model fine-tuning and inference framework SWIFT has trained a general Chinese model based on the original Llama3-8b-instruct version, retaining and adapting Chinese Agent capabilities. This is the first general Agent Llama3 model in the open-source community that is fully adapted to the Chinese environment, with a more comprehensive evaluation report to follow.
 
 [Model Link](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
 
-### Usage
+## Usage
 It is recommended for users to use swift for direct inference or deployment:
 
 ```shell
@@ -31,7 +31,7 @@ We also encourage developers to perform secondary fine-tuning on this model and 
 
 Below is an introduction on how to train a Llama3 Chinese Agent model using the SWIFT framework.
 
-### Environment Setup
+## Environment Setup
 We used Modelscope's official framework SWIFT for model training: [Jump to here](https://github.com/modelscope/swift/tree/main). Developers who want to train a Chinese version of Llama3 can refer to the following installation method:
 
 ```shell
@@ -45,7 +45,7 @@ pip install -r requirements/framework.txt  -U
 pip install -r requirements/llm.txt  -U
 ```
 
-### Data Preparation
+## Data Preparation
 To adapt to Chinese and Agent scenarios, we mixed the corpus in a certain ratio. The corpus used to train Llama3 includes:
 
 - [COIG-CQIA](https://modelscope.cn/datasets/AI-ModelScope/COIG-CQIA/summary) This dataset contains Chinese internet information from sources like traditional Chinese knowledge, Douban, Zhihu, etc.
@@ -107,7 +107,7 @@ swift sft \
 To improve the accuracy of the ReAct format, we increased the weight of some loss fields to retain agent capability performance in Chinese training.
 The trained model can be downloaded from the Modelscope official website: [Download Link](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
 
-### Inference Results
+## Inference Results
 This model has excellent Chinese Q&A capabilities, as shown in the following examples:
 
 General Q&A:
@@ -131,7 +131,7 @@ Classical Chinese Translation:
 Coding Capability:
 ![Coding Capability](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_3d2b0b206d0f42b29f339fc7829ff1e3.png)
 
-### Evaluation
+## Evaluation
 We used the `swift eval` command to evaluate the general capabilities of the model before and after training. The results are as follows:
 
 | Model Evaluation          | ARC     | CEVAL   | GSM8K   |
@@ -147,7 +147,7 @@ Developers can also use the swift framework to evaluate other models. The comman
 swift eval --model_type llama3-8b-instruct --model_id_or_type LLM-Research/Meta-Llama-3-8B-Instruct --infer_backend pt --eval_dataset ceval arc
 ```
 
-### Usage with ModelScope-Agent
+## Usage with ModelScope-Agent
 For usage with ModelScope-Agent, please refer to our official documentation: [Official Documentation](https://github.com/modelscope/swift/blob/main/docs/source/LLM/Agent%E5%BE%AE%E8%B0%83%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5.md#%E5%9C%A8%E5%91%BD%E4%BB%A4%E8%A1%8C%E4%B8%AD%E4%BD%BF%E7%94%A8agent)
 
 After deploying the service, we can verify its API call effectiveness in AgentFabric. For example, with weather queries, you can see:
@@ -166,6 +166,6 @@ The model can complete the query as required by the system.
 ![Return Result 2](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_afb4bf7b772e436db83ee7dbde29ca06.png)
 ![Return Result 3](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_9b065388cb274c5db157191c9e1a7a17.png)
 
-### Areas for Improvement
+## Areas for Improvement
 1. The original Llama3 English model has some CoT capabilities. When training for Chinese, some knowledge was lost. This issue will continue to be addressed in the V2 version.
 2. The proportion of English corpus needs adjustment to ensure the original English capabilities (such as sensitive metrics like GSM8K).

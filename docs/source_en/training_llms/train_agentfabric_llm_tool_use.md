@@ -282,13 +282,13 @@ GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 ```
 
 Then, enter the server IP:7860 in the browser to open and you should see the following interface:
-![agentfabric_0](../resource/agentfabric_0.png)
+![agentfabric_0](../../resource/agentfabric_0.png)
 Select the capabilities that the agent can call from the built-in abilities. Here, select `Wanx Image Generation` and `Amap Weather`. Click Update Configuration. Once the configuration is completed, you can interact with the Agent in the input field on the right side.
 
 > Weather Query
-![agentfabric_1](../resource/agentfabric_1.png)
-![agentfabric_2](../resource/agentfabric_2.png)
+![agentfabric_1](../../resource/agentfabric_1.png)
+![agentfabric_2](../../resource/agentfabric_2.png)
 
 > Text-to-Image
-![agentfabric_1](../resource/agentfabric_3.png)
-![agentfabric_2](../resource/agentfabric_4.png)
+![agentfabric_1](../../resource/agentfabric_3.png)
+![agentfabric_2](../../resource/agentfabric_4.png)

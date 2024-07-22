@@ -1,4 +1,4 @@
-# Tools
+# Tools Module
 
 We offer a variety of multi-domain default pipeline tools integrated within ModelScope.
 
@@ -32,7 +32,7 @@ class AliyunRenewInstanceTool(BaseTool):
         return str({'result': f'已完成ECS实例ID为{instance_id}的续费，续费时长{period}月'})
 ```
 
-You can also refer to the demo we provide for guidance on how to use a new tool in [demo_register_new_tool](../../demo/demo_register_new_tool.ipynb)
+You can also refer to the demo we provide for guidance on how to use a new tool in [demo_register_new_tool](../../../examples/tools/register_new_tool.ipynb)
 
 Furthermore, if the tool is a `langchain tool`, you can directly use our `LangchainTool` to wrap and adapt it to the current framework.
 

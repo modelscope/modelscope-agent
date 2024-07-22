@@ -1,4 +1,4 @@
-## Callback
+# Callback
 
 We have provided callback mechanism that allows users to customize code execution at key stages during Agent's execution, facilitating features like logging.
 
@@ -23,7 +23,7 @@ bot = RolePlay(function_list=function_list,llm=llm_config, instruction=role_temp
 bot.run('xxx')
 ```
 
-### RunStateCallback
+## RunStateCallback
 
 Additionally, we offer the `RunStateCallback` for capturing intermediate states during the `Agent`'s operation, such as tool execution results or RAG recall results. When `RunStateCallback` is used, the results of each call can be accessed through the `run_states` attribute. An example structure of `run_states` could be as follows:
 ```Python

@@ -1,11 +1,12 @@
-## Code Interpreter
+# 代码解释器应用案例
+
 本文介绍Agent自带的Code Interpreter有哪些高级而实用的能力
-### Code Interpreter（代码解释器）是什么？
+## Code Interpreter（代码解释器）是什么？
 简单来说，它赋予了语言模型运行Python代码的能力，用户只需用自然语言告诉模型任务是什么，模型就能编写相对应的Python代码并执行，来解决任务。
 
 作为Agent的内置工具，当Agent会写代码又会执行代码，想象力的边界将被无限扩展，即使不会代码也能让大模型+代码高效快捷地完成我们想要的工作。
 
-### Code Interpreter（代码解释器）可以做什么？
+## Code Interpreter（代码解释器）可以做什么？
 - 生成二维码，将链接地址秒转二维码图片
 - 图片处理，如图片分割并转gif
 - 文件类型转换，如pdf转txt
@@ -16,13 +17,13 @@
 
 甚至可以作为自定义API调用的controller，只有你想不到没有做不到！
 
-### 应用案例
+## 应用案例
 
-#### Agent配置示例
+### Agent配置示例
 
 ![agent配置示例](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_b7f0bdaa4dd340f594fe7ac327c64d6d.png)
 
-#### Agent构建的推荐Prompt
+### Agent构建的推荐Prompt
 
 Name: Python编程专家
 
@@ -41,7 +42,7 @@ Instructions:
 
 ![示例2](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_af6736e308b54542a9fe689473f11e2f.png)
 
-#### 功能演示
+### 功能演示
 1. 生成二维码
    ![生成二维码](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_a573b4a3b3bc4e0497ec26c087be014e.png)
 2. 文件类型转换：pdf转txt

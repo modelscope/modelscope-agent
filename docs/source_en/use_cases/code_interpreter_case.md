@@ -1,10 +1,10 @@
-## Code Interpreter
+# Code Interpreter
 This article introduces the advanced and practical capabilities of the Code Interpreter that comes with the Agent.
 
-### What is the Code Interpreter?
+## What is the Code Interpreter?
 Simply, it gives the language model the ability to run Python code. Users can tell the model the task using natural language, and the model will write and execute the corresponding Python code to solve the task. As a built-in tool for the Agent, when the Agent can write and execute code, the boundaries of imagination will be infinitely expanded. Even if you don't know how to code, you can efficiently and quickly accomplish tasks with the large model plus code.
 
-### What can the Code Interpreter do?
+## What can the Code Interpreter do?
 - Generate QR codes: Instantly convert link addresses to QR code images.
 - Image processing: For example, segment an image and convert it to a GIF.
 - File type conversion: For example, convert PDF to TXT.
@@ -15,10 +15,10 @@ Simply, it gives the language model the ability to run Python code. Users can te
 
 It can even act as a controller for custom API calls. The only limit is your imagination!
 
-### Application Examples
-#### Agent Configuration Example
+## Application Examples
+### Agent Configuration Example
 ![Agent Configuration Example](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_b7f0bdaa4dd340f594fe7ac327c64d6d.png)
-#### Recommended Prompt for Agent Construction
+### Recommended Prompt for Agent Construction
 Name: Python Programming Expert
 Description: When solving tasks using Python, you can run the code and obtain results. If there are errors in the results, you need to improve the code as much as possible. You can handle files uploaded by the user to the computer.
 Instructions:
@@ -32,7 +32,7 @@ Instructions:
 Ensure to check the code interpreter option in the configuration.
 ![Example 2](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_af6736e308b54542a9fe689473f11e2f.png)
 
-#### Function Demonstration
+### Function Demonstration
 1. Generate QR Code
    ![Generate QR Code](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_a573b4a3b3bc4e0497ec26c087be014e.png)
 2. File Type Conversion: PDF to TXT

@@ -1,14 +1,14 @@
-## Llama3 中文通用Agent微调模型
+# Llama3 中文通用Agent微调模型
 
 Llama3模型在4月18日公布后，国内开发者对Llama3模型进行了很多训练和适配，除了中文纯文本模型外，多模态版本也陆续在发布中。
 
-### 前言
+## 前言
 
 Llama3模型在4月18日公布后，国内开发者对Llama3模型进行了很多训练和适配，除了中文纯文本模型外，多模态版本也陆续在发布中。考虑到国内用户对Agent场景的需求，魔搭社区LLM&AIGC模型微调推理框架SWIFT基于Llama3-8b-instruct原始版本训练了通用中文模型，并保留且适配了中文Agent能力，这是开源社区中率先完整适配中文环境的通用Agent Llama3模型，后续会有更完整的评测报告产出。
 
 [模型链接](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
 
-### 使用方式
+## 使用方式
 
 推荐用户直接使用swift进行推理或部署：
 
@@ -35,7 +35,7 @@ swift deploy --model_type llama3-8b-instruct --model_id_or_path swift/Llama3-Chi
 
 下面介绍如何使用SWIFT框架训练Llama3中文Agent模型
 
-### 环境准备
+## 环境准备
 
 我们使用了魔搭官方框架SWIFT进行模型训练：[此处跳转](https://github.com/modelscope/swift/tree/main)，开发者如果希望训练Llama3中文版本可以参考下面的安装方式:
 
@@ -50,7 +50,7 @@ pip install -r requirements/framework.txt  -U
 pip install -r requirements/llm.txt  -U
 ```
 
-### 数据准备
+## 数据准备
 
 为了适配中文及Agent场景，我们针对语料进行了一定混合配比，训练Llama3使用的语料如下：
 
@@ -115,7 +115,7 @@ swift sft \
 
 训练后的模型可以在魔搭官网上下载： [下载地址](https://modelscope.cn/models/swift/Llama3-Chinese-8B-Instruct-Agent-v1/summary)
 
-### 推理效果
+## 推理效果
 
 该模型具备良好的中文问答能力，示例如下：
 
@@ -146,7 +146,7 @@ swift sft \
 
 ![代码能力](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_3d2b0b206d0f42b29f339fc7829ff1e3.png)
 
-### 评测
+## 评测
 
 我们使用swift的eval命令对训练模型的前后进行了通用能力评测，结果如下：
 
@@ -163,7 +163,7 @@ swift sft \
 swift eval --model_type llama3-8b-instruct --model_id_or_type LLM-Research/Meta-Llama-3-8B-Instruct --infer_backend pt --eval_dataset ceval arc
 ```
 
-### 和ModelScope-Agent联用
+## 和ModelScope-Agent联用
 
 在ModelScope-Agent中使用可以参考我们的官方文档： [官方文档](https://github.com/modelscope/swift/blob/main/docs/source/LLM/Agent%E5%BE%AE%E8%B0%83%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5.md#%E5%9C%A8%E5%91%BD%E4%BB%A4%E8%A1%8C%E4%B8%AD%E4%BD%BF%E7%94%A8agent)
 
@@ -189,7 +189,7 @@ swift eval --model_type llama3-8b-instruct --model_id_or_type LLM-Research/Meta-
 
 ![返回结果3](https://ucc.alicdn.com/pic/developer-ecology/umvm3uqpbgldm_9b065388cb274c5db157191c9e1a7a17.png)
 
-### 待提升工作
+## 待提升工作
 
 1. 原版Llama3英文模型具备一定的CoT能力，在训练为中文时引入了一定的知识遗忘问题，此问题在V2版本中会继续解决。
 2. 英文预料的比例需要调整，以保证原英文能力（如GSM8K这类敏感指标）。

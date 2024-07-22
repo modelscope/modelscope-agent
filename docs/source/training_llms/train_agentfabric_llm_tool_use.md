@@ -1,4 +1,4 @@
-# agentfabric llm工具调用能力微调
+# AgentFabric llm工具调用能力微调
 
 在使用DashScope提供的qwen api构建应用与定制交互的过程中，我们发现选取千亿级别参数的qwen-max或开源的qwen-72b等大规模参数模型能获得较好的工具调用和角色扮演效果。大规模参数模型效果好，但难以在消费级机器上进行本地部署调用；同时小模型如qwen-7b-chat对工具调用的能力较弱。因此本篇旨在针对AgentFabric的工具调用场景，提供可用的数据集和微调方法，使稍小的模型如qwen-7b-chat也具有能在AgentFabric中完成工具调用的能力。
 
@@ -285,16 +285,16 @@ GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 ```
 
 然后在浏览器中输入 服务器IP:7860 打开即可看到如下界面
-![agentfabric_0](../resource/agentfabric_0.png)
+![agentfabric_0](../../resource/agentfabric_0.png)
 
 内置能力选择agent可以调用的API, 这里选择`Wanx Image Generation`和`高德天气` 点击更新配置，等待配置完成后在右侧的输入栏中即可与Agent交互
 
 > 天气查询
 
-![agentfabric_1](../resource/agentfabric_1.png)
-![agentfabric_2](../resource/agentfabric_2.png)
+![agentfabric_1](../../resource/agentfabric_1.png)
+![agentfabric_2](../../resource/agentfabric_2.png)
 
 > 文生图
 
-![agentfabric_1](../resource/agentfabric_3.png)
-![agentfabric_2](../resource/agentfabric_4.png)
+![agentfabric_1](../../resource/agentfabric_3.png)
+![agentfabric_2](../../resource/agentfabric_4.png)

@@ -1,4 +1,4 @@
-## Extending Agent Capabilities Using API Integration
+# Extending Agent Capabilities Using API Integration
 API (Application Programming Interface) is a set of important protocols, rules, and toolsets that define how software applications interact effectively. When APIs follow the OpenAPI specification, they can be easily called by agents. This integration not only endows agents with more functionalities and capabilities but also greatly expands their range of services.
 
 **For Example:**
@@ -10,7 +10,7 @@ API (Application Programming Interface) is a set of important protocols, rules, 
 
 In summary, **API allows agents to do more!**
 
-### Principle of Agent+API Implementation
+## Principle of Agent+API Implementation
 The process of an agent using an API includes the following steps:
 1. Parameter Analysis: Analyze the user's input JSON or YAML file that complies with the OpenAPI specification to extract key information, including parameters and descriptions;
 2. LLM Planning: Fill the extracted information into prompts, submit it to the LLM (Large Language Model), and receive its output;
@@ -18,7 +18,7 @@ The process of an agent using an API includes the following steps:
 4. API Call: Execute an HTTP request based on the parameters in the action information and retrieve the result;
 5. LLM Generation: Send the result of the API call back to the LLM to generate the final output content.
 
-### Case Study of Agent Calling API: Word Art Generation
+## Case Study of Agent Calling API: Word Art Generation
 Word Art API: [Click to View](https://help.aliyun.com/zh/dashscope/developer-reference/wordart-quick-start?spm=a2c4g.11186623.0.0.4796b08azcgSVShttps://help.aliyun.com/zh/dashscope/developer-reference/wordart-quick-start?spm=a2c4g.11186623.0.0.4796b08azcgSVS)
 Word Art Agent Experience: [Online Experience](https://www.modelscope.cn/studios/Cherrytest/wordartAI/summary)
 

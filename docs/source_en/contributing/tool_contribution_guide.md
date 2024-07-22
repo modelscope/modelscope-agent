@@ -128,7 +128,7 @@ API details: [https://help.aliyun.com/zh/dashscope/developer-reference/quick-sta
 
 Alternatively, refer to the introduction documents of other tools:
 
-![Image](../resource/tool-readme.png)
+![Image](../../resource/tool-readme.png)
 
 ### Adding Unit Tests
 - Besides developing the core module, you also need to add unit test cases to ensure functionality completeness. You can refer to: [code interpreter unit test](../../tests/tools/test_code_interpreter.py).
@@ -158,7 +158,7 @@ contrib
     └── test_case.py
 ```
 
-- The class needs to be added to `modelscope_agent/tools/contrib/__init__.py` to be referenced by the upper layer. Refer to [tools/contrib](../../modelscope_agent/tools/contrib/demo).
+- The class needs to be added to `modelscope_agent/tools/contrib/__init__.py` to be referenced by the upper layer. Refer to [tools/contrib](../../../modelscope_agent/tools/contrib/demo).
 - Re-execute to ensure the code is functional.
 
 ### Code Submission Standards

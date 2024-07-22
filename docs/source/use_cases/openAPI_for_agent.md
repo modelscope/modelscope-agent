@@ -1,4 +1,4 @@
-## 使用API接入来扩展Agent的能力范围
+# openAPI接入来扩展Agent的能力范围
 
 API（Application Programming Interface）是一组重要的协议、规则和工具集，它们定义了软件应用程序之间如何进行有效的交互。当API遵循OpenAPI规范时，它们便可以被agent轻松调用。这种接入不仅赋予agent更多的功能和能力，而且可以极大地扩展其服务范围。
 
@@ -12,7 +12,7 @@ API（Application Programming Interface）是一组重要的协议、规则和�
 
 总结就是<u>**API可以让Agent做到更多的事情**</u>！
 
-### Agent+API实现原理
+## Agent+API实现原理
 
 Agent使用API的流程包括以下几个步骤：
 1. 参数分析：分析用户输入的符合OpenAPI规范的JSON或YAML文件，提取关键信息，包括参数和描述等；
@@ -21,7 +21,7 @@ Agent使用API的流程包括以下几个步骤：
 4. API 调用：根据动作信息中的参数，执行HTTP请求，获取结果；
 5. LLM Generation：将API调用的结果传回LLM，获取最终的输出内容。
 
-### Agent调用API案例：艺术字生成
+## Agent调用API案例：艺术字生成
 
 艺术字API：[点击跳转](https://help.aliyun.com/zh/dashscope/developer-reference/wordart-quick-start?spm=a2c4g.11186623.0.0.4796b08azcgSVShttps://help.aliyun.com/zh/dashscope/developer-reference/wordart-quick-start?spm=a2c4g.11186623.0.0.4796b08azcgSVS)
 

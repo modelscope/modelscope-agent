@@ -1,3 +1,6 @@
+# Retrieve with langchain
+(deprecating)
+
 ## Long-term memory with Langchain VectorStore
 
 We have already applied short-term memory in agent through simply concatenation of history. However, long-term memory can also be introduced through `langchain.vectorstores`. Here is a simple example.
