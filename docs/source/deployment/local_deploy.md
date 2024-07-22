@@ -1,11 +1,13 @@
-无外网环境部署 AgentFabric 及使用 AgentFabric 构建的 Agent
-======================================================
+# 部署Modelscope-Agent
+
+## 无外网环境部署 AgentFabric 及使用 AgentFabric 构建的 Agent
+
 
 - 目标：在纯内网环境完成 Agent 的构建和发布
 - 前提：需在有外网环境提前下载好所需内容
 
-一、外网环境中下载所需内容
-----------------------
+## 外网环境中下载所需内容
+
 
 在可以访问外网的环境中，准备一个工作目录（如：`/data/work`），在这个目录下进行后续操作。
 
@@ -70,8 +72,8 @@ git clone https://github.com/modelscope/modelscope-agent.git
 将工作目录传输至内网离线环境对应目录中，可同样使用 `/data/work`。
 
 
-二、内网环境部署 LLM
-------------------
+## 内网环境部署 LLM
+
 
 ### 导入镜像
 
@@ -121,8 +123,8 @@ curl http://localhost:8000/v1/chat/completions \
     }'
 ```
 
-三、内网环境部署 AgentFabric
--------------------------
+## 内网环境部署 AgentFabric
+
 
 另起一个终端窗口，登录到上面拉起的 docker 容器中：
 
@@ -197,11 +199,11 @@ GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 
 然后在浏览器中输入 http://内网服务器IP:7860 打开即可看到如下界面。
 
-![AgentFabric](resource/local_deploy.png)
+![AgentFabric](../../resource/local_deploy.png)
 
 
-四、内网环境发布使用 AgentFabric 构建的 Agent
------------------------------------------
+## 内网环境发布使用 AgentFabric 构建的 Agent
+
 
 通过 AgentFabric 完成 Agent 的基本配置之后，在 `配置(Configure)` tab 页点击左侧下方的 `更新配置` 按钮，
 即可将自定义的配置内容生成至指定的配置文件中（默认路径为 `/tmp/agentfabric/config/local_user/builder_config.json`）。
@@ -218,4 +220,4 @@ GRADIO_SERVER_NAME=0.0.0.0 GRADIO_SERVER_PORT=7865 PYTHONPATH=../../  python app
 
 然后在浏览器中输入 http://内网服务器IP:7865 打开即可看到界面。
 
-![Custom Agent](resource/local_deploy_agent.png)
+![Custom Agent](../../resource/local_deploy_agent.png)

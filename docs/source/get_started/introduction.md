@@ -111,7 +111,7 @@ LLM是Agent的核心模块，它确保了交互结果的质量。
 
 您也可以通过继承基础工具，按照预定义模式设置工具的名称、描述和参数来自定义您的工具。根据您的需求，可以实现call()函数。
 
-在[demo_register_new_tool](../demo/demo_register_new_tool.ipynb)中提供了一个自定义工具的例子。
+在[demo_register_new_tool](../../../examples/tools/register_new_tool.ipynb)中提供了一个自定义工具的例子。
 
 您可以将您想要使用的工具名称或配置传递给agent。
 ```python

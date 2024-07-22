@@ -1,4 +1,4 @@
-# Tools
+# Tools模块
 
 我们提供了一些在modelscope中集成的多域默认pipeline tools。
 
@@ -32,7 +32,7 @@ class AliyunRenewInstanceTool(BaseTool):
         return str({'result': f'已完成ECS实例ID为{instance_id}的续费，续费时长{period}月'})
 ```
 
-您也可以参考我们提供的演示，了解如何在[demo_register_new_tool](../../demo/demo_register_new_tool.ipynb)中使用新工具的指南
+您也可以参考我们提供的演示，了解如何在[demo_register_new_tool](../../../examples/tools/register_new_tool.ipynb)中使用新工具的指南
 
 
 此外，如果该工具是`langchain tool`，您可以直接使用我们的`LangchainTool`来包装和适应当前的框架。

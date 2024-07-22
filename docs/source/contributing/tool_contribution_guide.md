@@ -124,7 +124,7 @@ API详情地址：[https://help.aliyun.com/zh/dashscope/developer-reference/quic
 
 或者参考其他tool的介绍文案：
 
-![图片](../resource/tool-readme.png)
+![图片](../../resource/tool-readme.png)
 
 ### 添加单元测试
 - 除了完成核心模块的开发，还需要添加单元测试用例，以便确保功能完整性，测试用例可以参考：[code interpreter unit test](../../tests/tools/test_code_interpreter.py)
@@ -154,7 +154,7 @@ contrib
     ├── renew_aliyun_instance.py
     └── test_case.py
 ```
-- 需要将该类加入到 `modelscope_agent/tools/contrib/__init__.py`， 以便被上一层引用到，具体参考[tools/contrib](../../modelscope_agent/tools/contrib/demo)。
+- 需要将该类加入到 `modelscope_agent/tools/contrib/__init__.py`， 以便被上一层引用到，具体参考[tools/contrib](../../../modelscope_agent/tools/contrib/demo)。
 - 重新执行确保代码可行
 
 ### 代码提交规范

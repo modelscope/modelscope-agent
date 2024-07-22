@@ -1,4 +1,4 @@
-## Callback
+# Callback模块使用说明
 
 我们设计了一套回调机制，允许用户可以自定义的在`Agent`执行的关键节点中插入想要执行的代码，便于实现诸如日志记录等功能。
 
@@ -23,7 +23,7 @@ bot = RolePlay(function_list=function_list,llm=llm_config, instruction=role_temp
 bot.run('xxx')
 ```
 
-### RunStateCallback
+## RunStateCallback
 
 我们提供了`RunStateCallback`，用于记录Agent执行过程中的中间状态，例如工具的调用/执行结果，RAG的召回结果等。如果使用了`RunStateCallback`，可以通过`run_states`属性获取中间调用的结果。一个可能的`run_states`格式如下：
 

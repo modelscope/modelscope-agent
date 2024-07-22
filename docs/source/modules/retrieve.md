@@ -1,3 +1,5 @@
+# Retrieve模块
+
 ## 使用 Langchain VectorStore 实现长期记忆
 我们已经通过简单地拼接历史记录实现了agent的短期记忆。然而，对于长期记忆，我们可以引入`langchain.vectorstores`和`langchain.embeddings`。这些组件被封装在`Retrieval`模块中。
 

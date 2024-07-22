@@ -1,11 +1,13 @@
-Deployment of AgentFabric Without External Network and Usage of Agents Built with AgentFabric
-======================================================
+# Deployment of Modelscope-Agent
+
+
+## Deployment of AgentFabric Without External Network and Usage of Agents Built with AgentFabric
+
 
 - Objective: To build and deploy an Agent in a pure intranet environment
 - Prerequisite: Pre-download required contents in an environment with external network access
 
-Download Required Contents in an External Network Environment
-----------------------
+## Download Required Contents in an External Network Environment
 
 In an environment with external network access, prepare a working directory (e.g., `/data/work`) and perform the following operations in this directory.
 
@@ -64,8 +66,8 @@ git clone https://github.com/modelscope/modelscope-agent.git
 ### 5. Transfer Content to Intranet Environment
 Transfer the working directory to the corresponding directory in the intranet offline environment; you can also use `/data/work`.
 
-Deploy LLM in Intranet Environment
-------------------
+## Deploy LLM in Intranet Environment
+
 
 ### Import the Image
 Navigate to the working path `/data/work` and import the image file:
@@ -74,7 +76,7 @@ Navigate to the working path `/data/work` and import the image file:
 docker load < modelscope-agent.tar
 ```
 
-### Deploy LLM Service
+## Deploy LLM Service
 ModelScope provides a feature for [starting services locally](https://modelscope.cn/docs/%E6%9C%AC%E5%9C%B0%E5%90%AF%E5%8A%A8%E6%9C%8D%E5%8A%A1).
 
 Here we use this feature to deploy the model as an OpenAI API compatible interface. You can refer to the following steps for detailed operations:
@@ -114,7 +116,7 @@ curl http://localhost:8000/v1/chat/completions \
 ```
 
 ## Deploy AgentFabric in Intranet Environment
--------------------------
+
 
 Open a new terminal window and log into the previously started Docker container:
 
@@ -126,7 +128,7 @@ sudo docker exec -ti CONTAINER_ID bash
 ```
 
 Perform subsequent operations in the container working directory (`/data/work`).
-### Edit Model Configuration File
+## Edit Model Configuration File
 Edit `modelscope-agent/apps/agentfabric/config/model_config.json` by adding the following configuration:
 
 ```diff
@@ -149,7 +151,7 @@ index 4db68ce..be7fbf3 100644
  }
 ```
 
-### Edit Embedding Model `model_id`
+## Edit Embedding Model `model_id`
 Edit `modelscope-agent/modelscope_agent/storage/vector_storage.py` and modify the `model_id` in the file to the local model path:
 
 ```diff
@@ -168,7 +170,7 @@ index c6f9fdc..29f518a 100644
          self.index_ext = index_ext
 ```
 
-### Start AgentFabric
+## Start AgentFabric
 Execute the following command in the `modelscope-agent/apps/agentfabric` directory to start AgentFabric Gradio:
 
 ```shell
@@ -182,10 +184,9 @@ GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 > GRADIO_SERVER_NAME=0.0.0.0 PYTHONPATH=../../  python app.py
 > ```
 Then, open your browser and enter http://IntranetServerIP:7860 to see the following interface.
-![AgentFabric](resource/local_deploy.png)
+![AgentFabric](../../resource/local_deploy.png)
 
-## 4. Publish the Agent Built with AgentFabric in an Intranet Environment
------------------------------------------
+## Publish the Agent Built with AgentFabric in an Intranet Environment
 
 After completing the basic configuration of the Agent through AgentFabric, click the `Update Configuration` button at the bottom left of the `Configure` tab page. This will generate the customized configuration content into the specified configuration file (default path is `/tmp/agentfabric/config/local_user/builder_config.json`).
 
@@ -199,4 +200,4 @@ GRADIO_SERVER_NAME=0.0.0.0 GRADIO_SERVER_PORT=7865 PYTHONPATH=../../  python app
 > If you specified a configuration file path when starting AgentFabric, you also need to specify the same path when starting the Agent.
 
 Then, open your browser and enter http://IntranetServerIP:7865 to see the interface.
-![Custom Agent](resource/local_deploy_agent.png)
+![Custom Agent](../../resource/local_deploy_agent.png)

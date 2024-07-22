@@ -1,3 +1,6 @@
+# Retrieve Module
+(deprecating)
+
 ## Long-term memory with Langchain VectorStore
 
 We have implemented short-term memory in the agent by simply concatenating the history. However, for long-term memory, we can introduce `langchain.vectorstores` and `langchain.embeddings`. These components are encapsulated within the `Retrieval` module.
