@@ -40,9 +40,9 @@ class CodeInterpreter(BaseTool):
     def __init__(self, cfg={}):
         super().__init__(cfg)
 
-        self.timeout = 1200
+        self.timeout = 180
         self.nb = nbformat.v4.new_notebook()  # noqa E501
-        self.nb_client = NotebookClient(self.nb, timeout=1200)
+        self.nb_client = NotebookClient(self.nb, timeout=180)
         self.console = Console()
         self.interaction = ''
         # timeout: int = 600
@@ -208,8 +208,8 @@ class CodeInterpreter(BaseTool):
             cell_index = len(self.nb.cells) - 1
             success, outputs = self.run_cell(self.nb.cells[-1], cell_index)
 
-            if '!pip' in code:
-                success = False
+            # if '!pip' in code:
+            #     success = False
 
             return outputs, success
 

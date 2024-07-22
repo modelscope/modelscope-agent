@@ -8,6 +8,7 @@ The current task is about exploratory data analysis, please note the following:
 - Distinguish column types with `select_dtypes` for tailored analysis and visualization.
 - Remember to `import numpy as np` before using Numpy functions.
 - don't plot any columns
+- don't calculate correlations
 
 """
 
@@ -30,7 +31,6 @@ The current task is about data preprocessing, please note the following:
 # Prompt for taking on "feature_engineering" tasks
 FEATURE_ENGINEERING_PROMPT = """
 The current task is about feature engineering. when performing it, please adhere to the following principles:
-- Generate as diverse features as possible to improve the model's performance step-by-step.
 - Use available feature engineering tools if they are potential impactful.
 - Avoid creating redundant or excessively numerous features in one step.
 - Exclude ID columns from feature generation and remove them.
@@ -45,12 +45,8 @@ test separately at the same time.
 MODEL_TRAIN_PROMPT = """
 The current task is about training a model, please ensure high performance:
 - If non-numeric columns exist, perform label encode together with all steps.
-- Keep in mind that your user prioritizes results and is highly focused on model \
-performance. So, when needed, feel free to use models of any complexity to improve \
-effectiveness, such as XGBoost, CatBoost, etc.
 - If the model caused timeout error, please don't use this model again.
 - Use the data from previous task result directly, do not mock or reload data yourself.
-- Set suitable hyperparameters for the model, make metrics as high as possible.
 """
 
 # Prompt for taking on "model_evaluate" tasks

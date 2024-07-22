@@ -210,8 +210,8 @@ the code correctly,the code format is as follows:
 """
 JUDGE_TEMPLATE = """
 take a deep breath and think step by step.
-you are a code judge, you need to judge the code block in jupyter notebook to achieve the \
-current task.
+you are a code judge, you need to think step by step to judge whether the code block in jupyter notebook achieve the \
+current task, at the end of your thought, you need to give the final judgement( orrect or incorrect).
 [current task]
 {instruction}
 
@@ -220,14 +220,14 @@ this is the code block you need to judge, it contains code and execution result:
 
 Even if the code has been executed successfully, doesn't mean it's totally correct. You need to carefully \
 check the code logic to ensure the code can accomplish the task correctly. Ignore the warning messages. \
-You don't need to check the metrics of the model \
+You don't need to check the metrics of the model. you\
 
 these are the previous code blocks, which have been executed successfully in the previous jupyter notebook code blocks \
 {previous_code_blocks}
 
 Attention: your response should be one of the following:
-- correct, [reason]
-- incorrect, [reason and advice]
+- [your step by step thought], correct
+- [your step by step thought], incorrect
 
 don't generate code , just give the reason why the code is correct or incorrect.
 """
@@ -445,7 +445,7 @@ class DataScienceAssistant(RolePlay):
         success = False
         call_llm_count = 0
         code = ''
-        while call_llm_count < 10 and not success:
+        while call_llm_count < 20 and not success:
             resp = self._call_llm(
                 prompt=None,
                 messages=messages,
@@ -463,7 +463,7 @@ class DataScienceAssistant(RolePlay):
             except Exception as e:
                 logger.error(e)
                 call_llm_count += 1
-                time.sleep(10)
+                time.sleep(20)
         if not success:
             raise AttributeError('generate code failed')
         return code
@@ -655,6 +655,7 @@ class DataScienceAssistant(RolePlay):
                 total_token = self.total_token
                 plan_dict = {
                     'time_cost': time_cost,
+                    'llm': self.llm.model,
                     'total_token': total_token,
                     'plan': self.plan.tasks
                 }
