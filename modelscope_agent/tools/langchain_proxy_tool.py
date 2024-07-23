@@ -32,7 +32,8 @@ class LangchainTool(BaseTool):
             tool_arg = deepcopy(arg)
             tool_arg['name'] = name
             tool_arg['required'] = True
-            tool_arg['type'] = arg['anyOf'][0].get('type', 'string')
+            if 'type' not in arg:
+                tool_arg['type'] = arg['anyOf'][0].get('type', 'string')
             tool_arg.pop('title')
             self.parameters.append(tool_arg)
 
