@@ -91,7 +91,7 @@ class QWenVL(BaseTool):
 
         # current paths are deducted from llm, only contains basename, so need to add WORK_DIR
         # convert image_file_paths to a valid local file path
-        if LOCAL_FILE_PATHS not in kwargs:
+        if LOCAL_FILE_PATHS not in kwargs or kwargs[LOCAL_FILE_PATHS] == {}:
             # if no local file path exists, only a name of file paths exist
             for i, image_file_path in enumerate(image_file_paths):
                 image_file_paths[i] = os.path.join(WORK_DIR, image_file_path)

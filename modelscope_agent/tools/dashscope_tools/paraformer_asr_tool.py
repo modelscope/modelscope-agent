@@ -46,7 +46,7 @@ class ParaformerAsrTool(BaseTool):
         except AssertionError:
             raise ValueError('Please set valid DASHSCOPE_API_KEY!')
 
-        if LOCAL_FILE_PATHS not in kwargs:
+        if LOCAL_FILE_PATHS not in kwargs or kwargs[LOCAL_FILE_PATHS] == {}:
             raw_audio_file = WORK_DIR + '/' + params['audio_path']
         else:
             raw_audio_file = kwargs[LOCAL_FILE_PATHS][params['audio_path']]
