@@ -69,6 +69,12 @@ i18n = {
         '<span style="font-size: 20px; font-weight: 500;">\N{fire} AgentFabric -- 由 Modelscope-agent 驱动 </span> [github 点赞](https://github.com/modelscope/modelscope-agent/tree/main)',  # noqa E501
         '<span style="font-size: 20px; font-weight: 500;">\N{fire} AgentFabric powered by Modelscope-agent </span> [github star](https://github.com/modelscope/modelscope-agent/tree/main)'  # noqa E501
     ],
+    'stop_current_round': [
+        '停止生成', 'stop current round'
+    ],
+    'retry_last_round': [
+        '重新生成', 'retry last round'
+    ],
 }
 
 

@@ -103,6 +103,7 @@ with demo:
     draw_seed = random.randint(0, 1000000000)
     state = gr.State({'session_seed': draw_seed}, delete_callback=delete)
     i18n = I18n('zh-cn')
+    stop_flag = False
     with gr.Row():
         with gr.Column(scale=5):
             header = gr.Markdown(i18n.get('header'))
@@ -273,6 +274,9 @@ with demo:
                     file_types=['file', 'image', 'audio', 'video', 'text'],
                     file_count='multiple'),
                 submit_button_props=dict(label=i18n.get('sendOnLoading')))
+            with gr.Row():
+                stop_button = gr.Button(label=i18n.get('stop_current_round'))
+                retry_button = gr.Button(label=i18n.get('retry_last_round'))
             user_chat_bot_suggest = gr.Dataset(
                 label=i18n.get('prompt_suggestion'),
                 components=[preview_chat_input],
@@ -642,9 +646,13 @@ with demo:
                     user_token=_user_token):
                 # append_files=new_file_paths):
                 # important! do not change this
+                if stop_flag:
+                    stop_flag = False
+                    break
                 response += frame
                 chatbot[-1][1] = response
                 yield {user_chatbot: chatbot}
+
             if len(history) == 0:
                 user_memory.update_history(
                     Message(role='system', content=user_agent.system_prompt))
@@ -702,6 +710,16 @@ with demo:
         import_space,
         inputs=[update_space, uuid_str, state],
         outputs=configure_updated_outputs,
+    )
+
+    def stop_current_round(stop_flag, uuid_str, state):
+        uuid_str = check_uuid(uuid_str)
+        stop_flag = True
+
+    stop_button.click(
+        stop_current_round,
+        inputs=[stop_flag, uuid_str, state],
+        outputs=[stop_flag]
     )
 
     def change_lang(language):
