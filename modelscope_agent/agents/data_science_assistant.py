@@ -34,11 +34,9 @@ general data operation doesn't fall into this type
 
 
 # Task:
-Based on the context, write a plan or modify an existing plan of what you should do to achieve the goal. A plan \
+Based on the context, write a simple plan or modify an existing plan of what you should do to achieve the goal. A plan \
 consists of one to four tasks.
-If you are modifying an existing plan, carefully follow the instruction, don't make unnecessary changes. \
-Give the whole plan unless instructed to modify only one task of the plan.
-If you encounter errors on the current task, revise and output the current single task only.
+
 Output a list of jsons following the format:
 ```json
 [
@@ -78,11 +76,14 @@ the code you need to generate should follow previous code, no need to repeat.
 - Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
 - Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, you MUST\
  follow the 'tool_path' in order to successfully import the tool.
-- the code format MUST be followed, the code format is as follows:
+- the code format MUST be followed:
 
 ```python
-# the code you need to write
+# your code
 ```
+
+
+
 """
 CODE_REFLECT_TEMPLATE = """
 # Role
@@ -121,10 +122,13 @@ you MUST follow the 'tool_path' in order to successfully import the tool.
 the code correctly,the code format is as follows:
 - If certain package are not installed in the environment, you can install them by adding the following code:
 !pip install <package_name>
+- Your answer must contain one and only one code block.
+- the code format MUST be followed, the code format is as follows:
 
 ```python
-# the code you need to write
+# your code
 ```
+
 """
 CODE_USING_TOOLS_TEMPLATE = """
 # Task
@@ -155,12 +159,11 @@ the code you need to generate should follow previous code, no need to repeat.
 - Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
 - Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, \
 you MUST follow the 'tool_path' in order to successfully import the tool.
+- Your answer must contain one and only one code block.
 - the code format MUST be followed, the code format is as follows:
-
 ```python
-# the code you need to write
+# your code
 ```
-
 """
 CODE_USING_TOOLS_REFLECTION_TEMPLATE = """
 # Role
@@ -201,11 +204,11 @@ the code we have generated for current task is as follows, you can use it as a r
 you MUST follow the 'tool_path' in order to successfully import the tool.
 - If certain package are not installed in the environment, you can install them by adding the following code:
 !pip install <package_name>
+- Your answer must contain one and only one code block.
 - the code format MUST be followed, otherwise the code interpreter will not be able to parse\
-the code correctly,the code format is as follows:
-
+the code correctly,the code format is as follows!!!:
 ```python
-# the code you need to write
+# your code
 ```
 """
 JUDGE_TEMPLATE = """
@@ -438,7 +441,7 @@ class DataScienceAssistant(RolePlay):
                     code_and_error=self._get_task_codes(task),
                     user_request=user_request,
                     data_info=data_info)
-        print(
+        logger.info(
             f'code generate prompt for task{task.task_id} count{code_counter}: \n{prompt}'
         )
         messages = [{'role': 'user', 'content': prompt}]
@@ -497,7 +500,7 @@ class DataScienceAssistant(RolePlay):
 
         prompt = CHECK_DATA_PROMPT.format(
             code_written=self._get_previous_code_blocks_without_outputs())
-        print(f'check data prompt: \n {prompt}')
+        logger.info(f'check data prompt: \n {prompt}')
         messages = [{'role': 'user', 'content': prompt}]
         call_llm_count = 0
         call_llm_success = False
@@ -526,12 +529,12 @@ class DataScienceAssistant(RolePlay):
                 time.sleep(10)
         if not call_llm_success:
             raise Exception('call llm failed')
-        print(f'check data code: \n {code}')
+        logger.info(f'check data code: \n {code}')
         success, result = self.code_interpreter.call(
             params=json.dumps({'code': code}), nb_mode=True)
         del self.code_interpreter.nb.cells[-1]
         if success:
-            print(f'check data result: \n {result}')
+            logger.info(f'check data result: \n {result}')
             return DATA_INFO.format(info=result)
 
     def _judge_code(self, task, previous_code_blocks, code,
@@ -543,7 +546,7 @@ class DataScienceAssistant(RolePlay):
             instruction=task.instruction,
             previous_code_blocks=previous_code_blocks,
             code=f'Code:\n {code}\n Excution Result:\n{code_interpreter_resp}')
-        print(f'judge prompt: \n {judge_prompt}')
+        logger.info(f'judge prompt: \n {judge_prompt}')
         messages = [{'role': 'user', 'content': judge_prompt}]
         call_llm_count = 0
         call_llm_success = False
@@ -564,8 +567,8 @@ class DataScienceAssistant(RolePlay):
                 call_llm_success = True
         if not call_llm_success:
             raise Exception('call llm failed')
-        print(f'judge result for task{task.task_id}: \n {judge_result}')
-        if 'incorrect' in judge_result or 'Incorrect' in judge_result:
+        logger.info(f'judge result for task{task.task_id}: \n {judge_result}')
+        if 'incorrect' in judge_result:
             success = False
             failed_reason = (
                 'Though the code executes successfully, The code logic is incorrect, here is the reason: '
@@ -609,11 +612,11 @@ class DataScienceAssistant(RolePlay):
                         params=json.dumps({'code': code}), nb_mode=True)
                     judge_resp = ''
                     if not code_execute_success:
-                        print(
+                        logger.error(
                             f'code execution failed, task{task.task_id} code_counter{code_counter}:\n '
                             f'{code_interpreter_resp}')
                     else:
-                        print(
+                        logger.info(
                             f'code execution success, task{task.task_id} code_counter{code_counter}:\n '
                             f'{code_interpreter_resp}')
                         code_logic_success, judge_resp = self._judge_code(
@@ -670,9 +673,9 @@ class DataScienceAssistant(RolePlay):
 
     def _get_total_tokens(self):
         try:
-            print(f'usage: {str(self.llm.get_usage())}')
+            logger.info(f'usage: {str(self.llm.get_usage())}')
             self.total_token += self.llm.get_usage().get('total_tokens')
-            print(f'total token: {self.total_token}')
+            logger.info(f'total token: {self.total_token}')
         except Exception as e:
-            print(f'get total token error: {e}')
+            logger.error(f'get total token error: {e}')
         pass
