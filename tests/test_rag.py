@@ -176,3 +176,24 @@ def test_memory_with_rag_mongodb_reader():
     res = memory.run('Who decided to compile a book?', use_llm=False)
     print(res)
     assert 'Alice' in res
+
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
+def test_memory_with_rag_files():
+    MemoryWithRag(
+        urls=[
+            'tests/samples/modelscope_qa_2.txt', 'tests/samples/常见QA.pdf',
+            'tests/samples/modelscope_qa_1.txt'
+        ],
+        storage_path='./tmp/',
+        use_knowledge_cache=False,
+    )
+
+    memory = MemoryWithRag(
+        storage_path='./tmp/',
+        use_knowledge_cache=True,
+    )
+    files = ['modelscope_qa_2.txt', '常见QA.pdf']
+    summary_str = memory.run('ModelScope 模型的使用依赖于互联网连接吗？', url=files)
+    print(summary_str)
+    assert 'gpu:0' in summary_str
