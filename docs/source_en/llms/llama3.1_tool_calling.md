@@ -29,9 +29,15 @@ Model Download:
 
 ```python
 from modelscope import snapshot_download
-model = snapshot_download("LLM-Research/Meta-Llama-3.1-70B-Instruct")
+model = snapshot_download("LLM-Research/Meta-Llama-3.1-8B-Instruct")
+```
+or
+```python
+from huggingface_hub import snapshot_download
+model = snapshot_download("meta-llama/Meta-Llama-3.1-8B-Instruct")
 ```
 Print the `model` to get the local path to weights
+
 
 ## Service Invocation
 

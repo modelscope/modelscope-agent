@@ -29,7 +29,7 @@ cd modelscope-agent
 模型下载:
 ```python
 from modelscope import snapshot_download
-model = snapshot_download("LLM-Research/Meta-Llama-3.1-70B-Instruct")
+model = snapshot_download("LLM-Research/Meta-Llama-3.1-8B-Instruct")
 ```
 打印 model获得model本地地址 /path/to/weights
 
