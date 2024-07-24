@@ -194,6 +194,6 @@ def test_memory_with_rag_files():
         use_knowledge_cache=True,
     )
     files = ['modelscope_qa_2.txt', '常见QA.pdf']
-    summary_str = memory.run('ModelScope 模型的使用依赖于互联网连接吗？', url=files)
+    summary_str = memory.run('多卡环境，如何指定卡推理？', url=files)
     print(summary_str)
     assert 'gpu:0' in summary_str
