@@ -18,9 +18,20 @@ TOOL_INFO_PROMPT = """
 - You can utilize pre-defined tools in any code lines from 'Available Tools' in the form of Python class or function.
 - You can freely combine the use of any other public packages, like sklearn, numpy, pandas, etc..
 
+
 ## Available Tools:
 Each tool is described in JSON format. When you call a tool, import the tool from its path first.
 {tool_schemas}
+
+## Attention
+Ensure that the tool is imported from the correct path, the tool path is \
+./modelscope_agent/tools/metagpt_tools/libs/xxx.py
+if you want to use the tool in your code， you need to import the tool first, like this:
+```python
+from modelscope_agent.tools.metagpt_tools.libs.xxx import ToolName
+```
+
+
 """
 
 TOOL_RECOMMENDATION_PROMPT = """

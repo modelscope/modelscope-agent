@@ -9,20 +9,20 @@ The current task is about exploratory data analysis, please note the following:
 - Remember to `import numpy as np` before using Numpy functions.
 - don't plot any columns
 - don't calculate correlations
+- Avoid showing all data, always use df.head() to show the first 5 rows.
 
 """
 
 # Prompt for taking on "data_preprocess" tasks
 DATA_PREPROCESS_PROMPT = """
 The current task is about data preprocessing, please note the following:
-- Monitor data types per column, applying appropriate methods.
 - make sure train and test data MUST have the same columns except for the label column.
+- Remove ID columns if exist.
 - Handle missing values with suitable strategies.
-- Ensure operations are on existing dataset columns.
-- Avoid writing processed data to files.
 - Avoid any change to label column, such as standardization, etc.
 - Each step do data preprocessing to train, must do same for test separately at the same time.
 - Always copy the DataFrame before processing it and use the copy to process.
+- Avoid writing processed data to files.
 """
 
 # Prompt for taking on "feature_engineering" tasks
@@ -31,9 +31,9 @@ The current task is about feature engineering. when performing it, please adhere
 - Avoid creating redundant or excessively numerous features in one step.
 - Each feature engineering operation performed on the train set must also applies to the \
 test separately at the same time.
-- Avoid using the label column to create features, except for cat encoding.
 - Use the data from previous task result if exist, do not mock or reload data yourself.
 - Always copy the DataFrame before processing it and use the copy to process.
+- Use Label Encoding for non-numeric columns, avoid One-Hot Encoding.
 """
 
 # Prompt for taking on "model_train" tasks
@@ -42,6 +42,7 @@ The current task is about training a model, please ensure high performance:
 - If non-numeric columns exist, perform label encode together with all steps.
 - If the model caused timeout error, please don't use this model again.
 - Use the data from previous task result directly, do not mock or reload data yourself.
+- Never save the model to a file.
 """
 
 # Prompt for taking on "model_evaluate" tasks

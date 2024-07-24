@@ -223,7 +223,7 @@ this is the code block you need to judge, it contains code and execution result:
 
 Even if the code has been executed successfully, doesn't mean it's totally correct. You need to carefully \
 check the code logic to ensure the code can accomplish the task correctly. Ignore the warning messages. \
-You don't need to check the metrics of the model. you\
+You don't need to check the metrics of the model.
 
 these are the previous code blocks, which have been executed successfully in the previous jupyter notebook code blocks \
 {previous_code_blocks}
@@ -233,6 +233,9 @@ Attention: your response should be one of the following:
 - [your step by step thought], incorrect
 
 don't generate code , just give the reason why the code is correct or incorrect.
+
+## Attention
+don't use the word 'incorrect' in your step by step thought.
 """
 
 CHECK_DATA_PROMPT = """
@@ -315,12 +318,15 @@ class DataScienceAssistant(RolePlay):
         call_llm_success = False
         call_llm_count = 0
         tasks_text = ''
+        messages = [{
+            'role':
+            'user',
+            'content':
+            PLAN_TEMPLATE.format(
+                context='User Request: ' + user_request + '\n', )
+        }]
         while not call_llm_success and call_llm_count < 10:
-            resp = self._call_llm(
-                prompt=PLAN_TEMPLATE.format(
-                    context='User Request: ' + user_request + '\n', ),
-                messages=None,
-                stop=None)
+            resp = self._call_llm(prompt=None, messages=messages, stop=None)
             tasks_text = ''
             for r in resp:
                 tasks_text += r
@@ -568,7 +574,8 @@ class DataScienceAssistant(RolePlay):
         if not call_llm_success:
             raise Exception('call llm failed')
         logger.info(f'judge result for task{task.task_id}: \n {judge_result}')
-        if 'incorrect' in judge_result:
+
+        if 'incorrect' in judge_result.split('\n')[-1]:
             success = False
             failed_reason = (
                 'Though the code executes successfully, The code logic is incorrect, here is the reason: '
@@ -604,12 +611,24 @@ class DataScienceAssistant(RolePlay):
                 while not success and code_counter < max_try:
                     code_execute_success = False
                     code_logic_success = False
+                    temp_code_interpreter = CodeInterpreter()
+
+                    temp_code_interpreter.call(
+                        params=json.dumps({
+                            'code':
+                            self._get_previous_code_blocks_without_outputs()
+                        }),
+                        nb_mode=True,
+                        silent_mode=True)
                     # generate code
                     code = self._generate_code(code_counter, task,
                                                user_request)
-
-                    code_execute_success, code_interpreter_resp = self.code_interpreter.call(
-                        params=json.dumps({'code': code}), nb_mode=True)
+                    code_execute_success, code_interpreter_resp = temp_code_interpreter.call(
+                        params=json.dumps({'code': code}),
+                        nb_mode=True,
+                        silent_mode=True)
+                    # 删除临时 jupyter环境
+                    temp_code_interpreter.terminate()
                     judge_resp = ''
                     if not code_execute_success:
                         logger.error(
@@ -631,10 +650,9 @@ class DataScienceAssistant(RolePlay):
                             result=code_interpreter_resp + '\n' + judge_resp,
                             is_success=False))
 
-                    if not success:
-                        # delete the last cell if the code execution failed
-                        del self.code_interpreter.nb.cells[-1]
-                    else:
+                    if success:
+                        self.code_interpreter.call(
+                            params=json.dumps({'code': code}), nb_mode=True)
                         task.code = code
                         task.result = code_interpreter_resp
                     code_counter += 1
@@ -650,7 +668,7 @@ class DataScienceAssistant(RolePlay):
                 else:
                     self.plan = self._update_plan(
                         user_request=user_request, curr_plan=self.plan)
-                    self.code_interpreter.nb.cells.clear()
+                    self.code_interpreter.reset()
             # save the plan into json file
             if save:
                 after_time = time.time()
@@ -662,10 +680,15 @@ class DataScienceAssistant(RolePlay):
                     'total_token': total_token,
                     'plan': self.plan.tasks
                 }
-                with open(
-                        dir_name + 'plan.json', 'w', encoding='utf-8') as file:
-                    file.write(
-                        json.dumps(plan_dict, indent=4, cls=TaskEncoder))
+                print(f'plan_dict: {str(plan_dict)}')
+                try:
+                    with open(
+                            dir_name + 'plan.json', 'w',
+                            encoding='utf-8') as file:
+                        file.write(
+                            json.dumps(plan_dict, indent=4, cls=TaskEncoder))
+                except Exception as e:
+                    print(f'json write error: {str(e)}')
 
         except Exception as e:
             logger.error(f'error: {e}')

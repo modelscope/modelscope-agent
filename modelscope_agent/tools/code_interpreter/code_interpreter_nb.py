@@ -45,6 +45,7 @@ class CodeInterpreter(BaseTool):
         self.nb_client = NotebookClient(self.nb, timeout=180)
         self.console = Console()
         self.interaction = ''
+        self.silent_mode = False
         # timeout: int = 600
 
     def __del__(self):
@@ -138,8 +139,9 @@ class CodeInterpreter(BaseTool):
                 output_text = output['text']
             elif output['output_type'] == 'display_data':
                 if 'image/png' in output['data']:
-                    self.show_bytes_figure(output['data']['image/png'],
-                                           self.interaction)
+                    if not self.silent_mode:
+                        self.show_bytes_figure(output['data']['image/png'],
+                                               self.interaction)
 
             elif output['output_type'] == 'execute_result':
                 output_text = output['data']['text/plain']
@@ -227,6 +229,7 @@ class CodeInterpreter(BaseTool):
              params: str,
              timeout: Optional[int] = 30,
              nb_mode: bool = False,
+             silent_mode: Optional[bool] = False,
              **kwargs) -> (bool, str):
         try:
             try:
@@ -249,7 +252,8 @@ class CodeInterpreter(BaseTool):
                     )
             fixed_code = '\n'.join(fixed_code)
             if nb_mode:
-                result, success = self.run(code=fixed_code)
+                self.silent_mode = silent_mode
+                result, success = self.run(code=fixed_code, )
                 return success, result
         except Exception as e:
             return False, str(e)
