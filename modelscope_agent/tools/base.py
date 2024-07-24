@@ -119,7 +119,8 @@ class ToolRegistry(dict):
         return super().__getitem__(key)
 
     def __contains__(self, key):
-        self._import_key(key)
+        if key not in self.keys():
+            self._import_key(key)
         return super().__contains__(key)
 
 
