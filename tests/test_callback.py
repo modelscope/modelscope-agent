@@ -1,3 +1,6 @@
+import os
+
+import pytest
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.callbacks.run_state import RunStateCallback
 from modelscope_agent.memory import MemoryWithRag
@@ -5,7 +8,10 @@ from modelscope_agent.tools.base import TOOL_REGISTRY
 
 from .ut_utils import MockTool
 
+IS_FORKED_PR = os.getenv('IS_FORKED_PR', 'false') == 'true'
 
+
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_llm_run_state(mocker):
     llm_config = {
         'model': 'qwen-max',
