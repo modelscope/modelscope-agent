@@ -38,6 +38,7 @@ Modelscope-Agent DOCUMENTATION
    training_llms/train.md
    training_llms/train_agentfabric_llm_tool_use.md
    llms/qwen2_tool_calling.md
+   llms/llama3.1_tool_calling.md
 
 
 .. toctree::

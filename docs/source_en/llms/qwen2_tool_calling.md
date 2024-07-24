@@ -1,4 +1,4 @@
-# Best Practices for Qwen2 Agent Application
+# Best Practices for Qwen2 Tool Calling Service
 
 ## Table of Contents
   - [Environment Setup](#environment-setup)
