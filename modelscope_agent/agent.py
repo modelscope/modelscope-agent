@@ -168,7 +168,8 @@ class Agent(ABC):
                 tool_class_with_tenant = TOOL_REGISTRY[tool_name]
 
                 # adapt the TOOL_REGISTRY[tool_name] to origin tool class
-                if isinstance(tool_class_with_tenant, BaseTool):
+                if isinstance(tool_class_with_tenant, type) and issubclass(
+                        tool_class_with_tenant, BaseTool):
                     tool_class_with_tenant = {
                         'class': TOOL_REGISTRY[tool_name]
                     }

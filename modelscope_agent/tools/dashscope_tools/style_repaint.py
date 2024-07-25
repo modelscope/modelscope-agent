@@ -120,10 +120,12 @@ class StyleRepaint(BaseTool):
         if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
-            if LOCAL_FILE_PATHS not in kwargs:
+            if LOCAL_FILE_PATHS not in kwargs or kwargs[
+                    LOCAL_FILE_PATHS] == {}:
                 image_path = f'file://{os.path.join(WORK_DIR,image_path)}'
             else:
-                image_path = f'file://{kwargs["local_file_paths"][image_path]}'
+                image_path = f'file://{kwargs[LOCAL_FILE_PATHS][image_path]}'
+
             image_url = get_upload_url(
                 model=
                 'style_repaint',  # The default setting here is "style_repaint".
