@@ -1,6 +1,7 @@
+from unittest.mock import MagicMock
+
 import pytest
 from modelscope_agent.llm import OpenAi
-from unittest.mock import MagicMock
 
 prompt = 'Tell me a joke.'
 messages = [{
@@ -31,6 +32,7 @@ def chat_model(mocker):
         chat_model, '_chat_no_stream', return_value='hello there')
     return chat_model
 
+
 @pytest.fixture
 def chat_model_usage(mocker):
     """
@@ -45,6 +47,7 @@ def chat_model_usage(mocker):
     chat_model = OpenAi(**llm_config)
     return chat_model
 
+
 def test_chat_stop_word(chat_model):
     stop = chat_model._update_stop_word(['observation'])
     assert isinstance(stop, list)
@@ -56,6 +59,7 @@ def test_chat_stop_word(chat_model):
     assert isinstance(stop, list)
     assert stop == ['<|im_end|>']
 
+
 def test_chat_no_stream_usage_info(chat_model_usage, mocker):
     """
     Test the _chat_no_stream method to ensure it updates the usage info correctly.
@@ -63,11 +67,18 @@ def test_chat_no_stream_usage_info(chat_model_usage, mocker):
     # Mock the OpenAI API response
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = "Test content"
-    mock_response.usage.dict.return_value = {'prompt_tokens': 5, 'completion_tokens': 10, 'total_tokens': 15}
+    mock_response.choices[0].message.content = 'Test content'
+    mock_response.usage.dict.return_value = {
+        'prompt_tokens': 5,
+        'completion_tokens': 10,
+        'total_tokens': 15
+    }
 
     # Patch the create method of the client to return the mock response
-    mocker.patch.object(chat_model_usage.client.chat.completions, 'create', return_value=mock_response)
+    mocker.patch.object(
+        chat_model_usage.client.chat.completions,
+        'create',
+        return_value=mock_response)
 
     messages = [{'role': 'user', 'content': 'Hello!'}]
 
@@ -75,7 +86,11 @@ def test_chat_no_stream_usage_info(chat_model_usage, mocker):
     result = chat_model_usage._chat_no_stream(messages)
 
     # Check if the method returns the correct content
-    assert result == "Test content"
+    assert result == 'Test content'
 
     # Check if the usage info is correctly updated
-    assert chat_model_usage.last_call_usage_info == {'prompt_tokens': 5, 'completion_tokens': 10, 'total_tokens': 15}
+    assert chat_model_usage.last_call_usage_info == {
+        'prompt_tokens': 5,
+        'completion_tokens': 10,
+        'total_tokens': 15
+    }
