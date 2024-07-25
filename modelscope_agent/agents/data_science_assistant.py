@@ -496,6 +496,7 @@ class DataScienceAssistant(RolePlay):
         return previous_code_blocks
 
     def _check_data(self):
+        # check data info
         if (not self.plan.get_finished_tasks()
                 or self.plan.current_task.task_type not in [
                     TaskType.DATA_PREPROCESS.type_name,
