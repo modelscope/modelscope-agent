@@ -60,21 +60,6 @@ class OllamaLLM(BaseChatModel):
         logger.info(f'call ollama success, output: {final_content}')
         return final_content
 
-    def stat_last_call_token_info_no_stream(self, response):
-        try:
-            self.last_call_usage_info = {
-                'prompt_tokens':
-                response.get('prompt_eval_count', -1),
-                'completion_tokens':
-                response.get('eval_count', -1),
-                'total_tokens':
-                response.get('prompt_eval_count') + response.get('eval_count')
-            }
-        except AttributeError:
-            logger.warning('No usage info in response')
-
-        return response
-
     def support_raw_prompt(self) -> bool:
         return super().support_raw_prompt()
 
@@ -114,6 +99,21 @@ class OllamaLLM(BaseChatModel):
             messages = [{'role': 'user', 'content': prompt}]
         return super().chat(
             messages=messages, stop=stop, stream=stream, **kwargs)
+
+    def stat_last_call_token_info_no_stream(self, response):
+        try:
+            self.last_call_usage_info = {
+                'prompt_tokens':
+                response.get('prompt_eval_count', -1),
+                'completion_tokens':
+                response.get('eval_count', -1),
+                'total_tokens':
+                response.get('prompt_eval_count') + response.get('eval_count')
+            }
+        except AttributeError:
+            logger.warning('No usage info in response')
+
+        return response
 
     def stat_last_call_token_info_stream(self, response):
         try:
