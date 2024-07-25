@@ -72,12 +72,17 @@ class OpenAi(BaseChatModel):
             stop=stop,
             stream=False,
             **kwargs)
-        self.stat_last_call_token_info(response)
+        self.stat_last_call_token_info_no_stream(response)
         logger.info(
             f'call openai api success, output: {response.choices[0].message.content}'
         )
         # TODO: error handling
         return response.choices[0].message.content
+
+    def stat_last_call_token_info_no_stream(self, response):
+        if hasattr(response, 'usage'):
+            self.last_call_usage_info = response.usage.dict()
+        return response
 
     def support_function_calling(self):
         if self.is_function_call is None:

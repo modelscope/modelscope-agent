@@ -120,7 +120,7 @@ class DashScopeLLM(BaseChatModel):
             top_p=top_p,
         )
         if response.status_code == HTTPStatus.OK:
-            self.stat_last_call_token_info(response)
+            self.stat_last_call_token_info_no_stream(response)
             return response.output.choices[0].message.content
         else:
             err = 'Error code: %s, error message: %s' % (
@@ -128,6 +128,24 @@ class DashScopeLLM(BaseChatModel):
                 response.message,
             )
             return err
+
+    def stat_last_call_token_info_no_stream(self, response):
+        try:
+            if response.usage is not None:
+                if not response.usage.get('total_tokens'):
+                    total_tokens = response.usage.input_tokens + response.usage.output_tokens
+                else:
+                    total_tokens = response.usage.total_tokens
+                self.last_call_usage_info = {
+                    'prompt_tokens': response.usage.input_tokens,
+                    'completion_tokens': response.usage.output_tokens,
+                    'total_tokens': total_tokens
+                }
+            else:
+                logger.warning('No usage info in response')
+        except AttributeError:
+            logger.warning('No usage info in response')
+        return response
 
     def stat_last_call_token_info(self, response):
         try:
