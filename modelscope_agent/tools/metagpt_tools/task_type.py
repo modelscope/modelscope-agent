@@ -40,6 +40,8 @@ test separately at the same time.
 MODEL_TRAIN_PROMPT = """
 The current task is about training a model, please ensure high performance:
 - If non-numeric columns exist, perform label encode together with all steps.
+- Try to use the best model such as RandomForest, XGBoost, if these models casued timeout error or \
+other issues, please try other models, don't stick to the same model.
 - If the model caused timeout error, please don't use this model again.
 - Use the data from previous task result directly, do not mock or reload data yourself.
 - Never save the model to a file.
@@ -48,8 +50,7 @@ The current task is about training a model, please ensure high performance:
 # Prompt for taking on "model_evaluate" tasks
 MODEL_EVALUATE_PROMPT = """
 The current task is about evaluating a model, please note the following:
-- Ensure that the evaluated data is same processed as the training data. If not, remember \
-use object in 'Done Tasks' to transform the data.
+- Ensure that the evaluated data is same processed as the training data.
 - Use trained model from previous task result directly, do not mock or reload model yourself.
 """
 
