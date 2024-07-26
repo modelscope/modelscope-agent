@@ -401,7 +401,11 @@ class DataScienceAssistant(RolePlay):
             task_codes += f'code_{i + 1} Output:\n{codes[index + i].result}\n\n'
         return task_codes
 
-    def _generate_code(self, code_counter: int, task: Task, user_request: str):
+    def _generate_code(self, code_counter: int, task: Task,
+                       user_request: str) -> str:
+        """
+        Generate code for the current task
+        """
         data_info = self._check_data()
         if code_counter == 0:
             # first time to generate code
@@ -477,7 +481,10 @@ class DataScienceAssistant(RolePlay):
             raise AttributeError('generate code failed')
         return code
 
-    def _get_previous_code_blocks(self):
+    def _get_previous_code_blocks(self) -> str:
+        """
+        Get previous code blocks with outputs
+        """
         previous_code_blocks = ''
         counter = 0
         for task in self.plan.tasks:
@@ -488,7 +495,10 @@ class DataScienceAssistant(RolePlay):
                     f'Codeblock_{counter} Output:\n{task.result}\n')
         return previous_code_blocks
 
-    def _get_previous_code_blocks_without_outputs(self):
+    def _get_previous_code_blocks_without_outputs(self) -> str:
+        """
+        Get previous code blocks without outputs
+        """
         previous_code_blocks = ''
         for task in self.plan.tasks:
             if task.is_finished:
@@ -496,7 +506,9 @@ class DataScienceAssistant(RolePlay):
         return previous_code_blocks
 
     def _check_data(self):
-        # check data info
+        """
+        Check data information to guide subsequent tasks
+        """
         if (not self.plan.get_finished_tasks()
                 or self.plan.current_task.task_type not in [
                     TaskType.DATA_PREPROCESS.type_name,
