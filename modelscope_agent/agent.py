@@ -186,6 +186,7 @@ class Agent(ABC):
 
             # check if the tenant_id of tool instance or tool service are exists
             # TODO: change from use_tool_api=True to False, to get the tenant_id of the tool changes to
+
             if tenant_id in tool_class_with_tenant and self.use_tool_api:
                 return
 
