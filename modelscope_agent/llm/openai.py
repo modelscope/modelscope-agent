@@ -46,7 +46,7 @@ class OpenAi(BaseChatModel):
             stream=True,
             stream_options=stream_options,
             **kwargs)
-        response = self.stat_last_call_token_info(response)
+        response = self.stat_last_call_token_info_stream(response)
         # TODO: error handling
         for chunk in response:
             # sometimes delta.content is None by vllm, we should not yield None
@@ -72,7 +72,7 @@ class OpenAi(BaseChatModel):
             stop=stop,
             stream=False,
             **kwargs)
-        self.stat_last_call_token_info(response)
+        self.stat_last_call_token_info_no_stream(response)
         logger.info(
             f'call openai api success, output: {response.choices[0].message.content}'
         )
@@ -171,7 +171,7 @@ class Vllm(OpenAi):
             f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
         response = self.client.chat.completions.create(
             model=self.model, messages=messages, stop=stop, stream=True)
-        response = self.stat_last_call_token_info(response)
+        response = self.stat_last_call_token_info_stream(response)
         # TODO: error handling
         for chunk in response:
             # sometimes delta.content is None by vllm, we should not yield None
