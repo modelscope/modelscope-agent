@@ -24,6 +24,7 @@ def sidebar():
         )
 
         st.session_state['OPENAI_API_KEY'] = api_key_input
+        os.environ['OPENAI_API_KEY'] = api_key_input
         # setting()
 
         st.markdown('---')
