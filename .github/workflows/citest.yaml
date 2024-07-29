@@ -52,14 +52,17 @@ jobs:
 #        path: ~/.cache/pip
 #        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
-    - name: Set up Python 3.10.13
+    - name: Set up Python 3.10.14
       uses: actions/setup-python@v3
       with:
-        python-version: "3.10.13"
+        python-version: "3.10.14"
 
     # Add a step to check if it's a fork and set an environment variable
     - name: Check if PR is from a fork
       run: echo "IS_FORKED_PR=${{ github.event.pull_request.head.repo.fork }}" >> $GITHUB_ENV
+
+    - name: Update pip
+      run: pip install --upgrade pip
 
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'

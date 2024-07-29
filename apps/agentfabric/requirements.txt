@@ -3,6 +3,7 @@ markdown-cjk-spacing
 mdx_truly_sane_lists
 modelscope-agent>=0.6.6
 modelscope_studio>=0.4.0
+moviepy
 pymdown-extensions
 python-slugify
 unstructured
