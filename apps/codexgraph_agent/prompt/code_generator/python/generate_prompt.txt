@@ -28,5 +28,3 @@ TODO: add a new function named divide
         raise ValueError("The divisor 'b' cannot be zero.")
         return a / b
 ```
-
-

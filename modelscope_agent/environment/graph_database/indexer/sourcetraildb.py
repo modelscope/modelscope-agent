@@ -5,11 +5,12 @@
 # the SWIG interface file instead.
 
 from sys import version_info as _swig_python_version_info
+
 if _swig_python_version_info < (2, 7, 0):
-    raise RuntimeError("Python 2.7 or later required")
+    raise RuntimeError('Python 2.7 or later required')
 
 # Import the low-level C/C++ module
-if __package__ or "." in __name__:
+if __package__ or '.' in __name__:
     from . import _sourcetraildb
 else:
     import _sourcetraildb
@@ -19,40 +20,53 @@ try:
 except ImportError:
     import __builtin__
 
+
 def _swig_repr(self):
     try:
-        strthis = "proxy of " + self.this.__repr__()
+        strthis = 'proxy of ' + self.this.__repr__()
     except __builtin__.Exception:
-        strthis = ""
-    return "<%s.%s; %s >" % (self.__class__.__module__, self.__class__.__name__, strthis,)
+        strthis = ''
+    return '<%s.%s; %s >' % (
+        self.__class__.__module__,
+        self.__class__.__name__,
+        strthis,
+    )
 
 
 def _swig_setattr_nondynamic_instance_variable(set):
+
     def set_instance_attr(self, name, value):
-        if name == "thisown":
+        if name == 'thisown':
             self.this.own(value)
-        elif name == "this":
+        elif name == 'this':
             set(self, name, value)
-        elif hasattr(self, name) and isinstance(getattr(type(self), name), property):
+        elif hasattr(self, name) and isinstance(
+                getattr(type(self), name), property):
             set(self, name, value)
         else:
-            raise AttributeError("You cannot add instance attributes to %s" % self)
+            raise AttributeError('You cannot add instance attributes to %s'
+                                 % self)
+
     return set_instance_attr
 
 
 def _swig_setattr_nondynamic_class_variable(set):
+
     def set_class_attr(cls, name, value):
         if hasattr(cls, name) and not isinstance(getattr(cls, name), property):
             set(cls, name, value)
         else:
-            raise AttributeError("You cannot add class attributes to %s" % cls)
+            raise AttributeError('You cannot add class attributes to %s' % cls)
+
     return set_class_attr
 
 
 def _swig_add_metaclass(metaclass):
     """Class decorator for adding a metaclass to a SWIG wrapped class - a slimmed down version of six.add_metaclass"""
+
     def wrapper(cls):
         return metaclass(cls.__name__, cls.__bases__, cls.__dict__.copy())
+
     return wrapper
 
 
@@ -130,124 +144,169 @@ def getVersionString():
     r"""getVersionString() -> std::string"""
     return _sourcetraildb.getVersionString()
 
+
 def getSupportedDatabaseVersion():
     r"""getSupportedDatabaseVersion() -> int"""
     return _sourcetraildb.getSupportedDatabaseVersion()
+
 
 def getLastError():
     r"""getLastError() -> std::string"""
     return _sourcetraildb.getLastError()
 
+
 def clearLastError():
     r"""clearLastError()"""
     return _sourcetraildb.clearLastError()
+
 
 def open(databaseFilePath):
     r"""open(std::string databaseFilePath) -> bool"""
     return _sourcetraildb.open(databaseFilePath)
 
+
 def close():
     r"""close() -> bool"""
     return _sourcetraildb.close()
+
 
 def clear():
     r"""clear() -> bool"""
     return _sourcetraildb.clear()
 
+
 def isEmpty():
     r"""isEmpty() -> bool"""
     return _sourcetraildb.isEmpty()
+
 
 def isCompatible():
     r"""isCompatible() -> bool"""
     return _sourcetraildb.isCompatible()
 
+
 def getLoadedDatabaseVersion():
     r"""getLoadedDatabaseVersion() -> int"""
     return _sourcetraildb.getLoadedDatabaseVersion()
+
 
 def beginTransaction():
     r"""beginTransaction() -> bool"""
     return _sourcetraildb.beginTransaction()
 
+
 def commitTransaction():
     r"""commitTransaction() -> bool"""
     return _sourcetraildb.commitTransaction()
+
 
 def rollbackTransaction():
     r"""rollbackTransaction() -> bool"""
     return _sourcetraildb.rollbackTransaction()
 
+
 def optimizeDatabaseMemory():
     r"""optimizeDatabaseMemory() -> bool"""
     return _sourcetraildb.optimizeDatabaseMemory()
+
 
 def recordSymbol(serializedNameHierarchy):
     r"""recordSymbol(std::string serializedNameHierarchy) -> int"""
     return _sourcetraildb.recordSymbol(serializedNameHierarchy)
 
+
 def recordSymbolDefinitionKind(symbolId, symbolDefinitionKind):
     r"""recordSymbolDefinitionKind(int symbolId, DefinitionKind symbolDefinitionKind) -> bool"""
-    return _sourcetraildb.recordSymbolDefinitionKind(symbolId, symbolDefinitionKind)
+    return _sourcetraildb.recordSymbolDefinitionKind(symbolId,
+                                                     symbolDefinitionKind)
+
 
 def recordSymbolKind(symbolId, symbolKind):
     r"""recordSymbolKind(int symbolId, SymbolKind symbolKind) -> bool"""
     return _sourcetraildb.recordSymbolKind(symbolId, symbolKind)
 
-def recordSymbolLocation(symbolId, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordSymbolLocation(int symbolId, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordSymbolLocation(symbolId, fileId, startLine, startColumn, endLine, endColumn)
 
-def recordSymbolScopeLocation(symbolId, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordSymbolScopeLocation(int symbolId, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordSymbolScopeLocation(symbolId, fileId, startLine, startColumn, endLine, endColumn)
+def recordSymbolLocation(symbolId, fileId, startLine, startColumn, endLine,
+                         endColumn):
+    return _sourcetraildb.recordSymbolLocation(symbolId, fileId, startLine,
+                                               startColumn, endLine, endColumn)
 
-def recordSymbolSignatureLocation(symbolId, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordSymbolSignatureLocation(int symbolId, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordSymbolSignatureLocation(symbolId, fileId, startLine, startColumn, endLine, endColumn)
+
+def recordSymbolScopeLocation(symbolId, fileId, startLine, startColumn,
+                              endLine, endColumn):
+    return _sourcetraildb.recordSymbolScopeLocation(symbolId, fileId,
+                                                    startLine, startColumn,
+                                                    endLine, endColumn)
+
+
+def recordSymbolSignatureLocation(symbolId, fileId, startLine, startColumn,
+                                  endLine, endColumn):
+    return _sourcetraildb.recordSymbolSignatureLocation(
+        symbolId, fileId, startLine, startColumn, endLine, endColumn)
+
 
 def recordReference(contextSymbolId, referencedSymbolId, referenceKind):
-    r"""recordReference(int contextSymbolId, int referencedSymbolId, ReferenceKind referenceKind) -> int"""
-    return _sourcetraildb.recordReference(contextSymbolId, referencedSymbolId, referenceKind)
+    return _sourcetraildb.recordReference(contextSymbolId, referencedSymbolId,
+                                          referenceKind)
 
-def recordReferenceLocation(referenceId, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordReferenceLocation(int referenceId, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordReferenceLocation(referenceId, fileId, startLine, startColumn, endLine, endColumn)
+
+def recordReferenceLocation(referenceId, fileId, startLine, startColumn,
+                            endLine, endColumn):
+    return _sourcetraildb.recordReferenceLocation(referenceId, fileId,
+                                                  startLine, startColumn,
+                                                  endLine, endColumn)
+
 
 def recordReferenceIsAmbiguous(referenceId):
     r"""recordReferenceIsAmbiguous(int referenceId) -> bool"""
     return _sourcetraildb.recordReferenceIsAmbiguous(referenceId)
 
-def recordReferenceToUnsolvedSymhol(contextSymbolId, referenceKind, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordReferenceToUnsolvedSymhol(int contextSymbolId, ReferenceKind referenceKind, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> int"""
-    return _sourcetraildb.recordReferenceToUnsolvedSymhol(contextSymbolId, referenceKind, fileId, startLine, startColumn, endLine, endColumn)
 
-def recordQualifierLocation(referencedSymbolId, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordQualifierLocation(int referencedSymbolId, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordQualifierLocation(referencedSymbolId, fileId, startLine, startColumn, endLine, endColumn)
+def recordReferenceToUnsolvedSymhol(contextSymbolId, referenceKind, fileId,
+                                    startLine, startColumn, endLine,
+                                    endColumn):
+    return _sourcetraildb.recordReferenceToUnsolvedSymhol(
+        contextSymbolId, referenceKind, fileId, startLine, startColumn,
+        endLine, endColumn)
+
+
+def recordQualifierLocation(referencedSymbolId, fileId, startLine, startColumn,
+                            endLine, endColumn):
+    return _sourcetraildb.recordQualifierLocation(referencedSymbolId, fileId,
+                                                  startLine, startColumn,
+                                                  endLine, endColumn)
+
 
 def recordFile(filePath):
     r"""recordFile(std::string filePath) -> int"""
     return _sourcetraildb.recordFile(filePath)
 
+
 def recordFileLanguage(fileId, languageIdentifier):
     r"""recordFileLanguage(int fileId, std::string languageIdentifier) -> bool"""
     return _sourcetraildb.recordFileLanguage(fileId, languageIdentifier)
+
 
 def recordLocalSymbol(name):
     r"""recordLocalSymbol(std::string name) -> int"""
     return _sourcetraildb.recordLocalSymbol(name)
 
-def recordLocalSymbolLocation(localSymbolId, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordLocalSymbolLocation(int localSymbolId, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordLocalSymbolLocation(localSymbolId, fileId, startLine, startColumn, endLine, endColumn)
 
-def recordAtomicSourceRange(fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordAtomicSourceRange(int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordAtomicSourceRange(fileId, startLine, startColumn, endLine, endColumn)
-
-def recordError(message, fatal, fileId, startLine, startColumn, endLine, endColumn):
-    r"""recordError(std::string message, bool fatal, int fileId, int startLine, int startColumn, int endLine, int endColumn) -> bool"""
-    return _sourcetraildb.recordError(message, fatal, fileId, startLine, startColumn, endLine, endColumn)
+def recordLocalSymbolLocation(localSymbolId, fileId, startLine, startColumn,
+                              endLine, endColumn):
+    return _sourcetraildb.recordLocalSymbolLocation(localSymbolId, fileId,
+                                                    startLine, startColumn,
+                                                    endLine, endColumn)
 
 
+def recordAtomicSourceRange(fileId, startLine, startColumn, endLine,
+                            endColumn):
+    return _sourcetraildb.recordAtomicSourceRange(fileId, startLine,
+                                                  startColumn, endLine,
+                                                  endColumn)
+
+
+def recordError(message, fatal, fileId, startLine, startColumn, endLine,
+                endColumn):
+    return _sourcetraildb.recordError(message, fatal, fileId, startLine,
+                                      startColumn, endLine, endColumn)

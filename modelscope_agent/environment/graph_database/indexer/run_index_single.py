@@ -1,16 +1,17 @@
 import argparse
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
-# 确保依赖项在系统的 PATH 环境变量中
-os.environ['PATH'] = os.path.dirname(os.path.abspath(__file__)) + ';' + os.environ['PATH']
-
 import uuid
 
 import my_client as my_client
 import shallow_indexer
 import sourcetraildb as srctrl
 from my_graph_db import GraphDatabaseHandler
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
+# 确保依赖项在系统的 PATH 环境变量中
+os.environ['PATH'] = os.path.dirname(
+    os.path.abspath(__file__)) + ';' + os.environ['PATH']
 
 
 def indexSourceFile(
@@ -21,9 +22,10 @@ def indexSourceFile(
     rootPath,
     shallow,
 ):
-    astVisitorClient = my_client.AstVisitorClient(graph_db, task_root_path=rootPath)
+    astVisitorClient = my_client.AstVisitorClient(
+        graph_db, task_root_path=rootPath)
 
-    print("use shallow: " + str(shallow))
+    print('use shallow: ' + str(shallow))
 
     if not shallow:
         indexer.indexSourceFile(
@@ -48,8 +50,8 @@ def indexSourceFile(
 def run_single(
     graph_db: GraphDatabaseHandler,
     environmentPath='',
-    sourceFilePath="",
-    root_path="",
+    sourceFilePath='',
+    root_path='',
     srctrl_clear=False,
     shallow=True,
 ):
@@ -57,23 +59,21 @@ def run_single(
     unique_id = uuid.uuid4()
     print(sourceFilePath)
 
-    tmp_save_folder = os.path.join(workingDirectory, "tmp")
+    tmp_save_folder = os.path.join(workingDirectory, 'tmp')
     if not os.path.exists(tmp_save_folder):
         os.makedirs(tmp_save_folder)
 
-    databaseFilePath = os.path.join(
-        tmp_save_folder, "tmp_{}.srctrldb".format(unique_id)
-    )
-    databaseFile1PrjPath = os.path.join(
-        tmp_save_folder, "tmp_{}.srctrlprj".format(unique_id)
-    )
+    databaseFilePath = os.path.join(tmp_save_folder,
+                                    'tmp_{}.srctrldb'.format(unique_id))
+    databaseFile1PrjPath = os.path.join(tmp_save_folder,
+                                        'tmp_{}.srctrlprj'.format(unique_id))
 
     if srctrl_clear:
         if not srctrl.clear():
-            print("ERROR: " + srctrl.getLastError() + sourceFilePath)
+            print('ERROR: ' + srctrl.getLastError() + sourceFilePath)
 
     if not srctrl.open(databaseFilePath):
-        print("ERROR: " + srctrl.getLastError() + sourceFilePath)
+        print('ERROR: ' + srctrl.getLastError() + sourceFilePath)
 
     srctrl.beginTransaction()
     indexSourceFile(
@@ -87,7 +87,7 @@ def run_single(
     srctrl.commitTransaction()
 
     if not srctrl.close():
-        print("ERROR: " + srctrl.getLastError() + sourceFilePath)
+        print('ERROR: ' + srctrl.getLastError() + sourceFilePath)
 
     if os.path.exists(databaseFilePath):
         os.remove(databaseFilePath)
@@ -97,41 +97,44 @@ def run_single(
 def run():
     # task_id = 'test_sh'
     parser = argparse.ArgumentParser(
-        description="Python source code indexer that generates a Sourcetrail compatible database."
+        description=
+        'Python source code indexer that generates a Sourcetrail compatible database.'
     )
     parser.add_argument(
-        "--file_path",
-        help="path to the source file to index",
-        default="",
+        '--file_path',
+        help='path to the source file to index',
+        default='',
         type=str,
         required=False,
     )
-    parser.add_argument("--root_path", default="", required=False)
+    parser.add_argument('--root_path', default='', required=False)
     parser.add_argument(
-        "--task_id", help="task_id", type=str, default="", required=False
-    )
+        '--task_id', help='task_id', type=str, default='', required=False)
 
     parser.add_argument(
-        "--url", help="neo4j url", type=str, default="", required=False
-    )
+        '--url', help='neo4j url', type=str, default='', required=False)
     parser.add_argument(
-        "--user", help="neo4j user", type=str, default="", required=False
-    )
+        '--user', help='neo4j user', type=str, default='', required=False)
     parser.add_argument(
-        "--password", help="neo4j password", type=str, default="", required=False
-    )
+        '--password',
+        help='neo4j password',
+        type=str,
+        default='',
+        required=False)
     parser.add_argument(
-        "--db_name", help="neo4j db name", type=str, default="", required=False
-    )
+        '--db_name',
+        help='neo4j db name',
+        type=str,
+        default='',
+        required=False)
     parser.add_argument(
-        "--env", help="env", type=str, default="", required=False
-    )
+        '--env', help='env', type=str, default='', required=False)
 
     parser.add_argument(
-        "--shallow", help="shallow", action="store_true", required=False
-    )
+        '--shallow', help='shallow', action='store_true', required=False)
 
-    parser.add_argument("--clear", help="clear", action="store_true", required=False)
+    parser.add_argument(
+        '--clear', help='clear', action='store_true', required=False)
 
     args = parser.parse_args()
 
@@ -159,13 +162,14 @@ def run():
     if is_clear:
         graph_db.clear_task_data(task_id)
 
-    run_single(graph_db,
-               environmentPath=env_path,
-               sourceFilePath=file_path,
-               root_path=root_path,
-               shallow=is_shallow)
-    print("Success build graph")
+    run_single(
+        graph_db,
+        environmentPath=env_path,
+        sourceFilePath=file_path,
+        root_path=root_path,
+        shallow=is_shallow)
+    print('Success build graph')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

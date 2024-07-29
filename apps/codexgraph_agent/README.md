@@ -22,16 +22,16 @@ pip install -r build_requirements.txt
 ## 2️⃣ Locate the Graph Database Environment
 - Find the Python path:
 ```bash
-where python 
+where python
 ```
 ## 3️⃣ Run CodexGraph Agent
 - Navigate to the modelscope-agent directory:
 ```bash
-cd modelscope-agent 
+cd modelscope-agent
 ```
 - Run the CodexGraph Agent:
 ```bash
-streamlit run apps/codexgraph_agent/help.py
+python apps\codexgraph_agent\run.py
 ```
 
 ## 📂 Example Usage

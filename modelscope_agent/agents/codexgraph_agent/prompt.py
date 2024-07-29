@@ -1,6 +1,6 @@
 CYPHER_PROMPT = """[start_of_cypher_queries]
 ### Query 1
-**decomposed text query**: 
+**decomposed text query**:
 ```cypher
 <cypher_query>
 ```
@@ -13,7 +13,7 @@ CYPHER_PROMPT = """[start_of_cypher_queries]
 ...
 
 ### Query n
-**decomposed text query**: 
+**decomposed text query**:
 ```cypher
 <cypher_query>
 ```

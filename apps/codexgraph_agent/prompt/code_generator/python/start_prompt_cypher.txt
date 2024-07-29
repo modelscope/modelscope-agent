@@ -6,7 +6,7 @@ Your task is to decompose the given text queries into several simple ones and tr
 
 [start_of_cypher_queries]
 ### Query 1
-**decomposed text query**: 
+**decomposed text query**:
 ```cypher
 <cypher_query>
 ```
@@ -19,7 +19,7 @@ Your task is to decompose the given text queries into several simple ones and tr
 ...
 
 ### Query n
-**decomposed text query**: 
+**decomposed text query**:
 ```cypher
 <cypher_query>
 ```

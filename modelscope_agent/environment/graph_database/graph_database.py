@@ -1,4 +1,5 @@
 import concurrent.futures
+
 import fasteners
 from py2neo import Graph, Node, NodeMatcher, Relationship, RelationshipMatcher
 
@@ -18,12 +19,15 @@ DETACH DELETE n
 RETURN count(n) AS deleted_count
 """
 
+
 class NoOpLock:
+
     def __enter__(self):
         pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
 
 class FileLock:
     # 读写锁
@@ -35,28 +39,30 @@ class FileLock:
     def __enter__(self):
         self.lock_acquired = self.lock.acquire(blocking=True)
         if not self.lock_acquired:
-            raise RuntimeError("Unable to acquire the lock")
+            raise RuntimeError('Unable to acquire the lock')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.lock_acquired:
             self.lock.release()
             self.lock_acquired = False
 
+
 class GraphDatabaseHandler:
+
     def __init__(
         self,
         uri,
         user,
         password,
-        database_name="neo4j",
-        task_id="",
+        database_name='neo4j',
+        task_id='',
         use_lock=False,
-        lockfile="neo4j.lock",
+        lockfile='neo4j.lock',
     ):
         self.graph = self._connect_to_graph(uri, user, password, database_name)
         self.node_matcher = NodeMatcher(self.graph)
         self.rel_matcher = RelationshipMatcher(self.graph)
-        self.none_label = "none"
+        self.none_label = 'none'
         self.task_id = task_id
         self.lock = FileLock(lockfile) if use_lock else NoOpLock()
 
@@ -65,22 +71,20 @@ class GraphDatabaseHandler:
             return Graph(uri, auth=(user, password), name=database_name)
         except Exception as e:
             raise ConnectionError(
-                "Failed to connect to Neo4j at {} after attempting to start the service.".format(
-                    uri
-                )
-            ) from e
+                'Failed to connect to Neo4j at {} after attempting to start the service.'
+                .format(uri)) from e
 
     def _match_node(self, full_name):
         if self.task_id:
             existing_node = self.node_matcher.match(
-                self.task_id, full_name=full_name
-            ).first()
+                self.task_id, full_name=full_name).first()
         else:
-            existing_node = self.node_matcher.match(full_name=full_name).first()
+            existing_node = self.node_matcher.match(
+                full_name=full_name).first()
         return existing_node
 
-    def _create_node(self, label=None, full_name="", parms={}):
-        if label is None or label == "":
+    def _create_node(self, label=None, full_name='', parms={}):
+        if label is None or label == '':
             label = self.none_label
         if self.task_id:
             node = Node(self.task_id, label, full_name=full_name, **parms)
@@ -92,11 +96,9 @@ class GraphDatabaseHandler:
     def _update_node_label(self, full_name, label):
         existing_node = self._match_node(full_name)
         if existing_node:
-            query = (
-                "MATCH (n:{0}:`{1}` {{full_name: $full_name}}) "
-                "REMOVE n:{0} "
-                "SET n:{2}"
-            ).format(self.none_label, self.task_id, label)
+            query = ('MATCH (n:{0}:`{1}` {{full_name: $full_name}}) '
+                     'REMOVE n:{0} '
+                     'SET n:{2}').format(self.none_label, self.task_id, label)
             self.graph.run(query, full_name=full_name)
             return True
         return False
@@ -104,9 +106,8 @@ class GraphDatabaseHandler:
     def _add_node_label(self, full_name, new_label):
         existing_node = self._match_node(full_name)
         if existing_node:
-            query = ("MATCH (n:`{0}` {{full_name: $full_name}}) " "SET n:{1}").format(
-                self.task_id, new_label
-            )
+            query = ('MATCH (n:`{0}` {{full_name: $full_name}}) '
+                     'SET n:{1}').format(self.task_id, new_label)
             self.graph.run(query, full_name=full_name)
             return True
         return False
@@ -119,31 +120,29 @@ class GraphDatabaseHandler:
         with self.lock:
             while True:
                 remove_label_query = REMOVE_LABEL_QUERY_TEMPLATE.format(
-                    label=task_id, limit=batch_size
-                )
+                    label=task_id, limit=batch_size)
                 remove_label_result = self.graph.run(remove_label_query).data()
-                removed_count = remove_label_result[0]["removed_count"]
+                removed_count = remove_label_result[0]['removed_count']
 
                 delete_node_query = DELETE_NODE_QUERY_TEMPLATE.format(
-                    label=task_id, limit=batch_size
-                )
+                    label=task_id, limit=batch_size)
                 delete_node_result = self.graph.run(delete_node_query).data()
-                deleted_count = delete_node_result[0]["deleted_count"]
+                deleted_count = delete_node_result[0]['deleted_count']
 
                 if removed_count == 0 and deleted_count == 0:
                     break
 
     def clear_database(self):
         with self.lock:
-            self.graph.run("MATCH (n) DETACH DELETE n")
+            self.graph.run('MATCH (n) DETACH DELETE n')
 
     def execute_query(self, query, **params):
         try:
             with self.lock:
                 result = self.graph.run(query, **params)
                 return [record for record in result]
-        except:
-            return ""
+        except Exception:
+            return ''
 
     def execute_query_with_exception(self, query, **params):
         try:
@@ -152,8 +151,9 @@ class GraphDatabaseHandler:
                 return [record for record in result], True
         except Exception as e:
             return str(e), False
-        
+
     def execute_query_with_timeout(graph_db, cypher, timeout=60):
+
         def query_execution():
             return graph_db.execute_query_with_exception(cypher)
 
@@ -162,14 +162,13 @@ class GraphDatabaseHandler:
             try:
                 cypher_response, flag = future.result(timeout=timeout)
             except concurrent.futures.TimeoutError:
-                cypher_response = "cypher too complex, out of memory"
+                cypher_response = 'cypher too complex, out of memory'
                 flag = True
             except Exception as e:
                 cypher_response = str(e)
                 flag = False
 
         return cypher_response, flag
-
 
     def update_node(self, full_name, parms={}):
         with self.lock:
@@ -189,16 +188,17 @@ class GraphDatabaseHandler:
                 existing_node.update(parms)
                 self.graph.push(existing_node)
             else:
-                existing_node = self._create_node(label, full_name, parms=parms)
+                existing_node = self._create_node(
+                    label, full_name, parms=parms)
             return existing_node
 
     def add_edge(
         self,
         start_label=None,
-        start_name="",
-        relationship_type="",
+        start_name='',
+        relationship_type='',
         end_label=None,
-        end_name="",
+        end_name='',
         params={},
     ):
         with self.lock:
@@ -207,45 +207,43 @@ class GraphDatabaseHandler:
 
             if not start_node:
                 start_node = self._create_node(
-                    start_label, full_name=start_name, parms=params
-                )
+                    start_label, full_name=start_name, parms=params)
             if not end_node:
                 end_node = self._create_node(
-                    end_label, full_name=end_name, parms=params
-                )
+                    end_label, full_name=end_name, parms=params)
 
             if start_node and end_node:
-                rel = self.rel_matcher.match(
-                    (start_node, end_node), relationship_type
-                ).first()
+                rel = self.rel_matcher.match((start_node, end_node),
+                                             relationship_type).first()
                 if rel:
                     rel.update(params)
                     self.graph.push(rel)
                     return rel
                 else:
-                    rel = Relationship(
-                        start_node, relationship_type, end_node, **params
-                    )
+                    rel = Relationship(start_node, relationship_type, end_node,
+                                       **params)
                     self.graph.create(rel)
                     return rel
             return None
 
-    def update_edge(self, start_name="", relationship_type="", end_name="", params={}):
+    def update_edge(self,
+                    start_name='',
+                    relationship_type='',
+                    end_name='',
+                    params={}):
         with self.lock:
             start_node = self._match_node(full_name=start_name)
             end_node = self._match_node(full_name=end_name)
             if start_node and end_node:
-                rel = self.rel_matcher.match(
-                    (start_node, end_node), relationship_type
-                ).first()
+                rel = self.rel_matcher.match((start_node, end_node),
+                                             relationship_type).first()
                 if rel:
                     rel.update(params)
                     self.graph.push(rel)
                     return rel
                 else:
-                    rel = Relationship(
-                        start_node, relationship_type, end_node, **params
-                    )
+                    rel = Relationship(start_node, relationship_type, end_node,
+                                       **params)
                     self.graph.create(rel)
                     return rel
             return None
@@ -254,20 +252,18 @@ class GraphDatabaseHandler:
         with self.lock:
             # 获取所有包含 file_path 属性的节点
             query = (
-                "MATCH (n:`{0}`) "
-                "WHERE exists(n.file_path)"
-                "RETURN n.file_path as file_path, n.full_name as full_name"
+                'MATCH (n:`{0}`) '
+                'WHERE exists(n.file_path)'
+                'RETURN n.file_path as file_path, n.full_name as full_name'
             ).format(self.task_id)
 
             nodes_with_file_path = self.execute_query(query)
             # 遍历每个节点并更新 file_path
             for node in nodes_with_file_path:
-                full_name = node["full_name"]
-                file_path = node["file_path"]
+                full_name = node['full_name']
+                file_path = node['file_path']
                 # old_path = node['file_path']
                 if file_path.startswith(root_path):
-                    file_path = file_path[len(root_path) :]
+                    file_path = file_path[len(root_path):]
                     self.update_node(
-                        full_name=full_name, parms={"file_path": file_path}
-                    )
-
+                        full_name=full_name, parms={'file_path': file_path})
