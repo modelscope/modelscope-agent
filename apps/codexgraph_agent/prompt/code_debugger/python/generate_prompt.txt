@@ -1,0 +1,23 @@
+Write a patch for the issue, based on the retrieved context.
+You can import necessary libraries.
+Return the patch in the format below:
+You can write multiple modifications if needed.
+```
+# modification 1
+<file>...</file>
+<original>...</original>
+<patched>...</patched>
+
+# modification 2
+<file>...</file>
+<original>...</original>
+<patched>...</patched>
+
+# modification 3
+...
+```
+Within `<file></file>`, replace `...` with actual file path.
+
+Within `<original></original>`, replace `...` with the original code snippet from the program.
+
+Within `<patched></patched>`, replace `...` with the fixed version of the original code. When adding original code and updated code, pay attention to indentation, as the code is in Python.

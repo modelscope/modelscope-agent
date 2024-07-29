@@ -1,0 +1,39 @@
+${message} Please add detailed comments to the code:
+
+### Code to be Annotated:
+```python
+${file_path}
+${user_query}
+```
+
+#### Final Output Format:
+You will format your final output as follows:
+```python
+{code_with_annotations}
+```
+
+#### Detailed Comments Notes:
+The comments should include:
+1. Function Description: A brief description of the function's purpose and functionality.
+2. Parameters: A list of the function's parameters, including their descriptions (omit types if they are unknown). If there are no parameters, state "Parameters: None".
+3. Returns: A description of the function's return value, including its type (optional) and meaning (omit types if they are unknown). If there is no return value, state "Returns: None".
+4. Exceptions (optional): A list of exceptions the function might raise, including the conditions under which they are raised.
+
+Example of detailed comments:
+```python
+def example_function(param1: int, param2):
+    """
+    This function performs a specific operation on two parameters and returns the result.
+
+    Parameters:
+    param1 (int): The first parameter, which is an integer.
+    param2: The second parameter.
+
+    Returns:
+    bool: True if the operation is successful, False otherwise.
+
+    Raises:
+    ValueError: If param1 is negative.
+    TypeError: If param2 is not a string.
+    """
+```

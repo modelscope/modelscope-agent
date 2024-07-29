@@ -1,0 +1,30 @@
+### Text Queries:
+${text_queries}
+
+### Task Instructions:
+Your task is to decompose the given text queries into several simple ones and try to use precise or fuzzy matching, and then translate the decomposed text queries into the corresponding Cypher queries. Your answer should follow the below formats:
+
+[start_of_cypher_queries]
+### Query 1
+**decomposed text query**:
+```cypher
+<cypher_query>
+```
+
+### Query 2
+**decomposed text query**:
+```cypher
+<cypher_query>
+```
+...
+
+### Query n
+**decomposed text query**:
+```cypher
+<cypher_query>
+```
+[end_of_cypher_queries]
+
+NOTE:
+- If the attributes to be returned by the query are not specified, please return the entire node.
+- The logic to query whether a code snippet of a particular node contains a specific string has been temporarily disabled.

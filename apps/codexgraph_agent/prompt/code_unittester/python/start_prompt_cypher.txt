@@ -1,0 +1,50 @@
+### Text Queries:
+${text_queries}
+
+### Task Instructions:
+Your task is to decompose the given text queries into several simple ones and try to use precise or fuzzy matching, and then translate the decomposed text queries into the corresponding Cypher queries. You answer should follow the below formats:
+
+[start_of_cypher_queries]
+### Query 1
+**decomposed text query**:
+```cypher
+<cypher_query>
+```
+
+### Query 2
+**decomposed text query**:
+```cypher
+<cypher_query>
+```
+...
+
+### Query n
+**decomposed text query**:
+```cypher
+<cypher_query>
+```
+[end_of_cypher_queries]
+
+Here are some useful tips:
+1. Try adding exception handling logic (e.g., `OPTIONAL`, `OR`) to return error information or handle edge cases in Cypher queries.
+2. Use appropriate Cypher patterns and aggregation functions to handle exceptions and edge cases that may occur in queries.
+3. Try to use the nodes (CLASS, METHOD, FUNCTION, FIELD, GLOBAL_VARIABLE, MODULE) and egdes (CONTAINS, HAS_METHOD, HAS_FIELD, USES, INHERITES) in the schema to rewrite text queries instead of using ambiguous expressions like `attributes` or `objects`.
+4. Use fuzzy matching when retrieving nodes to avoid issues with absolute paths. For example, use the following Cypher query: `WHERE m.name =~ '.*<node_name>'`
+
+Example:
+when you try to find MODULE a and FUNCTION b, first try to use precise matching:
+```
+MATCH (m:MODULE)
+WHERE m.name = 'a'
+MATCH (m)-[:CONTAINS]->(f:FUNCTION)
+WHERE f.name = 'b'
+RETURN m, f
+```
+and try to use fuzzy matching:
+```
+MATCH (m:MODULE)
+WHERE m.name =~ '.*a'
+MATCH (m)-[:CONTAINS]->(f:FUNCTION)
+WHERE f.name =~ '.*b'
+RETURN m, f
+```

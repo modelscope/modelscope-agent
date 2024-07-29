@@ -1,0 +1,109 @@
+## Example code
+```python
+# my_project/advanced_math.py
+
+GLOBAL_CONSTANT = 3.14
+
+class BaseCalculator:
+    def __init__(self, initial_value=0):
+        self.value = initial_value
+
+    def get_value(self):
+        return self.value
+
+
+class AdvancedCalculator(BaseCalculator):  # Inherits from BaseCalculator
+    def add(self, amount):
+        self.value += amount
+        return self.value
+
+    def multiply(self, multiplier):
+        self.value *= multiplier
+        return self.value
+
+    def compute_circle_area(self, radius):
+        return self.multiply(GLOBAL_CONSTANT) * self.square(radius)
+
+    def square(self, number):
+        return number * number
+
+
+def test_calculator():
+    calc = AdvancedCalculator()
+    calc.add(10)
+    calc.compute_circle_area(5)
+    return calc.get_value()
+```
+## Node
+```cypher
+// MODULE node for the file
+(:MODULE {name: "my_project.advanced_math", file_path: "my_project/advanced_math.py"})
+
+// CLASS node for BaseCalculator
+(:CLASS {name: "BaseCalculator", file_path: "my_project/advanced_math.py", signature: "class BaseCalculator:", body_range: [6, 10]})
+
+// METHOD node for BaseCalculator.__init__
+(:METHOD {name: "__init__", file_path: "my_project/advanced_math.py", class: "BaseCalculator", code: "def __init__(self, initial_value=0):\n        self.value = initial_value\n", signature: "def __init__(self, initial_value=0)", body_range: [7, 7]})
+
+// METHOD node for BaseCalculator.get_value
+(:METHOD {name: "get_value", file_path: "my_project/advanced_math.py", class: "BaseCalculator", code: "def get_value(self):\n        return self.value\n", signature: "def get_value(self)", body_range: [10, 10]})
+
+// CLASS node for AdvancedCalculator
+(:CLASS {name: "AdvancedCalculator", file_path: "my_project/advanced_math.py", signature: "class AdvancedCalculator(BaseCalculator):", body_range: [14, 26]})
+
+// METHOD node for AdvancedCalculator.add
+(:METHOD {name: "add", file_path: "my_project/advanced_math.py", class: "AdvancedCalculator", code: "def add(self, amount):\n        self.value += amount\n        return self.value\n", signature: "def add(self, amount)", body_range: [15, 16]})
+
+// METHOD node for AdvancedCalculator.multiply
+(:METHOD {name: "multiply", file_path: "my_project/advanced_math.py", class: "AdvancedCalculator", code: "def multiply(self, multiplier):\n        self.value *= multiplier\n        return self.value\n", signature: "def multiply(self, multiplier)", body_range: [19, 20]})
+
+// METHOD node for AdvancedCalculator.compute_circle_area
+(:METHOD {name: "compute_circle_area", file_path: "my_project/advanced_math.py", class: "AdvancedCalculator", code: "def compute_circle_area(self, radius):\n        return self.multiply(GLOBAL_CONSTANT) * self.square(radius)\n", signature: "def compute_circle_area(self, radius)", body_range: [23, 23]})
+
+// METHOD node for AdvancedCalculator.square
+(:METHOD {name: "square", file_path: "my_project/advanced_math.py", class: "AdvancedCalculator", code: "def square(self, number):\n        return number * number\n", signature: "def square(self, number)", body_range: [26, 26]})
+
+// FUNCTION node for test_calculator
+(:FUNCTION {name: "test_calculator", file_path: "my_project/advanced_math.py", code: "def test_calculator():\n    calc = AdvancedCalculator()\n    calc.add(10)\n    calc.compute_circle_area(5)\n    return calc.get_value()\n", signature: "def test_calculator()", body_range: [30, 33]})
+
+// GLOBAL_VARIABLE node for GLOBAL_CONSTANT
+(:GLOBAL_VARIABLE {name: "GLOBAL_CONSTANT", file_path: "my_project/advanced_math.py"})
+```
+
+## Edge
+```cypher
+// MODULE contains CLASS
+(:MODULE {name: "my_project.advanced_math"})-[:CONTAINS {association_type: "CLASS"}]->(:CLASS {name: "BaseCalculator"})
+(:MODULE {name: "my_project.advanced_math"})-[:CONTAINS {association_type: "CLASS"}]->(:CLASS {name: "AdvancedCalculator"})
+
+// MODULE contains FUNCTION
+(:MODULE {name: "my_project.advanced_math"})-[:CONTAINS {association_type: "FUNCTION"}]->(:FUNCTION {name: "test_calculator"})
+
+// MODULE contains GLOBAL_VARIABLE
+(:MODULE {name: "my_project.advanced_math"})-[:CONTAINS {association_type: "GLOBAL_VARIABLE"}]->(:GLOBAL_VARIABLE {name: "GLOBAL_CONSTANT"})
+
+// CLASS inherits CLASS
+(:CLASS {name: "AdvancedCalculator"})-[:INHERITS]->(:CLASS {name: "BaseCalculator"})
+
+// CLASS has METHOD (for BaseCalculator)
+(:CLASS {name: "BaseCalculator"})-[:HAS_METHOD]->(:METHOD {name: "__init__"})
+(:CLASS {name: "BaseCalculator"})-[:HAS_METHOD]->(:METHOD {name: "get_value"})
+
+// CLASS has METHOD (for AdvancedCalculator)
+(:CLASS {name: "AdvancedCalculator"})-[:HAS_METHOD]->(:METHOD {name: "add"})
+(:CLASS {name: "AdvancedCalculator"})-[:HAS_METHOD]->(:METHOD {name: "multiply"})
+(:CLASS {name: "AdvancedCalculator"})-[:HAS_METHOD]->(:METHOD {name: "compute_circle_area"})
+(:CLASS {name: "AdvancedCalculator"})-[:HAS_METHOD]->(:METHOD {name: "square"})
+
+// METHOD calls METHOD (within AdvancedCalculator)
+(:METHOD {name: "compute_circle_area"})-[:CALLS]->(:METHOD {name: "multiply"})
+(:METHOD {name: "compute_circle_area"})-[:CALLS]->(:METHOD {name: "square"})
+
+// FUNCTION calls METHOD
+(:FUNCTION {name: "test_calculator"})-[:CALLS]->(:METHOD {name: "add"})
+(:FUNCTION {name: "test_calculator"})-[:CALLS]->(:METHOD {name: "compute_circle_area"})
+(:FUNCTION {name: "test_calculator"})-[:CALLS]->(:METHOD {name: "get_value"})
+
+// METHOD uses GLOBAL_VARIABLE
+(:METHOD {name: "compute_circle_area"})-[:USAGE {source_association_type: "METHOD", target_association_type: "GLOBAL_VARIABLE"}]->(:GLOBAL_VARIABLE {name: "GLOBAL_CONSTANT"})
+```

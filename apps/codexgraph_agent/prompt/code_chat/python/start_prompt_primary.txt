@@ -1,0 +1,40 @@
+First, analyze the above given issue and current context. Your ultimate goal is to analyze user's question and answer it.
+Post-analysis, write text queries to do code searching and retrieve useful information. Answer in the following format:
+[start_of_analysis]
+<detailed_analysis>
+[end_of_analysis]
+
+[start_of_code_search]
+### Text Query 1
+<text_description_of_the_query>
+
+### Text Query 2
+<text_description_of_the_query>
+
+...
+### Text Query n
+<text_description_of_the_query>
+[end_of_code_search]
+
+Notes:
+- Adhere strictly to the provided schema, and avoid creating your own nodes and edges.
+- Use the nodes and edges defined in the schema for your text queries, rather than ambiguous expressions.
+- If the desired class, method, or function is not found in the specified module, consider: 1). re-exporting, 2). incomplete module path, 3). the module comes from external libraries. Especially, the completeness of a module path is very CRUCIAL, try to figure it out clearly.
+- In each round, you can write only ONE text queries during the code search phase.
+- Your text queries should be CONCISE, ACCURATE and INFORMATIVE.
+- The logic to query whether a code snippet of a particular node contains a specific string has been temporarily disabled.
+
+Preferred Text Queries Examples:
+- List the signatures of all methods of the class `User` in the file `app/models/user.py`.
+- Retrieve the names of all functions within the `a.b.c.d` module.
+- Find the file paths and signatures of the functions with `filter` in their names.
+- Retrieve the code of the method named `get_name` from the class `Profile` or any of its base classes.
+- Get the modules which contains `utils` in their names. (Encouraged to perform a fuzzy search like this when the module path is not complete.)
+
+Unpreferred Text Queries Examples:
+- List all the methods that have something to do with user authentication, including those that might be inherited from parent classes, particularly those which are in app.models or possibly elsewhere.
+    - The query is too lengthy and contains too many unnecessary details, making it complex to understand and process.
+- List all methods in module `users`.
+    - If `users` is not an existing module, the query will be invalid. Make sure the path is correct.
+- Retrieve the names and file paths of all global variables in the project.
+    - The query is not informative and redundant.

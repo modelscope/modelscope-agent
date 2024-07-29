@@ -1,0 +1,58 @@
+### New User's Requirements:
+<requirements>
+```python
+${file_path}
+${user_query}
+```
+</requirements>
+
+### Task Instructions:
+Your ultimate goal is to analyze user's requirement to an existing codebase and generate method/function for it, enclosed by <requirements> and </requirements>. To achieve this, you must analyze the given user's requirements first. Post-analysis, you have two action options:
+1. `GENERATE_NEW_CODE`, Use this action to generate new code for class/module in one step.
+2. `TEXT_QUERIES`, Use this action to write multiple text queries to retrieve relevant information from the graph database.
+
+#### Retrieve Tips
+1. Retrieve all METHOD's `name` Attributes of the CLASS.
+2. Retrieve all FIELD's `code` Attributes of the CLASS.
+3. Retrieve all `INHERITS` edges related CLASS. Identify and understand the dependencies of the class.
+4. Retrieve any other information you needed: (specific Classes/Methods/Fields)
+
+#### Final Output Format:
+You will format your final output as follows:
+```json
+{{"thought": "$$THOUGHT", "action": "$$ACTION_NAME", "action_input": "$$INPUT"}}
+```
+Specifically,
+1. for the GENERATE_NEW_CODE action, replace $$INPUT with useful hints derived from your retrieved content and analysis.
+2. for the TEXT_QUERIES action, $$INPUT is the text query statement, formatted as:
+[start_of_text_queries]
+### Text Query 1
+<text_description_of_the_query>
+
+### Text Query 2
+<text_description_of_the_query>
+...
+### Text Query n
+<text_description_of_the_query>
+[end_of_text_queries]
+3. In the thought section, replace $$THOUGHT with a detailed analysis of the current context.
+
+#### Notes:
+1. Before code generation, collect existing methods/function by TEXT_QUERIES.
+2. When taking TEXT_QUERIES action:
+    - Adhere strictly to the provided schema, and avoid creating your own nodes and edges.
+    - Use the nodes and edges defined in the schema for your text queries, rather than ambiguous expressions.
+    - Ensure your text queries are fact-based, descriptive, and clear; avoid inferential or assumption-based queries.
+    - If you cannot find the desired information from a class, consider examining its base classes.
+    - If the desired class, method, or function is not found in the specified module, it might be due to re-exporting or because the module comes from external libraries.
+    - Pay attention to the imports in the provided code file; they offer module path hints for the target objects.
+3. Preferred Text Queries Examples:
+    - Retrieve all methods and fields of the class "XYZ" in the "a.b.c" module.
+    - Retrieve all functions within the "a.b.c.d" module.
+    - Retrieve functions whose names contain "get" within the "a.b.c.d" module.
+    - Retrieve the method named "example_func" from the class "ABC" or any of its base classes.
+4. When taking GENERATE_NEW_CODE action:
+    - It is not recommended to take GENERATE_NEW_CODE actions if you have not gathered specific code information.
+    - No assumptions are allowed. If there are any, you need to task TEXT_QUERIES action first.
+    - Any non-existent/not-found method/field/function is not allowed
+5. You can only perform one action per round.

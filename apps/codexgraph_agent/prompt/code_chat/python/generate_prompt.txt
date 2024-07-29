@@ -1,0 +1,16 @@
+${message} Please Answer Question:
+
+### User's Requirements:
+<questions>
+${user_query}
+<\questions>
+
+#### Final Output Format:
+
+<answer>...</answer>
+
+<analysis>...</analysis>
+
+<reference>{{reference of source code 1}}</reference>
+<reference>{{reference of source code 2}}</reference>
+...

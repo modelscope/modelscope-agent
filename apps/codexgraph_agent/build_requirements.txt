@@ -1,0 +1,4 @@
+fasteners
+jedi==0.17.2
+parso==0.7.0
+py2neo

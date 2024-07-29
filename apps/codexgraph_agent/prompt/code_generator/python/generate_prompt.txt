@@ -1,0 +1,30 @@
+${message} Please generate new code:
+
+### User's Requirements:
+```text
+${file_path}
+${user_query}
+```
+
+#### Final Output Format:
+You only need to return the newly added code, not the original code
+You will format your final output as follows:
+```python
+{{new_code}}
+```
+
+### Example of adding new code:
+- Requirements
+```python
+class MathOperations:
+    def add(self, a, b):
+        return a + b
+TODO: add a new function named divide
+```
+- Expected Final Output: (only need to return the newly added code)
+```python
+    def divide(self, a, b):
+        if b == 0:
+        raise ValueError("The divisor 'b' cannot be zero.")
+        return a / b
+```
