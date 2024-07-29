@@ -413,12 +413,12 @@ class BaseKnowledge(BaseLlamaPack):
         if isinstance(files, str):
             files = [files]
 
-        if files and len(files) > 0:
-            self.set_filter(files)
-
         if not self.query_engine:
             print('No valid document. Return `Empty Response`.')
             return 'Empty Response'
+
+        if files and len(files) > 0:
+            self.set_filter(files)
 
         if use_llm:
             return str(self.query_engine.query(query_bundle))
