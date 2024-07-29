@@ -65,7 +65,7 @@ jobs:
       run: pip install --upgrade pip
 
     - name: Update datasets
-      run: pip install datasets>=2.18.0
+      run: pip install 'datasets>=2.18.0'
 
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
