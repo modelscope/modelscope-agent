@@ -61,6 +61,9 @@ jobs:
     - name: Check if PR is from a fork
       run: echo "IS_FORKED_PR=${{ github.event.pull_request.head.repo.fork }}" >> $GITHUB_ENV
 
+    - name: Update pip
+      run: pip install --upgrade pip
+
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       run: pip install -r requirements.txt
