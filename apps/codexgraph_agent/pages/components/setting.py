@@ -53,7 +53,7 @@ def setting_neo4j(page_name):
 def setting_repo(page_name):
     with st.container():
         st.subheader('Code Repo Settings')
-        col1, col2, col3, col4 = st.columns([1, 4, 1, 1])
+        col1, col2, col3, col4, col5 = st.columns([1, 3, 1, 1, 1])
 
         with col1:
             # Language selectbox
@@ -71,15 +71,25 @@ def setting_repo(page_name):
         with col3:
             project_options = st.session_state.shared['setting'][
                 'project_list']
-            project_id = st.selectbox(
-                'Project ID', project_options,
-                project_options.index(
-                    st.session_state.shared['setting']['project_id']))
+            project_id_cur = st.session_state.shared['setting']['project_id']
+            if project_id_cur in project_options:
+                cur_index = project_options.index(
+                    st.session_state.shared['setting']['project_id'])
+            else:
+                cur_index = 0
+            project_id = st.selectbox('Project ID', project_options, cur_index)
 
             if project_id != st.session_state.shared['setting']['project_id']:
                 update_config('project_id', project_id)
 
         with col4:
+            st.session_state.shared['setting']['project_id'] = st.text_input(
+                'New Project',
+                placeholder='Project id',
+                value=st.session_state.shared['setting']['project_id'],
+                key='repo_project_id')
+
+        with col5:
             st.write('\n\n')
             with st.form(key='build', border=False):
                 # 创建按钮
