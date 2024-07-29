@@ -62,7 +62,7 @@ jobs:
       run: echo "IS_FORKED_PR=${{ github.event.pull_request.head.repo.fork }}" >> $GITHUB_ENV
 
     - name: Update pip
-      run: pip install --upgrade pip
+      run: pip install --upgrade pip && pip install datasets>=2.18.0
 
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
