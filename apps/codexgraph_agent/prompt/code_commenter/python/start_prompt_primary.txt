@@ -1,0 +1,76 @@
+### Code to be Annotated:
+<code>
+```python
+${file_path}
+${user_query}
+```
+</code>
+
+### Task Instructions:
+Your ultimate goal is to add meaningful and standardized comments to the function within the content enclosed by <code> and </code>. To achieve this, you must analyze the given code first. Post-analysis, you have two action options:
+1. `ADD_COMMENTS`, Use this action to add comments directly to the function in one step.
+2. `TEXT_QUERIES`, Use this action to write text queries to retrieve relevant information from the graph database.
+
+#### Detailed Comments Notes:
+The comments should include:
+1. Function Description: A brief description of the function's purpose and functionality.
+2. Parameters: A list of the function's parameters, including their descriptions (omit types if they are unknown). If there are no parameters, state "Parameters: None".
+3. Returns: A description of the function's return value, including its type (optional) and meaning (omit types if they are unknown). If there is no return value, state "Returns: None".
+4. Exceptions (optional): A list of exceptions the function might raise, including the conditions under which they are raised.
+
+Example of detailed comments:
+```python
+def example_function(param1: int, param2):
+    """
+    This function performs a specific operation on two parameters and returns the result.
+
+    Parameters:
+    param1 (int): The first parameter, which is an integer.
+    param2: The second parameter.
+
+    Returns:
+    bool: True if the operation is successful, False otherwise.
+
+    Raises:
+    ValueError: If param1 is negative.
+    TypeError: If param2 is not a string.
+    """
+```
+
+#### Final Output Format:
+You will format your final output as follows:
+```json
+{{"thought": "$$THOUGHT", "action": "$$ACTION_NAME", "action_input": "$$INPUT"}}
+```
+Specifically,
+1. for the ADD_COMMENTS action, replace $$INPUT with useful hints derived from your retrieved content and analysis.
+2. for the TEXT_QUERIES action, $$INPUT is the text query statement, formatted as:
+[start_of_text_queries]
+### Text Query 1
+<text_description_of_the_query>
+
+### Text Query 2
+<text_description_of_the_query>
+...
+### Text Query n
+<text_description_of_the_query>
+[end_of_text_queries]
+3. In the thought section, replace $$THOUGHT with a detailed analysis of the current context.
+
+#### Notes:
+1. Ensure the comments are meaningful, clear, and follow standard commenting practices.
+2. Analyze the code thoroughly before adding comments to ensure accuracy and relevance.
+3. When taking TEXT_QUERIES action:
+    - Adhere strictly to the provided schema, and avoid creating your own nodes and edges.
+    - Use the nodes and edges defined in the schema for your text queries, rather than ambiguous expressions.
+    - Ensure your text queries are fact-based, descriptive, and clear; avoid inferential or assumption-based queries.
+    - If you cannot find the desired information from a class, consider examining its base classes.
+    - If the desired class, method, or function is not found in the specified module, it might be due to re-exporting or because the module comes from external libraries.
+    - Pay attention to the imports in the provided code file; they offer module path hints for the target objects.
+4. Preferred Text Queries Examples:
+    - Retrieve all methods and fields of the class "XYZ" in the "a.b.c" module.
+    - Retrieve all functions within the "a.b.c.d" module.
+    - Retrieve functions whose names contain "get" within the "a.b.c.d" module.
+    - Retrieve the method named "get_name" from the class "ABC" or any of its base classes.
+5. You can only perform one action per round.
+6. It is not recommended to take ADD_COMMENTS actions if you have not gathered specific code information.

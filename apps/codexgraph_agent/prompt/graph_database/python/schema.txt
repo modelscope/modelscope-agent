@@ -1,0 +1,63 @@
+## Nodes
+1. **MODULE**:
+   - **Attributes**:
+     - `name` (String): Name of the module (dotted name)
+     - `file_path` (String): File path of the module
+
+2. **CLASS**:
+   - **Attributes**:
+     - `name` (String): Name of the class
+     - `file_path` (String): File path of the class
+     - `signature` (String): The signature of the class
+     - `code` (String): Full code of the class
+
+3. **FUNCTION**:
+   - **Attributes**:
+     - `name` (String): Name of the function
+     - `file_path` (String): File path of the function
+     - `code` (String): Full code of the function
+     - `signature` (String): The signature of the function
+
+4. **FIELD**:
+   - **Attributes**:
+     - `name` (String): Name of the field
+     - `file_path` (String): File path of the field
+     - `class` (String): Name of the class the field belongs to
+
+5. **METHOD**:
+   - **Attributes**:
+     - `name` (String): Name of the method
+     - `file_path` (String): File path of the method
+     - `class` (String): Name of the class the method belongs to
+     - `code` (String): Full code of the method
+     - `signature` (String): The signature of the method
+
+6. **GLOBAL_VARIABLE**:
+   - **Attributes**:
+     - `name` (String): Name of the global variable
+     - `file_path` (String): File path of the global variable
+     - `code` (String): The code segment in which the global variable is defined.
+
+## Edges
+1. **CONTAINS**:
+   - **Source**: MODULE
+   - **Target**: CLASS or FUNCTION or GLOBAL_VARIABLE
+
+2. **HAS_METHOD**:
+   - **Source**: CLASS
+   - **Target**: METHOD
+
+3. **HAS_FIELD**:
+   - **Source**: CLASS
+   - **Target**: FIELD
+
+4. **INHERITS**:
+   - **Source**: CLASS
+   - **Target**: CLASS (base class)
+
+5. **USES**:
+   - **Source**: FUNCTION or METHOD
+   - **Target**: GLOBAL_VARIABLE or FIELD
+   - **Attributes**:
+     - `source_association_type` (String): `FUNCTION`, `METHOD`
+     - `target_association_type` (String): `GLOBAL_VARIABLE`, `FIELD`

@@ -1,0 +1,52 @@
+${message} Please generate Professional Unittest to the code:
+
+### Code to be Unittest:
+```python
+${file_path}
+${user_query}
+```
+
+#### Final Output Format:
+You will format your final output as follows:
+```python
+{{code_with_annotations}}
+```
+
+#### Professional Unittest Notes:
+1. use `import unittest`
+2. Setup and Teardown Methods: Define setup methods to initialize any resources needed for the tests.
+3. Test Case Descriptions: Clearly describe each test case, specifying what functionality it is testing and the expected outcome.
+4. Test Methods: Implement individual test methods for each functionality of the class. Use descriptive names for test methods to indicate what is being tested.
+5. Assertions: Use assertions to verify that the actual outcomes match the expected results. Cover positive, negative, and edge cases in the assertions.
+6. Mocking and Stubbing: Mock dependencies and external services to isolate the functionality of the class being tested.
+7. Code Coverage: Ensure that all methods and code paths of the class are covered by the tests. Aim for high code coverage to minimize untested scenarios.
+
+Example of professional unittest for a class:
+```python
+import unittest
+from unittest.mock import Mock, patch
+from mymodule import User, Database, InvalidCredentialsError
+class TestUser(unittest.TestCase):
+    def setUp(self):
+        # Setup resources needed for the tests
+        self.user = User()
+        self.mock_db = Mock(spec=Database)
+        self.user.database = self.mock_db
+
+    def test_login_success(self):
+        # Test successful login
+        self.mock_db.get_user.return_value = {'username': 'testuser', 'password': 'correctpassword'}
+        result = self.user.login('testuser', 'correctpassword')
+        self.assertTrue(result, "Login should succeed with correct credentials")
+
+    # Additional test methods covering all functionalities
+    ...
+
+    def test_login_empty_username(self):
+        # Test login with empty username
+        with self.assertRaises(ValueError):
+            self.user.login('', 'password')
+
+if __name__ == '__main__':
+    unittest.main()
+```
