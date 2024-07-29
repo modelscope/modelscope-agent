@@ -86,7 +86,7 @@ class CodexGraphAgentGeneral(Agent, ABC):
         if self.message_callback:
             self.message_callback(msg, role='user', avatar='🧑‍💻')
 
-    def _run(self, user_query, file_path: str = '', **kwargs):
+    def _run(self, user_query: str, file_path: str = '', **kwargs) -> str:
 
         if file_path:
             file_path = f'# file path: {file_path}'

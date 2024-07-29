@@ -60,7 +60,10 @@ class CypherAgent(Agent):
 
         return resp
 
-    def _run(self, cypher_queries, retries=5, **kwargs):
+    def _run(self, cypher_queries: str, retries: int = 5, **kwargs) -> str:
+        """
+        Executes a series of Cypher queries by interacting with a language model and a graph database.
+        """
         cypher_messages = [
             {
                 'role': 'system',

@@ -52,6 +52,33 @@ def update_progress_bar(page_name, progress):
 
 
 class PageBase(ABC):
+    """
+    PageBase serves as an abstract base class for creating a structured and interactive Streamlit web page.
+    It initializes the essential settings, manages the interface components, and handles the interaction
+    flow for a specific task. The core functionality includes setting up the page layout, managing
+    conversation history, handling user inputs, and interacting with an Agent to provide responses.
+
+    Attributes:
+        task_name (str): Name of the task associated with the page.
+        page_title (str): Title of the page displayed on the interface.
+        output_path (str): Path where conversation history is stored.
+        input_title (str): Title for the input section of the page.
+        default_input_text (str): Placeholder text for the input area.
+
+    Methods:
+        main(): Main entry point for setting up the page and handling user interactions.
+        body(): Defines the body layout of the page and handles user inputs.
+        repo_db_test(): Tests repository and database connectivity.
+        reload_history_message(history_path): Reloads the conversation history from a specified file.
+        update_message(message, role, avatar): Updates the conversation history with a new message.
+        clear_conversation(): Clears the current conversation history.
+        agent:
+            run_agent(): Executes the AI agent with user-provided input.
+            get_agent(): Abstract method to get the AI agent instance, to be implemented by subclasses.
+        call_back:
+            create_update_progress_bar(): Creates a function to update the progress bar dynamically.
+            create_update_message(): Creates a callback function to update messages dynamically.
+    """
 
     def __init__(
             self,

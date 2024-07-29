@@ -59,7 +59,7 @@ class CodexGraphAgentChat(CodexGraphAgentGeneral):
     def set_action_type_and_message(self):
         pass
 
-    def _run(self, user_query, file_path: str = '', **kwargs):
+    def _run(self, user_query: str, file_path: str = '', **kwargs) -> str:
 
         self.chat_history = []
 
