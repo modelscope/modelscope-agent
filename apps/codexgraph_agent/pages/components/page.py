@@ -4,9 +4,9 @@ import time
 import json
 from datetime import datetime
 from abc import ABC, abstractmethod
-from apps.codexgraph_agent.components.setting import setting
-from apps.codexgraph_agent.components.sidebar import sidebar
-from apps.codexgraph_agent.components.states import initialize_page_state, get_json_files
+from apps.codexgraph_agent.pages.components.setting import setting
+from apps.codexgraph_agent.pages.components.sidebar import sidebar
+from apps.codexgraph_agent.pages.components.states import initialize_page_state, get_json_files
 from modelscope_agent.environment.graph_database import GraphDatabaseHandler, build_graph_database
 
 def get_llm_config(llm_name):

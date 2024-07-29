@@ -1,13 +1,8 @@
 import os
-import sys
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import json
 import streamlit as st
 from datetime import datetime
-from apps.codexgraph_agent.components.page import PageBase, get_llm_config
+from apps.codexgraph_agent.pages.components.page import PageBase, get_llm_config
 from modelscope_agent.agents.codexgraph_agent import CodexGraphAgentChat
 
 

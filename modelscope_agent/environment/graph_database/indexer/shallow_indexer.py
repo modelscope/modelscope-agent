@@ -5,7 +5,7 @@ from enum import Enum
 import jedi
 import parso
 import sourcetraildb as srctrl
-from indexer import NameElement, NameHierarchy, SourceRange
+from index_utils import NameElement, NameHierarchy, SourceRange
 from jedi.inference import InferenceState
 
 _virtualFilePath = "virtual_file.py"

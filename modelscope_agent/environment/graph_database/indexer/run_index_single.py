@@ -8,7 +8,6 @@ os.environ['PATH'] = os.path.dirname(os.path.abspath(__file__)) + ';' + os.envir
 import uuid
 
 import my_client as my_client
-import indexer
 import shallow_indexer
 import sourcetraildb as srctrl
 from my_graph_db import GraphDatabaseHandler
