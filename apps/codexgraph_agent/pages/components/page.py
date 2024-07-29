@@ -8,7 +8,7 @@ import streamlit as st
 from apps.codexgraph_agent.pages.components.setting import setting
 from apps.codexgraph_agent.pages.components.sidebar import sidebar
 from apps.codexgraph_agent.pages.components.states import (
-    get_json_files, initialize_page_state)
+    get_json_files, initialize_page_state, save_config)
 from modelscope_agent.environment.graph_database import GraphDatabaseHandler
 from modelscope_agent.environment.graph_database.build import \
     build_graph_database
@@ -295,8 +295,13 @@ class PageBase(ABC):
         page_state = st.session_state[self.page_name]
         setting = st.session_state.shared['setting']
         neo4j_setting = setting['neo4j']
+        project_id = st.session_state.shared['setting']['project_id']
+        project_list = st.session_state.shared['setting']['project_list']
 
         if page_state['build_button']:
+            if project_id not in project_list:
+                project_list.append(project_id)
+                save_config(st.session_state.shared)
             if self.build_graph_db():
                 page_state['build_place'].success(
                     f"File path set to: {setting['repo_path']}")

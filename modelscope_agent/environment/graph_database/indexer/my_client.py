@@ -4,18 +4,48 @@ import sourcetraildb as srctrl
 from my_graph_db import GraphDatabaseHandler
 
 
+class SymbolRegistry:
+
+    def __init__(self):
+        self.symbol_dict = {}
+        self.next_id = 1
+
+    def record_symbol(self, symbol_name):
+        if symbol_name not in self.symbol_dict:
+            self.symbol_dict[symbol_name] = self.next_id
+            self.next_id += 1
+        return self.symbol_dict[symbol_name]
+
+
+class SymbolReferenceRegistry:
+
+    def __init__(self):
+        self.references = {}
+        self.next_ref_id = 1
+
+    def record_reference(self, context_symbol_id, referenced_symbol_id,
+                         reference_kind):
+        # 生成一个关系键值，用于在字典中查找
+        reference_key = (context_symbol_id, referenced_symbol_id,
+                         reference_kind)
+
+        # 检查是否存在重复的关系
+        if reference_key in self.references:
+            return self.references[reference_key]
+
+        # 如果不存在重复关系，则创建新的关系ID
+        reference_id = self.next_ref_id
+        self.references[reference_key] = reference_id
+        self.next_ref_id += 1
+        return reference_id
+
+
 class AstVisitorClient:
 
     def __init__(self, graphDB: GraphDatabaseHandler, task_root_path=''):
         self.indexedFileId = 0
-        if srctrl.isCompatible():
-            print('INFO: Loaded database is compatible.')
-        else:
-            print('WARNING: Loaded database is not compatible.')
-            print('INFO: Supported DB Version: '
-                  + str(srctrl.getSupportedDatabaseVersion()))
-            print('INFO: Loaded DB Version: '
-                  + str(srctrl.getLoadedDatabaseVersion()))
+        self.symbol = SymbolRegistry()
+        self.symbol_rela = SymbolReferenceRegistry()
         self.task_root_path = task_root_path
         self.graphDB = graphDB
         self.this_module = ''
@@ -42,10 +72,6 @@ class AstVisitorClient:
 
     def extract_signature(self, code):
         pass
-
-    # parsed_code = ast.parse(code)
-    # function_def = parsed_code.body[0]
-    # a = 0
 
     def extract_code_between_lines(self,
                                    start_line,
@@ -137,10 +163,9 @@ class AstVisitorClient:
                      global_node=None):
 
         if nameHierarchy is not None:
-            symbolId = srctrl.recordSymbol(nameHierarchy.serialize())
-            # TODO: edge: CONTAINS
             name = nameHierarchy.getDisplayString()
             parent_name = nameHierarchy.getParentDisplayString()
+            symbolId = self.symbol.record_symbol(name)
             self.symbolId_to_Name[symbolId] = name
             if name not in self.symbol_data.keys():
                 self.symbol_data[name] = {
@@ -172,8 +197,8 @@ class AstVisitorClient:
         return 0
 
     def recordSymbolDefinitionKind(self, symbolId, symbolDefinitionKind):
-
-        srctrl.recordSymbolDefinitionKind(symbolId, symbolDefinitionKind)
+        # definition 的类型
+        pass
 
     def recordSymbolKind(self, symbolId, symbolKind):
         full_name = self.symbolId_to_Name[symbolId]
@@ -222,12 +247,10 @@ class AstVisitorClient:
                 parent_class = self.get_parent_class(full_name)
                 if parent_class:
                     data['class'] = parent_class
-                    parent_info = self.symbol_data[parent_class]
-
-                    if parent_info['parent_name'] == self.this_module:
+                    parent_name = self.symbol_data[parent_class]['parent_name']
+                    if parent_name == self.this_module:
                         data['file_path'] = self.process_file_path(
                             self.this_file_path)
-
                     if kind == 'FUNCTION':
                         kind = 'METHOD'
                         self.symbol_data[full_name]['kind'] = kind
@@ -271,8 +294,6 @@ class AstVisitorClient:
                     end_name=full_name,
                 )
 
-        srctrl.recordSymbolKind(symbolId, symbolKind)
-
     def recordSymbolLocation(self, symbolId, sourceRange):
         name = self.symbolId_to_Name[symbolId]
         kind = self.symbol_data[name]['kind']
@@ -282,15 +303,6 @@ class AstVisitorClient:
                 sourceRange.startLine, sourceRange.endLine, is_code=False)
             self.graphDB.add_node(
                 kind, full_name=name, parms={'signature': code.strip()})
-
-        srctrl.recordSymbolLocation(
-            symbolId,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
 
         if kind in ['GLOBAL_VARIABLE', 'FIELD']:
             code = self.extract_code_between_lines(sourceRange.startLine - 3,
@@ -308,25 +320,8 @@ class AstVisitorClient:
             self.graphDB.add_node(kind, full_name=name, parms={'code': code})
             self.extract_signature(code)
 
-        srctrl.recordSymbolScopeLocation(
-            symbolId,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
-
     def recordSymbolSignatureLocation(self, symbolId, sourceRange):
-
-        srctrl.recordSymbolSignatureLocation(
-            symbolId,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
     def recordReference(self, contextSymbolId, referencedSymbolId,
                         referenceKind):
@@ -337,10 +332,6 @@ class AstVisitorClient:
         if referenceKindStr == 'IMPORT':
             contextKind = self.symbol_data[contextName]['kind']
             referenceNameKind = self.symbol_data[referenceName]['kind']
-        # self.graphDB.add_edge(start_label="MODULE", start_name=contextName,
-        #                          relationship_type='CONTAINS',
-        #                          end_label=referenceNameKind, end_name=referenceName,
-        #                          params={"association_type": referenceNameKind})
 
         if referenceKindStr == 'CALL':
             contextKind = self.symbol_data[contextName]['kind']
@@ -378,98 +369,42 @@ class AstVisitorClient:
                 end_label=referenceNameKind,
                 end_name=referenceName,
             )
-
-        referenceId = srctrl.recordReference(contextSymbolId,
-                                             referencedSymbolId, referenceKind)
-
-        # self.referenceId_to_data[referenceId] = {
-        # 	"contextName": contextName,
-        # 	"referenceName": referenceName,
-        # 	"referenceKindStr": referenceKindStr
-        # }
+        referenceId = self.symbol_rela.record_reference(
+            contextSymbolId, referencedSymbolId, referenceKind)
         return referenceId
 
     def recordReferenceLocation(self, referenceId, sourceRange):
 
-        srctrl.recordReferenceLocation(
-            referenceId,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
     def recordReferenceIsAmbiguous(self, referenceId):
 
-        return srctrl.recordReferenceIsAmbiguous(referenceId)
+        pass
 
     def recordReferenceToUnsolvedSymhol(self, contextSymbolId, referenceKind,
                                         sourceRange):
-
-        return srctrl.recordReferenceToUnsolvedSymhol(
-            contextSymbolId,
-            referenceKind,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
     def recordQualifierLocation(self, referencedSymbolId, sourceRange):
-        return srctrl.recordQualifierLocation(
-            referencedSymbolId,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
     def recordFile(self, filePath):
-        self.indexedFileId = srctrl.recordFile(filePath.replace('\\', '/'))
-        self.indexedFileId_to_path[self.indexedFileId] = filePath.replace(
-            '\\', '/')
-        self.this_file_path = self.indexedFileId_to_path[self.indexedFileId]
-        srctrl.recordFileLanguage(self.indexedFileId, 'python')
-        return self.indexedFileId
+        return 1
 
     def recordFileLanguage(self, fileId, languageIdentifier):
-        srctrl.recordFileLanguage(fileId, languageIdentifier)
+        pass
 
     def recordLocalSymbol(self, name):
-        return srctrl.recordLocalSymbol(name)
+        pass
 
     def recordLocalSymbolLocation(self, localSymbolId, sourceRange):
-        srctrl.recordLocalSymbolLocation(
-            localSymbolId,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
     def recordAtomicSourceRange(self, sourceRange):
-        srctrl.recordAtomicSourceRange(
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
     def recordError(self, message, fatal, sourceRange):
-        srctrl.recordError(
-            message,
-            fatal,
-            self.indexedFileId,
-            sourceRange.startLine,
-            sourceRange.startColumn,
-            sourceRange.endLine,
-            sourceRange.endColumn,
-        )
+        pass
 
 
 def symbolDefinitionKindToString(symbolDefinitionKind):
