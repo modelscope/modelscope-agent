@@ -275,8 +275,8 @@ with demo:
                     file_count='multiple'),
                 submit_button_props=dict(label=i18n.get('sendOnLoading')))
             with gr.Row():
-                stop_button = gr.Button(label=i18n.get('stop_current_round'))
-                retry_button = gr.Button(label=i18n.get('retry_last_round'))
+                stop_button = gr.Button({'label': i18n.get('stop_current_round')})
+                retry_button = gr.Button({'label': i18n.get('retry_last_round')})
             user_chat_bot_suggest = gr.Dataset(
                 label=i18n.get('prompt_suggestion'),
                 components=[preview_chat_input],
@@ -599,7 +599,7 @@ with demo:
         ])
 
     # 配置 "Preview" 的消息发送功能
-    def preview_send_message(chatbot, input, _state, uuid_str, _user_token):
+    def preview_send_message(chatbot, input, _state, uuid_str, _user_token, is_retry: bool = False):
         # 将发送的消息添加到聊天历史
         # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
@@ -616,12 +616,13 @@ with demo:
             append_files.append(file_path)
         user_memory = _state['user_memory']
 
-        chatbot.append([{'text': input.text, 'files': input.files}, None])
-        yield {
-            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
-            user_chat_bot_cover: gr.HTML(visible=False),
-            preview_chat_input: None
-        }
+        if not is_retry:
+            chatbot.append([{'text': input.text, 'files': input.files}, None])
+            yield {
+                user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
+                user_chat_bot_cover: gr.HTML(visible=False),
+                preview_chat_input: None
+            }
 
         # get chat history from memory
         history = user_memory.get_history()
@@ -646,6 +647,7 @@ with demo:
                     user_token=_user_token):
                 # append_files=new_file_paths):
                 # important! do not change this
+                global stop_flag
                 if stop_flag:
                     stop_flag = False
                     break
@@ -656,7 +658,18 @@ with demo:
             if len(history) == 0:
                 user_memory.update_history(
                     Message(role='system', content=user_agent.system_prompt))
-
+            if is_retry:
+                try:
+                    last_try = user_memory.pop_history()  # role=assistant
+                    assert last_try.role == 'assistant'
+                    last_try = user_memory.pop_history()  # role=user
+                    assert last_try.role == 'user'
+                except Exception as e:
+                    logger.query_error(
+                        uuid=uuid_str,
+                        error=str(e),
+                        details={'error_traceback': traceback.format_exc()})
+                    raise e
             user_memory.update_history([
                 Message(role='user', content=input.text),
                 Message(role='assistant', content=response),
@@ -712,15 +725,21 @@ with demo:
         outputs=configure_updated_outputs,
     )
 
-    def stop_current_round(stop_flag, uuid_str, state):
+    def stop_current_round(uuid_str, state):
         uuid_str = check_uuid(uuid_str)
+        global stop_flag
         stop_flag = True
 
     stop_button.click(
         stop_current_round,
-        inputs=[stop_flag, uuid_str, state],
-        outputs=[stop_flag]
+        inputs=[uuid_str, state]
     )
+
+    retry_button.click(
+        preview_send_message,
+        inputs=[user_chatbot, preview_chat_input, state, uuid_str, user_token],
+        outputs=[user_chatbot, user_chat_bot_cover, preview_chat_input])
+
 
     def change_lang(language):
         i18n = I18n(language)
