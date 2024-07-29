@@ -1,5 +1,6 @@
 from typing import Dict, List, Union
 
+import nbformat
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from pydantic import BaseModel
 
@@ -39,6 +40,12 @@ class AgentAttr(BaseModel):
     knowledge: str = ''  # in case retrieval cost is much higher than storage
 
 
+class CodeCell(BaseModel):
+    code: str = ''
+    result: str = ''
+    is_success: bool = False
+
+
 class TaskResult(BaseModel):
     """Result of taking a task, with result and is_success required to be filled"""
 
@@ -56,6 +63,7 @@ class Task(BaseModel):
     result: str = ''
     is_success: bool = False
     is_finished: bool = False
+    code_cells: List[CodeCell] = []
 
     def reset(self):
         self.code = ''
@@ -67,6 +75,9 @@ class Task(BaseModel):
         self.code = task_result.code
         self.result = task_result.result
         self.is_success = task_result.is_success
+
+    def append_code_cell(self, code_cell: CodeCell):
+        self.code_cells.append(code_cell)
 
 
 class Plan(BaseModel):

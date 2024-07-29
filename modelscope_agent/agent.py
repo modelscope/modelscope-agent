@@ -168,7 +168,9 @@ class Agent(ABC):
                 tool_class_with_tenant = TOOL_REGISTRY[tool_name]
 
                 # adapt the TOOL_REGISTRY[tool_name] to origin tool class
-                if isinstance(tool_class_with_tenant, BaseTool):
+                if (isinstance(tool_class_with_tenant, type) and issubclass(
+                        tool_class_with_tenant, BaseTool)) or isinstance(
+                            tool_class_with_tenant, BaseTool):
                     tool_class_with_tenant = {
                         'class': TOOL_REGISTRY[tool_name]
                     }
@@ -184,6 +186,7 @@ class Agent(ABC):
 
             # check if the tenant_id of tool instance or tool service are exists
             # TODO: change from use_tool_api=True to False, to get the tenant_id of the tool changes to
+
             if tenant_id in tool_class_with_tenant and self.use_tool_api:
                 return
 

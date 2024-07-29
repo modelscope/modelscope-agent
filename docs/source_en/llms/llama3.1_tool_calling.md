@@ -1,4 +1,4 @@
-# Best Practices for Qwen2 Tool Calling Service
+# Best Practices for Llama3.1 Tool Calling Service
 
 ## Table of Contents
   - [Environment Setup](#environment-setup)
@@ -6,7 +6,15 @@
   - [Service Invocation](#service-invocation)
 
 ## Environment Setup
+Llama3.1 depends on the latest vllm version 0.5.3.post1, please make sure install it firstly.
+```shell
+# speed up if needed
+# pip config set global.index-url https://mirrors.cloud.aliyuncs.com/pypi/simple
+# pip config set install.trusted-host mirrors.cloud.aliyuncs.com
+pip install https://github.com/vllm-project/vllm/releases/download/v0.5.3.post1/vllm-0.5.3.post1+cu118-cp310-cp310-manylinux1_x86_64.whl
+```
 
+For tool calling, please make sure using the modelscope-agent-server from modelscope-agent project
 ```shell
 git clone https://github.com/modelscope/modelscope-agent.git
 cd modelscope-agent
@@ -15,14 +23,21 @@ cd modelscope-agent
 ## Model Preparation
 
 Model Link:
-- qwen2-7b-instruct: [https://modelscope.cn/models/qwen/Qwen2-7B-Instruct/summary](https://modelscope.cn/models/qwen/Qwen2-7B-Instruct/summary)
+- meta-llama/Meta-Llama-3.1-8B-Instruct: [https://modelscope.cn/models/LLM-Research/Meta-Llama-3.1-8B-Instruct](https://modelscope.cn/models/LLM-Research/Meta-Llama-3.1-8B-Instruct)
 
 Model Download:
 
 ```python
 from modelscope import snapshot_download
-model_dir = snapshot_download('qwen/Qwen2-7B-Instruct')
+model = snapshot_download("LLM-Research/Meta-Llama-3.1-8B-Instruct")
 ```
+or
+```python
+from huggingface_hub import snapshot_download
+model = snapshot_download("meta-llama/Meta-Llama-3.1-8B-Instruct")
+```
+Print the `model` to get the local path to weights
+
 
 ## Service Invocation
 
@@ -30,16 +45,16 @@ By leveraging the capabilities of `modelscope-agent-server`, users can set up a 
 
 ### Service Startup
 
-For specific usage, refer to vllm. The original command to start the `qwen2-7b-instruct` model using vllm is as follows:
+For specific usage, refer to vllm. The original command to start the `meta-llama/Meta-Llama-3.1-8B-Instruct` model using vllm is as follows:
 
 ```shell
-python -m vllm.entrypoints.openai.api_server --served-model-name Qwen2-7B-Instruct --model path/to/weights
+python -m vllm.entrypoints.openai.api_server --served-model-name meta-llama/Meta-Llama-3.1-8B-Instruct --model path/to/weights
 ```
 
 Now, in the modelscope-agent project directory, enter the following command to start the `tool calling` service supported by the modelscope-agent core:
 
 ```shell
-sh scripts/run_assistant_server.sh --served-model-name Qwen2-7B-Instruct --model path/to/weights
+sh scripts/run_assistant_server.sh --served-model-name meta-llama/Meta-Llama-3.1-8B-Instruct --model path/to/weights
 ```
 
 The related service will be started on the default port **31512** and can be accessed via `http://localhost:31512`.
@@ -65,7 +80,7 @@ curl -X POST 'http://localhost:31512/v1/chat/completions' \
         }
     }],
     "tool_choice": "auto",
-    "model": "Qwen2-7B-Instruct",
+    "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
     "messages": [
         {"content": "海淀区天气", "role": "user"}
     ]
@@ -74,22 +89,22 @@ curl -X POST 'http://localhost:31512/v1/chat/completions' \
 Return the following result:
 ```json
 {
-  "request_id": "chatcmpl_3f020464-e98d-4c7b-8717-9fca56784fe6",
+  "request_id": "chatcmpl_84a66af2-4021-4ae6-822d-8e3f42ca9f43",
   "message": "",
   "output": null,
-  "id": "chatcmpl_3f020464-e98d-4c7b-8717-9fca56784fe6",
+  "id": "chatcmpl_84a66af2-4021-4ae6-822d-8e3f42ca9f43",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "好的，我已经调用了amap_weather工具查询了海淀区的天气情况。现在，让我为您展示一下查询结果吧。\n\n工具调用\nAction: amap_weather\nAction Input: {\"location\": \"海淀区\"}\n",
+        "content": "工具调用\nAction: amap_weather\nAction Input: {\"location\": \"北京市\"}\n",
         "tool_calls": [
           {
             "type": "function",
             "function": {
               "name": "amap_weather",
-              "arguments": "{\"location\": \"海淀区\"}"
+              "arguments": "{\"location\": \"北京市\"}"
             }
           }
         ]
@@ -97,14 +112,14 @@ Return the following result:
       "finish_reason": "tool_calls"
     }
   ],
-  "created": 1717485704,
-  "model": "Qwen2-7B-Instruct",
-  "system_fingerprint": "chatcmpl_3f020464-e98d-4c7b-8717-9fca56784fe6",
+  "created": 1721803228,
+  "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "system_fingerprint": "chatcmpl_84a66af2-4021-4ae6-822d-8e3f42ca9f43",
   "object": "chat.completion",
   "usage": {
-    "prompt_tokens": 237,
-    "completion_tokens": 48,
-    "total_tokens": 285
+    "prompt_tokens": -1,
+    "completion_tokens": -1,
+    "total_tokens": -1
   }
 }
 ```
@@ -118,7 +133,7 @@ Additionally, users can also make calls using the OpenAI SDK. The specific usage
 ```python
 from openai import OpenAI
 api_base = "http://localhost:31512/v1/"
-model = 'Qwen2-7B-Instruct'
+model = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
 
 tools = [{
     "type": "function",
@@ -149,4 +164,19 @@ chat_completion = client.chat.completions.create(
     tools=tools,
     tool_choice=tool_choice
 )
+```
+
+### 70B Tool calling Service Scripts
+In order to get full ability of llama3.1 70B, 4*A100 should be ready for the max sequence length with 131072.
+However, 2*A100 could run the 70B as well with limit the max sequence length to 8192.
+The following scripts shows the scripts
+
+max sequence length with 131072 and 4*A100
+```shell
+export CUDA_VISIBLE_DEVICES=0,1,2,3;sh scripts/run_assistant_server.sh --served-model-name meta-llama/Meta-Llama-3.1-70B-Instruct --model '/path/to/weights' --tensor-parallel-size 4
+```
+
+max sequence length with 8192 and 2*A100
+```shell
+export CUDA_VISIBLE_DEVICES=0,1;sh scripts/run_assistant_server.sh --served-model-name meta-llama/Meta-Llama-3.1-70B-Instruct --model '/path/to/weights' --tensor-parallel-size 2 --max_model_len 8192
 ```

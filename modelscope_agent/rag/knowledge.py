@@ -402,7 +402,7 @@ class BaseKnowledge(BaseLlamaPack):
             MetadataFilter(key='file_name', value=os.path.basename(file))
             for file in files
         ]
-        retriever._filters = MetadataFilters(filters=filters)
+        retriever._filters = MetadataFilters(filters=filters, condition='or')
 
     def run(self,
             query: str,
