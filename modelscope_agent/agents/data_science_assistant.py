@@ -1,35 +1,42 @@
 # Implementation inspired by the paper "DATA INTERPRETER: AN LLM AGENT FOR DATA SCIENCE"
-
+import asyncio
 import os
+import time
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterator, List, Optional, Union
 
 import json
 import json5
 import nbformat
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.schemas import Plan, Task
-from modelscope_agent.tools.base import BaseTool
-from modelscope_agent.tools.code_interpreter import CodeInterpreter
+from modelscope_agent.schemas import CodeCell, Plan, Task
+from modelscope_agent.tools.code_interpreter.code_interpreter_nb import \
+    CodeInterpreter
+from modelscope_agent.tools.metagpt_tools.task_type import TaskType
+from modelscope_agent.tools.metagpt_tools.tool_recommend import ToolRecommender
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import parse_code
 
 DATA_SCIENTIST_TEMPLATE = """As a data scientist, you need to help user to achieve their goal step by step in a \
-continuous Jupyter notebook.Since it is a notebook environment, don\'t use asyncio.run. Instead, use await if you
-need to call an async function."""
+continuous Jupyter notebook."""
 PLAN_TEMPLATE = """
 # Context:
 {context}
 # Available Task Types:
-code - write code to solve the problem
+- **eda**: For performing exploratory data analysis
+- **data preprocessing**: For preprocessing dataset in a data analysis or machine learning task ONLY,\
+general data operation doesn't fall into this type
+- **feature engineering**: Only for creating new columns fo input data.
+- **model train**: Only for training model.
+- **model evaluate**: Only for evaluating model.
+- **other**: Any tasks not in the defined categories
+
 
 # Task:
-Based on the context, write a plan or modify an existing plan of what you should do to achieve the goal. A plan \
+Based on the context, write a simple plan or modify an existing plan of what you should do to achieve the goal. A plan \
 consists of one to four tasks.
-If you are modifying an existing plan, carefully follow the instruction, don't make unnecessary changes. \
-Give the whole plan unless instructed to modify only one task of the plan.
-If you encounter errors on the current task, revise and output the current single task only.
+
 Output a list of jsons following the format:
 ```json
 [
@@ -44,56 +51,170 @@ Output a list of jsons following the format:
 ```
 """
 CODE_TEMPLATE = """
+# Task
 you are a code generator, you need to generate a code python block in jupyter notebook to achieve the \
 current task:
 {instruction}
 
+## Task Guidance
+{task_guidance}
+
+## User Request
 current task is part of the whole plan to achieve the user request:
 {user_request}
 
-previous code blocks are as follows, you need to generate python code \
-that follows previous code, no need to repeat previous
-code:
-{previous_code_blocks}
-
-Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse\
-the code correctly,the code format is as follows:
-```python
-# the code you need to write
-```
-"""
-CODE_REFLECT_TEMPLATE = """
-you are a code generator, you need to generate a new code block in a new jupyter notebook to achieve the \
-current task. The code should be generated based on the previous code block and the current task instruction.
-we have generated some code for current task but didn't execute successfully, you can use these code \
-as a reference to generate the correct code.
-
-[current task]
-{instruction}
-
-current task is part of the whole plan to achieve the user request:
-[User Request]
-{user_request}
-
+# Previous executed code
 previous code blocks are as follows and have been executed successfully in the previous jupyter notebook code blocks, \
 which means you can use the variables defined in the previous code blocks.\
 the code you need to generate should follow previous code, no need to repeat.
-[previous code blocks]
-{previous_code_blocks}
 
+{previous_code}
+
+{data_info}
+
+# Constraints
+- Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
+- Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, you MUST\
+ follow the 'tool_path' in order to successfully import the tool.
+- the code format MUST be followed:
+
+```python
+# your code
+```
+
+
+
+"""
+CODE_REFLECT_TEMPLATE = """
+# Role
+you are a code generator, you need to generate a code python block in jupyter notebook to achieve the \
+current task:
+
+# Task
+{instruction}
+
+## Task Guidance
+{task_guidance}
+
+## User Request
+current task is part of the whole plan to achieve the user request:
+{user_request}
+
+# Previous executed code
+previous code blocks are as follows and have been executed successfully in the previous jupyter notebook code blocks, \
+which means you can use the variables defined in the previous code blocks.\
+the code you need to generate should follow previous code, no need to repeat. If previous code is empty, \
+you can ignore this part.
+
+{previous_code}
+
+{data_info}
+
+## Generated Code and Error
 the code we have generated for current task is as follows, you can use it as a reference to generate the correct code:
 {code_and_error}
 
-Attention: the code format MUST be followed, otherwise the code interpreter will not be able to parse the code \
-correctly,the code format is as follows:
+# Constraints
+- Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
+- Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, \
+you MUST follow the 'tool_path' in order to successfully import the tool.
+- the code format MUST be followed, otherwise the code interpreter will not be able to parse\
+the code correctly,the code format is as follows:
+- If certain package are not installed in the environment, you can install them by adding the following code:
+!pip install <package_name>
+- Your answer must contain one and only one code block.
+- the code format MUST be followed, the code format is as follows:
+
 ```python
-# the code you need to write
+# your code
+```
+
+"""
+CODE_USING_TOOLS_TEMPLATE = """
+# Task
+you are a code generator, you need to generate a code python block in jupyter notebook to achieve the \
+current task:
+{instruction}
+
+## Task Guidance
+{task_guidance}
+
+## User Request
+current task is part of the whole plan to achieve the user request:
+{user_request}
+
+# Previous executed code
+previous code blocks are as follows and have been executed successfully in the previous jupyter notebook code blocks, \
+which means you can use the variables defined in the previous code blocks.\
+the code you need to generate should follow previous code, no need to repeat.
+
+{previous_code}
+
+{data_info}
+
+# Tool Info (If is empty, you can ignore this part)
+{tool_info}
+
+# Constraints
+- Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
+- Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, \
+you MUST follow the 'tool_path' in order to successfully import the tool.
+- Your answer must contain one and only one code block.
+- the code format MUST be followed, the code format is as follows:
+```python
+# your code
+```
+"""
+CODE_USING_TOOLS_REFLECTION_TEMPLATE = """
+# Role
+you are a code generator, you need to generate a code python block in jupyter notebook to achieve the \
+current task:
+
+# Task
+{instruction}
+
+## Task Guidance
+{task_guidance}
+
+## User Request
+current task is part of the whole plan to achieve the user request:
+{user_request}
+
+# Previous executed code
+previous code blocks are as follows and have been executed successfully in the previous jupyter notebook code blocks, \
+which means you can use the variables defined in the previous code blocks.\
+the code you need to generate should follow previous code, no need to repeat. If previous code is empty, \
+you can ignore this part.
+
+{previous_code}
+
+{data_info}
+
+## Generated Code and Error
+the code we have generated for current task is as follows, you can use it as a reference to generate the correct code:
+{code_and_error}
+
+#Tool Info
+{tool_info}
+
+
+# Constraints
+- Ensure the output new code is executable in the same Jupyter notebook as the previous executed code.
+- Always prioritize using pre-defined tools for the same functionality. When using pre-defined tools, \
+you MUST follow the 'tool_path' in order to successfully import the tool.
+- If certain package are not installed in the environment, you can install them by adding the following code:
+!pip install <package_name>
+- Your answer must contain one and only one code block.
+- the code format MUST be followed, otherwise the code interpreter will not be able to parse\
+the code correctly,the code format is as follows!!!:
+```python
+# your code
 ```
 """
 JUDGE_TEMPLATE = """
 take a deep breath and think step by step.
-you are a code judge, you need to judge the code block in jupyter notebook to achieve the \
-current task.
+you are a code judge, you need to think step by step to judge whether the code block in jupyter notebook achieve the \
+current task, at the end of your thought, you need to give the final judgement( orrect or incorrect).
 [current task]
 {instruction}
 
@@ -101,17 +222,72 @@ this is the code block you need to judge, it contains code and execution result:
 {code}
 
 Even if the code has been executed successfully, doesn't mean it's totally correct. You need to carefully \
-check the code logic to ensure the code can accomplish the task correctly. Ignore the warning messages\
+check the code logic to ensure the code can accomplish the task correctly. Ignore the warning messages. \
+You don't need to check the metrics of the model.
 
 these are the previous code blocks, which have been executed successfully in the previous jupyter notebook code blocks \
 {previous_code_blocks}
 
 Attention: your response should be one of the following:
-- correct, [reason]
-- incorrect, [reason and advice]
+- [your step by step thought], correct
+- [your step by step thought], incorrect
+
+don't generate code , just give the reason why the code is correct or incorrect.
+
+## Attention
+don't use the word 'incorrect' in your step by step thought.
+"""
+
+CHECK_DATA_PROMPT = """
+# Background
+Check latest data info to guide subsequent tasks.
+
+## Finished Tasks
+```python
+{code_written}
+```end
+
+# Task
+Check code in finished tasks, print key variables to guide your following actions.
+Specifically, if it is a data analysis or machine learning task, print the the latest column information using \
+the following code, with DataFrame variable from 'Finished Tasks' in place of df:
+```python
+from modelscope_agent.tools.metagpt_tools.libs.data_preprocess import get_column_info
+
+column_info = get_column_info(df)
+print("column_info")
+print(column_info)
+```end
+Otherwise, print out any key variables you see fit. Return an empty string if you think there \
+is no important data to check.
+
+# Constraints:
+- Your code is to be added to a new cell in jupyter.
+
+# Instruction
+Output code following the format:
+```python
+your code
+```
+"""
+
+DATA_INFO = """
+# Latest Data Info
+Latest data info after previous tasks:
+{info}
 """
 
 ERROR_KEYWORDS = ['Error']
+
+
+class TaskEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        if isinstance(obj, Task):
+            return obj.__dict__  # 或者根据需要自定义每个属性
+        elif isinstance(obj, CodeCell):
+            return obj.__dict__
+        return super(TaskEncoder, self).default(obj)
 
 
 class DataScienceAssistant(RolePlay):
@@ -123,8 +299,8 @@ class DataScienceAssistant(RolePlay):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
+                 tool_recommender: Optional[ToolRecommender] = None,
                  **kwargs):
-
         super().__init__(
             function_list=function_list,
             llm=llm,
@@ -133,18 +309,32 @@ class DataScienceAssistant(RolePlay):
             description=description,
             instruction=instruction,
             **kwargs)
+        self.tool_recommender = tool_recommender
         self.code_interpreter = CodeInterpreter()
         self.plan = None
+        self.total_token = 0
 
     def _update_plan(self, user_request: str, curr_plan: Plan = None) -> Plan:
-        resp = self._call_llm(
-            prompt=PLAN_TEMPLATE.format(
-                context='User Request: ' + user_request + '\n', ),
-            messages=None,
-            stop=None)
+        call_llm_success = False
+        call_llm_count = 0
         tasks_text = ''
-        for r in resp:
-            tasks_text += r
+        messages = [{
+            'role':
+            'user',
+            'content':
+            PLAN_TEMPLATE.format(
+                context='User Request: ' + user_request + '\n', )
+        }]
+        while not call_llm_success and call_llm_count < 10:
+            resp = self._call_llm(prompt=None, messages=messages, stop=None)
+            tasks_text = ''
+            for r in resp:
+                tasks_text += r
+            if 'Error code' in tasks_text:
+                call_llm_count += 1
+                time.sleep(10)
+            else:
+                call_llm_success = True
         tasks_text = parse_code(text=tasks_text, lang='json')
         logger.info(f'tasks: {tasks_text}')
         tasks = json5.loads(tasks_text)
@@ -201,90 +391,219 @@ class DataScienceAssistant(RolePlay):
         with open(dir_name + 'plan.json', 'w', encoding='utf-8') as file:
             file.write(tasks_json)
 
+    def _get_task_codes(self, task: Task, n: int = 3) -> str:
+        codes = task.code_cells
+        n = min(len(codes), n)
+        task_codes = ''
+        index = len(codes) - n
+        for i in range(n):
+            task_codes += f'\ncode_{i + 1}:\n```python\n{codes[index + i].code}\n```\n'
+            task_codes += f'code_{i + 1} Output:\n{codes[index + i].result}\n\n'
+        return task_codes
+
     def _generate_code(self, code_counter: int, task: Task,
-                       previous_code_blocks: str, user_request: str,
-                       code_and_error: str):
+                       user_request: str) -> str:
+        """
+        Generate code for the current task
+        """
+        data_info = self._check_data()
         if code_counter == 0:
             # first time to generate code
-            prompt = CODE_TEMPLATE.format(
-                instruction=task.instruction,
-                previous_code_blocks=previous_code_blocks,
-                user_request=user_request)
+            if self.tool_recommender:
+                tool_info = asyncio.run(
+                    self.tool_recommender.get_recommended_tool_info(
+                        plan=self.plan))
+                prompt = CODE_USING_TOOLS_TEMPLATE.format(
+                    instruction=task.instruction,
+                    user_request=user_request,
+                    task_guidance=TaskType.get_type(task.task_type).guidance,
+                    previous_code=self._get_previous_code_blocks(),
+                    tool_info=tool_info,
+                    data_info=data_info)
+
+            else:
+                prompt = CODE_TEMPLATE.format(
+                    instruction=task.instruction,
+                    user_request=user_request,
+                    task_guidance=TaskType.get_type(task.task_type).guidance,
+                    previous_code=self._get_previous_code_blocks(),
+                    data_info=data_info)
+
         else:
             # reflect the error and ask user to fix the code
-            prompt = CODE_REFLECT_TEMPLATE.format(
-                instruction=task.instruction,
-                previous_code_blocks=previous_code_blocks,
-                code_and_error=code_and_error,
-                user_request=user_request)
-
-            # prompt = CODE_REFLECT_TEMPLATE_NEW_NEW.format(
-            #     instruction=task.instruction,
-            #     previous_code=previous_code_and_results,
-            #     user_request=user_request,
-            #     code_and_error=code_and_error)
-        logger.info('\n---------\ngenerate code prompt: \n' + prompt
-                    + '\n--------\n')
-        messages = [{'role': 'user', 'content': prompt}]
-        resp = self._call_llm(
-            prompt=None,
-            messages=messages,
-            stop=None,
+            if self.tool_recommender:
+                tool_info = asyncio.run(
+                    self.tool_recommender.get_recommended_tool_info(
+                        plan=self.plan))
+                prompt = CODE_USING_TOOLS_REFLECTION_TEMPLATE.format(
+                    instruction=task.instruction,
+                    task_guidance=TaskType.get_type(task.task_type).guidance,
+                    previous_code=self._get_previous_code_blocks(),
+                    code_and_error=self._get_task_codes(task),
+                    user_request=user_request,
+                    tool_info=tool_info,
+                    data_info=data_info)
+            else:
+                prompt = CODE_REFLECT_TEMPLATE.format(
+                    instruction=task.instruction,
+                    task_guidance=TaskType.get_type(task.task_type).guidance,
+                    previous_code=self._get_previous_code_blocks(),
+                    code_and_error=self._get_task_codes(task),
+                    user_request=user_request,
+                    data_info=data_info)
+        logger.info(
+            f'code generate prompt for task{task.task_id} count{code_counter}: \n{prompt}'
         )
-
-        llm_result = ''
-        for s in resp:
-            llm_result += s
-        code = parse_code(text=llm_result, lang='python')
+        messages = [{'role': 'user', 'content': prompt}]
+        success = False
+        call_llm_count = 0
+        code = ''
+        while call_llm_count < 20 and not success:
+            resp = self._call_llm(
+                prompt=None,
+                messages=messages,
+                stop=None,
+            )
+            llm_result = ''
+            try:
+                for s in resp:
+                    llm_result += s
+                self._get_total_tokens()
+                if 'Error code' in llm_result:
+                    raise AttributeError
+                code = parse_code(text=llm_result, lang='python')
+                success = True
+            except Exception as e:
+                logger.error(e)
+                call_llm_count += 1
+                time.sleep(20)
+        if not success:
+            raise AttributeError('generate code failed')
         return code
 
-    def _get_previous_code_blocks(self):
+    def _get_previous_code_blocks(self) -> str:
+        """
+        Get previous code blocks with outputs
+        """
         previous_code_blocks = ''
-        # for cell in self.code_interpreter.nb.cells:
-        #     error = False
-        #     if cell.cell_type == 'code':
-        #         for out_put in cell.outputs:
-        #             if out_put.output_type == 'error':
-        #                 error = True
-        #             if "name" in out_put:
-        #                 if out_put.name == 'stderr':
-        #                     error = True
-        #         if not error:
-        #             previous_code_blocks += cell.source
         counter = 0
         for task in self.plan.tasks:
             if task.is_finished:
                 counter += 1
                 previous_code_blocks += (
-                    f'\nCodeblock_{counter}:\n```python{task.code}\n```\n'
+                    f'\nCodeblock_{counter}:\n```python\n{task.code}\n```\n'
                     f'Codeblock_{counter} Output:\n{task.result}\n')
         return previous_code_blocks
 
-    def _judge_code(self, task, cell, previous_code_blocks):
+    def _get_previous_code_blocks_without_outputs(self) -> str:
+        """
+        Get previous code blocks without outputs
+        """
+        previous_code_blocks = ''
+        for task in self.plan.tasks:
+            if task.is_finished:
+                previous_code_blocks += task.code + '\n'
+        return previous_code_blocks
+
+    def _check_data(self):
+        """
+        Check data information to guide subsequent tasks
+        """
+        if (not self.plan.get_finished_tasks()
+                or self.plan.current_task.task_type not in [
+                    TaskType.DATA_PREPROCESS.type_name,
+                    TaskType.FEATURE_ENGINEERING.type_name,
+                    TaskType.MODEL_TRAIN.type_name
+                ]):  # noqa
+            return ''
+
+        prompt = CHECK_DATA_PROMPT.format(
+            code_written=self._get_previous_code_blocks_without_outputs())
+        logger.info(f'check data prompt: \n {prompt}')
+        messages = [{'role': 'user', 'content': prompt}]
+        call_llm_count = 0
+        call_llm_success = False
+        code = ''
+        while call_llm_count < 5 and not call_llm_success:
+            try:
+                resp = self._call_llm(
+                    prompt=None,
+                    messages=messages,
+                    stop=None,
+                )
+                code = ''
+                for s in resp:
+                    code += s
+                self._get_total_tokens()
+                if 'Error code' in code:
+                    call_llm_count += 1
+                    time.sleep(10)
+                else:
+                    call_llm_success = True
+                code = parse_code(text=code, lang='python')
+            except Exception as e:
+                logger.error(e)
+                call_llm_count += 1
+                call_llm_success = False
+                time.sleep(10)
+        if not call_llm_success:
+            raise Exception('call llm failed')
+        logger.info(f'check data code: \n {code}')
+        success, result = self.code_interpreter.call(
+            params=json.dumps({'code': code}), nb_mode=True)
+        del self.code_interpreter.nb.cells[-1]
+        if success:
+            logger.info(f'check data result: \n {result}')
+            return DATA_INFO.format(info=result)
+
+    def _judge_code(self, task, previous_code_blocks, code,
+                    code_interpreter_resp):
         success = True
         failed_reason = ''
-        cell = str(cell)
+
         judge_prompt = JUDGE_TEMPLATE.format(
             instruction=task.instruction,
             previous_code_blocks=previous_code_blocks,
-            code=cell)
-        logger.info(f'\n---------\njudge_prompt: \n{judge_prompt}\n--------\n')
+            code=f'Code:\n {code}\n Excution Result:\n{code_interpreter_resp}')
+        logger.info(f'judge prompt: \n {judge_prompt}')
         messages = [{'role': 'user', 'content': judge_prompt}]
-        judge_resp = self._call_llm(prompt=None, messages=messages, stop=None)
-        judge_result = ''
-        for s in judge_resp:
-            judge_result += s
-        logger.info(
-            f'\n---------\n judge_result: \n{judge_result}\n--------\n')
-        if 'incorrect' in judge_result:
+        call_llm_count = 0
+        call_llm_success = False
+        while call_llm_count < 5 and not call_llm_success:
+            resp = self._call_llm(
+                prompt=None,
+                messages=messages,
+                stop=None,
+            )
+            judge_result = ''
+            for s in resp:
+                judge_result += s
+            self._get_total_tokens()
+            if 'Error code' in judge_result:
+                call_llm_count += 1
+                time.sleep(10)
+            else:
+                call_llm_success = True
+        if not call_llm_success:
+            raise Exception('call llm failed')
+        logger.info(f'judge result for task{task.task_id}: \n {judge_result}')
+
+        if 'incorrect' in judge_result.split('\n')[-1]:
             success = False
-            failed_reason = 'The code logic is incorrect, here is the reason: ' + judge_result
-        return success, failed_reason
+            failed_reason = (
+                'Though the code executes successfully, The code logic is incorrect, here is the reason: '
+                + judge_result)
+            return success, failed_reason
+
+        else:
+            return True, 'The code logic is correct'
 
     def _run(self, user_request, save: bool = True, **kwargs):
+        before_time = time.time()
         try:
             self.plan = self._update_plan(user_request=user_request)
             jupyter_file_path = ''
+            dir_name = ''
             if save:
                 dir_name = 'data/' + str(
                     datetime.now().strftime('%Y-%m-%d-%H-%M-%S')) + '/'
@@ -294,81 +613,65 @@ class DataScienceAssistant(RolePlay):
 
             while self.plan.current_task_id:
                 task = self.plan.task_map.get(self.plan.current_task_id)
-
+                # write_and_execute_code(self)
                 logger.info(
                     f'new task starts: task_{task.task_id} , instruction: {task.instruction}'
                 )
                 previous_code_blocks = self._get_previous_code_blocks()
-                code_execute_success = False
+                success = False
                 code_counter = 0
-                code_and_error = ''
                 max_try = kwargs.get('max_try', 10)
-                while not code_execute_success and code_counter < max_try:
+                while not success and code_counter < max_try:
+                    code_execute_success = False
+                    code_logic_success = False
+                    temp_code_interpreter = CodeInterpreter()
+
+                    temp_code_interpreter.call(
+                        params=json.dumps({
+                            'code':
+                            self._get_previous_code_blocks_without_outputs()
+                        }),
+                        nb_mode=True,
+                        silent_mode=True)
                     # generate code
                     code = self._generate_code(code_counter, task,
-                                               previous_code_blocks,
-                                               user_request, code_and_error)
-
-                    # execute code
-                    failed_reason = ''
-                    code_interpreter_resp = ''
-                    try:
-                        # call code interpreter to execute the code
-                        code_interpreter_resp = self.code_interpreter.call(
-                            params=json.dumps({'code': code}), nb_mode=True)
+                                               user_request)
+                    code_execute_success, code_interpreter_resp = temp_code_interpreter.call(
+                        params=json.dumps({'code': code}),
+                        nb_mode=True,
+                        silent_mode=True)
+                    # 删除临时 jupyter环境
+                    temp_code_interpreter.terminate()
+                    judge_resp = ''
+                    if not code_execute_success:
+                        logger.error(
+                            f'code execution failed, task{task.task_id} code_counter{code_counter}:\n '
+                            f'{code_interpreter_resp}')
+                    else:
                         logger.info(
-                            f'code_interpreter_resp task_{task.task_id} '
-                            f'counter {code_counter}: \n{code_interpreter_resp}'
-                        )
-                        code_execute_success = not any(
-                            keyword in code_interpreter_resp
-                            for keyword in ERROR_KEYWORDS)
-                        if not code_execute_success:
-                            failed_reason = (
-                                'The code execution caused error: \n'
-                                + code_interpreter_resp[:5000])
-
-                    except Exception as e:
-                        code_execute_success = False
-                        logger.info(
-                            f'task_{task.task_id} code execution failed, counter: {code_counter}'
-                        )
-                        failed_reason = 'The code execution caused error: \n' + str(
-                            e)[:5000]
-
-                    if code_execute_success:
-                        logger.info(
-                            f'task_{task.task_id} code successfully executed , counter: {code_counter}'
-                        )
-                        code_execute_success, failed_reason = self._judge_code(
+                            f'code execution success, task{task.task_id} code_counter{code_counter}:\n '
+                            f'{code_interpreter_resp}')
+                        code_logic_success, judge_resp = self._judge_code(
                             task=task,
                             previous_code_blocks=previous_code_blocks,
-                            cell=self.code_interpreter.nb.cells[-1])
-                        if not code_execute_success:
-                            code_and_error += 'code_' + str(
-                                code_counter
-                                + 1) + ':\n```python\n' + code + '\n```\n'
-                            code_and_error += 'code_' + str(
-                                code_counter + 1
-                            ) + ' error message: \n' + failed_reason + '\n'
-                    else:
-                        code_and_error += 'code_' + str(
-                            code_counter
-                            + 1) + ':\n```python\n' + code + '\n```\n'
-                        code_and_error += 'code_' + str(
-                            code_counter
-                            + 1) + ' error message: \n' + failed_reason + '\n'
+                            code=code,
+                            code_interpreter_resp=code_interpreter_resp)
+                    success = code_execute_success and code_logic_success
+                    task.code_cells.append(
+                        CodeCell(
+                            code=code,
+                            result=code_interpreter_resp + '\n' + judge_resp,
+                            is_success=False))
 
-                    if not code_execute_success:
-                        # delete the last cell if the code execution failed
-                        del self.code_interpreter.nb.cells[-1]
-                    else:
+                    if success:
+                        self.code_interpreter.call(
+                            params=json.dumps({'code': code}), nb_mode=True)
                         task.code = code
                         task.result = code_interpreter_resp
                     code_counter += 1
 
                     # save the successful code in jupyter notebook
-                if code_execute_success:
+                if success:
                     self.plan.finish_current_task()
                     if save:
                         with open(
@@ -378,8 +681,37 @@ class DataScienceAssistant(RolePlay):
                 else:
                     self.plan = self._update_plan(
                         user_request=user_request, curr_plan=self.plan)
-                    self.code_interpreter.nb.cells.clear()
+                    self.code_interpreter.reset()
+            # save the plan into json file
+            if save:
+                after_time = time.time()
+                time_cost = after_time - before_time
+                total_token = self.total_token
+                plan_dict = {
+                    'time_cost': time_cost,
+                    'llm': self.llm.model,
+                    'total_token': total_token,
+                    'plan': self.plan.tasks
+                }
+                print(f'plan_dict: {str(plan_dict)}')
+                try:
+                    with open(
+                            dir_name + 'plan.json', 'w',
+                            encoding='utf-8') as file:
+                        file.write(
+                            json.dumps(plan_dict, indent=4, cls=TaskEncoder))
+                except Exception as e:
+                    print(f'json write error: {str(e)}')
 
         except Exception as e:
             logger.error(f'error: {e}')
             raise e
+
+    def _get_total_tokens(self):
+        try:
+            logger.info(f'usage: {str(self.llm.get_usage())}')
+            self.total_token += self.llm.get_usage().get('total_tokens')
+            logger.info(f'total token: {self.total_token}')
+        except Exception as e:
+            logger.error(f'get total token error: {e}')
+        pass

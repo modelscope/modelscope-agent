@@ -8,11 +8,13 @@ from typing import Literal, Optional, Union
 from urllib.parse import unquote_plus, urlparse
 
 import jieba
+import json
 import json5
 from dashscope.common.error import InvalidInput, UploadFileException
 from dashscope.utils.oss_utils import OssUtils
 from jieba import analyse
 from modelscope_agent.constants import ApiNames
+from modelscope_agent.schemas import Task
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.tokenization_utils import count_tokens
 
@@ -329,6 +331,6 @@ def parse_code(text: str, lang: str = '') -> str:
     else:
         logger.error(f'{pattern} not match following text:')
         logger.error(text)
-        # raise Exception
+        raise Exception('Code Pattern Not Matched')
         return ''  # just assume original text is code
     return code

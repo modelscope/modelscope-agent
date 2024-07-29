@@ -287,7 +287,7 @@ class BaseChatModel(ABC):
     def get_usage(self) -> Dict:
         return self.last_call_usage_info
 
-    def stat_last_call_token_info(self, response):
+    def stat_last_call_token_info_stream(self, response):
         try:
             self.last_call_usage_info = response.usage.dict()
             return response
@@ -296,3 +296,8 @@ class BaseChatModel(ABC):
                 if hasattr(chunk, 'usage') and chunk.usage is not None:
                     self.last_call_usage_info = chunk.usage.dict()
                 yield chunk
+
+    def stat_last_call_token_info_no_stream(self, response):
+        if hasattr(response, 'usage'):
+            self.last_call_usage_info = response.usage.dict()
+        return response

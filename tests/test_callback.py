@@ -67,6 +67,7 @@ def test_tool_exec_run_state(mocker):
     assert callback.run_states[1][2].content == '{"test": "test_value"}'
 
 
+@pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_rag_run_state(mocker):
 
     callback = RunStateCallback()
