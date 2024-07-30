@@ -8,7 +8,7 @@
 
 ## 🚀 How to Use
 
-### 1️⃣ Set Up Environment
+### 1️⃣ Set Up Main Environment
 - Install Neo4j Desktop:
   - Download and install [Neo4j Desktop](https://neo4j.com/download/)
   - Set the password for the default user `neo4j`
@@ -21,15 +21,20 @@
 ```bash
 pip install -r requirements.txt
 ```
+
+### 2️⃣ Setup a separate python environment for Graph Database Environment
 - Build the graph database environment:
 Create a separate `Python<=3.9` environment and install the required dependencies:
-
 ```bash
+conda create --name index_build python=3.9
+
+conda activate myenv
+
 pip install -r build_requirements.txt
 ```
-This separate environment is used to index the project and save to graph database with certain python version for some package.
-### 2️⃣ Locate the Graph Database Environment
-- Find the Python path on Mac/Linux:
+This separate environment is caused by some packages in `build_requirements.txt` that are incompatible with the main environment.
+
+- Find the Python path in this environment on Mac/Linux:
 ```bash
 which python
 ```
@@ -37,6 +42,8 @@ or on Windows:
 ```bash
 where python
 ```
+The python executable will be used later.
+
 ### 3️⃣ Run CodexGraph Agent
 - Navigate to the modelscope-agent directory:
 ```bash
@@ -49,11 +56,21 @@ python apps\codexgraph_agent\run.py
 
 ## 📂 Example Usage
 ### 📑 code summary:
-
+TBD
 ### 🔍 code debug:
-
+TBD
 ### 📑 code add comment:
+TBD
+### 📑 code generate:
+TBD
+### 📑 code add unit-test:
+TBD
 
+## Future work
+1. Streaming output the llm output
+2. Batch process for `code commenter` and `code unittester`
+3. Generated artifacts management for `code generator`
+4. UI updating
 
 ## 🤝 Contributing
 We welcome contributions from the community! Please read our contributing guidelines to get started.
