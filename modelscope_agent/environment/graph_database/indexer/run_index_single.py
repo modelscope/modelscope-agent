@@ -5,7 +5,6 @@ import uuid
 
 import my_client as my_client
 import shallow_indexer
-import sourcetraildb as srctrl
 from my_graph_db import GraphDatabaseHandler
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
@@ -28,14 +27,7 @@ def indexSourceFile(
     print('use shallow: ' + str(shallow))
 
     if not shallow:
-        indexer.indexSourceFile(
-            sourceFilePath,
-            environmentPath,
-            workingDirectory,
-            astVisitorClient,
-            False,
-            rootPath,
-        )
+        return
     else:
         shallow_indexer.indexSourceFile(
             sourceFilePath,
@@ -56,26 +48,6 @@ def run_single(
     shallow=True,
 ):
     workingDirectory = os.getcwd()
-    unique_id = uuid.uuid4()
-    print(sourceFilePath)
-
-    tmp_save_folder = os.path.join(workingDirectory, 'tmp')
-    if not os.path.exists(tmp_save_folder):
-        os.makedirs(tmp_save_folder)
-
-    databaseFilePath = os.path.join(tmp_save_folder,
-                                    'tmp_{}.srctrldb'.format(unique_id))
-    databaseFile1PrjPath = os.path.join(tmp_save_folder,
-                                        'tmp_{}.srctrlprj'.format(unique_id))
-
-    if srctrl_clear:
-        if not srctrl.clear():
-            print('ERROR: ' + srctrl.getLastError() + sourceFilePath)
-
-    if not srctrl.open(databaseFilePath):
-        print('ERROR: ' + srctrl.getLastError() + sourceFilePath)
-
-    srctrl.beginTransaction()
     indexSourceFile(
         sourceFilePath,
         environmentPath,
@@ -84,14 +56,6 @@ def run_single(
         root_path,
         shallow,
     )
-    srctrl.commitTransaction()
-
-    if not srctrl.close():
-        print('ERROR: ' + srctrl.getLastError() + sourceFilePath)
-
-    if os.path.exists(databaseFilePath):
-        os.remove(databaseFilePath)
-        os.remove(databaseFile1PrjPath)
 
 
 def run():

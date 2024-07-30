@@ -196,7 +196,7 @@ class AstVisitor:
 
         fileId = self.client.recordFile(self.sourceFilePath)
         if fileId == 0:
-            print('ERROR: ' + srctrl.getLastError())
+            print('ERROR: ')
         self.client.recordFileLanguage(fileId, 'python')
         self.contextStack.append(
             ContextInfo(fileId, ContextType.FILE, self.sourceFilePath, None))

@@ -145,7 +145,7 @@ if __name__ == '__main__':
         user='neo4j',
         password='12345678',
         database_name='neo4j',
-        task_id='0727',
+        task_id='0729',
         use_lock=True,
     )
     env_path_dict = {
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     build_graph_database(
         graph_db,
         repo_path,
-        task_id='0727',
+        task_id='0729',
         is_clear=True,
         max_workers=8,
         env_path_dict=env_path_dict)
