@@ -147,3 +147,8 @@ apps/agentfabric/config/local_user/*
 
 # ast template
 ast_index_file.py
+
+
+#neo4j
+.neo4j.lock
+neo4j.lock

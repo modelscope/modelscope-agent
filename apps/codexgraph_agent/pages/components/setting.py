@@ -77,14 +77,15 @@ def setting_repo(page_name):
                     st.session_state.shared['setting']['project_id'])
             else:
                 cur_index = 0
-            project_id = st.selectbox('Project ID', project_options, cur_index)
+            project_id = st.selectbox('Suggested Project ID', project_options,
+                                      cur_index)
 
             if project_id != st.session_state.shared['setting']['project_id']:
                 update_config('project_id', project_id)
 
         with col4:
             st.session_state.shared['setting']['project_id'] = st.text_input(
-                'New Project',
+                'Enter Project ID',
                 placeholder='Project id',
                 value=st.session_state.shared['setting']['project_id'],
                 key='repo_project_id')

@@ -1,17 +1,18 @@
 {
     "setting": {
-        "prompt_path": "apps\\codexgraph_agent\\prompt",
+        "prompt_path": "apps/codexgraph_agent/prompt",
         "repo_path": "",
         "llm_model_name": "deepseek-coder",
         "llm_temperature": 1.0,
         "max_iterations": 5,
         "project_list": [
-            "code_unittest",
-            "code_annotate",
-            "modelscope_agent",
-            "code0727"
+            "code_chat",
+            "code_comment",
+            "code_debug",
+            "code_generate",
+            "code_unittest"
         ],
-        "project_id": "code_unittest",
+        "project_id": "code_chat",
         "env_path_dict": {
             "env_path": "",
             "working_directory": ""

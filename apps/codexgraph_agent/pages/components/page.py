@@ -2,6 +2,7 @@ import os
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
+from pathlib import Path
 
 import json
 import streamlit as st
@@ -84,14 +85,14 @@ class PageBase(ABC):
             self,
             task_name='code_commenter',
             page_title='📝 Code Commenter',
-            output_path='CC_conversation',
+            output_path='logs/CC_conversation',
             input_title='Code needing comments',
             default_input_text='Please input the code that requires comments'):
 
         self.agent = None
         self.page_name = task_name
         self.page_title = page_title
-        self.output_path = output_path
+        self.output_path = str(Path(output_path))
         self.input_title = input_title
         self.default_input_text = default_input_text
 
@@ -99,11 +100,12 @@ class PageBase(ABC):
         if not os.path.exists(self.output_path):
             os.mkdir(self.output_path)
 
-        self.prompt_path = os.path.join(
-            st.session_state.shared['setting']['prompt_path'], task_name)
-        self.schema_path = os.path.join(
-            st.session_state.shared['setting']['prompt_path'],
-            'graph_database')
+        self.prompt_path = str(
+            Path(st.session_state.shared['setting']['prompt_path']).joinpath(
+                task_name))
+        self.schema_path = str(
+            Path(st.session_state.shared['setting']['prompt_path']).joinpath(
+                'graph_database'))
 
         st.session_state[
             self.page_name]['setting']['history_list'] = get_json_files(
@@ -111,6 +113,8 @@ class PageBase(ABC):
         # st.set_page_config(layout="wide")
 
     def main(self):
+        st.set_page_config(layout='wide')
+
         st.title(self.page_title)
 
         st.session_state[self.page_name]['conversation_history'] = []

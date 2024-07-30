@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from pathlib import Path
 
 import json
 import streamlit as st
@@ -14,7 +15,7 @@ class CodeChatPage(PageBase):
         super().__init__(
             task_name='code_chat',
             page_title='💬 Code Chat',
-            output_path='logs\\CCH_conversation',
+            output_path='logs/CCH_conversation',
             input_title='',
             default_input_text='')
         self.agent = self.get_agent()
@@ -33,11 +34,12 @@ class CodeChatPage(PageBase):
         max_iterations = int(
             st.session_state.shared['setting']['max_iterations'])
 
-        prompt_path = os.path.join(
-            st.session_state.shared['setting']['prompt_path'], 'code_chat')
-        schema_path = os.path.join(
-            st.session_state.shared['setting']['prompt_path'],
-            'graph_database')
+        prompt_path = str(
+            Path(st.session_state.shared['setting']['prompt_path']).joinpath(
+                'code_chat'))
+        schema_path = str(
+            Path(st.session_state.shared['setting']['prompt_path']).joinpath(
+                'graph_database'))
 
         try:
             agent = CodexGraphAgentChat(
@@ -48,7 +50,15 @@ class CodeChatPage(PageBase):
                 graph_db=graph_db,
                 max_iterations=max_iterations,
                 message_callback=self.create_update_message())
-        except Exception:
+        except Exception as e:
+            import traceback
+            print(
+                f'The e is {e}, while the traceback is{traceback.format_exc()}'
+            )
+            print(
+                f'The path of the prompt is {prompt_path},  '
+                f'the schema path is {schema_path}, the llm_config is {llm_config}'
+            )
             agent = None
         return agent
 
@@ -80,7 +90,13 @@ class CodeChatPage(PageBase):
 
         start_time = datetime.now()
 
-        answer = self.agent.run(user_input)
+        try:
+            answer = self.agent.run(user_input)
+        except Exception as e:
+            import traceback
+            print(
+                f'The e is {e}, while the traceback is {traceback.format_exc()}'
+            )
         # answer = agent_test_run(user_input, '', self.update_message)
 
         end_time = datetime.now()
@@ -106,16 +122,16 @@ class CodeChatPage(PageBase):
 
         timestamp = datetime.now().strftime('%d%H%M')
 
-        with open(
-                os.path.join(self.output_path,
-                             f'conversation_history_{timestamp}.json'),
-                'w') as file:
+        relative_path = str(Path(self.output_path))
+        conversation_history_path = os.path.join(
+            relative_path, f'conversation_history_{timestamp}.json')
+        chat_path = os.path.join(relative_path,
+                                 f'chat_history_{self.chat_start}.json')
+
+        with open(conversation_history_path, 'w') as file:
             json.dump(st.session_state[self.page_name]['conversation_history'],
                       file)
-        with open(
-                os.path.join(self.output_path,
-                             f'chat_history_{self.chat_start}.json'),
-                'w') as file:
+        with open(chat_path, 'w') as file:
             json.dump(st.session_state[self.page_name]['chat'], file)
 
     def body(self):
@@ -135,7 +151,8 @@ class CodeChatPage(PageBase):
             self.reload_history_message(
                 st.session_state[self.page_name]['setting']['history_path'])
 
-        if user_input := st.chat_input(placeholder='input any question...'):
+        if user_input := st.chat_input(
+                placeholder='input any question about this repo...'):
             if user_input:
                 st.session_state[self.page_name]['input_text'] = user_input
                 self.run_agent()
