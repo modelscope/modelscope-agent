@@ -275,8 +275,8 @@ with demo:
                     file_count='multiple'),
                 submit_button_props=dict(label=i18n.get('sendOnLoading')))
             with gr.Row():
-                stop_button = gr.Button({'label': i18n.get('stop_current_round')})
-                retry_button = gr.Button({'label': i18n.get('retry_last_round')})
+                stop_button = gr.Button(i18n.get('stop_current_round'))
+                retry_button = gr.Button(i18n.get('retry_last_round'))
             user_chat_bot_suggest = gr.Dataset(
                 label=i18n.get('prompt_suggestion'),
                 components=[preview_chat_input],
@@ -603,8 +603,20 @@ with demo:
         # 将发送的消息添加到聊天历史
         # _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
+        if is_retry:
+            for i in range(len(chatbot)-1, -1, -1):
+                print(f'chatbot[i][0]: {chatbot[i][0]}')
+                text = chatbot[i][0].get('text', None)
+                files = chatbot[i][0].get('files', None)
+                if text:
+                    break
+            chatbot.append([None, None])
+        else:
+            text = input.text
+            files = input.files
+            chatbot.append([{'text': text, 'files': files}, None])
         append_files = []
-        for file in input.files:
+        for file in files:
             file_name = os.path.basename(file.path)
             # covert xxx.json to xxx_uuid_str.json
             file_name = file_name.replace('.', f'_{uuid_str}.')
@@ -616,20 +628,30 @@ with demo:
             append_files.append(file_path)
         user_memory = _state['user_memory']
 
-        if not is_retry:
-            chatbot.append([{'text': input.text, 'files': input.files}, None])
-            yield {
-                user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
-                user_chat_bot_cover: gr.HTML(visible=False),
-                preview_chat_input: None
-            }
-
+        yield {
+            user_chatbot: mgr.Chatbot(visible=True, value=chatbot),
+            user_chat_bot_cover: gr.HTML(visible=False),
+            preview_chat_input: None
+        }
         # get chat history from memory
         history = user_memory.get_history()
+        if is_retry:
+            try:
+                last_try = user_memory.pop_history()  # role=assistant
+                assert last_try.role == 'assistant'
+                last_try = user_memory.pop_history()  # role=user
+                assert last_try.role == 'user'
+            except Exception as e:
+                logger.query_error(
+                    uuid=uuid_str,
+                    error=str(e),
+                    details={'error_traceback': traceback.format_exc()})
+                raise e
 
         use_llm = True if len(user_agent.function_list) else False
+        print(f'text: {text}')
         ref_doc = user_memory.run(
-            query=input.text,
+            query=text,
             url=append_files,
             max_token=4000,
             top_k=2,
@@ -639,7 +661,7 @@ with demo:
         response = ''
         try:
             for frame in user_agent.run(
-                    input.text,
+                    text,
                     history=history,
                     ref_doc=ref_doc,
                     append_files=append_files,
@@ -658,20 +680,8 @@ with demo:
             if len(history) == 0:
                 user_memory.update_history(
                     Message(role='system', content=user_agent.system_prompt))
-            if is_retry:
-                try:
-                    last_try = user_memory.pop_history()  # role=assistant
-                    assert last_try.role == 'assistant'
-                    last_try = user_memory.pop_history()  # role=user
-                    assert last_try.role == 'user'
-                except Exception as e:
-                    logger.query_error(
-                        uuid=uuid_str,
-                        error=str(e),
-                        details={'error_traceback': traceback.format_exc()})
-                    raise e
             user_memory.update_history([
-                Message(role='user', content=input.text),
+                Message(role='user', content=text),
                 Message(role='assistant', content=response),
             ])
         except Exception as e:
@@ -682,6 +692,10 @@ with demo:
                 msg = 'Too many people are calling, please try again later.'
             else:
                 msg = str(e)
+            logger.query_error(
+                        uuid=uuid_str,
+                        error=str(e),
+                        details={'error_traceback': traceback.format_exc()})
             chatbot[-1][1] = msg
             yield {user_chatbot: chatbot}
 

@@ -65,3 +65,4 @@ class MemoryWithRag(Memory, Agent):
                 return concatenated_records
             else:
                 return summary_result[0:max_token - 1]
+        return ''
