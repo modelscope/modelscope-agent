@@ -309,9 +309,6 @@ class PageBase(ABC):
             if self.build_graph_db():
                 page_state['build_place'].success(
                     f"File path set to: {setting['repo_path']}")
-            else:
-                page_state['build_place'].error(
-                    'Something went wrong during the build process.')
 
         if page_state['test_connect_button']:
             if self.get_graph_db():
@@ -348,6 +345,7 @@ class PageBase(ABC):
         setting = st.session_state.shared['setting']
         env_path_setting = setting['env_path_dict']
         neo4j_setting = setting['neo4j']
+        page_state = st.session_state[self.page_name]
 
         env_path_dict = {
             'env_path': env_path_setting['env_path'],
@@ -359,9 +357,10 @@ class PageBase(ABC):
         }
 
         graph_db = self.get_graph_db(setting['project_id'])
+        msg = ''
         if graph_db:
             try:
-                build_graph_database(
+                msg = build_graph_database(
                     graph_db,
                     setting['repo_path'],
                     task_id=setting['project_id'],
@@ -370,11 +369,13 @@ class PageBase(ABC):
                     env_path_dict=env_path_dict,
                     update_progress_bar=self.create_update_progress_bar())
             except Exception as e:
-                self.warning(
+                page_state['build_place'].error(
                     f'An error occurred while building the graph database: {str(e)}'
                 )
                 graph_db = None
-
+        if msg:
+            page_state['build_place'].error(msg)
+            return None
         return graph_db
 
     @abstractmethod
