@@ -5,6 +5,7 @@ import streamlit as st
 from apps.codexgraph_agent.pages.components.page import PageBase
 from apps.codexgraph_agent.pages.components.setting import (setting_neo4j,
                                                             setting_repo)
+from apps.codexgraph_agent.pages.components.sidebar import sidebar
 from apps.codexgraph_agent.pages.components.states import (
     initialize_page_state, save_config)
 
@@ -18,7 +19,7 @@ if project_root not in sys.path:
 class Help(PageBase):
 
     def __init__(self):
-        self.page_name = 'help'
+        self.page_name = 'Help'
 
     def get_agent(self):
         pass
@@ -26,22 +27,31 @@ class Help(PageBase):
     def main(self):
         initialize_page_state(self.page_name)
         st.set_page_config(layout='wide')
+        sidebar()
         st.title('Help')
-        st.markdown('# 1. Connect to Neo4j\n')
+        st.markdown("""
+# 1. Connect to Neo4j\n
+
+- Download and install [Neo4j Desktop](https://neo4j.com/download/)
+- Set the password for the default user `neo4j`
+- Create a new project and install a new database with database name `codexgraph`
+- Get bolt port as url from the database settings, typically it is `bolt://localhost:7687`
+- Use the `neo4j`, `bolt://localhost:7687`, `<YOUR-PASSWORD>` and `codexgraph` as input below
+        """)
         setting_neo4j(self.page_name)
         st.markdown("""
 # 2. Build a code repo
 ## 2.1 Build the graph database environment:
 
-Create a separate `Python 3.7` environment and install the required dependencies:
+Create a separate `python (python<=3.9)` environment and install the required dependencies:
 ```bash
-conda create --name index_build python=3.7
+conda create --name index_build python=3.9
 
 conda activate myenv
 
 pip install -r build_requirements.txt
 ```
-## 2.2. Get build `python 3.7 env`:
+## 2.2. Get build `python env` (python<=3.9):
 ```bash
 where python
 ```
@@ -49,12 +59,12 @@ On Unix-like systems (Linux, macOS):
 ```bash
 which python
 ```
-## 2.3 Setting the `python3.7 env` and `build index path`:
+## 2.3 Setting the `python env` (python<=3.9) and `build index path`:
         """)
         env_path = st.text_input(
             'Python env path',
             placeholder=
-            r'C:\Users\<YourUsername>\Anaconda3\envs\index_build\python.exe',
+            r'/Users/<YourUserName>/opt/miniconda3/envs/index_build39/bin/python',
             value=st.session_state.shared['setting']['env_path_dict']
             ['env_path'],
             key='env_path_input')

@@ -10,15 +10,17 @@ def sidebar():
         st.title('CodexGraph Agent')
         st.markdown(
             '## How to use 💡\n'
-            '1. Enter your [OpenAI API key](https://platform.openai.com/account/api-keys) below 🔑\n'
-            '2. Upload a Code Repo 📄\n'
-            '3. Ask a question about the Code Repo 💬\n')
+            '1. Enter your [OpenAI API key](https://platform.openai.com/account/api-keys) or [Deepseek API key](https://platform.deepseek.com/) below 🔑\n'  # noqa: E501
+            '2. Upload an absolute path of local Code Repo 📄\n'
+            '3. Choice a topic on top and ask a related question about the Code Repo 💬\n'
+        )
         api_key_input = st.text_input(
-            'OpenAI API Key',
+            'OpenAI/Deepseek API Key',
             type='password',
-            placeholder='Paste your OpenAI API key here (sk-...)',
+            placeholder=
+            'Paste and Enter your OpenAI/Deepseek API key here (sk-...)',
             help=
-            'You can get your API key from https://platform.openai.com/account/api-keys.',  # noqa: E501
+            'You can get your API key from https://platform.openai.com/account/api-keys or https://platform.deepseek.com',  # noqa: E501
             value=os.environ.get('OPENAI_API_KEY', None)
             or st.session_state.get('OPENAI_API_KEY', ''),
         )
@@ -36,9 +38,11 @@ def sidebar():
             query language, CodexGraph enables the LM agent to formulate and execute
             multi-step queries. This capability allows for precise context retrieval and code
             navigation that is aware of the code's structure.
+
+            Currently, only gpt4o and deepseek-coder could generate reasonable results with limited tokens.
             """)
 
         st.markdown('---')
         st.markdown(
-            '[![Open in GitHub](https://img.shields.io/badge/Open%20in-GitHub-blue.svg)]'
-            '(https://codespaces.new/streamlit/llm-examples?quickstart=1)')
+            '[![Powered by Modelscope-Agent](https://img.shields.io/badge/Powered_by-Modelscope_Agent-blue.svg)]'
+            '(https://github.com/modelscope/modelscope-agent)')

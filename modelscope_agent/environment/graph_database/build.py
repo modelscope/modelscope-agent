@@ -68,7 +68,7 @@ def run_script_in_env(env_path,
     command = [env_path, script_path]
     if script_args:
         command.extend(script_args)
-    # print(" ".join(command))
+    print(' '.join(command))
 
     try:
         result = subprocess.run(

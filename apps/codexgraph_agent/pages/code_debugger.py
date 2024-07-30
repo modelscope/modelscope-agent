@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import streamlit as st
 from apps.codexgraph_agent.pages.components.page import (PageBase,
@@ -12,10 +13,10 @@ class CodeDebuggerPage(PageBase):
         super().__init__(
             task_name='code_debugger',
             page_title='🛠️ Code Debugger',
-            output_path='logs\\CD_conversation',
+            output_path='logs/CD_conversation',
             input_title='Bug Issue',
             default_input_text=(
-                'Please input the code snippet and describe the bug '
+                'Please copy and paste the code snippet and describe the bug '
                 'or issue you are facing. '
                 'Include any error messages if available.'))
         self.agent = self.get_agent()
@@ -33,11 +34,12 @@ class CodeDebuggerPage(PageBase):
         max_iterations = int(
             st.session_state.shared['setting']['max_iterations'])
 
-        prompt_path = os.path.join(
-            st.session_state.shared['setting']['prompt_path'], 'code_debugger')
-        schema_path = os.path.join(
-            st.session_state.shared['setting']['prompt_path'],
-            'graph_database')
+        prompt_path = str(
+            Path(st.session_state.shared['setting']['prompt_path']).joinpath(
+                'code_debugger'))
+        schema_path = str(
+            Path(st.session_state.shared['setting']['prompt_path']).joinpath(
+                'graph_database'))
 
         try:
             agent = CodexGraphAgentDebugger(
@@ -48,7 +50,16 @@ class CodeDebuggerPage(PageBase):
                 graph_db=graph_db,
                 max_iterations=max_iterations,
                 message_callback=self.create_update_message())
-        except Exception:
+        except Exception as e:
+            import traceback
+            print(
+                f'The e is {e}, while the traceback is{traceback.format_exc()}'
+            )
+            print(
+                f'The path of the prompt is {prompt_path},  '
+                f'the schema path is {schema_path}, the llm_config is {llm_config}'
+            )
+
             agent = None
         return agent
 
