@@ -132,6 +132,9 @@ async def execute_tool(request: ToolRequest):
             result = await result
         return create_success_msg(result, request_id=request.request_id)
     except Exception as e:
+        import traceback
+        print(
+            f'The error is {e}, and the traceback is {traceback.format_exc()}')
         return create_error_msg(
             status_code=400,
             request_id=request.request_id,
