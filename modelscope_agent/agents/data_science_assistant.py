@@ -18,8 +18,6 @@ from modelscope_agent.tools.metagpt_tools.tool_recommend import ToolRecommender
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import parse_code
 
-DATA_SCIENTIST_TEMPLATE = """As a data scientist, you need to help user to achieve their goal step by step in a \
-continuous Jupyter notebook."""
 PLAN_TEMPLATE = """
 # Context:
 {context}
