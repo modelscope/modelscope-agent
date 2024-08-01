@@ -1,3 +1,4 @@
+# this code is originally from https://github.com/geekan/MetaGPT and modified by modelscope-agent
 from enum import Enum
 
 from pydantic import BaseModel

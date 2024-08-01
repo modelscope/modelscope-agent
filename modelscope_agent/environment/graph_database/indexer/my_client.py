@@ -389,6 +389,10 @@ class AstVisitorClient:
         pass
 
     def recordFile(self, filePath):
+        self.indexedFileId = 1
+        self.indexedFileId_to_path[self.indexedFileId] = filePath.replace(
+            '\\', '/')
+        self.this_file_path = self.indexedFileId_to_path[self.indexedFileId]
         return 1
 
     def recordFileLanguage(self, fileId, languageIdentifier):

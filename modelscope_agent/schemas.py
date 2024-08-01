@@ -43,7 +43,6 @@ class AgentAttr(BaseModel):
 class CodeCell(BaseModel):
     code: str = ''
     result: str = ''
-    is_success: bool = False
 
 
 class TaskResult(BaseModel):
@@ -51,7 +50,6 @@ class TaskResult(BaseModel):
 
     code: str = ''
     result: str
-    is_success: bool
 
 
 class Task(BaseModel):
@@ -61,7 +59,6 @@ class Task(BaseModel):
     task_type: str = ''
     code: str = ''
     result: str = ''
-    is_success: bool = False
     is_finished: bool = False
     code_cells: List[CodeCell] = []
 
