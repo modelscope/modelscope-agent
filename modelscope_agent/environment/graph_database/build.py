@@ -117,12 +117,15 @@ def build_graph_database(graph_db: GraphDatabaseHandler,
         for i, future in enumerate(as_completed(future_to_file)):
             file_path = future_to_file[future]
             try:
-                # future.result()
-                pass
-                # print('Successfully processed {}'.format(file_path))
+                future.result()
+                print('Successfully processed {}'.format(file_path))
             except Exception as exc:
-                print('{} generated an exception: {}'.format(file_path, exc))
-                # logger.debug("{} generated an exception: {}".format(file_path, exc))
+                msg = '`{}` generated an exception: `{}`'.format(
+                    file_path, exc)
+                print(msg)
+                # 在捕获到异常后，停止提交新任务，并尝试取消所有未完成的任务
+                executor.shutdown(wait=False, cancel_futures=True)
+                return msg
             finally:
                 # 每完成一个任务，更新进度条
                 if update_progress_bar:
@@ -136,32 +139,4 @@ def build_graph_database(graph_db: GraphDatabaseHandler,
     elapsed_time = end_time - start_time
     print(f'✍️ Shallow indexing ({int(elapsed_time)} s)')
     # logger.info(f"✍️ Shallow indexing ({int(elapsed_time)} s)")
-    return graph_db
-
-
-if __name__ == '__main__':
-    graph_db = GraphDatabaseHandler(
-        uri='bolt://localhost:7687',
-        user='neo4j',
-        password='12345678',
-        database_name='neo4j',
-        task_id='0729',
-        use_lock=True,
-    )
-    env_path_dict = {
-        'env_path': r'C:\Users\12053\anaconda3\envs\test\python.exe',
-        'working_directory':
-        r'D:\study\postgraduate\study_project\alibaba_LLM\codexgraph\indexer_test',
-        'url': r'bolt://localhost:7687',
-        'user': 'neo4j',
-        'password': '12345678',
-        'db_name': 'neo4j'
-    }
-    repo_path = r'D:\study\postgraduate\study_project\alibaba_LLM\codexgraph\test_repo\test_repo'
-    build_graph_database(
-        graph_db,
-        repo_path,
-        task_id='0729',
-        is_clear=True,
-        max_workers=8,
-        env_path_dict=env_path_dict)
+    return None
