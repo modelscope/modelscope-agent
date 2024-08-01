@@ -426,15 +426,21 @@ def preview_chat(uuid_str, session_str):
                 f'load history method: time consumed {time.time() - start_time}'
             )
 
+            # skip image upsert
+            filtered_files = [
+                item for item in file_paths
+                if not item.lower().endswith(('.jpeg', '.png', '.jpg'))
+            ]
+
             use_llm = True if len(user_agent.function_list) else False
             ref_doc = user_memory.run(
                 query=input_content,
-                url=file_paths,
+                url=filtered_files,
                 checked=True,
                 use_llm=use_llm)
             logger.info(
                 f'load knowledge method: time consumed {time.time() - start_time}, '
-                f'the uploaded_file name is {file_paths}')  # noqa
+                f'the uploaded_file name is {filtered_files}')  # noqa
 
             response = ''
 
