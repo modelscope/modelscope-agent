@@ -118,6 +118,8 @@ class StyleRepaint(BaseTool):
         kwargs = restored_dict
         image_path = kwargs['input'].pop('image_path', None)
         if image_path and image_path.endswith(('.jpeg', '.png', '.jpg')):
+            # make sure the image_path is a valid image file we only get the name of the file
+            image_path = image_path.split('/')[-1]
             # 生成 image_url，然后设置到 kwargs['input'] 中
             # 复用dashscope公共oss
             if LOCAL_FILE_PATHS not in kwargs or kwargs[

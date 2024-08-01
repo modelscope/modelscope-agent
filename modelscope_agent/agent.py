@@ -133,6 +133,10 @@ class Agent(ABC):
         try:
             result = self.function_map[tool_name].call(tool_args, **kwargs)
         except BaseException as e:
+            import traceback
+            print(
+                f'The error is {e}, and the traceback is {traceback.format_exc()}'
+            )
             result = f'Tool api {tool_name} failed to call. Args: {tool_args}.'
             result += f'Details: {str(e)[:200]}'
         self.callback_manager.on_tool_end(tool_name, result)
