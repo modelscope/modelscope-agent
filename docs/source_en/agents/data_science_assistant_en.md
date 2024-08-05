@@ -1,4 +1,4 @@
-# Data Science Assistant By ModelScope Agent EN
+# Data Science Assistant By ModelScope Agent
 
 ### Background
 
