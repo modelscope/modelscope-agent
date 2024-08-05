@@ -51,6 +51,7 @@ The complete system consists of 4 main modules:
 4.  DS Assistant: as the brain of the whole system, it is responsible for scheduling the operation of the whole system.
 
 
+
 ## Implementation procedure
 
 1.  Mission planning phase:
