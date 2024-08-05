@@ -8,10 +8,15 @@ import pandas as pd
 from joblib import Parallel, delayed
 from modelscope_agent.tools.metagpt_tools.libs.data_preprocess import MLProcess
 from modelscope_agent.tools.metagpt_tools.tool_registry import register_tool
-from pandas.core.dtypes.common import is_object_dtype
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.model_selection import KFold
-from sklearn.preprocessing import KBinsDiscretizer, PolynomialFeatures
+
+try:
+    from pandas.core.dtypes.common import is_object_dtype
+    from sklearn.feature_selection import VarianceThreshold
+    from sklearn.model_selection import KFold
+    from sklearn.preprocessing import KBinsDiscretizer, PolynomialFeatures
+except ImportError:
+    raise ImportError(
+        'Please install scikit-learn by running `pip install scikit-learn`')
 
 TAGS = ['feature engineering', 'machine learning']
 

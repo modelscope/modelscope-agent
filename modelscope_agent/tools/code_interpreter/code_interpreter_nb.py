@@ -12,19 +12,20 @@ from typing import Dict, Literal, Optional, Tuple
 import json
 import json5
 import nbformat
-from jupyter_client import BlockingKernelClient
 from modelscope_agent.tools.base import BaseTool, register_tool
 from modelscope_agent.utils.utils import extract_code
-from nbclient import NotebookClient
-from nbclient.exceptions import CellTimeoutError, DeadKernelError
-from nbformat import NotebookNode
-from nbformat.v4 import new_code_cell, new_markdown_cell, new_output
-from rich.box import MINIMAL
-from rich.console import Console, Group
-from rich.live import Live
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.syntax import Syntax
+
+try:
+    from nbclient import NotebookClient
+    from nbclient.exceptions import CellTimeoutError, DeadKernelError
+    from nbformat import NotebookNode
+    from nbformat.v4 import new_code_cell, new_markdown_cell, new_output
+    from rich.console import Console
+    from rich.syntax import Syntax
+except ImportError:
+    raise ImportError(
+        'Please install nbclient, nbformat, rich by running `pip install nbclient nbformat rich`'
+    )
 
 
 @register_tool('code_interpreter')
