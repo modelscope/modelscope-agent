@@ -6,10 +6,16 @@ import json
 import numpy as np
 import pandas as pd
 from modelscope_agent.tools.metagpt_tools.tool_registry import register_tool
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import (LabelEncoder, MaxAbsScaler, MinMaxScaler,
-                                   OneHotEncoder, OrdinalEncoder, RobustScaler,
-                                   StandardScaler)
+
+try:
+    from sklearn.impute import SimpleImputer
+    from sklearn.preprocessing import (LabelEncoder, MaxAbsScaler,
+                                       MinMaxScaler, OneHotEncoder,
+                                       OrdinalEncoder, RobustScaler,
+                                       StandardScaler)
+except ImportError:
+    raise ImportError(
+        'Please install scikit-learn by running `pip install scikit-learn`')
 
 TAGS = ['data preprocessing', 'machine learning']
 
