@@ -72,11 +72,11 @@ class ToolRecommender(BaseModel):
         else:
             return validate_tool_names(v)
 
-    async def recommend_tools(self,
-                              context: str = '',
-                              plan: Plan = None,
-                              recall_topk: int = 20,
-                              topk: int = 5) -> list[Tool]:
+    def recommend_tools(self,
+                        context: str = '',
+                        plan: Plan = None,
+                        recall_topk: int = 20,
+                        topk: int = 5) -> list[Tool]:
         """
         Recommends a list of tools based on the given context and plan. The recommendation process \
         includes two stages: recall from a large pool and rank the recalled tools to select the final set.
@@ -99,7 +99,7 @@ class ToolRecommender(BaseModel):
             # directly use the whole set if there is no useful information
             return list(self.tools.values())
 
-        recalled_tools = await self.recall_tools(
+        recalled_tools = self.recall_tools(
             context=context, plan=plan, topk=recall_topk)
         if not recalled_tools:
             return []
@@ -108,11 +108,11 @@ class ToolRecommender(BaseModel):
 
         return recalled_tools
 
-    async def get_recommended_tool_info(self, **kwargs) -> str:
+    def get_recommended_tool_info(self, **kwargs) -> str:
         """
         Wrap recommended tools with their info in a string, which can be used directly in a prompt.
         """
-        recommended_tools = await self.recommend_tools(**kwargs)
+        recommended_tools = self.recommend_tools(**kwargs)
 
         if not recommended_tools:
             return ''
@@ -121,20 +121,20 @@ class ToolRecommender(BaseModel):
         print('', TOOL_INFO_PROMPT.format(tool_schemas=tool_schemas))
         return TOOL_INFO_PROMPT.format(tool_schemas=tool_schemas)
 
-    async def recall_tools(self,
-                           context: str = '',
-                           plan: Plan = None,
-                           topk: int = 20) -> list[Tool]:
+    def recall_tools(self,
+                     context: str = '',
+                     plan: Plan = None,
+                     topk: int = 20) -> list[Tool]:
         """
         Retrieves a list of relevant tools from a large pool, based on the given context and plan.
         """
         raise NotImplementedError
 
-    async def rank_tools(self,
-                         recalled_tools: list[Tool],
-                         context: str = '',
-                         plan: Plan = None,
-                         topk: int = 5) -> list[Tool]:
+    def rank_tools(self,
+                   recalled_tools: list[Tool],
+                   context: str = '',
+                   plan: Plan = None,
+                   topk: int = 5) -> list[Tool]:
         """
         Default rank methods for a ToolRecommender.
         Use LLM to rank the recalled tools based on the given context, plan, and topk value.
@@ -174,10 +174,10 @@ class TypeMatchToolRecommender(ToolRecommender):
     2. Rank: LLM rank, the same as the default ToolRecommender.
     """
 
-    async def recall_tools(self,
-                           context: str = '',
-                           plan: Plan = None,
-                           topk: int = 20) -> list[Tool]:
+    def recall_tools(self,
+                     context: str = '',
+                     plan: Plan = None,
+                     topk: int = 20) -> list[Tool]:
         if not plan:
             return list(self.tools.values())[:topk]
 
