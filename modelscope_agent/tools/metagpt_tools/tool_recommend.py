@@ -1,18 +1,14 @@
 # this code is originally from https://github.com/geekan/MetaGPT
 from __future__ import annotations
-from typing import Any
 
 import json
-import numpy as np
 from modelscope_agent import Agent
 from modelscope_agent.schemas import Plan
-from modelscope_agent.tools.metagpt_tools import TOOL_REGISTRY
 from modelscope_agent.tools.metagpt_tools.tool_data_type import Tool
-from modelscope_agent.tools.metagpt_tools.tool_registry import \
-    validate_tool_names
+from modelscope_agent.tools.metagpt_tools.tool_registry import (
+    TOOL_REGISTRY, validate_tool_names)
 from modelscope_agent.utils.utils import parse_code
 from pydantic import BaseModel, field_validator
-from rank_bm25 import BM25Okapi
 
 TOOL_INFO_PROMPT = """
 ## Capabilities
