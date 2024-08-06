@@ -1,6 +1,5 @@
 from typing import Dict, List, Union
 
-import nbformat
 from modelscope_agent.constants import DEFAULT_SEND_TO
 from pydantic import BaseModel
 

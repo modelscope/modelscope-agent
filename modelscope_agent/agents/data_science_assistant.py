@@ -408,9 +408,8 @@ class DataScienceAssistant(RolePlay):
         if code_counter == 0:
             # first time to generate code
             if self.tool_recommender:
-                tool_info = asyncio.run(
-                    self.tool_recommender.get_recommended_tool_info(
-                        plan=self.plan))
+                tool_info = self.tool_recommender.get_recommended_tool_info(
+                    plan=self.plan)
                 prompt = CODE_USING_TOOLS_TEMPLATE.format(
                     instruction=task.instruction,
                     user_request=user_request,
