@@ -50,6 +50,11 @@ Modelscope-Agent DOCUMENTATION
    use_cases/openAPI_for_agent.md
    deployment/local_deploy.md
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Agents
+
+   agents/data_science_assistant.md
 
 
 Indices and tables
