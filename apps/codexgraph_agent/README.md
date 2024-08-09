@@ -71,13 +71,13 @@ python apps\codexgraph_agent\run.py
 
 Here is an example of **Code Chat**. The user's question is: "Summarize the `CodexGraphAgentChat` class, what methods it has, and what they are for."
 
-<img src="img/README/code_chat2.png" alt="code chat" style="display: block; margin: 0 auto;" /> 
+<img src="img/README/code_chat2.png" alt="code chat" style="display: block; margin: 0 auto;" />
 
 Once the necessary information is gathered, **Code Chat** constructs a comprehensive response to the user’s question. This response includes a summary of the `CodexGraphAgentChat` class, a list of its methods, and a description of what each method does.
 
 ### 🔍 code debug:
 
-The **Code Debugger** diagnoses and resolves bugs by applying iterative reasoning and information retrieval to suggest targeted fixes. It utilizes Cypher queries to analyze the code repository, identify the cause of the issue, and recommend precise modifications. 
+The **Code Debugger** diagnoses and resolves bugs by applying iterative reasoning and information retrieval to suggest targeted fixes. It utilizes Cypher queries to analyze the code repository, identify the cause of the issue, and recommend precise modifications.
 
 Here is an example of **Code Debugger**. The user’s input is a real issue where the outcome does not match the expected behavior. The **Code Debugger** first analyzes the problem, then uses Cypher queries to retrieve relevant information and infer the cause of the bug. Finally, it provides an explanation of the bug and suggests the location for the modification.
 
