@@ -123,7 +123,7 @@ def setting(page_name, path='CG_conversation'):
 
             with col2:
                 # Model selectbox
-                options = ['deepseek-coder', 'gpt-4o']
+                options = ['deepseek-coder', 'gpt-4o', "ollama"]
                 llm_model_name = st.selectbox(
                     'Model', options,
                     options.index(

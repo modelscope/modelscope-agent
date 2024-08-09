@@ -33,6 +33,14 @@ def get_llm_config(llm_name):
             'model_server': 'openai'
         }
 
+    elif llm_name == 'ollama':
+
+        llm_config = {
+            'model': 'deepseek-coder-v2-lite:q6_k',
+            'api_base': 'http://localhost:11434/v1',
+            'model_server': 'openai',
+        }
+
     else:
         return None
 
