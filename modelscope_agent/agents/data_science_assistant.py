@@ -8,6 +8,7 @@ from typing import Dict, Iterator, List, Optional, Union
 import json
 import json5
 import nbformat
+import streamlit as st
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.schemas import CodeCell, Plan, Task
@@ -17,7 +18,14 @@ from modelscope_agent.tools.metagpt_tools.task_type import TaskType
 from modelscope_agent.tools.metagpt_tools.tool_recommend import ToolRecommender
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import parse_code
+from streamlit_agraph import Config, Edge, Node, agraph
 
+try:
+    import streamlit as st  # noqa
+except Exception as e:
+    print(
+        f'import streamlit error: {str(e)}, please install streamlit first by running: pip install streamlit '
+    )
 PLAN_TEMPLATE = """
 # Context:
 {context}
@@ -28,6 +36,7 @@ general data operation doesn't fall into this type
 - **feature engineering**: Only for creating new columns fo input data.
 - **model train**: Only for training model.
 - **model evaluate**: Only for evaluating model.
+- **ocr**: Only for OCR tasks.
 - **other**: Any tasks not in the defined categories
 
 
@@ -311,6 +320,34 @@ class DataScienceAssistant(RolePlay):
         self.code_interpreter = CodeInterpreter()
         self.plan = None
         self.total_token = 0
+        self.streamlit = False
+
+    def create_agraph_from_json(tasks):
+        # 解析 JSON 字符串
+        # 初始化节点和边的列表
+        nodes = []
+        edges = []
+
+        # 为每个任务创建节点
+        for task in tasks:
+            task_id = task['task_id']
+            nodes.append(
+                Node(
+                    id=task_id, label='TASK ' + task_id, size=50, shape='box'))
+
+            # 为每个依赖任务创建边
+            for dependent_task_id in task['dependent_task_ids']:
+                edges.append(Edge(
+                    source=dependent_task_id,
+                    target=task_id,
+                ))
+
+        # 配置图形
+        config = Config(
+            width=750, height=950, directed=True, hierarchical=False)
+
+        # 返回 agraph 对象
+        return agraph(nodes=nodes, edges=edges, config=config)
 
     def _update_plan(self, user_request: str, curr_plan: Plan = None) -> Plan:
         call_llm_success = False
@@ -325,18 +362,26 @@ class DataScienceAssistant(RolePlay):
         }]
         while not call_llm_success and call_llm_count < 10:
             resp = self._call_llm(prompt=None, messages=messages, stop=None)
+            resp_streamlit = resp
             tasks_text = ''
-            for r in resp:
-                tasks_text += r
+            if self.streamlit:
+                st.write('#### Generate a plan based on the user request')
+                tasks_text = st.write_stream(resp_streamlit)
+            else:
+                for r in resp:
+                    tasks_text += r
             if 'Error code' in tasks_text:
                 call_llm_count += 1
                 time.sleep(10)
             else:
                 call_llm_success = True
+        print('Tasks_text: ', tasks_text)
         tasks_text = parse_code(text=tasks_text, lang='json')
+
         logger.info(f'tasks: {tasks_text}')
         tasks = json5.loads(tasks_text)
         tasks = [Task(**task) for task in tasks]
+
         if curr_plan is None:
             new_plan = Plan(goal=user_request)
             new_plan.add_tasks(tasks=tasks)
@@ -429,9 +474,8 @@ class DataScienceAssistant(RolePlay):
         else:
             # reflect the error and ask user to fix the code
             if self.tool_recommender:
-                tool_info = asyncio.run(
-                    self.tool_recommender.get_recommended_tool_info(
-                        plan=self.plan))
+                tool_info = self.tool_recommender.get_recommended_tool_info(
+                    plan=self.plan)
                 prompt = CODE_USING_TOOLS_REFLECTION_TEMPLATE.format(
                     instruction=task.instruction,
                     task_guidance=TaskType.get_type(task.task_type).guidance,
@@ -557,7 +601,6 @@ class DataScienceAssistant(RolePlay):
                     code_interpreter_resp):
         success = True
         failed_reason = ''
-
         judge_prompt = JUDGE_TEMPLATE.format(
             instruction=task.instruction,
             previous_code_blocks=previous_code_blocks,
@@ -598,6 +641,12 @@ class DataScienceAssistant(RolePlay):
     def _run(self, user_request, save: bool = True, **kwargs):
         before_time = time.time()
         try:
+            self.streamlit = kwargs.get('streamlit', False)
+            if self.streamlit:
+                st.write("""# DataScience Assistant """)
+                st.write("""### The user request is: \n""")
+                st.write("""{user_request}""")
+            print('streamlit: ', self.streamlit)
             self.plan = self._update_plan(user_request=user_request)
             jupyter_file_path = ''
             dir_name = ''
@@ -663,6 +712,15 @@ class DataScienceAssistant(RolePlay):
                     if success:
                         self.code_interpreter.call(
                             params=json.dumps({'code': code}), nb_mode=True)
+                        if self.streamlit:
+                            st.divider()
+                            st.write(
+                                f"""### Task {task.task_id}: {task.instruction}\n"""
+                            )
+                            st.write(
+                                'Now we generate the code for the current task'
+                            )
+                            st.code(f"""{code}""", language='python')
                         task.code = code
                         task.result = code_interpreter_resp
                     code_counter += 1
@@ -699,6 +757,15 @@ class DataScienceAssistant(RolePlay):
                             json.dumps(plan_dict, indent=4, cls=TaskEncoder))
                 except Exception as e:
                     print(f'json write error: {str(e)}')
+                if self.streamlit:
+                    st.divider()
+                    st.write('#### We have finished all the tasks! ')
+                    st.write(
+                        f'you can check the details in the jupyter notebook \"{jupyter_file_path}\"'
+                    )
+                    st.write(
+                        f"you can check the plan in the json file \"{dir_name + 'plan.json'}\""
+                    )
 
         except Exception as e:
             logger.error(f'error: {e}')
