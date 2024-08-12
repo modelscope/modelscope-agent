@@ -651,10 +651,6 @@ class DataScienceAssistant(RolePlay):
                     code = self._generate_code(code_counter, task,
                                                user_request)
                     code = '%matplotlib inline \n' + code
-                    # if self.streamlit:
-                    #     st.divider()
-                    #     st.write("We have generated the code for the current task")
-                    #     st.code(code, language='python')
                     code_execute_success, code_interpreter_resp = temp_code_interpreter.call(
                         params=json.dumps({'code': code}),
                         nb_mode=True,
@@ -720,8 +716,6 @@ class DataScienceAssistant(RolePlay):
                             )
                         task.code = code
                         task.result = code_interpreter_resp
-                    else:
-                        self.code_interpreter.nb.cells.pop()
                     code_counter += 1
 
                     # save the successful code in jupyter notebook
