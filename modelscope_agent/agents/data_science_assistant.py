@@ -1,5 +1,6 @@
 # Implementation inspired by the paper "DATA INTERPRETER: AN LLM AGENT FOR DATA SCIENCE"
 import asyncio
+import copy
 import os
 import time
 from datetime import datetime
@@ -8,7 +9,6 @@ from typing import Dict, Iterator, List, Optional, Union
 import json
 import json5
 import nbformat
-import streamlit as st
 from modelscope_agent.agents.role_play import RolePlay
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.schemas import CodeCell, Plan, Task
@@ -18,14 +18,13 @@ from modelscope_agent.tools.metagpt_tools.task_type import TaskType
 from modelscope_agent.tools.metagpt_tools.tool_recommend import ToolRecommender
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import parse_code
-from streamlit_agraph import Config, Edge, Node, agraph
 
 try:
     import streamlit as st  # noqa
+    from nbconvert import HTMLExporter
+    from traitlets.config import Config
 except Exception as e:
-    print(
-        f'import streamlit error: {str(e)}, please install streamlit first by running: pip install streamlit '
-    )
+    print(f'import error: {str(e)}, please install streamlit and nbconvert')
 PLAN_TEMPLATE = """
 # Context:
 {context}
@@ -235,14 +234,12 @@ You don't need to check the metrics of the model.
 these are the previous code blocks, which have been executed successfully in the previous jupyter notebook code blocks \
 {previous_code_blocks}
 
-Attention: your response should be one of the following:
-- [your step by step thought], correct
-- [your step by step thought], incorrect
-
+at the end of your thought, you need to give the final judgement with a new line( correct or incorrect).
 don't generate code , just give the reason why the code is correct or incorrect.
 
 ## Attention
 don't use the word 'incorrect' in your step by step thought.
+your answer should be short and clear, don't need to be too long.
 """
 
 CHECK_DATA_PROMPT = """
@@ -321,33 +318,6 @@ class DataScienceAssistant(RolePlay):
         self.plan = None
         self.total_token = 0
         self.streamlit = False
-
-    def create_agraph_from_json(tasks):
-        # 解析 JSON 字符串
-        # 初始化节点和边的列表
-        nodes = []
-        edges = []
-
-        # 为每个任务创建节点
-        for task in tasks:
-            task_id = task['task_id']
-            nodes.append(
-                Node(
-                    id=task_id, label='TASK ' + task_id, size=50, shape='box'))
-
-            # 为每个依赖任务创建边
-            for dependent_task_id in task['dependent_task_ids']:
-                edges.append(Edge(
-                    source=dependent_task_id,
-                    target=task_id,
-                ))
-
-        # 配置图形
-        config = Config(
-            width=750, height=950, directed=True, hierarchical=False)
-
-        # 返回 agraph 对象
-        return agraph(nodes=nodes, edges=edges, config=config)
 
     def _update_plan(self, user_request: str, curr_plan: Plan = None) -> Plan:
         call_llm_success = False
@@ -599,8 +569,6 @@ class DataScienceAssistant(RolePlay):
 
     def _judge_code(self, task, previous_code_blocks, code,
                     code_interpreter_resp):
-        success = True
-        failed_reason = ''
         judge_prompt = JUDGE_TEMPLATE.format(
             instruction=task.instruction,
             previous_code_blocks=previous_code_blocks,
@@ -621,13 +589,12 @@ class DataScienceAssistant(RolePlay):
             self._get_total_tokens()
             if 'Error code' in judge_result:
                 call_llm_count += 1
-                time.sleep(10)
+                time.sleep(5)
             else:
                 call_llm_success = True
         if not call_llm_success:
             raise Exception('call llm failed')
         logger.info(f'judge result for task{task.task_id}: \n {judge_result}')
-
         if 'incorrect' in judge_result.split('\n')[-1]:
             success = False
             failed_reason = (
@@ -636,7 +603,7 @@ class DataScienceAssistant(RolePlay):
             return success, failed_reason
 
         else:
-            return True, 'The code logic is correct'
+            return True, judge_result
 
     def _run(self, user_request, save: bool = True, **kwargs):
         before_time = time.time()
@@ -645,7 +612,7 @@ class DataScienceAssistant(RolePlay):
             if self.streamlit:
                 st.write("""# DataScience Assistant """)
                 st.write("""### The user request is: \n""")
-                st.write("""{user_request}""")
+                st.write(user_request)
             print('streamlit: ', self.streamlit)
             self.plan = self._update_plan(user_request=user_request)
             jupyter_file_path = ''
@@ -659,7 +626,9 @@ class DataScienceAssistant(RolePlay):
 
             while self.plan.current_task_id:
                 task = self.plan.task_map.get(self.plan.current_task_id)
-                # write_and_execute_code(self)
+                if self.streamlit:
+                    st.write(
+                        f"""### Task {task.task_id}: {task.instruction}\n""")
                 logger.info(
                     f'new task starts: task_{task.task_id} , instruction: {task.instruction}'
                 )
@@ -671,7 +640,6 @@ class DataScienceAssistant(RolePlay):
                     code_execute_success = False
                     code_logic_success = False
                     temp_code_interpreter = CodeInterpreter()
-
                     temp_code_interpreter.call(
                         params=json.dumps({
                             'code':
@@ -682,26 +650,60 @@ class DataScienceAssistant(RolePlay):
                     # generate code
                     code = self._generate_code(code_counter, task,
                                                user_request)
+                    code = '%matplotlib inline \n' + code
+                    # if self.streamlit:
+                    #     st.divider()
+                    #     st.write("We have generated the code for the current task")
+                    #     st.code(code, language='python')
                     code_execute_success, code_interpreter_resp = temp_code_interpreter.call(
                         params=json.dumps({'code': code}),
                         nb_mode=True,
                         silent_mode=True)
-                    # 删除临时 jupyter环境
-                    temp_code_interpreter.terminate()
+                    if self.streamlit:
+                        st.divider()
+                        st_notebook = nbformat.v4.new_notebook()
+                        st_notebook.cells = [
+                            temp_code_interpreter.nb.cells[-1]
+                        ]
+                        c = Config()
+                        c.HTMLExporter.preprocessors = [
+                            'nbconvert.preprocessors.ConvertFiguresPreprocessor'
+                        ]
+                        # create the new exporter using the custom config
+                        html_exporter_with_figs = HTMLExporter(config=c)
+                        (html, resources_with_fig
+                         ) = html_exporter_with_figs.from_notebook_node(
+                             st_notebook)
+                        st.write(
+                            'We have generated the code for the current task')
+                        st.html(html)
                     judge_resp = ''
                     if not code_execute_success:
                         logger.error(
                             f'code execution failed, task{task.task_id} code_counter{code_counter}:\n '
                             f'{code_interpreter_resp}')
+                        if self.streamlit:
+                            st.write(
+                                'The code execution failed. Now we will take a reflection and regenerate the code.'
+                            )
                     else:
                         logger.info(
                             f'code execution success, task{task.task_id} code_counter{code_counter}:\n '
                             f'{code_interpreter_resp}')
+                        if self.streamlit:
+                            st.write(
+                                'The code execution is successful. Now we will ask the judge to check the code.'
+                            )
                         code_logic_success, judge_resp = self._judge_code(
                             task=task,
                             previous_code_blocks=previous_code_blocks,
                             code=code,
                             code_interpreter_resp=code_interpreter_resp)
+                        if self.streamlit:
+                            st.write(
+                                'The judge has checked the code, here is the result.'
+                            )
+                            st.write(judge_resp)
                     success = code_execute_success and code_logic_success
                     task.code_cells.append(
                         CodeCell(
@@ -713,16 +715,13 @@ class DataScienceAssistant(RolePlay):
                         self.code_interpreter.call(
                             params=json.dumps({'code': code}), nb_mode=True)
                         if self.streamlit:
-                            st.divider()
                             st.write(
-                                f"""### Task {task.task_id}: {task.instruction}\n"""
+                                'The code is correct, we will move to the next task.'
                             )
-                            st.write(
-                                'Now we generate the code for the current task'
-                            )
-                            st.code(f"""{code}""", language='python')
                         task.code = code
                         task.result = code_interpreter_resp
+                    else:
+                        self.code_interpreter.nb.cells.pop()
                     code_counter += 1
 
                     # save the successful code in jupyter notebook
@@ -759,12 +758,10 @@ class DataScienceAssistant(RolePlay):
                     print(f'json write error: {str(e)}')
                 if self.streamlit:
                     st.divider()
-                    st.write('#### We have finished all the tasks! ')
+                    st.write('### We have finished all the tasks! ')
+                    st.balloons()
                     st.write(
-                        f'you can check the details in the jupyter notebook \"{jupyter_file_path}\"'
-                    )
-                    st.write(
-                        f"you can check the plan in the json file \"{dir_name + 'plan.json'}\""
+                        f"""#### The total time cost is: {time_cost}\n #### The total token cost is: {total_token}"""
                     )
 
         except Exception as e:
