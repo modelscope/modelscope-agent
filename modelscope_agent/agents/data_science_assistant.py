@@ -38,7 +38,6 @@ general data operation doesn't fall into this type
 - **ocr**: Only for OCR tasks.
 - **other**: Any tasks not in the defined categories
 
-
 # Task:
 Based on the context, write a simple plan or modify an existing plan of what you should do to achieve the goal. A plan \
 consists of one to four tasks.
