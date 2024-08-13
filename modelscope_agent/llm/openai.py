@@ -65,23 +65,17 @@ class OpenAi(BaseChatModel):
         logger.info(
             f'call openai api, model: {self.model}, messages: {str(messages)}, '
             f'stop: {str(stop)}, stream: True, args: {str(kwargs)}')
+
         if not self.is_azure:
-            stream_options = {'include_usage': True}
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                stop=stop,
-                stream=True,
-                stream_options=stream_options,
-                **kwargs,
-            )
-        else:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                stop=stop,
-                stream=True,
-                **kwargs)
+            kwargs['stream_options'] = {'include_usage': True}
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            stop=stop,
+            stream=True,
+            **kwargs)
+
         response = self.stat_last_call_token_info_stream(response)
         # TODO: error handling
         for chunk in response:
