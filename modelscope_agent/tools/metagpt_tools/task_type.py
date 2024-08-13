@@ -54,6 +54,13 @@ The current task is about evaluating a model, please note the following:
 - Ensure that the evaluated data is same processed as the training data.
 - Use trained model from previous task result directly, do not mock or reload model yourself.
 """
+OCR_PROMPT = """
+The current task is about OCR, please note the following:
+- you can follow the following code to get the OCR result:
+from paddleocr import PaddleOCR
+ocr = PaddleOCR(use_angle_cls=True, lang='en')
+result = ocr.ocr('/path/to/the/pic', cls=True) # please replace the path with the real path
+"""
 
 
 class TaskTypeDef(BaseModel):
@@ -92,7 +99,8 @@ class TaskType(Enum):
         desc='Only for evaluating model.',
         guidance=MODEL_EVALUATE_PROMPT,
     )
-
+    OCR = TaskTypeDef(
+        name='ocr', desc='For performing OCR tasks', guidance=OCR_PROMPT)
     OTHER = TaskTypeDef(
         name='other', desc='Any tasks not in the defined categories')
 
