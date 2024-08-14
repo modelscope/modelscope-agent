@@ -41,7 +41,7 @@ Modelscope-Agent是一个可定制的、可扩展的Agent代码框架。单Agent
 
 ## 更新
 * 🔥🔥🔥Aug 8, 2024: 基于Graph的[CodexGraph](https://arxiv.org/abs/2408.03910)代码生成工具依赖Modelscope-Agent上线, 目前在多个代码生成、补全任务上展示了有效性和通用性，请查看[使用示例](https://github.com/modelscope/modelscope-agent/tree/master/apps/codexgraph_agent).
-* 🔥🔥Aug 1, 2024: Modelscope-Agent目前支持了高性能的且效果可靠的数据科学助理, 请查看[使用示例](https://github.com/modelscope/modelscope-agent/blob/master/examples/agents/data_science_assistant.ipynb).
+* 🔥🔥Aug 1, 2024: Modelscope-Agent目前支持了高性能的且效果可靠的数据科学助理, 请查看[使用示例](https://github.com/modelscope/modelscope-agent/tree/master/apps/codexgraph_agent).
 * 🔥July 17, 2024: Modelscope-Agent-Server支持并行工具生成(parallel_tool_calls)[doc](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/README.md).
 * 🔥June 17, 2024: 基于llama-index的RAG链路升级，支持混合搜索（多策略，多模态），相关详情具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent/rag/README_zh.md).
 * 🔥June 6, 2024: 通过利用[Modelscope-Agent-Server](https://github.com/modelscope/modelscope-agent/blob/master/modelscope_agent_servers/README.md)，**Qwen2**可以通过OpenAI的SDK实现tool calling的能力，具体参考[文档](https://github.com/modelscope/modelscope-agent/blob/master/docs/llms/qwen2_tool_calling.md).
