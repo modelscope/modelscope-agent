@@ -7,7 +7,7 @@ jupyter>=1.0.0
 langchain
 langchain-community
 langchain-experimental
-llama-index
+llama-index==0.10.29
 llama-index-readers-json
 llama-index-retrievers-bm25==0.1.5
 modelscope[framework]>=1.16.0
