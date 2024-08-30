@@ -80,8 +80,8 @@ Output a list of jsons following the format:
 ```json
 [
     {{
-        "task_id": str = "unique identifier for a task in plan, can be an \
-        ordinal, should be unique and not conflict with previous task ids",
+        "task_id": str = "unique identifier for a task in plan, can be an ordinal, \
+        should be unique and not conflict with previous task ids",
         "dependent_task_ids": list[str] = "ids of tasks prerequisite to this task",
         "instruction": "what you should do in this task, one short phrase or sentence",
         "task_type": "type of this task, should be one of Available Task Types",
@@ -633,8 +633,8 @@ class DataScienceAssistant(RolePlay):
         if 'incorrect' in judge_result.split('\n')[-1]:
             success = False
             failed_reason = (
-                'Though the code executes successfully, The code logic is incorrect, here is the reason: '
-                + judge_result)
+                'Though the code executes successfully, The code logic is \
+                incorrect, here is the reason: ' + judge_result)
             return success, failed_reason
 
         else:
@@ -819,8 +819,14 @@ class DataScienceAssistant(RolePlay):
                 'content':
                 DECOMPOSE_TASK_TEMPLATE.format(
                     context='User Request: ' + task.instruction + '\n',
-                    previous_tasks='\n'.join(
-                        [json.dumps(t.__dict__) for t in self.plan.tasks]),
+                    previous_tasks='\n'.join([
+                        json.dumps({
+                            'task_id': t.task_id,
+                            'dependent_task_ids': t.dependent_task_ids,
+                            'instruction': t.instruction,
+                            'task_type': t.task_type
+                        }) for t in self.plan.tasks
+                    ]),
                     current_task=json.dumps(task.__dict__))
             }]
             resp = self._call_llm(prompt=None, messages=messages, stop=None)
@@ -829,7 +835,7 @@ class DataScienceAssistant(RolePlay):
                 tasks_text += r
             tasks_text = parse_code(text=tasks_text, lang='json')
             logger.info(f'decomposed tasks: {tasks_text}')
-            print(f'decomposed tasks: {tasks_text}')
+
             tasks = json5.loads(tasks_text)
             tasks = [Task(**task) for task in tasks]
             return tasks
