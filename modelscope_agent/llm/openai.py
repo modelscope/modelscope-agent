@@ -7,8 +7,8 @@ from modelscope_agent.utils.retry import retry
 from openai import AzureOpenAI, OpenAI
 
 
-@register_llm('azure_openai')
 @register_llm('openai')
+@register_llm('azure_openai')
 class OpenAi(BaseChatModel):
 
     def __init__(
