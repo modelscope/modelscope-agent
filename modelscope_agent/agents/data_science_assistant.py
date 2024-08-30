@@ -1,6 +1,4 @@
 # Implementation inspired by the paper "DATA INTERPRETER: AN LLM AGENT FOR DATA SCIENCE"
-import asyncio
-import copy
 import os
 import time
 from datetime import datetime
