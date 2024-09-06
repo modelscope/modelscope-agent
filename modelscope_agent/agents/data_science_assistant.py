@@ -75,6 +75,7 @@ The current task is:
 Currently, the current task is too complex to be executed in one step. Please decompose the task into smaller tasks, \
 and output a list of jsons following the format:
 Output a list of jsons following the format:
+
 ```json
 [
     {{
