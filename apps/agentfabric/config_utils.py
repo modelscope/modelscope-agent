@@ -3,7 +3,7 @@ import shutil
 import traceback
 
 import json
-from modelscope_agent.tools.openapi_plugin import openapi_schema_convert
+from modelscope_agent.tools.utils.openapi_utils import openapi_schema_convert
 from modelscope_agent.utils.logger import agent_logger as logger
 
 from modelscope.utils.config import Config
@@ -127,7 +127,7 @@ def save_avatar_image(image_path, uuid_str=''):
     return bot_avatar, bot_avatar_path
 
 
-def parse_configuration(uuid_str=''):
+def parse_configuration(uuid_str='', use_tool_api=False):
     """parse configuration
 
     Args:
@@ -167,33 +167,38 @@ def parse_configuration(uuid_str=''):
         if value['use']:
             available_tool_list.append(key)
 
-    openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
     plugin_cfg = {}
     available_plugin_list = []
-    openapi_plugin_cfg_file_temp = './config/openapi_plugin_config.json'
-    if os.path.exists(openapi_plugin_file):
-        openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
-        try:
-            config_dict = openapi_schema_convert(
-                schema=openapi_plugin_cfg.schema,
-                auth=openapi_plugin_cfg.auth.to_dict())
-            plugin_cfg = Config(config_dict)
-            for name, config in config_dict.items():
-                available_plugin_list.append(name)
-        except Exception as e:
-            logger.query_error(
-                uuid=uuid_str,
-                error=str(e),
-                content={
-                    'error_traceback':
-                    traceback.format_exc(),
-                    'error_details':
-                    'The format of the plugin config file is incorrect.'
-                })
-    elif not os.path.exists(openapi_plugin_file):
-        if os.path.exists(openapi_plugin_cfg_file_temp):
-            os.makedirs(os.path.dirname(openapi_plugin_file), exist_ok=True)
-            if openapi_plugin_cfg_file_temp != openapi_plugin_file:
-                shutil.copy(openapi_plugin_cfg_file_temp, openapi_plugin_file)
+    if use_tool_api:
+        available_plugin_list = builder_cfg.openapi_list
+    else:
+        openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
+        openapi_plugin_cfg_file_temp = './config/openapi_plugin_config.json'
+        if os.path.exists(openapi_plugin_file):
+            openapi_plugin_cfg = Config.from_file(openapi_plugin_file)
+            try:
+                config_dict = openapi_schema_convert(
+                    schema=openapi_plugin_cfg.schema,
+                    auth=openapi_plugin_cfg.auth.to_dict())
+                plugin_cfg = Config(config_dict)
+                for name, config in config_dict.items():
+                    available_plugin_list.append(name)
+            except Exception as e:
+                logger.query_error(
+                    uuid=uuid_str,
+                    error=str(e),
+                    details={
+                        'error_traceback':
+                        traceback.format_exc(),
+                        'error_details':
+                        'The format of the plugin config file is incorrect.'
+                    })
+        elif not os.path.exists(openapi_plugin_file):
+            if os.path.exists(openapi_plugin_cfg_file_temp):
+                os.makedirs(
+                    os.path.dirname(openapi_plugin_file), exist_ok=True)
+                if openapi_plugin_cfg_file_temp != openapi_plugin_file:
+                    shutil.copy(openapi_plugin_cfg_file_temp,
+                                openapi_plugin_file)
 
     return builder_cfg, model_cfg, tool_cfg, available_tool_list, plugin_cfg, available_plugin_list
