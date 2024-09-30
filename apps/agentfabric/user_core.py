@@ -52,7 +52,7 @@ def init_user_chatbot_agent(uuid_str='',
         uuid_str=uuid_str,
         use_tool_api=use_tool_api,
         user_token=user_token,
-        openapi_list_for_remote=openapi_plugin_list)
+        openapi_list=openapi_plugin_list)
 
     # build memory
     preview_history_dir = get_user_preview_history_dir(uuid_str, session)

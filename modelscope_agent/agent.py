@@ -17,7 +17,8 @@ def enable_run_callback(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         callbacks = self.callback_manager
-        callbacks.on_run_start(*args, **kwargs)
+        if callbacks.callbacks:
+            callbacks.on_run_start(*args, **kwargs)
         response = func(self, *args, **kwargs)
         name = self.name or self.__class__.__name__
         if not isinstance(response, str):
@@ -53,8 +54,7 @@ class Agent(ABC):
                  instruction: Union[str, dict] = None,
                  use_tool_api: bool = False,
                  callbacks: list = None,
-                 openapi_list_for_remote: Optional[List[Union[str,
-                                                              Dict]]] = None,
+                 openapi_list: Optional[List[Union[str, Dict]]] = None,
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -72,7 +72,7 @@ class Agent(ABC):
             instruction: the system instruction of this agent
             use_tool_api: whether to use the tool service api, else to use the tool cls instance
             callbacks: the callbacks that could be used during different phase of agent loop
-            openapi_list_for_remote: the openapi list for remote calling only
+            openapi_list: the openapi list for remote calling only
             kwargs: other potential parameters
         """
         if isinstance(llm, Dict):
@@ -90,8 +90,8 @@ class Agent(ABC):
                 self._register_tool(function, **kwargs)
 
         # this logic is for remote openapi calling only, by using this method apikey only be accessed by service.
-        if openapi_list_for_remote:
-            for openapi_name in openapi_list_for_remote:
+        if openapi_list:
+            for openapi_name in openapi_list:
                 self._register_openapi_for_remote_calling(
                     openapi_name, **kwargs)
 
@@ -175,7 +175,7 @@ class Agent(ABC):
             function_plain_text = openapi_instance_for_specific_tool.parser_function_by_tool_name(
                 tool_name)
             openapi_instance_for_specific_tool.function_plain_text = function_plain_text
-            self.function_map[tool_name] = openapi_instance
+            self.function_map[tool_name] = openapi_instance_for_specific_tool
 
     def _register_tool(self,
                        tool: Union[str, Dict],

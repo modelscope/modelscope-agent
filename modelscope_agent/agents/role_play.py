@@ -89,7 +89,7 @@ class RolePlay(Agent, AgentEnvMixin):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
-                 openapi_list_for_remote: Optional[List] = None,
+                 openapi_list: Optional[List] = None,
                  **kwargs):
         Agent.__init__(
             self,
@@ -99,7 +99,7 @@ class RolePlay(Agent, AgentEnvMixin):
             name,
             description,
             instruction,
-            openapi_list_for_remote=openapi_list_for_remote,
+            openapi_list=openapi_list,
             **kwargs)
         AgentEnvMixin.__init__(self, **kwargs)
 

@@ -482,14 +482,14 @@ class ToolServiceProxy(BaseTool):
 
 class OpenapiServiceProxy:
 
-    def __init__(
-        self,
-        openapi: Union[str, Dict],
-        openapi_service_manager_url: str = os.getenv(
-            'TOOL_MANAGER_SERVICE_URL', DEFAULT_TOOL_MANAGER_SERVICE_URL),
-        user_token: str = None,
-        is_remote: bool = True,
-    ):
+    def __init__(self,
+                 openapi: Union[str, Dict],
+                 openapi_service_manager_url: str = os.getenv(
+                     'TOOL_MANAGER_SERVICE_URL',
+                     DEFAULT_TOOL_MANAGER_SERVICE_URL),
+                 user_token: str = None,
+                 is_remote: bool = True,
+                 **kwargs):
         """
         Openapi service proxy class
         Args:
@@ -511,7 +511,7 @@ class OpenapiServiceProxy:
         for item in openapi_formatted_schema:
             self.api_info_dict[openapi_formatted_schema[item]
                                ['name']] = openapi_formatted_schema[item]
-        self.tool_names = list(self.api_info_dict.values())
+        self.tool_names = list(self.api_info_dict.keys())
 
     def parser_function_by_tool_name(self, tool_name: str):
         tool_desc_template = {
@@ -660,7 +660,18 @@ class OpenapiServiceProxy:
 
 
 if __name__ == '__main__':
-    tool = OpenapiServiceProxy('openapi_plugin')
+    import copy
+    openapi_instance = OpenapiServiceProxy('openapi_plugin')
+    function_map = {}
+    tool_names = openapi_instance.tool_names
+    for tool_name in tool_names:
+        openapi_instance_for_specific_tool = copy.deepcopy(openapi_instance)
+        openapi_instance_for_specific_tool.name = tool_name
+        function_plain_text = openapi_instance_for_specific_tool.parser_function_by_tool_name(
+            tool_name)
+        openapi_instance_for_specific_tool.function_plain_text = function_plain_text
+        function_map[tool_name] = openapi_instance_for_specific_tool
+
     print(
-        tool.call(
+        openapi_instance.call(
             '{"username":"test"}', tool_name='getTodos', user_token='test'))

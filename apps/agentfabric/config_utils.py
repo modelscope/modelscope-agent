@@ -169,9 +169,10 @@ def parse_configuration(uuid_str='', use_tool_api=False):
 
     plugin_cfg = {}
     available_plugin_list = []
-    if use_tool_api:
+    if use_tool_api and getattr(builder_cfg, 'openapi_list', None):
         available_plugin_list = builder_cfg.openapi_list
     else:
+        available_plugin_list = []
         openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
         openapi_plugin_cfg_file_temp = './config/openapi_plugin_config.json'
         if os.path.exists(openapi_plugin_file):
