@@ -596,6 +596,10 @@ class OpenapiServiceProxy:
     def _parse_credentials(self, credentials: dict, headers=None):
         if not headers:
             headers = {}
+
+        if not credentials:
+            return headers
+
         if 'auth_type' not in credentials:
             raise KeyError('Missing auth_type')
         if credentials['auth_type'] == 'api_key':

@@ -567,12 +567,17 @@ def get_preview_chat_file(uuid_str, session_str):
 def openapi_schema_parser(uuid_str):
     logger.info(f'parse openapi schema for: uuid_str_{uuid_str}')
     params_str = request.get_data(as_text=True)
-    openapi_schema = None
+    params = json.loads(params_str)
+    openapi_schema = params.get('openapi_schema')
     try:
-        params = json.loads(params_str)
-        openapi_schema = params.get('openapi_schema')
+        if not isinstance(openapi_schema, dict):
+            openapi_schema = json.loads(openapi_schema)
     except json.decoder.JSONDecodeError:
-        logger.error('OpenAPI schema format error, should be a valid json')
+        openapi_schema = yaml.safe_load(openapi_schema)
+    except Exception as e:
+        logger.error(
+            f'OpenAPI schema format error, should be a valid json with error message: {e}'
+        )
     if not openapi_schema:
         return jsonify({
             'success': False,
@@ -582,14 +587,17 @@ def openapi_schema_parser(uuid_str):
     openapi_schema_instance = OpenapiServiceProxy(openapi=openapi_schema)
     import copy
     schema_info = copy.deepcopy(openapi_schema_instance.api_info_dict)
+    output = []
     for item in schema_info:
         schema_info[item].pop('is_active')
         schema_info[item].pop('is_remote_tool')
         schema_info[item].pop('details')
+        schema_info[item].pop('header')
+        output.append(schema_info[item])
 
     return jsonify({
         'success': True,
-        'schema_info': schema_info,
+        'schema_info': output,
         'request_id': request_id_var.get('')
     })
 
@@ -599,18 +607,21 @@ def openapi_schema_parser(uuid_str):
 def openapi_test_parser(uuid_str):
     logger.info(f'parse openapi schema for: uuid_str_{uuid_str}')
     params_str = request.get_data(as_text=True)
-    openapi_schema = None
-    tool_params = None
-    tool_name = ''
-    credentials = {}
+    params = json.loads(params_str)
+    tool_params = params.get('tool_params')
+    tool_name = params.get('tool_name')
+    credentials = params.get('credentials')
+    openapi_schema = params.get('openapi_schema')
+
     try:
-        params = json.loads(params_str)
-        openapi_schema = params.get('openapi_schema')
-        tool_params = params.get('tool_params')
-        tool_name = params.get('tool_name')
-        credentials = params.get('credentials')
+        if not isinstance(openapi_schema, dict):
+            openapi_schema = json.loads(openapi_schema)
     except json.decoder.JSONDecodeError:
-        logger.error('OpenAPI schema format error, should be a valid json')
+        openapi_schema = yaml.safe_load(openapi_schema)
+    except Exception as e:
+        logger.error(
+            f'OpenAPI schema format error, should be a valid json with error message: {e}'
+        )
     if not openapi_schema:
         return jsonify({
             'success': False,
