@@ -14,7 +14,7 @@ def enable_rag_callback(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         callbacks = self.callback_manager
-        if callbacks:
+        if callbacks.callbacks:
             callbacks.on_rag_start(*args, **kwargs)
         response = func(self, *args, **kwargs)
         if callbacks:

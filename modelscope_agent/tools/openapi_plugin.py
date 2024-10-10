@@ -1,12 +1,11 @@
-import os
 import re
 from typing import List, Optional
 
 import json
 import requests
-from jsonschema import RefResolver
 from modelscope_agent.tools.base import BaseTool, register_tool
-from pydantic import BaseModel, ValidationError
+from modelscope_agent.tools.utils.openapi_utils import get_parameter_value
+from pydantic import BaseModel
 from requests.exceptions import RequestException, Timeout
 
 MAX_RETRY_TIMES = 3
@@ -42,7 +41,7 @@ class OpenAPIPluginTool(BaseTool):
         # remote call
         self.url = self.cfg.get('url', '')
         self.token = self.cfg.get('token', '')
-        self.header = self.cfg.get('header', '')
+        self.header = self.cfg.get('header', {})
         self.method = self.cfg.get('method', '')
         self.parameters = self.cfg.get('parameters', [])
         self.description = self.cfg.get('description',
@@ -63,8 +62,27 @@ class OpenAPIPluginTool(BaseTool):
         if isinstance(params, str):
             return 'Parameter Error'
 
+        path_params = {}
+        cookies = {}
+        for parameter in self.parameters:
+            value = get_parameter_value(parameter, params)
+            if parameter['in'] == 'path':
+                path_params[parameter['name']] = value
+
+            elif parameter['in'] == 'query':
+                params[parameter['name']] = value
+
+            elif parameter['in'] == 'cookie':
+                cookies[parameter['name']] = value
+
+            elif parameter['in'] == 'header':
+                self.header[parameter['name']] = value
+
+        for name, value in path_params.items():
+            self.url = self.url.replace(f'{{{name}}}', f'{value}')
+
         # origin_result = None
-        if self.method == 'POST':
+        if self.method == 'POST' or self.method == 'DELETE':
             retry_times = MAX_RETRY_TIMES
             while retry_times:
                 retry_times -= 1
@@ -72,9 +90,10 @@ class OpenAPIPluginTool(BaseTool):
                     print(f'data: {kwargs}')
                     print(f'header: {self.header}')
                     response = requests.request(
-                        'POST',
+                        method=self.method,
                         url=self.url,
                         headers=self.header,
+                        cookies=cookies,
                         data=remote_parsed_input)
 
                     if response.status_code != requests.codes.ok:
@@ -159,69 +178,6 @@ class OpenAPIPluginTool(BaseTool):
         return kwargs
 
 
-# openapi_schema_convert,register to tool_config.json
-def extract_references(schema_content):
-    references = []
-    if isinstance(schema_content, dict):
-        if '$ref' in schema_content:
-            references.append(schema_content['$ref'])
-        for key, value in schema_content.items():
-            references.extend(extract_references(value))
-    elif isinstance(schema_content, list):
-        for item in schema_content:
-            references.extend(extract_references(item))
-    return references
-
-
-def parse_nested_parameters(param_name, param_info, parameters_list, content):
-    param_type = param_info['type']
-    param_description = param_info.get('description',
-                                       f'用户输入的{param_name}')  # 按需更改描述
-    param_required = param_name in content['required']
-    try:
-        if param_type == 'object':
-            properties = param_info.get('properties')
-            if properties:
-                # If the argument type is an object and has a non-empty "properties" field,
-                # its internal properties are parsed recursively
-                for inner_param_name, inner_param_info in properties.items():
-                    inner_param_type = inner_param_info['type']
-                    inner_param_description = inner_param_info.get(
-                        'description', f'用户输入的{param_name}.{inner_param_name}')
-                    inner_param_required = param_name.split(
-                        '.')[0] in content['required']
-
-                    # Recursively call the function to handle nested objects
-                    if inner_param_type == 'object':
-                        parse_nested_parameters(
-                            f'{param_name}.{inner_param_name}',
-                            inner_param_info, parameters_list, content)
-                    else:
-                        parameters_list.append({
-                            'name':
-                            f'{param_name}.{inner_param_name}',
-                            'description':
-                            inner_param_description,
-                            'required':
-                            inner_param_required,
-                            'type':
-                            inner_param_type,
-                            'enum':
-                            inner_param_info.get('enum', '')
-                        })
-        else:
-            # Non-nested parameters are added directly to the parameter list
-            parameters_list.append({
-                'name': param_name,
-                'description': param_description,
-                'required': param_required,
-                'type': param_type,
-                'enum': param_info.get('enum', '')
-            })
-    except Exception as e:
-        raise ValueError(f'{e}:schema结构出错')
-
-
 def parse_responses_parameters(param_name, param_info, parameters_list):
     param_type = param_info['type']
     param_description = param_info.get('description',
@@ -252,116 +208,3 @@ def parse_responses_parameters(param_name, param_info, parameters_list):
             })
     except Exception as e:
         raise ValueError(f'{e}:schema结构出错')
-
-
-def openapi_schema_convert(schema, auth):
-
-    resolver = RefResolver.from_schema(schema)
-    servers = schema.get('servers', [])
-    if servers:
-        servers_url = servers[0].get('url')
-    else:
-        print('No URL found in the schema.')
-    # Extract endpoints
-    endpoints = schema.get('paths', {})
-    description = schema.get('info', {}).get('description',
-                                             'This is a api tool that ...')
-    config_data = {}
-    # Iterate over each endpoint and its contents
-    for endpoint_path, methods in endpoints.items():
-        for method, details in methods.items():
-            summary = details.get('summary', 'No summary').replace(' ', '_')
-            name = details.get('operationId', 'No operationId')
-            url = f'{servers_url}{endpoint_path}'
-            security = details.get('security', [{}])
-            # Security (Bearer Token)
-            authorization = ''
-            if security:
-                for sec in security:
-                    if 'BearerAuth' in sec:
-                        api_token = auth.get('apikey',
-                                             os.environ.get('apikey', ''))
-                        api_token_type = auth.get(
-                            'apikey_type',
-                            os.environ.get('apikey_type', 'Bearer'))
-                        authorization = f'{api_token_type} {api_token}'
-            if method.upper() == 'POST':
-                requestBody = details.get('requestBody', {})
-                if requestBody:
-                    for content_type, content_details in requestBody.get(
-                            'content', {}).items():
-                        schema_content = content_details.get('schema', {})
-                        references = extract_references(schema_content)
-                        for reference in references:
-                            resolved_schema = resolver.resolve(reference)
-                            content = resolved_schema[1]
-                            parameters_list = []
-                            for param_name, param_info in content[
-                                    'properties'].items():
-                                parse_nested_parameters(
-                                    param_name, param_info, parameters_list,
-                                    content)
-                            X_DashScope_Async = requestBody.get(
-                                'X-DashScope-Async', '')
-                            if X_DashScope_Async == '':
-                                config_entry = {
-                                    'name': name,
-                                    'description': description,
-                                    'is_active': True,
-                                    'is_remote_tool': True,
-                                    'url': url,
-                                    'method': method.upper(),
-                                    'parameters': parameters_list,
-                                    'header': {
-                                        'Content-Type': content_type,
-                                        'Authorization': authorization
-                                    }
-                                }
-                            else:
-                                config_entry = {
-                                    'name': name,
-                                    'description': description,
-                                    'is_active': True,
-                                    'is_remote_tool': True,
-                                    'url': url,
-                                    'method': method.upper(),
-                                    'parameters': parameters_list,
-                                    'header': {
-                                        'Content-Type': content_type,
-                                        'Authorization': authorization,
-                                        'X-DashScope-Async': 'enable'
-                                    }
-                                }
-                else:
-                    config_entry = {
-                        'name': name,
-                        'description': description,
-                        'is_active': True,
-                        'is_remote_tool': True,
-                        'url': url,
-                        'method': method.upper(),
-                        'parameters': [],
-                        'header': {
-                            'Content-Type': 'application/json',
-                            'Authorization': authorization
-                        }
-                    }
-            elif method.upper() == 'GET':
-                parameters_list = details.get('parameters', [])
-                config_entry = {
-                    'name': name,
-                    'description': description,
-                    'is_active': True,
-                    'is_remote_tool': True,
-                    'url': url,
-                    'method': method.upper(),
-                    'parameters': parameters_list,
-                    'header': {
-                        'Authorization': authorization
-                    }
-                }
-            else:
-                raise 'method is not POST or GET'
-
-            config_data[summary] = config_entry
-    return config_data

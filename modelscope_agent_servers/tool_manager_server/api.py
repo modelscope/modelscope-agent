@@ -3,16 +3,19 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 from uuid import uuid4
 
+import json
 import requests
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from modelscope_agent.constants import MODELSCOPE_AGENT_TOKEN_HEADER_NAME
+from modelscope_agent.tools.utils.openapi_utils import execute_api_call
 from modelscope_agent_servers.service_utils import (create_error_msg,
                                                     create_success_msg,
                                                     parse_service_response)
 from modelscope_agent_servers.tool_manager_server.connections import (
     create_db_and_tables, engine)
 from modelscope_agent_servers.tool_manager_server.models import (
-    ContainerStatus, CreateTool, ExecuteTool, ToolInstance, ToolRegisterInfo)
+    ContainerStatus, CreateTool, ExecuteOpenAPISchema, ExecuteTool,
+    ToolInstance, ToolRegisterInfo)
 from modelscope_agent_servers.tool_manager_server.sandbox import (
     NODE_NETWORK, remove_docker_container, restart_docker_container,
     start_docker_container)
@@ -375,7 +378,7 @@ async def get_tool_info(tool_input: ExecuteTool,
             status_code=400,
             request_id=request_id,
             message=
-            f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
+            f'Failed to get tool info for {tool_input.tool_name}_{tool_input.tenant_id}, with error {e}'
         )
 
 
@@ -425,6 +428,208 @@ async def execute_tool(tool_input: ExecuteTool,
             message=
             f'Failed to execute tool for {tool_input.tool_name}_{tool_input.tenant_id}, '
             f'with error: {e} and origin error {response.message}')
+
+
+@app.post('/openapi_schema')
+async def get_openapi_schema(openapi_input: ExecuteOpenAPISchema,
+                             user_token: str = Depends(get_user_token),
+                             auth_token: str = Depends(get_auth_token)):
+
+    # get tool instance
+    request_id = str(uuid4())
+
+    # TODO(Zhicheng): should implement this function to get schema based on openapi schema name from database
+    #  with an api for saving scheme to database
+    # a fixed openapi schema is used here for demo
+    openapi_schema = {
+        'openapi': '3.0.1',
+        'info': {
+            'title': 'TODO Plugin',
+            'description':
+            'A plugin that allows the user to create and manage a TODO list using ChatGPT. ',
+            'version': 'v1'
+        },
+        'servers': [{
+            'url': 'http://localhost:5003'
+        }],
+        'paths': {
+            '/todos/{username}': {
+                'get': {
+                    'operationId':
+                    'getTodos',
+                    'summary':
+                    'Get the list of todos',
+                    'parameters': [{
+                        'in': 'path',
+                        'name': 'username',
+                        'schema': {
+                            'type': 'string'
+                        },
+                        'required': True,
+                        'description': 'The name of the user.'
+                    }],
+                    'responses': {
+                        '200': {
+                            'description': 'OK',
+                            'content': {
+                                'application/json': {
+                                    'schema': {
+                                        '$ref':
+                                        '#/components/schemas/getTodosResponse'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                'post': {
+                    'operationId':
+                    'addTodo',
+                    'summary':
+                    'Add a todo to the list',
+                    'parameters': [{
+                        'in': 'path',
+                        'name': 'username',
+                        'schema': {
+                            'type': 'string'
+                        },
+                        'required': True,
+                        'description': 'The name of the user.'
+                    }],
+                    'requestBody': {
+                        'required': True,
+                        'content': {
+                            'application/json': {
+                                'schema': {
+                                    '$ref':
+                                    '#/components/schemas/addTodoRequest'
+                                }
+                            }
+                        }
+                    },
+                    'responses': {
+                        '200': {
+                            'description': 'OK'
+                        }
+                    }
+                },
+                'delete': {
+                    'operationId':
+                    'deleteTodo',
+                    'summary':
+                    'Delete a todo from the list',
+                    'parameters': [{
+                        'in': 'path',
+                        'name': 'username',
+                        'schema': {
+                            'type': 'string'
+                        },
+                        'required': True,
+                        'description': 'The name of the user.'
+                    }],
+                    'requestBody': {
+                        'required': True,
+                        'content': {
+                            'application/json': {
+                                'schema': {
+                                    '$ref':
+                                    '#/components/schemas/deleteTodoRequest'
+                                }
+                            }
+                        }
+                    },
+                    'responses': {
+                        '200': {
+                            'description': 'OK'
+                        }
+                    }
+                }
+            }
+        },
+        'components': {
+            'schemas': {
+                'getTodosResponse': {
+                    'type': 'object',
+                    'properties': {
+                        'todos': {
+                            'type': 'array',
+                            'items': {
+                                'type': 'string'
+                            },
+                            'description': 'The list of todos.'
+                        }
+                    }
+                },
+                'addTodoRequest': {
+                    'type': 'object',
+                    'required': ['todo'],
+                    'properties': {
+                        'todo': {
+                            'type': 'string',
+                            'description': 'The todo to add to the list.',
+                            'required': True
+                        }
+                    }
+                },
+                'deleteTodoRequest': {
+                    'type': 'object',
+                    'required': ['todo_idx'],
+                    'properties': {
+                        'todo_idx': {
+                            'type': 'integer',
+                            'description': 'The index of the todo to delete.',
+                            'required': True
+                        }
+                    }
+                }
+            }
+        }
+    }
+    # get tool service url
+    try:
+
+        return create_success_msg(openapi_schema, request_id=request_id)
+    except Exception as e:
+        return create_error_msg(
+            status_code=400,
+            request_id=request_id,
+            message=
+            f'Failed to get openapi schema for {openapi_input.openapi_name} with error {e}'
+        )
+
+
+@app.post('/execute_openapi')
+async def execute_openapi(openapi_input: ExecuteOpenAPISchema,
+                          user_token: str = Depends(get_user_token),
+                          auth_token: str = Depends(get_auth_token)):
+
+    request_id = str(uuid4())
+
+    if openapi_input.params == '':
+        return create_error_msg(
+            status_code=400,
+            request_id=request_id,
+            message=f'The params of tool {openapi_input.tool_name}is empty.')
+
+    try:
+        url = openapi_input.url
+        headers = openapi_input.headers
+        method = openapi_input.method.upper()
+        if isinstance(openapi_input.params, str):
+            params = json.loads(openapi_input.params)
+        else:
+            params = openapi_input.params
+        data = openapi_input.data
+        response = execute_api_call(url, method, headers, params, data,
+                                    openapi_input.cookies)
+        return create_success_msg(response, request_id=request_id)
+    except Exception as e:
+        return create_error_msg(
+            status_code=400,
+            request_id=request_id,
+            message=
+            f'Failed to execute openapi for {openapi_input.openapi_name}, '
+            f'with error: {e}')
 
 
 if __name__ == '__main__':

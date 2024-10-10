@@ -1,6 +1,6 @@
 import os
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional, Union
 
 from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
@@ -24,7 +24,7 @@ class ToolRegisterInfo(BaseModel):
     workspace_dir: str = os.getcwd()
     tool_name: str
     tenant_id: str
-    config: dict = {}
+    config: Dict = {}
     port: Optional[int] = 31513
     tool_url: str = ''
 
@@ -32,7 +32,7 @@ class ToolRegisterInfo(BaseModel):
 class CreateTool(BaseModel):
     tool_name: str
     tenant_id: str = 'default'
-    tool_cfg: dict = {}
+    tool_cfg: Dict = {}
     tool_image: str = 'modelscope-agent/tool-node:latest'
     tool_url: str = ''
 
@@ -41,7 +41,17 @@ class ExecuteTool(BaseModel):
     tool_name: str
     tenant_id: str = 'default'
     params: str = ''
-    kwargs: dict = {}
+    kwargs: Dict = {}
+
+
+class ExecuteOpenAPISchema(BaseModel):
+    openapi_name: str = ''
+    url: str = ''
+    params: Union[str, Dict] = ''
+    headers: Dict = {}
+    method: str = 'GET'
+    data: Dict = {}
+    cookies: Dict = {}
 
 
 class ContainerStatus(Enum):

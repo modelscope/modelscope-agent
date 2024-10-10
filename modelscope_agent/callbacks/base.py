@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 
 class BaseCallback:
@@ -42,10 +42,12 @@ class BaseCallback:
 
 class CallbackManager(BaseCallback):
 
-    def __init__(self, callbacks: List[BaseCallback]):
+    def __init__(self, callbacks: Optional[List[BaseCallback]] = None):
         self.callbacks = callbacks
 
     def call_event(self, event, *args, **kwargs):
+        if not self.callbacks:
+            return
         for callback in self.callbacks:
             func = getattr(callback, event)
             func(*args, **kwargs)

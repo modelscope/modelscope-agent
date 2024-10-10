@@ -88,3 +88,12 @@ class DashscopeEmbedding(Embedding):
             raise ValueError(f'call dashscope api failed: {resp}')
 
         return [list(map(float, e['embedding'])) for e in res]
+
+
+if __name__ == '__main__':
+    # Example usage
+    embedding = DashscopeEmbedding(model_name='text-embedding-v2')
+    query = 'This is a query'
+    text = 'This is a document'
+    query_embedding = embedding._embed(query)
+    print(query_embedding)
