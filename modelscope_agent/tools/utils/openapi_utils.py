@@ -26,8 +26,7 @@ def execute_api_call(url: str, method: str, headers: dict, params: dict,
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        raise Exception(
-            f'An error occurred: {response.message}, with error {e}')
+        raise Exception(f'An error occurred with error {e}')
 
 
 def parse_nested_parameters(param_name, param_info, parameters_list, content):
@@ -64,7 +63,9 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
                             'type':
                             inner_param_type,
                             'enum':
-                            inner_param_info.get('enum', '')
+                            inner_param_info.get('enum', ''),
+                            'in':
+                            'requestBody'
                         })
         else:
             # Non-nested parameters are added directly to the parameter list
@@ -73,7 +74,8 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
                 'description': param_description,
                 'required': param_required,
                 'type': param_type,
-                'enum': param_info.get('enum', '')
+                'enum': param_info.get('enum', ''),
+                'in': 'requestBody'
             })
     except Exception as e:
         raise ValueError(f'{e}:schema结构出错')
@@ -117,7 +119,21 @@ def openapi_schema_convert(schema: dict, auth: dict = {}):
             path_parameters = details.get('parameters', [])
             if isinstance(path_parameters, dict):
                 path_parameters = [path_parameters]
-            parameters_list.extend(path_parameters)
+            for path_parameter in path_parameters:
+                parameters_list.append({
+                    'name':
+                    path_parameter['name'],
+                    'description':
+                    path_parameter.get('description', 'No description'),
+                    'in':
+                    path_parameter['in'],
+                    'required':
+                    path_parameter.get('required', False),
+                    'type':
+                    path_parameter['schema']['type'],
+                    'enum':
+                    path_parameter.get('enum', '')
+                })
 
             summary = details.get('summary',
                                   'No summary').replace(' ', '_').lower()

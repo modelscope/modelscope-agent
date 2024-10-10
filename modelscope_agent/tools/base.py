@@ -541,8 +541,10 @@ class OpenapiServiceProxy:
     def parse_service_response(response):
         try:
             # Assuming the response is a JSON string
-            response_data = response.json()
-
+            if not isinstance(response, dict):
+                response_data = response.json()
+            else:
+                response_data = response
             # Extract the 'output' field from the response
             output_data = response_data.get('output', {})
             return output_data
@@ -591,9 +593,45 @@ class OpenapiServiceProxy:
                     raise ValueError(f'param `{param["name"]}` is required')
         return params_json
 
+    def _parse_credentials(self, credentials: dict, headers=None):
+        if not headers:
+            headers = {}
+        if 'auth_type' not in credentials:
+            raise KeyError('Missing auth_type')
+        if credentials['auth_type'] == 'api_key':
+            api_key_header = 'api_key'
+
+            if 'api_key_header' in credentials:
+                api_key_header = credentials['api_key_header']
+
+            if 'api_key_value' not in credentials:
+                raise KeyError('Missing api_key_value')
+            elif not isinstance(credentials['api_key_value'], str):
+                raise KeyError('api_key_value must be a string')
+
+            if 'api_key_header_prefix' in credentials:
+                api_key_header_prefix = credentials['api_key_header_prefix']
+                if api_key_header_prefix == 'basic' and credentials[
+                        'api_key_value']:
+                    credentials[
+                        'api_key_value'] = f'Basic {credentials["api_key_value"]}'
+                elif api_key_header_prefix == 'bearer' and credentials[
+                        'api_key_value']:
+                    credentials[
+                        'api_key_value'] = f'Bearer {credentials["api_key_value"]}'
+                elif api_key_header_prefix == 'custom':
+                    pass
+
+            headers[api_key_header] = credentials['api_key_value']
+        return headers
+
     def call(self, params: str, **kwargs):
         # ms_token
         tool_name = kwargs.get('tool_name', '')
+        if tool_name not in self.api_info_dict:
+            raise ValueError(
+                f'tool name {tool_name} not in the list of tools {self.tool_names}'
+            )
         api_info = self.api_info_dict[tool_name]
         self.user_token = kwargs.get('user_token', self.user_token)
         service_token = os.getenv('TOOL_MANAGER_AUTH', '')
@@ -630,7 +668,6 @@ class OpenapiServiceProxy:
 
         for name, value in path_params.items():
             url = url.replace(f'{{{name}}}', f'{value}')
-
         try:
             # visit tool node to call tool
             if self.is_remote:
@@ -650,7 +687,9 @@ class OpenapiServiceProxy:
 
                 response.raise_for_status()
             else:
-                response = execute_api_call(url, method, headers, params, data,
+                credentials = kwargs.get('credentials', {})
+                header = self._parse_credentials(credentials, header)
+                response = execute_api_call(url, method, header, params, data,
                                             cookies)
             return OpenapiServiceProxy.parse_service_response(response)
         except Exception as e:
@@ -661,7 +700,17 @@ class OpenapiServiceProxy:
 
 if __name__ == '__main__':
     import copy
-    openapi_instance = OpenapiServiceProxy('openapi_plugin')
+
+    test_str = 'openapi_plugin'
+    openapi_instance = OpenapiServiceProxy(openapi=test_str)
+    schema_info = copy.deepcopy(openapi_instance.api_info_dict)
+    for item in schema_info:
+        schema_info[item].pop('is_active')
+        schema_info[item].pop('is_remote_tool')
+        schema_info[item].pop('details')
+
+    print(schema_info)
+    print(openapi_instance.api_info_dict)
     function_map = {}
     tool_names = openapi_instance.tool_names
     for tool_name in tool_names:
