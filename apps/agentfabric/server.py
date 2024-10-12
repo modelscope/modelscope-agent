@@ -20,6 +20,7 @@ from flask import (Flask, Response, g, jsonify, make_response, request,
 from modelscope_agent.constants import (MODELSCOPE_AGENT_TOKEN_HEADER_NAME,
                                         ApiNames)
 from modelscope_agent.schemas import Message
+from modelscope_agent.tools.base import OpenapiServiceProxy
 from publish_util import (pop_user_info_from_config, prepare_agent_zip,
                           reload_agent_dir)
 from server_logging import logger, request_id_var
@@ -561,6 +562,142 @@ def get_preview_chat_file(uuid_str, session_str):
         }), 404
 
 
+@app.route('/openapi/schema/<uuid_str>', methods=['POST'])
+@with_request_id
+def openapi_schema_parser(uuid_str):
+    logger.info(f'parse openapi schema for: uuid_str_{uuid_str}')
+    params_str = request.get_data(as_text=True)
+    params = json.loads(params_str)
+    openapi_schema = params.get('openapi_schema')
+    try:
+        if not isinstance(openapi_schema, dict):
+            openapi_schema = json.loads(openapi_schema)
+    except json.decoder.JSONDecodeError:
+        openapi_schema = yaml.safe_load(openapi_schema)
+    except Exception as e:
+        logger.error(
+            f'OpenAPI schema format error, should be a valid json with error message: {e}'
+        )
+    if not openapi_schema:
+        return jsonify({
+            'success': False,
+            'message': 'OpenAPI schema format error, should be valid json',
+            'request_id': request_id_var.get('')
+        })
+    openapi_schema_instance = OpenapiServiceProxy(openapi=openapi_schema)
+    import copy
+    schema_info = copy.deepcopy(openapi_schema_instance.api_info_dict)
+    output = []
+    for item in schema_info:
+        schema_info[item].pop('is_active')
+        schema_info[item].pop('is_remote_tool')
+        schema_info[item].pop('details')
+        schema_info[item].pop('header')
+        output.append(schema_info[item])
+
+    return jsonify({
+        'success': True,
+        'schema_info': output,
+        'request_id': request_id_var.get('')
+    })
+
+
+@app.route('/openapi/test/<uuid_str>', methods=['POST'])
+@with_request_id
+def openapi_test_parser(uuid_str):
+    logger.info(f'parse openapi schema for: uuid_str_{uuid_str}')
+    params_str = request.get_data(as_text=True)
+    params = json.loads(params_str)
+    tool_params = params.get('tool_params')
+    tool_name = params.get('tool_name')
+    credentials = params.get('credentials')
+    openapi_schema = params.get('openapi_schema')
+
+    try:
+        if not isinstance(openapi_schema, dict):
+            openapi_schema = json.loads(openapi_schema)
+    except json.decoder.JSONDecodeError:
+        openapi_schema = yaml.safe_load(openapi_schema)
+    except Exception as e:
+        logger.error(
+            f'OpenAPI schema format error, should be a valid json with error message: {e}'
+        )
+    if not openapi_schema:
+        return jsonify({
+            'success': False,
+            'message': 'OpenAPI schema format error, should be valid json',
+            'request_id': request_id_var.get('')
+        })
+    openapi_schema_instance = OpenapiServiceProxy(
+        openapi=openapi_schema, is_remote=False)
+    result = openapi_schema_instance.call(
+        tool_params, **{
+            'tool_name': tool_name,
+            'credentials': credentials
+        })
+    if not result:
+        return jsonify({
+            'success': False,
+            'result': None,
+            'request_id': request_id_var.get('')
+        })
+    return jsonify({
+        'success': True,
+        'result': result,
+        'request_id': request_id_var.get('')
+    })
+
+
+# Mock database
+todos_db = {}
+
+
+@app.route('/todos/<string:username>', methods=['GET'])
+def get_todos(username):
+    if username in todos_db:
+        return jsonify({'output': {'todos': todos_db[username]}})
+    else:
+        return jsonify({'output': {'todos': []}})
+
+
+@app.route('/todos/<string:username>', methods=['POST'])
+def add_todo(username):
+    if not request.is_json:
+        return jsonify({'output': 'Missing JSON in request'}), 400
+
+    todo_data = request.get_json()
+    todo = todo_data.get('todo')
+
+    if not todo:
+        return jsonify({'output': "Missing 'todo' in request"}), 400
+
+    if username in todos_db:
+        todos_db[username].append(todo)
+    else:
+        todos_db[username] = [todo]
+
+    return jsonify({'output': 'Todo added successfully'}), 200
+
+
+@app.route('/todos/<string:username>', methods=['DELETE'])
+def delete_todo(username):
+    if not request.is_json:
+        return jsonify({'output': 'Missing JSON in request'}), 400
+
+    todo_data = request.get_json()
+    todo_idx = todo_data.get('todo_idx')
+
+    if todo_idx is None:
+        return jsonify({'output': "Missing 'todo_idx' in request"}), 400
+
+    if username in todos_db and 0 <= todo_idx < len(todos_db[username]):
+        deleted_todo = todos_db[username].pop(todo_idx)
+        return jsonify(
+            {'output': f"Todo '{deleted_todo}' deleted successfully"}), 200
+    else:
+        return jsonify({'output': "Invalid 'todo_idx' or username"}), 400
+
+
 @app.errorhandler(Exception)
 @with_request_id
 def handle_error(error):
@@ -579,4 +716,4 @@ def handle_error(error):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', '5001'))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=5002, debug=False)

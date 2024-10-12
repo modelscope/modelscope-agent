@@ -89,9 +89,18 @@ class RolePlay(Agent, AgentEnvMixin):
                  name: Optional[str] = None,
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
+                 openapi_list: Optional[List] = None,
                  **kwargs):
-        Agent.__init__(self, function_list, llm, storage_path, name,
-                       description, instruction, **kwargs)
+        Agent.__init__(
+            self,
+            function_list,
+            llm,
+            storage_path,
+            name,
+            description,
+            instruction,
+            openapi_list=openapi_list,
+            **kwargs)
         AgentEnvMixin.__init__(self, **kwargs)
 
     def _prepare_tool_system(self,

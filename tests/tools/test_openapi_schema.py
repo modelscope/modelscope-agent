@@ -3,8 +3,8 @@ import os
 import pytest
 from modelscope_agent.agents import RolePlay
 from modelscope_agent.tools.base import TOOL_REGISTRY
-from modelscope_agent.tools.openapi_plugin import (OpenAPIPluginTool,
-                                                   openapi_schema_convert)
+from modelscope_agent.tools.openapi_plugin import OpenAPIPluginTool
+from modelscope_agent.tools.utils.openapi_utils import openapi_schema_convert
 
 from modelscope.utils.config import Config
 
@@ -174,7 +174,7 @@ schema_openAPI = {
 
 @pytest.mark.skipif(IS_FORKED_PR, reason='only run modelscope-agent main repo')
 def test_openapi_schema_tool():
-    schema_openAPI['auth']['apikey'] = os.environ['DASHSCOPE_API_KEY']
+    schema_openAPI['auth']['apikey'] = os.getenv('DASHSCOPE_API_KEY', '')
     config_dict = openapi_schema_convert(
         schema=schema_openAPI['schema'], auth=schema_openAPI['auth'])
     plugin_cfg = Config(config_dict)

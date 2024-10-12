@@ -1,3 +1,4 @@
+import copy
 import os
 from abc import ABC, abstractmethod
 from functools import wraps
@@ -7,7 +8,7 @@ from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
-                                         ToolServiceProxy)
+                                         OpenapiServiceProxy, ToolServiceProxy)
 from modelscope_agent.utils.utils import has_chinese_chars
 
 
@@ -16,7 +17,8 @@ def enable_run_callback(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         callbacks = self.callback_manager
-        callbacks.on_run_start(*args, **kwargs)
+        if callbacks.callbacks:
+            callbacks.on_run_start(*args, **kwargs)
         response = func(self, *args, **kwargs)
         name = self.name or self.__class__.__name__
         if not isinstance(response, str):
@@ -51,7 +53,8 @@ class Agent(ABC):
                  description: Optional[str] = None,
                  instruction: Union[str, dict] = None,
                  use_tool_api: bool = False,
-                 callbacks=[],
+                 callbacks: list = None,
+                 openapi_list: Optional[List[Union[str, Dict]]] = None,
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -68,6 +71,8 @@ class Agent(ABC):
             description: the description of agent, which is used for multi_agent
             instruction: the system instruction of this agent
             use_tool_api: whether to use the tool service api, else to use the tool cls instance
+            callbacks: the callbacks that could be used during different phase of agent loop
+            openapi_list: the openapi list for remote calling only
             kwargs: other potential parameters
         """
         if isinstance(llm, Dict):
@@ -83,6 +88,12 @@ class Agent(ABC):
         if function_list:
             for function in function_list:
                 self._register_tool(function, **kwargs)
+
+        # this logic is for remote openapi calling only, by using this method apikey only be accessed by service.
+        if openapi_list:
+            for openapi_name in openapi_list:
+                self._register_openapi_for_remote_calling(
+                    openapi_name, **kwargs)
 
         self.storage_path = storage_path
         self.mem = None
@@ -129,6 +140,8 @@ class Agent(ABC):
         # version < 0.6.6 only one tool is in the tool_list
         tool_name = tool_list[0]['name']
         tool_args = tool_list[0]['arguments']
+        # for openapi tool only
+        kwargs['tool_name'] = tool_name
         self.callback_manager.on_tool_start(tool_name, tool_args)
         try:
             result = self.function_map[tool_name].call(tool_args, **kwargs)
@@ -141,6 +154,28 @@ class Agent(ABC):
             result += f'Details: {str(e)[:200]}'
         self.callback_manager.on_tool_end(tool_name, result)
         return result
+
+    def _register_openapi_for_remote_calling(self, openapi: Union[str, Dict],
+                                             **kwargs):
+        """
+        Instantiate the openapi the will running remote on
+        Args:
+            openapi: the remote openapi schema name or the json schema itself
+            **kwargs:
+
+        Returns:
+
+        """
+        openapi_instance = OpenapiServiceProxy(openapi, **kwargs)
+        tool_names = openapi_instance.tool_names
+        for tool_name in tool_names:
+            openapi_instance_for_specific_tool = copy.deepcopy(
+                openapi_instance)
+            openapi_instance_for_specific_tool.name = tool_name
+            function_plain_text = openapi_instance_for_specific_tool.parser_function_by_tool_name(
+                tool_name)
+            openapi_instance_for_specific_tool.function_plain_text = function_plain_text
+            self.function_map[tool_name] = openapi_instance_for_specific_tool
 
     def _register_tool(self,
                        tool: Union[str, Dict],
@@ -165,8 +200,8 @@ class Agent(ABC):
             tool_cfg = tool[tool_name]
         if tool_name not in TOOL_REGISTRY and not self.use_tool_api:
             raise NotImplementedError
-        if tool not in self.function_list:
-            self.function_list.append(tool)
+        if tool_name not in self.function_list:
+            self.function_list.append(tool_name)
 
             try:
                 tool_class_with_tenant = TOOL_REGISTRY[tool_name]

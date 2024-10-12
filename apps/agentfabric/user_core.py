@@ -16,8 +16,8 @@ def init_user_chatbot_agent(uuid_str='',
                             session='default',
                             use_tool_api=False,
                             user_token=None):
-    builder_cfg, model_cfg, tool_cfg, _, plugin_cfg, _ = parse_configuration(
-        uuid_str)
+    builder_cfg, model_cfg, tool_cfg, _, openapi_plugin_cfg, openapi_plugin_list = parse_configuration(
+        uuid_str, use_tool_api)
     # set top_p and stop_words for role play
     if 'generate_cfg' not in model_cfg[builder_cfg.model]:
         model_cfg[builder_cfg.model]['generate_cfg'] = dict()
@@ -26,8 +26,10 @@ def init_user_chatbot_agent(uuid_str='',
 
     # update function_list
     function_list = parse_tool_cfg(tool_cfg)
-    function_list = add_openapi_plugin_to_additional_tool(
-        plugin_cfg, function_list)
+
+    if not use_tool_api:
+        function_list = add_openapi_plugin_to_additional_tool(
+            openapi_plugin_cfg, function_list)
 
     # build model
     logger.query_info(
@@ -50,7 +52,7 @@ def init_user_chatbot_agent(uuid_str='',
         uuid_str=uuid_str,
         use_tool_api=use_tool_api,
         user_token=user_token,
-    )
+        openapi_list=openapi_plugin_list)
 
     # build memory
     preview_history_dir = get_user_preview_history_dir(uuid_str, session)

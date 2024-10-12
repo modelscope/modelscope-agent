@@ -1,6 +1,7 @@
 import os
 import time
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
 import json
@@ -11,6 +12,9 @@ from modelscope_agent.constants import (BASE64_FILES,
                                         DEFAULT_TOOL_MANAGER_SERVICE_URL,
                                         LOCAL_FILE_PATHS,
                                         MODELSCOPE_AGENT_TOKEN_HEADER_NAME)
+from modelscope_agent.tools.utils.openapi_utils import (execute_api_call,
+                                                        get_parameter_value,
+                                                        openapi_schema_convert)
 from modelscope_agent.utils.base64_utils import decode_base64_to_files
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
@@ -474,3 +478,253 @@ class ToolServiceProxy(BaseTool):
             raise RuntimeError(
                 f'Get error during executing tool from tool manager service with detail {e}'
             )
+
+
+class OpenapiServiceProxy:
+
+    def __init__(self,
+                 openapi: Union[str, Dict],
+                 openapi_service_manager_url: str = os.getenv(
+                     'TOOL_MANAGER_SERVICE_URL',
+                     DEFAULT_TOOL_MANAGER_SERVICE_URL),
+                 user_token: str = None,
+                 is_remote: bool = True,
+                 **kwargs):
+        """
+        Openapi service proxy class
+        Args:
+            openapi: The name of  openapi schema store at tool manager or the openapi schema itself
+            openapi_service_manager_url: The url of openapi service manager, default to 'http://localhost:31511'
+                                        same as tool service manager
+            user_token: used to pass to the tool service manager to authenticate the user
+        """
+        self.is_remote = is_remote
+        self.openapi_service_manager_url = openapi_service_manager_url
+        self.user_token = user_token
+        if isinstance(openapi, str) and is_remote:
+            self.openapi_remote_name = openapi
+            openapi_schema = self._get_openapi_schema()
+        else:
+            openapi_schema = openapi
+        openapi_formatted_schema = openapi_schema_convert(openapi_schema)
+        self.api_info_dict = {}
+        for item in openapi_formatted_schema:
+            self.api_info_dict[openapi_formatted_schema[item]
+                               ['name']] = openapi_formatted_schema[item]
+        self.tool_names = list(self.api_info_dict.keys())
+
+    def parser_function_by_tool_name(self, tool_name: str):
+        tool_desc_template = {
+            'zh':
+            '{name}: {name} API。{description} 输入参数: {parameters} Format the arguments as a JSON object.',
+            'en':
+            '{name}: {name} API. {description} Parameters: {parameters} Format the arguments as a JSON object.'
+        }
+        function = self.api_info_dict[tool_name]
+        if has_chinese_chars(function['description']):
+            tool_desc = tool_desc_template['zh']
+        else:
+            tool_desc = tool_desc_template['en']
+
+        parameters = deepcopy(function.get('parameters', []))
+        for parameter in parameters:
+            if 'in' in parameter:
+                parameter.pop('in')
+
+        return tool_desc.format(
+            name=function['name'],
+            description=function['description'],
+            parameters=json.dumps(parameters, ensure_ascii=False),
+        )
+
+    @staticmethod
+    def parse_service_response(response):
+        try:
+            # Assuming the response is a JSON string
+            if not isinstance(response, dict):
+                response_data = response.json()
+            else:
+                response_data = response
+            # Extract the 'output' field from the response
+            output_data = response_data.get('output', {})
+            return output_data
+        except json.JSONDecodeError:
+            # Handle the case where response is not JSON or cannot be decoded
+            return None
+
+    def _get_openapi_schema(self):
+        try:
+            service_token = os.getenv('TOOL_MANAGER_AUTH', '')
+            headers = {
+                'Content-Type': 'application/json',
+                MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
+                'authorization': service_token
+            }
+            logger.query_info(message=f'tool_info requests header {headers}')
+            response = requests.post(
+                f'{self.openapi_service_manager_url}/openapi_schema',
+                json={'openapi_name': self.openapi_remote_name},
+                headers=headers)
+            response.raise_for_status()
+            return OpenapiServiceProxy.parse_service_response(response)
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during getting tool info from tool manager service with detail {e}'
+            )
+
+    def _verify_args(self, params: str, api_info) -> Union[str, dict]:
+        """
+        Verify the parameters of the function call
+
+        :param params: the parameters of func_call
+        :param api_info: the api info of the tool
+        :return: the str params or the legal dict params
+        """
+        try:
+            params_json = json5.loads(params)
+        except Exception as e:
+            print(e)
+            params = params.replace('\r', '\\r').replace('\n', '\\n')
+            params_json = json5.loads(params)
+
+        for param in api_info['parameters']:
+            if 'required' in param and param['required']:
+                if param['name'] not in params_json:
+                    raise ValueError(f'param `{param["name"]}` is required')
+        return params_json
+
+    def _parse_credentials(self, credentials: dict, headers=None):
+        if not headers:
+            headers = {}
+
+        if not credentials:
+            return headers
+
+        if 'auth_type' not in credentials:
+            raise KeyError('Missing auth_type')
+        if credentials['auth_type'] == 'api_key':
+            api_key_header = 'api_key'
+
+            if 'api_key_header' in credentials:
+                api_key_header = credentials['api_key_header']
+
+            if 'api_key_value' not in credentials:
+                raise KeyError('Missing api_key_value')
+            elif not isinstance(credentials['api_key_value'], str):
+                raise KeyError('api_key_value must be a string')
+
+            if 'api_key_header_prefix' in credentials:
+                api_key_header_prefix = credentials['api_key_header_prefix']
+                if api_key_header_prefix == 'basic' and credentials[
+                        'api_key_value']:
+                    credentials[
+                        'api_key_value'] = f'Basic {credentials["api_key_value"]}'
+                elif api_key_header_prefix == 'bearer' and credentials[
+                        'api_key_value']:
+                    credentials[
+                        'api_key_value'] = f'Bearer {credentials["api_key_value"]}'
+                elif api_key_header_prefix == 'custom':
+                    pass
+
+            headers[api_key_header] = credentials['api_key_value']
+        return headers
+
+    def call(self, params: str, **kwargs):
+        # ms_token
+        tool_name = kwargs.get('tool_name', '')
+        if tool_name not in self.api_info_dict:
+            raise ValueError(
+                f'tool name {tool_name} not in the list of tools {self.tool_names}'
+            )
+        api_info = self.api_info_dict[tool_name]
+        self.user_token = kwargs.get('user_token', self.user_token)
+        service_token = os.getenv('TOOL_MANAGER_AUTH', '')
+        headers = {
+            'Content-Type': 'application/json',
+            MODELSCOPE_AGENT_TOKEN_HEADER_NAME: self.user_token,
+            'authorization': service_token
+        }
+        logger.query_info(message=f'calling tool header {headers}')
+
+        params = self._verify_args(params, api_info)
+
+        url = api_info['url']
+        method = api_info['method']
+        header = api_info['header']
+        path_params = {}
+        cookies = {}
+        data = {}
+        for parameter in api_info.get('parameters', []):
+            value = get_parameter_value(parameter, params)
+            if parameter['in'] == 'path':
+                path_params[parameter['name']] = value
+
+            elif parameter['in'] == 'query':
+                params[parameter['name']] = value
+
+            elif parameter['in'] == 'cookie':
+                cookies[parameter['name']] = value
+
+            elif parameter['in'] == 'header':
+                header[parameter['name']] = value
+            else:
+                data[parameter['name']] = value
+
+        for name, value in path_params.items():
+            url = url.replace(f'{{{name}}}', f'{value}')
+        try:
+            # visit tool node to call tool
+            if self.is_remote:
+                response = requests.post(
+                    f'{self.openapi_service_manager_url}/execute_openapi',
+                    json={
+                        'url': url,
+                        'params': params,
+                        'headers': header,
+                        'method': method,
+                        'cookies': cookies,
+                        'data': data
+                    },
+                    headers=headers)
+                logger.query_info(
+                    message=f'calling tool message {response.json()}')
+
+                response.raise_for_status()
+            else:
+                credentials = kwargs.get('credentials', {})
+                header = self._parse_credentials(credentials, header)
+                response = execute_api_call(url, method, header, params, data,
+                                            cookies)
+            return OpenapiServiceProxy.parse_service_response(response)
+        except Exception as e:
+            raise RuntimeError(
+                f'Get error during executing tool from tool manager service with detail {e}'
+            )
+
+
+if __name__ == '__main__':
+    import copy
+
+    test_str = 'openapi_plugin'
+    openapi_instance = OpenapiServiceProxy(openapi=test_str)
+    schema_info = copy.deepcopy(openapi_instance.api_info_dict)
+    for item in schema_info:
+        schema_info[item].pop('is_active')
+        schema_info[item].pop('is_remote_tool')
+        schema_info[item].pop('details')
+
+    print(schema_info)
+    print(openapi_instance.api_info_dict)
+    function_map = {}
+    tool_names = openapi_instance.tool_names
+    for tool_name in tool_names:
+        openapi_instance_for_specific_tool = copy.deepcopy(openapi_instance)
+        openapi_instance_for_specific_tool.name = tool_name
+        function_plain_text = openapi_instance_for_specific_tool.parser_function_by_tool_name(
+            tool_name)
+        openapi_instance_for_specific_tool.function_plain_text = function_plain_text
+        function_map[tool_name] = openapi_instance_for_specific_tool
+
+    print(
+        openapi_instance.call(
+            '{"username":"test"}', tool_name='getTodos', user_token='test'))

@@ -143,9 +143,6 @@ class SessionManager:
         user_agent = self.user_bots[unique_id]
         if renew or user_agent is None:
             logger.info(f'init_user_chatbot_agent: {builder_id} {session}')
-
-            builder_cfg, _, tool_cfg, _, _, _ = parse_configuration(builder_id)
-
             user_agent = init_user_chatbot_agent(
                 builder_id, session, use_tool_api=True, user_token=user_token)
             self.user_bots[unique_id] = user_agent
