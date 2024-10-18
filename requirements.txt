@@ -3,6 +3,7 @@ faiss-cpu
 grpcio
 jieba
 json5
+jsonref
 jupyter>=1.0.0
 langchain
 langchain-community

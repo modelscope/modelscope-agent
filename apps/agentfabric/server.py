@@ -569,6 +569,17 @@ def openapi_schema_parser(uuid_str):
     params_str = request.get_data(as_text=True)
     params = json.loads(params_str)
     openapi_schema = params.get('openapi_schema')
+    host = openapi_schema.get('host', '')
+    basePath = openapi_schema.get('basePath', '')
+    if host and basePath:
+        return make_response(
+            jsonify({
+                'success': False,
+                'status': 429,
+                'message': 'The Swagger 2.0 format is not support, '
+                'please convert it to OpenAPI 3.0 format at https://petstore.swagger.io/',
+                'request_id': request_id_var.get('')
+            }), 429)
     try:
         if not isinstance(openapi_schema, dict):
             openapi_schema = json.loads(openapi_schema)
@@ -579,11 +590,14 @@ def openapi_schema_parser(uuid_str):
             f'OpenAPI schema format error, should be a valid json with error message: {e}'
         )
     if not openapi_schema:
-        return jsonify({
-            'success': False,
-            'message': 'OpenAPI schema format error, should be valid json',
-            'request_id': request_id_var.get('')
-        })
+        return make_response(
+            jsonify({
+                'success': False,
+                'status': 429,
+                'message':
+                'OpenAPI schema format error, should be a valid json',
+                'request_id': request_id_var.get('')
+            }), 429)
     openapi_schema_instance = OpenapiServiceProxy(openapi=openapi_schema)
     import copy
     schema_info = copy.deepcopy(openapi_schema_instance.api_info_dict)
@@ -716,4 +730,4 @@ def handle_error(error):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', '5001'))
-    app.run(host='0.0.0.0', port=5002, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
