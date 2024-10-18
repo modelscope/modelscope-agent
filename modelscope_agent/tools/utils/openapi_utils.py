@@ -1,7 +1,6 @@
 import os
 
 import requests
-from jsonschema import RefResolver
 
 
 def execute_api_call(url: str, method: str, headers: dict, params: dict,
@@ -33,7 +32,7 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
     param_type = param_info['type']
     param_description = param_info.get('description',
                                        f'用户输入的{param_name}')  # 按需更改描述
-    param_required = param_name in content['required']
+    param_required = param_name in content.get('required', [])
     try:
         if param_type == 'object':
             properties = param_info.get('properties')
@@ -65,7 +64,7 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
                             'enum':
                             inner_param_info.get('enum', ''),
                             'in':
-                            'requestBody'
+                            'body'
                         })
         else:
             # Non-nested parameters are added directly to the parameter list
@@ -75,7 +74,7 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
                 'required': param_required,
                 'type': param_type,
                 'enum': param_info.get('enum', ''),
-                'in': 'requestBody'
+                'in': 'body'
             })
     except Exception as e:
         raise ValueError(f'{e}:schema结构出错')
@@ -89,17 +88,75 @@ def extract_references(schema_content):
             references.append(schema_content['$ref'])
         for key, value in schema_content.items():
             references.extend(extract_references(value))
+        # if properties exist, record the schema content in references and deal later
+        if 'properties' in schema_content:
+            references.append(schema_content)
     elif isinstance(schema_content, list):
         for item in schema_content:
             references.extend(extract_references(item))
     return references
 
 
+def swagger_to_openapi(swagger_data):
+    openapi_data = {
+        'openapi': '3.0.0',
+        'info': swagger_data.get('info', {}),
+        'paths': swagger_data.get('paths', {}),
+        'components': {
+            'schemas': swagger_data.get('definitions', {}),
+            'securitySchemes': swagger_data.get('securityDefinitions', {})
+        }
+    }
+
+    # 转换基本信息
+    if 'host' in swagger_data:
+        openapi_data['servers'] = [{
+            'url':
+            f"https://{swagger_data['host']}{swagger_data.get('basePath', '')}"
+        }]
+
+    # 转换路径
+    for path, methods in openapi_data['paths'].items():
+        for method, operation in methods.items():
+            # 转换参数
+            if 'parameters' in operation:
+                new_parameters = []
+                for param in operation['parameters']:
+                    if param.get('in') == 'body':
+                        if 'requestBody' not in operation:
+                            operation['requestBody'] = {'content': {}}
+                        operation['requestBody']['content'] = {
+                            'application/json': {
+                                'schema': param.get('schema', {})
+                            }
+                        }
+                    else:
+                        new_parameters.append(param)
+                operation['parameters'] = new_parameters
+
+            # 转换响应
+            if 'responses' in operation:
+                for status, response in operation['responses'].items():
+                    if 'schema' in response:
+                        response['content'] = {
+                            'application/json': {
+                                'schema': response.pop('schema')
+                            }
+                        }
+
+    return openapi_data
+
+
 def openapi_schema_convert(schema: dict, auth: dict = {}):
     config_data = {}
+    host = schema.get('host', '')
+    if host:
+        schema = swagger_to_openapi(schema)
 
-    resolver = RefResolver.from_schema(schema)
+    schema = jsonref.replace_refs(schema)
+
     servers = schema.get('servers', [])
+
     if servers:
         servers_url = servers[0].get('url')
     else:
@@ -120,6 +177,10 @@ def openapi_schema_convert(schema: dict, auth: dict = {}):
             if isinstance(path_parameters, dict):
                 path_parameters = [path_parameters]
             for path_parameter in path_parameters:
+                if 'schema' in path_parameter:
+                    path_type = path_parameter['schema']['type']
+                else:
+                    path_type = path_parameter['type']
                 parameters_list.append({
                     'name':
                     path_parameter['name'],
@@ -130,7 +191,7 @@ def openapi_schema_convert(schema: dict, auth: dict = {}):
                     'required':
                     path_parameter.get('required', False),
                     'type':
-                    path_parameter['schema']['type'],
+                    path_type,
                     'enum':
                     path_parameter.get('enum', '')
                 })
@@ -160,13 +221,11 @@ def openapi_schema_convert(schema: dict, auth: dict = {}):
                         schema_content = content_details.get('schema', {})
                         references = extract_references(schema_content)
                         for reference in references:
-                            resolved_schema = resolver.resolve(reference)
-                            content = resolved_schema[1]
-                            for param_name, param_info in content[
+                            for param_name, param_info in reference[
                                     'properties'].items():
                                 parse_nested_parameters(
                                     param_name, param_info, parameters_list,
-                                    content)
+                                    reference)
                             X_DashScope_Async = requestBody.get(
                                 'X-DashScope-Async', '')
                             if X_DashScope_Async == '':
