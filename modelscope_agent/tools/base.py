@@ -546,7 +546,11 @@ class OpenapiServiceProxy:
             else:
                 response_data = response
             # Extract the 'output' field from the response
-            output_data = response_data.get('output', {})
+            if 'output' in response_data:
+                output_data = response_data['output']
+            else:
+                output_data = response_data
+
             return output_data
         except json.JSONDecodeError:
             # Handle the case where response is not JSON or cannot be decoded
@@ -652,6 +656,7 @@ class OpenapiServiceProxy:
         method = api_info['method']
         header = api_info['header']
         path_params = {}
+        query_params = {}
         cookies = {}
         data = {}
         for parameter in api_info.get('parameters', []):
@@ -660,7 +665,7 @@ class OpenapiServiceProxy:
                 path_params[parameter['name']] = value
 
             elif parameter['in'] == 'query':
-                params[parameter['name']] = value
+                query_params[parameter['name']] = value
 
             elif parameter['in'] == 'cookie':
                 cookies[parameter['name']] = value
@@ -679,7 +684,7 @@ class OpenapiServiceProxy:
                     f'{self.openapi_service_manager_url}/execute_openapi',
                     json={
                         'url': url,
-                        'params': params,
+                        'params': query_params,
                         'headers': header,
                         'method': method,
                         'cookies': cookies,
@@ -693,8 +698,8 @@ class OpenapiServiceProxy:
             else:
                 credentials = kwargs.get('credentials', {})
                 header = self._parse_credentials(credentials, header)
-                response = execute_api_call(url, method, header, params, data,
-                                            cookies)
+                response = execute_api_call(url, method, header, query_params,
+                                            data, cookies)
             return OpenapiServiceProxy.parse_service_response(response)
         except Exception as e:
             raise RuntimeError(
