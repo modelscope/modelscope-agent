@@ -457,7 +457,7 @@ class ToolServiceProxy(BaseTool):
             'authorization': service_token
         }
         logger.query_info(message=f'calling tool header {headers}')
-
+        kwargs['is_remote'] = True
         try:
             # visit tool node to call tool
             response = requests.post(

@@ -16,6 +16,7 @@ modelscope[framework]>=1.16.0
 openai
 opencv-python
 openpyxl
+oss2
 pdfminer.six
 Pillow
 pydantic>=2.3.0

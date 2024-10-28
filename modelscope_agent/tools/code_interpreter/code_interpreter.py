@@ -21,6 +21,7 @@ import json
 import json5
 import matplotlib
 import nbformat
+import oss2
 import PIL.Image
 from jupyter_client import BlockingKernelClient
 from modelscope_agent.tools.base import BaseTool, register_tool
@@ -29,14 +30,14 @@ from nbclient import NotebookClient
 from nbclient.exceptions import CellTimeoutError, DeadKernelError
 from nbformat import NotebookNode
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_output
-from rich.box import MINIMAL
 from rich.console import Console, Group
-from rich.live import Live
-from rich.markdown import Markdown
-from rich.panel import Panel
 from rich.syntax import Syntax
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
+OSS_ACCESS_KEY_ID = os.getenv('OSS_ACCESS_KEYID', '')
+OSS_ACCESS_KEY_SECRET = os.getenv('OSS_ACCESS_KEY_SECRET', '')
+OSS_BUCKET = os.getenv('OSS_BUCKET', '')
+OSS_ENDPOINT = os.getenv('OSS_ENDPOINT', '')
 
 STATIC_URL = os.getenv('CODE_INTERPRETER_STATIC_URL',
                        'http://127.0.0.1:7866/static')
@@ -67,6 +68,10 @@ class CodeInterpreter(BaseTool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
+        self.auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
+        self.bucket = oss2.Bucket(self.auth, OSS_ENDPOINT, OSS_BUCKET)
+        self.endpoint = OSS_ENDPOINT
+        self.bucket_name = OSS_BUCKET
         self.image_server = self.cfg.get('image_server', False)
         self.kernel_clients: Dict[int, BlockingKernelClient] = {}
         atexit.register(self._kill_kernels)
@@ -95,6 +100,37 @@ class CodeInterpreter(BaseTool):
         # make sure all the kernels are killed during __del__
         signal.signal(signal.SIGTERM, self._kill_kernels)
         signal.signal(signal.SIGINT, self._kill_kernels)
+
+    def __upload(self,
+                 src_file,
+                 oss_path,
+                 max_retries=3,
+                 retry_delay=1,
+                 delete_src=True):
+        result = ''
+        for i in range(max_retries):
+            try:
+                _ = self.bucket.put_object_from_file(oss_path, src_file)
+                print(f'The put action result is {_}')
+
+                _ = self.bucket.put_object_acl(oss_path,
+                                               oss2.OBJECT_ACL_PUBLIC_READ)
+                print(f'The acl setting result is {_}')
+
+                result = self.bucket.sign_url('GET', oss_path, 3600)
+                break
+            except Exception as e:
+                print(f'Error uploading file: {e}')
+                if i < max_retries - 1:
+                    print(f'Retrying in {retry_delay} seconds...')
+                    time.sleep(retry_delay)
+                else:
+                    os.remove(src_file)
+                    raise IOError(f'Exceed the Max retry with error {e}')
+
+        if delete_src:
+            os.remove(src_file)
+        return result
 
     def build(self):
         if self.nb_client.kc is None or not self.nb_client.kc.is_alive():
@@ -353,7 +389,8 @@ class CodeInterpreter(BaseTool):
         for k in list(self.kernel_clients.keys()):
             del self.kernel_clients[k]
 
-    def _serve_image(self, image_base64: str, image_type: str) -> str:
+    def _serve_image(self, image_base64: str, image_type: str,
+                     is_remote: bool) -> str:
         image_file = f'{uuid.uuid4()}.{image_type}'
         local_image_file = os.path.join(WORK_DIR, image_file)
 
@@ -371,7 +408,11 @@ class CodeInterpreter(BaseTool):
             image_url = f'{STATIC_URL}/{image_file}'
             return image_url
         else:
-            return local_image_file
+            if is_remote:
+                remote_image_url = self.__upload(local_image_file, image_file)
+                return remote_image_url
+            else:
+                return local_image_file
 
     def _escape_ansi(self, line: str) -> str:
         ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
@@ -396,9 +437,11 @@ class CodeInterpreter(BaseTool):
             except Exception:
                 traceback.format_exc()
 
-    def _execute_code(self, kc: BlockingKernelClient, code: str) -> str:
+    def _execute_code(self, kc: BlockingKernelClient, code: str,
+                      **kwargs) -> str:
         kc.wait_for_ready()
         kc.execute(code)
+        is_remote = kwargs.get('is_remote', False)
         result = ''
         image_idx = 0
         # video ready *.mp4
@@ -441,6 +484,9 @@ class CodeInterpreter(BaseTool):
                     repr = ''
                     if res:
                         path = os.path.join(WORK_DIR, res.group(2) + '.mp4')
+                        if is_remote:
+                            path = self.__upload(path, res.group(2) + '.mp4')
+                            print(f'The remote video url is {path}')
                         repr = f'<audio src="{path}"/>'
                     msg_type = msg['content']['name']  # stdout, stderr
                     text = msg['content']['text'] + repr
@@ -496,7 +542,7 @@ class CodeInterpreter(BaseTool):
             pass
 
         else:
-            result = self._execute_code(self.kc, fixed_code)
+            result = self._execute_code(self.kc, fixed_code, **kwargs)
 
             # if timeout:
             #     self._execute_code(self.kc, '_M6CountdownTimer.cancel()')
