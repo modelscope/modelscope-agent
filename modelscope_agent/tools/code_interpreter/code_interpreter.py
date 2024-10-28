@@ -92,37 +92,6 @@ class CodeInterpreter(BaseTool):
         signal.signal(signal.SIGTERM, self._kill_kernels)
         signal.signal(signal.SIGINT, self._kill_kernels)
 
-    def __upload(self,
-                 src_file,
-                 oss_path,
-                 max_retries=3,
-                 retry_delay=1,
-                 delete_src=True):
-        result = ''
-        for i in range(max_retries):
-            try:
-                _ = self.bucket.put_object_from_file(oss_path, src_file)
-                print(f'The put action result is {_}')
-
-                _ = self.bucket.put_object_acl(oss_path,
-                                               oss2.OBJECT_ACL_PUBLIC_READ)
-                print(f'The acl setting result is {_}')
-
-                result = self.bucket.sign_url('GET', oss_path, 3600)
-                break
-            except Exception as e:
-                print(f'Error uploading file: {e}')
-                if i < max_retries - 1:
-                    print(f'Retrying in {retry_delay} seconds...')
-                    time.sleep(retry_delay)
-                else:
-                    os.remove(src_file)
-                    raise IOError(f'Exceed the Max retry with error {e}')
-
-        if delete_src:
-            os.remove(src_file)
-        return result
-
     def build(self):
         if self.nb_client.kc is None or not self.nb_client.kc.is_alive():
             self.nb_client.create_kernel_manager()
