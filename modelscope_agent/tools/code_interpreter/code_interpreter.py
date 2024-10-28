@@ -34,12 +34,6 @@ from rich.console import Console, Group
 from rich.syntax import Syntax
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
-OSS_ACCESS_KEY_ID = os.getenv('OSS_ACCESS_KEYID', '')
-OSS_ACCESS_KEY_SECRET = os.getenv('OSS_ACCESS_KEY_SECRET', '')
-OSS_BUCKET = os.getenv('OSS_BUCKET', '')
-OSS_ENDPOINT = os.getenv('OSS_ENDPOINT', '')
-OSS_PREFIX = os.getenv('OSS_PREFIX', 'tmp/ci_workspace')
-
 STATIC_URL = os.getenv('CODE_INTERPRETER_STATIC_URL',
                        'http://127.0.0.1:7866/static')
 
@@ -69,10 +63,6 @@ class CodeInterpreter(BaseTool):
 
     def __init__(self, cfg={}):
         super().__init__(cfg)
-        self.auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
-        self.bucket = oss2.Bucket(self.auth, OSS_ENDPOINT, OSS_BUCKET)
-        self.endpoint = OSS_ENDPOINT
-        self.bucket_name = OSS_BUCKET
         self.image_server = self.cfg.get('image_server', False)
         self.kernel_clients: Dict[int, BlockingKernelClient] = {}
         atexit.register(self._kill_kernels)
@@ -392,6 +382,10 @@ class CodeInterpreter(BaseTool):
 
     def _serve_image(self, image_base64: str, image_type: str,
                      is_remote: bool) -> str:
+        if is_remote:
+            # in remote mode, we need to upload the base64 to the server, and convert the base64 to image url
+            return u'\u0000' + f'data:image/{image_type};base64,{image_base64}' + u'\u0000'
+
         image_file = f'{uuid.uuid4()}.{image_type}'
         local_image_file = os.path.join(WORK_DIR, image_file)
 
@@ -409,12 +403,7 @@ class CodeInterpreter(BaseTool):
             image_url = f'{STATIC_URL}/{image_file}'
             return image_url
         else:
-            if is_remote:
-                remote_image_url = self.__upload(
-                    local_image_file, os.path.join(OSS_PREFIX, image_file))
-                return remote_image_url
-            else:
-                return local_image_file
+            return local_image_file
 
     def _escape_ansi(self, line: str) -> str:
         ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
@@ -490,8 +479,24 @@ class CodeInterpreter(BaseTool):
                     if res:
                         path = os.path.join(WORK_DIR, res.group(2) + '.mp4')
                         if is_remote:
-                            path = self.__upload(path, res.group(2) + '.mp4')
-                            print(f'The remote video url is {path}')
+
+                            def mp4_to_base64(file_path):
+                                # Open the MP4 file in binary mode
+                                with open(file_path, 'rb') as mp4_file:
+                                    # Read the file content
+                                    mp4_data = mp4_file.read()
+
+                                    # Encode the binary data to base64
+                                    base64_encoded = base64.b64encode(mp4_data)
+
+                                    # Convert the bytes to a string
+                                    base64_string = base64_encoded.decode(
+                                        'utf-8')
+
+                                return base64_string
+
+                            path = mp4_to_base64(path)
+                            path = u'\u0000' + f'data:video/mp4;base64,{path}' + u'\u0000'
                         repr = f'<audio src="{path}"/>'
                     msg_type = msg['content']['name']  # stdout, stderr
                     text = msg['content']['text'] + repr
