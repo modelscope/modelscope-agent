@@ -38,6 +38,7 @@ OSS_ACCESS_KEY_ID = os.getenv('OSS_ACCESS_KEYID', '')
 OSS_ACCESS_KEY_SECRET = os.getenv('OSS_ACCESS_KEY_SECRET', '')
 OSS_BUCKET = os.getenv('OSS_BUCKET', '')
 OSS_ENDPOINT = os.getenv('OSS_ENDPOINT', '')
+OSS_PREFIX = os.getenv('OSS_PREFIX', 'tmp/ci_workspace')
 
 STATIC_URL = os.getenv('CODE_INTERPRETER_STATIC_URL',
                        'http://127.0.0.1:7866/static')
@@ -409,7 +410,8 @@ class CodeInterpreter(BaseTool):
             return image_url
         else:
             if is_remote:
-                remote_image_url = self.__upload(local_image_file, image_file)
+                remote_image_url = self.__upload(
+                    local_image_file, os.path.join(OSS_PREFIX, image_file))
                 return remote_image_url
             else:
                 return local_image_file
@@ -468,13 +470,15 @@ class CodeInterpreter(BaseTool):
                         text += '\n' + msg['content']['data']['text/html']
                     elif 'image/gif' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/gif']
-                        image_url = self._serve_image(image_b64, 'gif')
+                        image_url = self._serve_image(image_b64, 'gif',
+                                                      is_remote)
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                 elif msg_type == 'display_data':
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
-                        image_url = self._serve_image(image_b64, 'png')
+                        image_url = self._serve_image(image_b64, 'png',
+                                                      is_remote)
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                     else:
