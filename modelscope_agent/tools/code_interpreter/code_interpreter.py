@@ -463,7 +463,8 @@ class CodeInterpreter(BaseTool):
                     text = msg['content']['data'].get('text/plain', '')
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
-                        image_url = self._serve_image(image_b64, 'png')
+                        image_url = self._serve_image(image_b64, 'png',
+                                                      is_remote)
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                     elif 'text/html' in msg['content']['data']:
