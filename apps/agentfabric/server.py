@@ -569,18 +569,23 @@ def openapi_schema_parser(uuid_str):
     params_str = request.get_data(as_text=True)
     params = json.loads(params_str)
     openapi_schema = params.get('openapi_schema')
-    host = openapi_schema.get('host', '')
-    basePath = openapi_schema.get('basePath', '')
-    if host and basePath:
-        return make_response(
-            jsonify({
-                'success': False,
-                'status': 429,
-                'message': 'The Swagger 2.0 format is not support, '
-                'please convert it to OpenAPI 3.0 format at https://petstore.swagger.io/',
-                'request_id': request_id_var.get('')
-            }), 429)
     try:
+        if isinstance(openapi_schema, dict):
+            host = openapi_schema.get('host', '')
+            basePath = openapi_schema.get('basePath', '')
+            if host and basePath:
+                return make_response(
+                    jsonify({
+                        'success':
+                        False,
+                        'status':
+                        429,
+                        'message':
+                        'The Swagger 2.0 format is not support, '
+                        'please convert it to OpenAPI 3.0 format at https://petstore.swagger.io/',
+                        'request_id':
+                        request_id_var.get('')
+                    }), 429)
         if not isinstance(openapi_schema, dict):
             openapi_schema = json.loads(openapi_schema)
     except json.decoder.JSONDecodeError:
