@@ -679,27 +679,27 @@ class OpenapiServiceProxy:
             url = url.replace(f'{{{name}}}', f'{value}')
         try:
             # visit tool node to call tool
-            if self.is_remote:
-                response = requests.post(
-                    f'{self.openapi_service_manager_url}/execute_openapi',
-                    json={
-                        'url': url,
-                        'params': query_params,
-                        'headers': header,
-                        'method': method,
-                        'cookies': cookies,
-                        'data': data
-                    },
-                    headers=headers)
-                logger.query_info(
-                    message=f'calling tool message {response.json()}')
-
-                response.raise_for_status()
-            else:
-                credentials = kwargs.get('credentials', {})
-                header = self._parse_credentials(credentials, header)
-                response = execute_api_call(url, method, header, query_params,
-                                            data, cookies)
+            # if self.is_remote:
+            #     response = requests.post(
+            #         f'{self.openapi_service_manager_url}/execute_openapi',
+            #         json={
+            #             'url': url,
+            #             'params': query_params,
+            #             'headers': header,
+            #             'method': method,
+            #             'cookies': cookies,
+            #             'data': data
+            #         },
+            #         headers=headers)
+            #     logger.query_info(
+            #         message=f'calling tool message {response.json()}')
+            #
+            #     response.raise_for_status()
+            # else:
+            credentials = kwargs.get('credentials', {})
+            header = self._parse_credentials(credentials, header)
+            response = execute_api_call(url, method, header, query_params,
+                                        data, cookies)
             return OpenapiServiceProxy.parse_service_response(response)
         except Exception as e:
             raise RuntimeError(
