@@ -7,6 +7,11 @@ import requests
 def execute_api_call(url: str, method: str, headers: dict, params: dict,
                      data: dict, cookies: dict):
     try:
+        print('url:', url)
+        print('headers:', headers)
+        print('data:', data)
+        print('method:', method)
+
         if method == 'GET':
             response = requests.get(
                 url, params=params, headers=headers, cookies=cookies)
@@ -200,6 +205,19 @@ def openapi_schema_convert(schema: dict, auth: dict = {}):
             summary = details.get('summary',
                                   'No summary').replace(' ', '_').lower()
             name = details.get('operationId', 'No operationId')
+            if name == 'No operationId':
+                # remove special characters like / to ensure the operation id is valid ^[a-zA-Z0-9_-]{1,64}$
+                path = endpoint_path
+                if endpoint_path.startswith('/'):
+                    path = endpoint_path[1:]
+                # remove special characters like / to ensure the operation id is valid ^[a-zA-Z0-9_-]{1,64}$
+                import re
+                import uuid
+                path = re.sub(r'[^a-zA-Z0-9_-]', '', path)
+                if not path:
+                    path = str(uuid.uuid4())
+
+                name = f'{path}_{method}'
             url = f'{servers_url}{endpoint_path}'
             security = details.get('security', [{}])
             # Security (Bearer Token)
