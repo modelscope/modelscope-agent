@@ -21,6 +21,7 @@ import json
 import json5
 import matplotlib
 import nbformat
+import oss2
 import PIL.Image
 from jupyter_client import BlockingKernelClient
 from modelscope_agent.tools.base import BaseTool, register_tool
@@ -29,15 +30,10 @@ from nbclient import NotebookClient
 from nbclient.exceptions import CellTimeoutError, DeadKernelError
 from nbformat import NotebookNode
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_output
-from rich.box import MINIMAL
 from rich.console import Console, Group
-from rich.live import Live
-from rich.markdown import Markdown
-from rich.panel import Panel
 from rich.syntax import Syntax
 
 WORK_DIR = os.getenv('CODE_INTERPRETER_WORK_DIR', '/tmp/ci_workspace')
-
 STATIC_URL = os.getenv('CODE_INTERPRETER_STATIC_URL',
                        'http://127.0.0.1:7866/static')
 
@@ -353,7 +349,12 @@ class CodeInterpreter(BaseTool):
         for k in list(self.kernel_clients.keys()):
             del self.kernel_clients[k]
 
-    def _serve_image(self, image_base64: str, image_type: str) -> str:
+    def _serve_image(self, image_base64: str, image_type: str,
+                     is_remote: bool) -> str:
+        if is_remote:
+            # in remote mode, we need to upload the base64 to the server, and convert the base64 to image url
+            return u'\u0000' + f'data:image/{image_type};base64,{image_base64}' + u'\u0000'
+
         image_file = f'{uuid.uuid4()}.{image_type}'
         local_image_file = os.path.join(WORK_DIR, image_file)
 
@@ -396,9 +397,11 @@ class CodeInterpreter(BaseTool):
             except Exception:
                 traceback.format_exc()
 
-    def _execute_code(self, kc: BlockingKernelClient, code: str) -> str:
+    def _execute_code(self, kc: BlockingKernelClient, code: str,
+                      **kwargs) -> str:
         kc.wait_for_ready()
         kc.execute(code)
+        is_remote = kwargs.get('is_remote', False)
         result = ''
         image_idx = 0
         # video ready *.mp4
@@ -418,20 +421,23 @@ class CodeInterpreter(BaseTool):
                     text = msg['content']['data'].get('text/plain', '')
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
-                        image_url = self._serve_image(image_b64, 'png')
+                        image_url = self._serve_image(image_b64, 'png',
+                                                      is_remote)
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                     elif 'text/html' in msg['content']['data']:
                         text += '\n' + msg['content']['data']['text/html']
                     elif 'image/gif' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/gif']
-                        image_url = self._serve_image(image_b64, 'gif')
+                        image_url = self._serve_image(image_b64, 'gif',
+                                                      is_remote)
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                 elif msg_type == 'display_data':
                     if 'image/png' in msg['content']['data']:
                         image_b64 = msg['content']['data']['image/png']
-                        image_url = self._serve_image(image_b64, 'png')
+                        image_url = self._serve_image(image_b64, 'png',
+                                                      is_remote)
                         image_idx += 1
                         image = '![IMAGEGEN](%s)' % (image_url)
                     else:
@@ -441,6 +447,25 @@ class CodeInterpreter(BaseTool):
                     repr = ''
                     if res:
                         path = os.path.join(WORK_DIR, res.group(2) + '.mp4')
+                        if is_remote:
+
+                            def mp4_to_base64(file_path):
+                                # Open the MP4 file in binary mode
+                                with open(file_path, 'rb') as mp4_file:
+                                    # Read the file content
+                                    mp4_data = mp4_file.read()
+
+                                    # Encode the binary data to base64
+                                    base64_encoded = base64.b64encode(mp4_data)
+
+                                    # Convert the bytes to a string
+                                    base64_string = base64_encoded.decode(
+                                        'utf-8')
+
+                                return base64_string
+
+                            path = mp4_to_base64(path)
+                            path = u'\u0000' + f'data:video/mp4;base64,{path}' + u'\u0000'
                         repr = f'<audio src="{path}"/>'
                     msg_type = msg['content']['name']  # stdout, stderr
                     text = msg['content']['text'] + repr
@@ -496,7 +521,7 @@ class CodeInterpreter(BaseTool):
             pass
 
         else:
-            result = self._execute_code(self.kc, fixed_code)
+            result = self._execute_code(self.kc, fixed_code, **kwargs)
 
             # if timeout:
             #     self._execute_code(self.kc, '_M6CountdownTimer.cancel()')
