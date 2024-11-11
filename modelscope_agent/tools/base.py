@@ -480,7 +480,7 @@ class ToolServiceProxy(BaseTool):
             )
 
 
-class OpenapiServiceProxy:
+class OpenapiServiceProxy(BaseTool):
 
     def __init__(self,
                  openapi: Union[str, Dict],
@@ -598,6 +598,22 @@ class OpenapiServiceProxy:
         return params_json
 
     def _parse_credentials(self, credentials: dict, headers=None):
+        """
+
+        Args:
+            credentials: includes auth_type, api_key_header, api_key_value, api_key_header_prefix
+                usage:
+                {
+                    "auth_type": "api_key",
+                    "api_key_header": "Authorization",
+                    "api_key_value": "xxx",
+                    "api_key_header_prefix": "Bearer"
+                }
+            headers:
+
+        Returns:
+
+        """
         if not headers:
             headers = {}
 
