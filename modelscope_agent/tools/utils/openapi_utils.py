@@ -6,6 +6,26 @@ import requests
 
 def execute_api_call(url: str, method: str, headers: dict, params: dict,
                      data: dict, cookies: dict):
+
+    def structure_json(flat_json):
+        structured = {}
+
+        for key, value in flat_json.items():
+            parts = key.split('.')
+            current = structured
+
+            for i, part in enumerate(parts):
+                if i == len(parts) - 1:
+                    current[part] = value
+                else:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+
+        return structured
+
+    if data:
+        data = structure_json(data)
     try:
         print('url:', url)
         print('headers:', headers)
