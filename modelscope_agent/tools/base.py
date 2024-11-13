@@ -12,10 +12,10 @@ from modelscope_agent.constants import (BASE64_FILES,
                                         DEFAULT_TOOL_MANAGER_SERVICE_URL,
                                         LOCAL_FILE_PATHS,
                                         MODELSCOPE_AGENT_TOKEN_HEADER_NAME)
-from modelscope_agent.tools.utils.openapi_utils import (execute_api_call,
+from modelscope_agent.tools.utils.openapi_utils import (dot_to_dict,
+                                                        execute_api_call,
                                                         get_parameter_value,
-                                                        openapi_schema_convert,
-                                                        structure_json)
+                                                        openapi_schema_convert)
 from modelscope_agent.utils.base64_utils import decode_base64_to_files
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.utils import has_chinese_chars
@@ -595,18 +595,18 @@ class OpenapiServiceProxy(BaseTool):
 
         for param in api_info['parameters']:
             if 'required' in param and param['required']:
-
-                current = {}
-                current_test = deepcopy(params_json)
-                parts = param['name'].split('.')
-                for i, part in enumerate(parts):
-                    if part not in current:
-                        current[part] = {}
-                    current = current[part]
-                    if part not in current_test:
-                        raise ValueError(
-                            f'param `{".".join(parts[:i])}` is required')
-                    current_test = current_test[part]
+                if param['name'] not in params_json:
+                    current = {}
+                    current_test = deepcopy(params_json)
+                    parts = param['name'].split('.')
+                    for i, part in enumerate(parts):
+                        if part not in current:
+                            current[part] = {}
+                        current = current[part]
+                        if part not in current_test:
+                            raise ValueError(
+                                f'param `{".".join(parts[:i])}` is required')
+                        current_test = current_test[part]
         return params_json
 
     def _parse_credentials(self, credentials: dict, headers=None):
@@ -701,7 +701,11 @@ class OpenapiServiceProxy(BaseTool):
             elif parameter['in'] == 'header':
                 header[parameter['name']] = value
             else:
-                data[parameter['name'].split('.')[0]] = value
+                if '.' in parameter['name']:
+                    result = dot_to_dict(parameter['name'], value)
+                    data.update(result)
+                else:
+                    data[parameter['name'].split('.')[0]] = value
 
         for name, value in path_params.items():
             url = url.replace(f'{{{name}}}', f'{value}')

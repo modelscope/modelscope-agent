@@ -5,6 +5,18 @@ import jsonref
 import requests
 
 
+def dot_to_dict(key, value):
+    keys = key.split('.')
+    result = {}
+    current = result
+    for k in keys[:-1]:
+        current[k] = {}
+        current = current[k]
+    current[keys[
+        -1]] = value  # Using eval to convert the value to the appropriate type
+    return result
+
+
 def structure_json(flat_json):
     structured = {}
 
