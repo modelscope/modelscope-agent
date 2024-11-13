@@ -449,6 +449,7 @@ class ToolServiceProxy(BaseTool):
 
     def call(self, params: str, **kwargs):
         # ms_token
+        kwargs['is_remote'] = True
         self.user_token = kwargs.get('user_token', self.user_token)
         service_token = os.getenv('TOOL_MANAGER_AUTH', '')
         headers = {
