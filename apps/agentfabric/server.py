@@ -404,10 +404,7 @@ def preview_chat(uuid_str, session_str):
         file_paths.append(file_path)
     logger.info(f'/preview/chat/{uuid_str}/{session_str}: files: {file_paths}')
     # Generating the kwargs dictionary
-    kwargs = {
-        name.lower(): os.getenv(value.value)
-        for name, value in ApiNames.__members__.items()
-    }
+    kwargs = {}
 
     def generate():
         try:

@@ -157,6 +157,8 @@ def parse_configuration(uuid_str='', use_tool_api=False):
 
     tools_info = builder_cfg.tools
     available_tool_list = []
+    available_plugin_list = []
+
     for key, value in tools_info.items():
         if key in tool_cfg:
             tool_cfg[key]['use'] = value['use']
@@ -166,13 +168,11 @@ def parse_configuration(uuid_str='', use_tool_api=False):
                 tool_cfg[key] = value
         if value['use']:
             available_tool_list.append(key)
+        if value['is_openapi']:
+            available_plugin_list.append(key)
 
     plugin_cfg = {}
-    available_plugin_list = []
-    if use_tool_api and getattr(builder_cfg, 'openapi_list', None):
-        available_plugin_list = builder_cfg.openapi_list
-    else:
-        available_plugin_list = []
+    if len(available_plugin_list) == 0:
         openapi_plugin_file = get_user_openapi_plugin_cfg_file(uuid_str)
         openapi_plugin_cfg_file_temp = './config/openapi_plugin_config.json'
         if os.path.exists(openapi_plugin_file):

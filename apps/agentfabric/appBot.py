@@ -121,11 +121,11 @@ with demo:
         if 'user_agent' not in _state:
             init_user(_state, _user_token)
 
-        kwargs = {
-            name.lower(): os.getenv(value.value)
-            for name, value in ApiNames.__members__.items()
-        }
-
+        # kwargs = {
+        #     name.lower(): os.getenv(value.value)
+        #     for name, value in ApiNames.__members__.items()
+        # }
+        kwargs = {}
         # 将发送的消息添加到聊天历史
         _uuid_str = check_uuid(uuid_str)
         user_agent = _state['user_agent']
