@@ -649,7 +649,8 @@ def openapi_test_parser(uuid_str):
     result = openapi_schema_instance.call(
         tool_params, **{
             'tool_name': tool_name,
-            'credentials': credentials
+            'credentials': credentials,
+            'is_test': True
         })
     if not result:
         return jsonify({
