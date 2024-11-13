@@ -168,7 +168,7 @@ def parse_configuration(uuid_str='', use_tool_api=False):
                 tool_cfg[key] = value
         if value['use']:
             available_tool_list.append(key)
-        if value['is_openapi']:
+        if 'is_openapi' in value and value['is_openapi']:
             available_plugin_list.append(key)
 
     plugin_cfg = {}
