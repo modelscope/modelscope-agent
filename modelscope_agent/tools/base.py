@@ -597,7 +597,7 @@ class OpenapiServiceProxy(BaseTool):
             if 'required' in param and param['required']:
 
                 current = {}
-                current_test = copy.deepcopy(params_json)
+                current_test = deepcopy(params_json)
                 parts = param['name'].split('.')
                 for i, part in enumerate(parts):
                     if part not in current:
@@ -714,6 +714,7 @@ class OpenapiServiceProxy(BaseTool):
                 response = requests.post(
                     f'{self.openapi_service_manager_url}/execute_openapi',
                     json={
+                        'openapi_name': self.openapi_remote_name,
                         'url': url,
                         'params': query_params,
                         'headers': header,

@@ -109,15 +109,15 @@ def parse_nested_parameters(param_name, param_info, parameters_list, content):
 
 
 # openapi_schema_convert,register to tool_config.json
-def extract_references(schema_content):
+def extract_references(schema_content, index=0):
     references = []
     if isinstance(schema_content, dict):
         if '$ref' in schema_content:
             references.append(schema_content['$ref'])
         for key, value in schema_content.items():
-            references.extend(extract_references(value))
+            references.extend(extract_references(value, index + 1))
         # if properties exist, record the schema content in references and deal later
-        if 'properties' in schema_content:
+        if 'properties' in schema_content and index == 0:
             references.append(schema_content)
     elif isinstance(schema_content, list):
         for item in schema_content:
