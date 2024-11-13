@@ -1,28 +1,30 @@
+import copy
 import os
 
 import jsonref
 import requests
 
 
+def structure_json(flat_json):
+    structured = {}
+
+    for key, value in flat_json.items():
+        parts = key.split('.')
+        current = structured
+
+        for i, part in enumerate(parts):
+            if i == len(parts) - 1:
+                current[part] = value
+            else:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+
+    return structured
+
+
 def execute_api_call(url: str, method: str, headers: dict, params: dict,
                      data: dict, cookies: dict):
-
-    def structure_json(flat_json):
-        structured = {}
-
-        for key, value in flat_json.items():
-            parts = key.split('.')
-            current = structured
-
-            for i, part in enumerate(parts):
-                if i == len(parts) - 1:
-                    current[part] = value
-                else:
-                    if part not in current:
-                        current[part] = {}
-                    current = current[part]
-
-        return structured
 
     if data:
         data = structure_json(data)
@@ -331,9 +333,22 @@ def openapi_schema_convert(schema: dict, auth: dict = {}):
     return config_data
 
 
-def get_parameter_value(parameter: dict, parameters: dict):
-    if parameter['name'] in parameters:
-        return parameters[parameter['name']]
+def get_parameter_value(parameter: dict, generated_params: dict):
+    if parameter['name'] in generated_params:
+        return generated_params[parameter['name']]
+    elif '.' in parameter['name']:
+        current = {}
+        current_test = copy.deepcopy(generated_params)
+        parts = parameter['name'].split('.')
+        for i, part in enumerate(parts):
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+            if part not in current_test:
+                raise ValueError(f'param `{".".join(parts[:i])}` is required')
+            current_test = current_test[part]
+
+        return generated_params[parts[0]]
     elif parameter.get('required', False):
         raise ValueError(f"Missing required parameter {parameter['name']}")
     else:
