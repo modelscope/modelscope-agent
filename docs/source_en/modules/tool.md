@@ -5,8 +5,7 @@ We offer a variety of multi-domain default pipeline tools integrated within Mode
 Additionally, you can customize tools by inheriting the basic ones and define the name, description, and parameters according to predefined schemas. You can implement `call()` as per your own requirements. An example of a custom tool is provided:
 
 ```python
-from modelscope_agent.tools.base import BaseTool
-from modelscope_agent.tools import register_tool
+from modelscope_agent.tools.base import BaseTool, register_tool
 
 # Register a custom tool name.
 @register_tool('RenewInstance')

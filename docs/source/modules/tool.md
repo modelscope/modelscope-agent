@@ -5,8 +5,7 @@
 此外，您还可以通过继承基本工具来自定义工具，并根据预定义的模式定义名称、描述和参数。您可以根据自己的需求实现`call()`。提供了一个自定义工具的示例：
 
 ```python
-from modelscope_agent.tools.base import BaseTool
-from modelscope_agent.tools import register_tool
+from modelscope_agent.tools.base import BaseTool, register_tool
 
 # 注册自定义工具名称
 @register_tool('RenewInstance')
