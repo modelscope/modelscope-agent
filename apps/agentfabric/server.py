@@ -427,7 +427,8 @@ def preview_chat(uuid_str, session_str):
             # skip
             filtered_files = [
                 item for item in file_paths
-                if not item.lower().endswith(('.jpeg', '.png', '.jpg', '.wav', '.gif', '.mp3'))
+                if not item.lower().endswith(('.jpeg', '.png', '.jpg', '.wav',
+                                              '.gif', '.mp3'))
             ]
 
             use_llm = True if len(user_agent.function_list) else False
