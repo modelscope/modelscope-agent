@@ -621,11 +621,16 @@ with demo:
 
         # get chat history from memory
         history = user_memory.get_history()
+        # skip
+        filtered_files = [
+            item for item in append_files
+            if not item.lower().endswith(('.jpeg', '.png', '.jpg', '.wav', '.gif', '.mp3'))
+        ]
 
         use_llm = True if len(user_agent.function_list) else False
         ref_doc = user_memory.run(
             query=input.text,
-            url=append_files,
+            url=filtered_files,
             max_token=4000,
             top_k=2,
             checked=True,
