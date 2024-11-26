@@ -368,6 +368,11 @@ class ToolServiceProxy(BaseTool):
 
     def _register_tool(self):
         try:
+            # 检查tool_name是否已定义且非空
+            if not hasattr(self, 'tool_name') or not self.tool_name:
+                print("Skipping tool registration because 'tool_name' is not defined or empty.")
+                return  # 直接返回，跳过注册
+
             service_token = os.getenv('TOOL_MANAGER_AUTH', '')
             headers = {
                 'Content-Type': 'application/json',

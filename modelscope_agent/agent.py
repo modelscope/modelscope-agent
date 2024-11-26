@@ -193,8 +193,19 @@ class Agent(ABC):
         Returns:
 
         """
-        tool_name = tool
-        tool_cfg = {}
+        # Check if tool is a dictionary and extract the tool name
+        if isinstance(tool, dict):
+            tool_name = next(iter(tool), None)  # Use None as default to handle empty dict
+            tool_cfg = tool[tool_name]
+        else:
+            tool_name = tool
+            tool_cfg = {}
+
+        # Skip registration if tool_name is None or empty
+        if not tool_name:
+            print("Skipping tool registration because 'tool_name' is not defined or empty.")
+            return
+
         if isinstance(tool, dict):
             tool_name = next(iter(tool))
             tool_cfg = tool[tool_name]
