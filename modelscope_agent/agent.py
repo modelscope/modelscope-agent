@@ -210,7 +210,7 @@ class Agent(ABC):
         elif isinstance(tool, str):
             tool_name = tool
 
-        # 如果tool_name为空，跳过当前工具的注册
+        # If the tool_name is empty, skip the registration of the current tool.
         if not tool_name:
             print("No tool name provided, skipping the registration of the current tool")
             return
