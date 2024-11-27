@@ -193,22 +193,28 @@ class Agent(ABC):
         Returns:
 
         """
-        # Check if tool is a dictionary and extract the tool name
-        if isinstance(tool, dict):
-            tool_name = next(iter(tool), None)  # Use None as default to handle empty dict
-            tool_cfg = tool[tool_name]
-        else:
-            tool_name = tool
-            tool_cfg = {}
+        tool_name = None
+        tool_cfg = {}
 
-        # Skip registration if tool_name is None or empty
+        # # Check if the tool is a dictionary and extract the tool name and configuration from it.
+        if isinstance(tool, dict):
+            try:
+                tool_name = next(iter(tool))
+                tool_cfg = tool[tool_name]
+            except StopIteration:
+                # If the tool is an empty dictionary, proceed to register the next tool.
+                print("Empty tool dictionary provided, skipping the registration of the current tool")
+                return
+
+        # If the tool is a string, assign it directly to tool_name.
+        elif isinstance(tool, str):
+            tool_name = tool
+
+        # 如果tool_name为空，跳过当前工具的注册
         if not tool_name:
-            print("Skipping tool registration because 'tool_name' is not defined or empty.")
+            print("No tool name provided, skipping the registration of the current tool")
             return
 
-        if isinstance(tool, dict):
-            tool_name = next(iter(tool))
-            tool_cfg = tool[tool_name]
         if tool_name not in TOOL_REGISTRY and not self.use_tool_api:
             raise NotImplementedError
         if tool_name not in self.function_list:

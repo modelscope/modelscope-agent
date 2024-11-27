@@ -189,13 +189,14 @@ def swagger_to_openapi(swagger_data):
 
 def openapi_schema_convert(schema: dict, auth: dict = {}):
     config_data = {}
-    host = schema.get('host', '')
+    host = schema.get('host', '') if schema else ''  # Check if schema is None
+
     if host:
-        schema = swagger_to_openapi(schema)
+        schema = swagger_to_openapi(schema) if schema else {}  # Call only if schema is not None
 
-    schema = jsonref.replace_refs(schema)
+    schema = jsonref.replace_refs(schema) if schema else {}  # Call only if schema is not None
 
-    servers = schema.get('servers', [])
+    servers = schema.get('servers', []) if schema else []  # Check if schema is None
 
     if servers:
         servers_url = servers[0].get('url')

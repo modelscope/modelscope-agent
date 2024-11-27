@@ -335,6 +335,10 @@ class ToolServiceProxy(BaseTool):
         self.tenant_id = tenant_id
         self._register_tool()
 
+        if not self.tool_name:
+            print("Skipping tool registration and status check because 'tool_name' is not defined or empty.")
+            return  # When tool_name is an empty string, skip registration and status check.
+
         max_retry = 10
         while max_retry > 0:
             status = self._check_tool_status()
@@ -368,10 +372,10 @@ class ToolServiceProxy(BaseTool):
 
     def _register_tool(self):
         try:
-            # 检查tool_name是否已定义且非空
-            if not hasattr(self, 'tool_name') or not self.tool_name:
+            # Check if `tool_name` is defined and not empty.
+            if not self.tool_name:
                 print("Skipping tool registration because 'tool_name' is not defined or empty.")
-                return  # 直接返回，跳过注册
+                return  # Return directly, skipping registration.
 
             service_token = os.getenv('TOOL_MANAGER_AUTH', '')
             headers = {
