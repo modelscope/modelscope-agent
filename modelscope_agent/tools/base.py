@@ -1,5 +1,6 @@
 import os
 import time
+import traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
@@ -431,7 +432,7 @@ class ToolServiceProxy(BaseTool):
             return result['status']
         except Exception as e:
             raise RuntimeError(
-                f'Get error during checking status from tool manager service with detail {e}'
+                f'Get error during checking status from tool manager service: {self.tool_name} {self.tenant_id}. detail {e}, {traceback.format_exc()}'
             )
 
     def _get_tool_info(self):
@@ -451,10 +452,15 @@ class ToolServiceProxy(BaseTool):
                 },
                 headers=headers)
             response.raise_for_status()
-            return ToolServiceProxy.parse_service_response(response)
+            tool_info = ToolServiceProxy.parse_service_response(response)
+            # check required params
+            name = tool_info['name']
+            description = tool_info['description']
+            parameters = tool_info['parameters']
+            return tool_info
         except Exception as e:
             raise RuntimeError(
-                f'Get error during getting tool info from tool manager service with detail {e}'
+                f'Get error during getting tool info from tool manager, {self.tool_name} {self.tenant_id}. detail {e}, {traceback.format_exc()}'
             )
 
     def call(self, params: str, **kwargs):

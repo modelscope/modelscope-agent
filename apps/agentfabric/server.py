@@ -496,7 +496,15 @@ def preview_chat(uuid_str, session_str):
             stack_trace = stack_trace.replace('\n', '\\n')
             logger.error(
                 f'preview_chat_generate_error: {str(e)}, {stack_trace}')
-            raise e
+            error_info = f'data: Please check your configuration and try again. Error: {str(e)}, {stack_trace}\n\n'
+            res = json.dumps(
+                {
+                    'data': error_info,
+                    'is_final': True,
+                    'request_id': request_id_var.get('')
+                },
+                ensure_ascii=False)
+            yield f'data: {res}\n\n'
 
     return Response(generate(), mimetype='text/event-stream')
 
