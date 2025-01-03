@@ -120,6 +120,8 @@ class SessionManager:
             builder_id,
             renew=False) -> Tuple[AgentBuilder, MemoryWithRetrievalKnowledge]:
         builder_agent = self.builder_bots[builder_id]
+        print(f'builder_id: {builder_id}')
+        print(f'builder_bots: {self.builder_bots.keys()}')
         if renew or builder_agent is None:
             logger.info(f'init_builder_chatbot_agent: {builder_id} ')
             builder_agent = init_builder_chatbot_agent(builder_id)
@@ -137,16 +139,30 @@ class SessionManager:
             self,
             builder_id,
             session,
-            renew=False,
             user_token=None) -> Tuple[RolePlay, MemoryWithRetrievalKnowledge]:
         unique_id = builder_id + '_' + session
+        print(f'unique_id: {unique_id}')
         user_agent = self.user_bots[unique_id]
-        if renew or user_agent is None:
+        print(f'self.user_bots: {self.user_bots}')
+        print(f'user_agent: {user_agent}')
+        if user_agent is None:
             logger.info(f'init_user_chatbot_agent: {builder_id} {session}')
             user_agent = init_user_chatbot_agent(
                 builder_id, session, use_tool_api=True, user_token=user_token)
             self.user_bots[unique_id] = user_agent
         return user_agent
+
+    def renew_user_bot(
+            self,
+            builder_id,
+            session='default',
+            user_token=None):
+        self.clear_user_bot(builder_id, session)
+        unique_id = builder_id + '_' + session
+        logger.info(f'reinit_user_chatbot_agent: {builder_id} {session}')
+        user_agent = init_user_chatbot_agent(
+            builder_id, session, use_tool_api=True, user_token=user_token)
+        self.user_bots[unique_id] = user_agent
 
     def clear_user_bot(self, builder_id, session):
         unique_id = builder_id + '_' + session
