@@ -125,7 +125,7 @@ def builder_chat(uuid_str):
                         assert isinstance(exec_result, Config)
                         builder_cfg = exec_result.to_dict()
                         save_builder_configuration(builder_cfg, uuid_str)
-                        # app.session_manager.clear_user_bot(uuid_str)
+                        app.session_manager.renew_user_bot(uuid_str)
                         res = json.dumps(
                             {
                                 'data': response,
