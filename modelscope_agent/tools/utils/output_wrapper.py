@@ -178,7 +178,7 @@ class VideoWrapper(OutputWrapper):
 
         self._raw_data = video
 
-        if self._path.endswith('.gif'):
+        if self._path.split('?')[0].endswith('.gif'):
             self._repr = f'![IMAGEGEN]({self._path})'
         else:
             self._repr = f'<video src="{self._path}"/>'

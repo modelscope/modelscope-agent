@@ -38,6 +38,7 @@ class MemoryWithRag(Memory, Agent):
             llm=llm,
             cache_dir=storage_path,
             use_cache=use_knowledge_cache,
+            documents=[],
             **kwargs)
 
     @enable_rag_callback

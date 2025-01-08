@@ -54,6 +54,11 @@ def init_user_chatbot_agent(uuid_str='',
         user_token=user_token,
         openapi_list=openapi_plugin_list)
 
+    logger.query_info(
+        uuid=uuid_str,
+        message=
+        f'init {builder_cfg.name} chatbot end.')
+
     # build memory
     preview_history_dir = get_user_preview_history_dir(uuid_str, session)
     storage_path = preview_history_dir
