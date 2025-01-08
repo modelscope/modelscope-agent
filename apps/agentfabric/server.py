@@ -125,7 +125,7 @@ def builder_chat(uuid_str):
                         assert isinstance(exec_result, Config)
                         builder_cfg = exec_result.to_dict()
                         save_builder_configuration(builder_cfg, uuid_str)
-                        app.session_manager.renew_user_bot(uuid_str)
+                        app.session_manager.clear_user_bot(uuid_str)
                         res = json.dumps(
                             {
                                 'data': response,
@@ -353,7 +353,7 @@ def save_builder_config(uuid_str):
                 error=str(e),
                 details={'error_traceback': traceback.format_exc()})
     save_builder_configuration(builder_cfg=builder_config, uuid_str=uuid_str)
-    app.session_manager.renew_user_bot(uuid_str)
+    app.session_manager.clear_user_bot(uuid_str)
 
     return jsonify({'success': True, 'request_id': request_id_var.get('')})
 
