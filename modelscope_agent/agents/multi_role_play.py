@@ -122,6 +122,26 @@ class MultiRolePlay(RolePlay):
 
         super().__init__(**kwargs)
 
+    def _detect_tool(self, message: Union[str,
+                                          dict]) -> Tuple[bool, str, str, str]:
+        assert isinstance(message, str)
+        text = message
+        func_name, func_args = None, None
+        i = text.rfind(ACTION_TOKEN)
+        j = text.rfind(ARGS_TOKEN)
+        k = text.rfind(OBSERVATION_TOKEN)
+        if 0 <= i < j:  # If the text has `Action` and `Action input`,
+            if k < j:  # but does not contain `Observation`,
+                # then it is likely that `Observation` is ommited by the LLM,
+                # because the output text may have discarded the stop word.
+                text = text.rstrip() + OBSERVATION_TOKEN  # Add it back.
+            k = text.rfind(OBSERVATION_TOKEN)
+            func_name = text[i + len(ACTION_TOKEN):j].strip()
+            func_args = text[j + len(ARGS_TOKEN):k].strip()
+            text = text[:k]  # Discard '\nObservation:'.
+
+        return (func_name is not None), func_name, func_args, text
+
     def _run(self,
              user_request,
              history: Optional[List[Dict]] = None,
