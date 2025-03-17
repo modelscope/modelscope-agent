@@ -30,7 +30,7 @@ TOOL_TEMPLATE_ZH = """
 Action: 工具的名称，必须是[{tool_names}]之一
 Action Input: 工具的输入
 Observation: <result>工具返回的结果</result>
-Answer: 根据Observation总结本次工具调用返回的结果，如果结果中出现url，请使用如下格式展示出来：![图片](url)
+Answer: 根据Observation总结本次工具调用返回的结果。如果结果中出现url，请严格遵循Observation中url的格式进行展示。
 
 """
 
@@ -59,10 +59,9 @@ Tool Invocation
 Action: The name of the tool, must be one of [{tool_names}]
 Action Input: Tool input
 Observation: <result>Tool returns result</result>
-Answer: Summarize the results of this tool call based on Observation. If the result contains url, %s
+Answer: Summarize the results of this tool call based on Observation.
 
-""" % ('You can call zero or more times according to your needs:',
-       'please display it in the following format:![Image](URL)')
+""" % ('You can call zero or more times according to your needs:')
 
 PROMPT_TEMPLATE_EN = """{role_prompt}"""
 

@@ -125,7 +125,7 @@ def builder_chat(uuid_str):
                         assert isinstance(exec_result, Config)
                         builder_cfg = exec_result.to_dict()
                         save_builder_configuration(builder_cfg, uuid_str)
-                        # app.session_manager.clear_user_bot(uuid_str)
+                        app.session_manager.clear_user_bot(uuid_str)
                         res = json.dumps(
                             {
                                 'data': response,
@@ -353,7 +353,7 @@ def save_builder_config(uuid_str):
                 error=str(e),
                 details={'error_traceback': traceback.format_exc()})
     save_builder_configuration(builder_cfg=builder_config, uuid_str=uuid_str)
-    # app.session_manager.clear_user_bot(uuid_str)
+    app.session_manager.clear_user_bot(uuid_str)
 
     return jsonify({'success': True, 'request_id': request_id_var.get('')})
 
@@ -424,10 +424,11 @@ def preview_chat(uuid_str, session_str):
                 f'load history method: time consumed {time.time() - start_time}'
             )
 
-            # skip image upsert
+            # skip
             filtered_files = [
                 item for item in file_paths
-                if not item.lower().endswith(('.jpeg', '.png', '.jpg'))
+                if not item.lower().endswith(('.jpeg', '.png', '.jpg', '.wav',
+                                              '.gif', '.mp3'))
             ]
 
             use_llm = True if len(user_agent.function_list) else False
@@ -495,7 +496,15 @@ def preview_chat(uuid_str, session_str):
             stack_trace = stack_trace.replace('\n', '\\n')
             logger.error(
                 f'preview_chat_generate_error: {str(e)}, {stack_trace}')
-            raise e
+            error_info = f'data: Please check your configuration and try again. Error: {str(e)}, {stack_trace}\n\n'
+            res = json.dumps(
+                {
+                    'data': error_info,
+                    'is_final': True,
+                    'request_id': request_id_var.get('')
+                },
+                ensure_ascii=False)
+            yield f'data: {res}\n\n'
 
     return Response(generate(), mimetype='text/event-stream')
 
