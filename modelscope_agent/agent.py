@@ -1,9 +1,11 @@
 import copy
 import os
+import json
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from mcp_client import MCPClient
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
@@ -46,7 +48,7 @@ class Agent(ABC):
     }  # used to record all the tools' instance, moving here to avoid `del` method crash.
 
     def __init__(self,
-                 function_list: Optional[List[Union[str, Dict]]] = None,
+                 function_list: Union[Dict, List[Union[str, Dict]], None] = None,
                  llm: Optional[Union[Dict, BaseChatModel]] = None,
                  storage_path: Optional[str] = None,
                  name: Optional[str] = None,
@@ -55,6 +57,7 @@ class Agent(ABC):
                  use_tool_api: bool = False,
                  callbacks: list = None,
                  openapi_list: Optional[List[Union[str, Dict]]] = None,
+                 mcp: Optional[Dict] = None,
                  **kwargs):
         """
         init tools/llm/instruction for one agent
@@ -85,6 +88,10 @@ class Agent(ABC):
 
         self.function_list = []
         self.function_map = {}
+        self.function_meta = {}
+        self.mcp_config = mcp or {}
+        # if mcp:
+        #     self._register_mcp_tools(mcp)
         if function_list:
             for function in function_list:
                 self._register_tool(function, **kwargs)
@@ -113,12 +120,69 @@ class Agent(ABC):
                 kwargs['lang'] = 'zh'
             else:
                 kwargs['lang'] = 'en'
-        result = self._run(*args, **kwargs)
-        return result
 
-    @abstractmethod
-    def _run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
+        print(f'self.mcp_config: {self.mcp_config}')
+        if self.mcp_config:
+            import asyncio
+            result = asyncio.run(self._arun(*args, **kwargs))
+            return result
+        else:
+            result = self._run(*args, **kwargs)
+            return result
+
+    # @abstractmethod
+    def _run(self, *args, **kwargs):
         raise NotImplementedError
+
+    async def _arun(self, *args, **kwargs) -> Union[str, Iterator[str]]:
+
+        query = args[0]
+        history = kwargs.get('history', [])
+        messages = [{'role': 'system', 'content': self.instruction}] + history + [{'role': 'user', 'content': query}]
+        final_text = []
+        mcp_client = MCPClient(self.mcp_config)
+        if True:
+            # get tool info
+            await mcp_client.connect_all_servers()
+            tools = []
+            for key, session in mcp_client.sessions.items():
+                response = await session.list_tools()
+                available_tools = [
+                    {
+                        "name": key + '.' + tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.inputSchema
+                    }
+                    for tool in response.tools
+                ]
+                tools.extend(available_tools)
+
+            while True:
+                message = self.llm.chat_with_functions(messages, tools)
+                content = message.content
+                final_text.append(content)
+                messages.append({
+                    "role": "assistant",
+                    "content": content,
+                    'tool_calls': message.tool_calls,
+                })
+                if message.tool_calls:
+                    for tool in message.tool_calls:
+                        name = tool.function.name
+                        args = json.loads(tool.function.arguments)
+                        key, tool_name = name.split('.')
+                        result = await mcp_client.sessions[key].call_tool(tool_name, args)
+                        print(f'key: {name}, tool_name: {args}')
+                        final_text.append(f"[Calling tool {name} with args {args}]")
+                        messages.append({
+                            'role': 'tool',
+                            'content': result.content[0].text,
+                            'tool_call_id': tool.id,
+                        })
+                else:
+                    break
+            await mcp_client.cleanup()
+            return "\n".join(final_text)
 
     def _call_llm(self,
                   prompt: Optional[str] = None,

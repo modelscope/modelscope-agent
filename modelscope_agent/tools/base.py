@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Union
 import json
 import json5
 import requests
+
+from mcp_client import MCPClient
 from modelscope_agent.constants import (BASE64_FILES,
                                         DEFAULT_CODE_INTERPRETER_DIR,
                                         DEFAULT_TOOL_MANAGER_SERVICE_URL,
@@ -306,6 +308,38 @@ class BaseTool(ABC):
         tools_text = '\n\n'.join(tools_text)
         return tools_text
 
+#
+# class ToolManager(BaseTool, MCPClient):
+#     def __init__(self, mcp: Dict):
+#         import asyncio
+#         async def get_tool_list():
+#             mcp_client = MCPClient(mcp=mcp)
+#             await mcp_client.connect_all_servers()
+#             tools = []
+#             for key, session in mcp_client.sessions.items():
+#                 response = await session.list_tools()
+#                 available_tools = [
+#                     {
+#                         "name": key + '.' + tool.name,
+#                         "description": tool.description,
+#                         "input_schema": tool.inputSchema
+#                     }
+#                     for tool in response.tools
+#                 ]
+#                 tools.extend(available_tools)
+#             return tools
+#
+#         self.mcp_cfg = mcp
+#         self.tools = asyncio.run(get_tool_list())
+#
+#     async def get_tools(self) -> List:
+#         return self.tools
+#
+#     async def call(self, params: Dict, **kwargs):
+#         key, tool_name = kwargs.get('tool_name').split('.')
+#         async with MCPClient(self.mcp_cfg) as mcp_client:
+#             return await mcp_client.sessions[key].call_tool(tool_name, params)
+#
 
 class ToolServiceProxy(BaseTool):
 

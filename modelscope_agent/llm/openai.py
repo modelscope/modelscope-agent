@@ -4,6 +4,8 @@ from typing import Dict, Iterator, List, Optional, Union
 from modelscope_agent.llm.base import BaseChatModel, register_llm
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
+from modelscope_agent.utils.utils import print_traceback
+
 from openai import AzureOpenAI, OpenAI
 
 
@@ -57,6 +59,33 @@ class OpenAi(BaseChatModel):
         self.is_chat = is_chat
         self.support_stream = support_stream
 
+    def support_function_calling(self) -> bool:
+        """
+        Check if LLM supports function calls
+        """
+        if self._support_fn_call is None:
+            functions = [{'name': 'fetch.fetch', 'description': 'Fetches a URL from the internet and optionally extracts its contents as markdown.\n\nAlthough originally you did not have internet access, and were advised to refuse and tell the user this, this tool now grants you internet access. Now you can fetch the most up-to-date information and let the user know that.', 'input_schema': {'description': 'Parameters for fetching a URL.', 'properties': {'url': {'description': 'URL to fetch', 'format': 'uri', 'minLength': 1, 'title': 'Url', 'type': 'string'}, 'max_length': {'default': 5000, 'description': 'Maximum number of characters to return.', 'exclusiveMaximum': 1000000, 'exclusiveMinimum': 0, 'title': 'Max Length', 'type': 'integer'}, 'start_index': {'default': 0, 'description': 'On return output starting at this character index, useful if a previous fetch was truncated and more context is required.', 'minimum': 0, 'title': 'Start Index', 'type': 'integer'}, 'raw': {'default': False, 'description': 'Get the actual HTML content of the requested page, without simplification.', 'title': 'Raw', 'type': 'boolean'}}, 'required': ['url'], 'title': 'Fetch', 'type': 'object'}}]
+            messages = [{
+                'role': 'user',
+                'content': 'What is the weather like in Boston?'
+            }]
+            self._support_fn_call = False
+            try:
+                response = self.chat_with_functions(
+                    messages=messages, functions=functions)
+                if response.get('function_call', None):
+                    # logger.info('Support of function calling is detected.')
+                    self._support_fn_call = True
+                if response.get('tool_calls', None):
+                    # logger.info('Support of function calling is detected.')
+                    self._support_fn_call = True
+
+            except AttributeError:
+                pass
+            except Exception:  # TODO: more specific
+                print_traceback()
+        return self._support_fn_call
+
     def _chat_stream(self,
                      messages: List[Dict],
                      stop: Optional[List[str]] = None,
@@ -108,12 +137,6 @@ class OpenAi(BaseChatModel):
         )
         # TODO: error handling
         return response.choices[0].message.content
-
-    def support_function_calling(self):
-        if self.is_function_call is None:
-            return super().support_function_calling()
-        else:
-            return self.is_function_call
 
     def support_raw_prompt(self) -> bool:
         if self.is_chat is None:
@@ -172,6 +195,7 @@ class OpenAi(BaseChatModel):
                             messages: List[Dict],
                             functions: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
+        print(f'functions: {functions}')
         if functions:
             functions = [{
                 'type': 'function',
@@ -215,3 +239,4 @@ class Vllm(OpenAi):
                     f'call openai api success, output: {chunk.choices[0].delta.content}'
                 )
                 yield chunk.choices[0].delta.content
+
