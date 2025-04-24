@@ -1,4 +1,5 @@
 import os
+import inspect
 from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.llm.base import BaseChatModel, register_llm
@@ -195,7 +196,8 @@ class OpenAi(BaseChatModel):
                             messages: List[Dict],
                             functions: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
-        print(f'functions: {functions}')
+        parameters = inspect.signature(self.client.chat.completions.create).parameters
+        kwargs = {key: value for key, value in kwargs.items() if key in parameters}
         if functions:
             functions = [{
                 'type': 'function',
@@ -205,7 +207,8 @@ class OpenAi(BaseChatModel):
                 model=self.model,
                 messages=messages,
                 tools=functions,
-                tool_choice='auto',
+                parallel_tool_calls=False,
+                # tool_choice='auto',
                 **kwargs,
             )
         else:
