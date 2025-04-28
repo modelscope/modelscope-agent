@@ -3,12 +3,12 @@ import inspect
 from typing import Dict, Iterator, List, Optional, Union
 
 from modelscope_agent.llm.base import BaseChatModel, register_llm
+from modelscope_agent.tools.openapi_plugin import MAX_RETRY_TIMES
 from modelscope_agent.utils.logger import agent_logger as logger
 from modelscope_agent.utils.retry import retry
 from modelscope_agent.utils.utils import print_traceback
 
 from openai import AzureOpenAI, OpenAI
-
 
 @register_llm('openai')
 @register_llm('azure_openai')
@@ -194,27 +194,45 @@ class OpenAi(BaseChatModel):
 
     def chat_with_functions(self,
                             messages: List[Dict],
-                            functions: Optional[List[Dict]] = None,
+                            tools: Optional[List[Dict]] = None,
                             **kwargs) -> Dict:
         parameters = inspect.signature(self.client.chat.completions.create).parameters
         kwargs = {key: value for key, value in kwargs.items() if key in parameters}
-        if functions:
-            functions = [{
-                'type': 'function',
-                'function': item
-            } for item in functions]
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=functions,
-                parallel_tool_calls=False,
-                # tool_choice='auto',
-                **kwargs,
-            )
-        else:
-            response = self.client.chat.completions.create(
-                model=self.model, messages=messages, **kwargs)
-        # TODO: error handling
+
+        if tools:
+            tools = [
+                {
+                    'type': 'function',
+                    'function': {
+                        'name': tool['name'],
+                        'description': tool['description'],
+                        'parameters': tool['input_schema']
+                    }
+                } for tool in tools
+            ]
+        print(f'\nmessages: {messages}\n')
+        for i in range(MAX_RETRY_TIMES):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=tools,
+                    parallel_tool_calls=False,
+                    extra_body={'dashscope_extend_params':{'provider': 'idealab'}},
+                    **kwargs
+                )
+                _e = None
+                print(f'\nresponse: {response.choices[0].message}\n')
+                break
+            except Exception as e:
+                import time
+                print(str(e))
+                _e = e
+                time.sleep(10)
+                continue
+        if _e:
+            raise _e
+
         return response.choices[0].message
 
 
