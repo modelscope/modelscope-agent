@@ -1,0 +1,10 @@
+modelscope_studio
+gradio
+langchain
+langchain-openai
+langchain_core
+langgraph
+langchain_mcp_adapters
+mcp
+exceptiongroup
+oss2
