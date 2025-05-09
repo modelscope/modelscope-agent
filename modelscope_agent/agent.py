@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
-from mcp_client import MCPClient
+from modelscope_agent.tools.mcp import MCPClient
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.llm import get_chat_model
 from modelscope_agent.llm.base import BaseChatModel
