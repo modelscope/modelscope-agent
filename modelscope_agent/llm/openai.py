@@ -211,6 +211,7 @@ class OpenAi(BaseChatModel):
                 } for tool in tools
             ]
         print(f'\nmessages: {messages}\n')
+        print(f'\ntools: {tools}\n')
         for i in range(MAX_RETRY_TIMES):
             try:
                 response = self.client.chat.completions.create(
@@ -218,7 +219,7 @@ class OpenAi(BaseChatModel):
                     messages=messages,
                     tools=tools,
                     parallel_tool_calls=False,
-                    extra_body={'dashscope_extend_params':{'provider': 'idealab'}},
+                    # extra_body={'dashscope_extend_params':{'provider': 'idealab'}},
                     **kwargs
                 )
                 _e = None
