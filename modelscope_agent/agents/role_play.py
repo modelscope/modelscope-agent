@@ -236,15 +236,18 @@ class RolePlay(Agent, AgentEnvMixin):
             self.callback_manager.on_step_start()
             max_turn -= 1
             call_llm_count += 1
-            if self.llm.support_function_calling():
+            # if self.llm.support_function_calling():
+            if True:
+                print(f'1messages: {messages}')
                 output = self.llm.chat_with_functions(
                     messages=messages,
-                    stream=self.stream,
+                    # stream=self.stream,
                     functions=[
                         func.function for func in self.function_map.values()
                     ],
-                    callbacks=self.callback_manager,
-                    **kwargs)
+                )
+                print(f'output: {output}')
+                #     **kwargs)
             else:
                 output = self.llm.chat(
                     prompt=planning_prompt,

@@ -8,7 +8,6 @@ import json
 import json5
 import requests
 
-from mcp_client import MCPClient
 from modelscope_agent.constants import (BASE64_FILES,
                                         DEFAULT_CODE_INTERPRETER_DIR,
                                         DEFAULT_TOOL_MANAGER_SERVICE_URL,
