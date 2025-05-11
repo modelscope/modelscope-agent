@@ -108,7 +108,7 @@ class Agent(ABC):
             callbacks = [callbacks]
         self.callback_manager = CallbackManager(callbacks)
 
-    @enable_run_callback
+    # @enable_run_callback   # TODO: ONLY FOR TEST!
     def run(self, messages: List[Union[Dict, 'Message']],
             **kwargs) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
         from qwen_agent.llm.schema import CONTENT, DEFAULT_SYSTEM_MESSAGE, ROLE, SYSTEM, ContentItem, Message
