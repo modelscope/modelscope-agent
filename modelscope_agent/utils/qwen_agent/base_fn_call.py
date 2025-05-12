@@ -15,14 +15,15 @@ class BaseFnCallModel(BaseChatModel, ABC):
         fncall_prompt_type = self.generate_cfg.get('fncall_prompt_type',
                                                    'nous')
         if fncall_prompt_type == 'qwen':
-            from qwen_agent.llm.fncall_prompts.qwen_fncall_prompt import FN_STOP_WORDS, QwenFnCallPrompt
+            from modelscope_agent.utils.qwen_agent.fncall_prompts.qwen_fncall_prompt import (
+                FN_STOP_WORDS, QwenFnCallPrompt)
             self.fncall_prompt = QwenFnCallPrompt()
             stop = self.generate_cfg.get('stop', [])
             self.generate_cfg['stop'] = stop + [
                 x for x in FN_STOP_WORDS if x not in stop
             ]
         elif fncall_prompt_type == 'nous':
-            from qwen_agent.llm.fncall_prompts.nous_fncall_prompt import NousFnCallPrompt
+            from modelscope_agent.utils.qwen_agent.fncall_prompts.nous_fncall_prompt import NousFnCallPrompt
             self.fncall_prompt = NousFnCallPrompt()
         else:
             raise NotImplementedError
