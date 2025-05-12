@@ -18,24 +18,26 @@ def test_weather_role():
 
     # input tool name
     mcp_servers = {
-        "mcpServers": {
-            "time": {
-                "type": "sse",
-                "url": "https://agenttor-mod-dd-cbwtrtihpn.cn-zhangjiakou.fcapp.run/sse"
+        'mcpServers': {
+            'time': {
+                'type':
+                'sse',
+                'url':
+                'https://agenttor-mod-dd-cbwtrtihpn.cn-zhangjiakou.fcapp.run/sse'
             },
-            "fetch": {
-                "type":
-                    "sse",
-                "url":
-                    "https://mcp-cdb79f47-15a7-4a72.api-inference.modelscope.cn/sse"
+            'fetch': {
+                'type':
+                'sse',
+                'url':
+                'https://mcp-cdb79f47-15a7-4a72.api-inference.modelscope.cn/sse'
             }
         }
     }
 
-    default_system = ('You are an assistant which helps me to finish a complex job. Tools may be given to you '
-                      'and you must choose some of them one per round to finish my request.')
-    bot = Agent(
-        mcp=mcp_servers, llm=llm_config, instruction=default_system)
+    default_system = (
+        'You are an assistant which helps me to finish a complex job. Tools may be given to you '
+        'and you must choose some of them one per round to finish my request.')
+    bot = Agent(mcp=mcp_servers, llm=llm_config, instruction=default_system)
 
     response = bot.run('今天是哪一天？今天热门人工智能新闻有哪些？')
 

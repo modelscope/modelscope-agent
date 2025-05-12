@@ -76,7 +76,8 @@ class ContentItem(BaseModelCompatibleDict):
                  file: Optional[str] = None,
                  audio: Optional[Union[str, dict]] = None,
                  video: Optional[Union[str, list]] = None):
-        super().__init__(text=text, image=image, file=file, audio=audio, video=video)
+        super().__init__(
+            text=text, image=image, file=file, audio=audio, video=video)
 
     @model_validator(mode='after')
     def check_exclusivity(self):
@@ -93,13 +94,17 @@ class ContentItem(BaseModelCompatibleDict):
             provided_fields += 1
 
         if provided_fields != 1:
-            raise ValueError("Exactly one of 'text', 'image', 'file', 'audio', or 'video' must be provided.")
+            raise ValueError(
+                "Exactly one of 'text', 'image', 'file', 'audio', or 'video' must be provided."
+            )
         return self
 
     def __repr__(self):
         return f'ContentItem({self.model_dump()})'
 
-    def get_type_and_value(self) -> Tuple[Literal['text', 'image', 'file', 'audio', 'video'], str]:
+    def get_type_and_value(
+        self
+    ) -> Tuple[Literal['text', 'image', 'file', 'audio', 'video'], str]:
         (t, v), = self.model_dump().items()
         assert t in ('text', 'image', 'file', 'audio', 'video')
         return t, v
@@ -126,19 +131,21 @@ class Message(BaseModelCompatibleDict):
     def __init__(self,
                  role: str,
                  content: Union[str, List[ContentItem]],
-                 reasoning_content: Optional[Union[str, List[ContentItem]]] = None,
+                 reasoning_content: Optional[Union[str,
+                                                   List[ContentItem]]] = None,
                  name: Optional[str] = None,
                  function_call: Optional[FunctionCall] = None,
                  extra: Optional[dict] = None,
                  **kwargs):
         if content is None:
             content = ''
-        super().__init__(role=role,
-                         content=content,
-                         reasoning_content=reasoning_content,
-                         name=name,
-                         function_call=function_call,
-                         extra=extra)
+        super().__init__(
+            role=role,
+            content=content,
+            reasoning_content=reasoning_content,
+            name=name,
+            function_call=function_call,
+            extra=extra)
 
     def __repr__(self):
         return f'Message({self.model_dump()})'
@@ -146,5 +153,7 @@ class Message(BaseModelCompatibleDict):
     @field_validator('role')
     def role_checker(cls, value: str) -> str:
         if value not in [USER, ASSISTANT, SYSTEM, FUNCTION]:
-            raise ValueError(f'{value} must be one of {",".join([USER, ASSISTANT, SYSTEM, FUNCTION])}')
+            raise ValueError(
+                f'{value} must be one of {",".join([USER, ASSISTANT, SYSTEM, FUNCTION])}'
+            )
         return value

@@ -1,7 +1,7 @@
 import base64
 import copy
 import hashlib
-import json
+import logging
 import os
 import re
 import shutil
@@ -13,13 +13,15 @@ import traceback
 import urllib.parse
 from io import BytesIO
 from typing import Any, List, Literal, Optional, Tuple, Union
-import logging
 
+import json
 import json5
 import requests
+from modelscope_agent.utils.qwen_agent.schema import (ASSISTANT,
+                                                      DEFAULT_SYSTEM_MESSAGE,
+                                                      FUNCTION, SYSTEM, USER,
+                                                      ContentItem, Message)
 from pydantic import BaseModel
-
-from modelscope_agent.utils.qwen_agent.schema import ASSISTANT, DEFAULT_SYSTEM_MESSAGE, FUNCTION, SYSTEM, USER, ContentItem, Message
 
 
 def append_signal_handler(sig, handler):
@@ -83,7 +85,10 @@ def has_chinese_chars(data: Any) -> bool:
     return bool(CHINESE_CHAR_RE.search(text))
 
 
-def has_chinese_messages(messages: List[Union[Message, dict]], check_roles: Tuple[str] = (SYSTEM, USER)) -> bool:
+def has_chinese_messages(
+    messages: List[Union[Message, dict]],
+    check_roles: Tuple[str] = (SYSTEM, USER)
+) -> bool:
     for m in messages:
         if m['role'] in check_roles:
             if has_chinese_chars(m['content']):
@@ -165,7 +170,9 @@ def sanitize_windows_file_path(file_path: str) -> str:
     return file_path
 
 
-def save_url_to_local_work_dir(url: str, save_dir: str, save_filename: str = '') -> str:
+def save_url_to_local_work_dir(url: str,
+                               save_dir: str,
+                               save_filename: str = '') -> str:
     if not save_filename:
         save_filename = get_basename_from_url(url)
     new_path = os.path.join(save_dir, save_filename)
@@ -179,16 +186,21 @@ def save_url_to_local_work_dir(url: str, save_dir: str, save_filename: str = '')
     else:
         headers = {
             'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/58.0.3029.110 Safari/537.3'
         }
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             with open(new_path, 'wb') as file:
                 file.write(response.content)
         else:
-            raise ValueError('Can not download this file. Please check your network or the file link.')
+            raise ValueError(
+                'Can not download this file. Please check your network or the file link.'
+            )
     end_time = time.time()
-    logging.info(f'Finished downloading {url} to {new_path}. Time spent: {end_time - start_time} seconds.')
+    logging.info(
+        f'Finished downloading {url} to {new_path}. Time spent: {end_time - start_time} seconds.'
+    )
     return new_path
 
 
@@ -223,7 +235,10 @@ def get_content_type_by_head_request(path: str) -> str:
         return 'unk'
 
 
-def get_file_type(path: str) -> Literal['pdf', 'docx', 'pptx', 'txt', 'html', 'csv', 'tsv', 'xlsx', 'xls', 'unk']:
+def get_file_type(
+    path: str
+) -> Literal['pdf', 'docx', 'pptx', 'txt', 'html', 'csv', 'tsv', 'xlsx', 'xls',
+             'unk']:
     f_type = get_basename_from_url(path).split('.')[-1].lower()
     if f_type in ['pdf', 'docx', 'pptx', 'csv', 'tsv', 'xlsx', 'xls']:
         # Specially supported file types
@@ -302,12 +317,28 @@ class PydanticJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def json_dumps_pretty(obj: dict, ensure_ascii=False, indent=2, **kwargs) -> str:
-    return json.dumps(obj, ensure_ascii=ensure_ascii, indent=indent, cls=PydanticJSONEncoder, **kwargs)
+def json_dumps_pretty(obj: dict,
+                      ensure_ascii=False,
+                      indent=2,
+                      **kwargs) -> str:
+    return json.dumps(
+        obj,
+        ensure_ascii=ensure_ascii,
+        indent=indent,
+        cls=PydanticJSONEncoder,
+        **kwargs)
 
 
-def json_dumps_compact(obj: dict, ensure_ascii=False, indent=None, **kwargs) -> str:
-    return json.dumps(obj, ensure_ascii=ensure_ascii, indent=indent, cls=PydanticJSONEncoder, **kwargs)
+def json_dumps_compact(obj: dict,
+                       ensure_ascii=False,
+                       indent=None,
+                       **kwargs) -> str:
+    return json.dumps(
+        obj,
+        ensure_ascii=ensure_ascii,
+        indent=indent,
+        cls=PydanticJSONEncoder,
+        **kwargs)
 
 
 def format_as_multimodal_message(
@@ -391,12 +422,13 @@ def format_as_multimodal_message(
                 content = [ContentItem(text=upload)] + content
     else:
         raise TypeError
-    msg = Message(role=msg.role,
-                  content=content,
-                  reasoning_content=msg.reasoning_content,
-                  name=msg.name if msg.role == FUNCTION else None,
-                  function_call=msg.function_call,
-                  extra=msg.extra)
+    msg = Message(
+        role=msg.role,
+        content=content,
+        reasoning_content=msg.reasoning_content,
+        name=msg.name if msg.role == FUNCTION else None,
+        function_call=msg.function_call,
+        extra=msg.extra)
     return msg
 
 
@@ -405,11 +437,12 @@ def format_as_text_message(
     add_upload_info: bool,
     lang: Literal['auto', 'en', 'zh'] = 'auto',
 ) -> Message:
-    msg = format_as_multimodal_message(msg,
-                                       add_upload_info=add_upload_info,
-                                       add_multimodel_upload_info=add_upload_info,
-                                       add_audio_upload_info=add_upload_info,
-                                       lang=lang)
+    msg = format_as_multimodal_message(
+        msg,
+        add_upload_info=add_upload_info,
+        add_multimodel_upload_info=add_upload_info,
+        add_audio_upload_info=add_upload_info,
+        lang=lang)
     text = ''
     for item in msg.content:
         if item.type == 'text':
@@ -424,15 +457,19 @@ def extract_text_from_message(
     lang: Literal['auto', 'en', 'zh'] = 'auto',
 ) -> str:
     if isinstance(msg.content, list):
-        text = format_as_text_message(msg, add_upload_info=add_upload_info, lang=lang).content
+        text = format_as_text_message(
+            msg, add_upload_info=add_upload_info, lang=lang).content
     elif isinstance(msg.content, str):
         text = msg.content
     else:
-        raise TypeError(f'List of str or str expected, but received {type(msg.content).__name__}.')
+        raise TypeError(
+            f'List of str or str expected, but received {type(msg.content).__name__}.'
+        )
     return text.strip()
 
 
-def extract_files_from_messages(messages: List[Message], include_images: bool) -> List[str]:
+def extract_files_from_messages(messages: List[Message],
+                                include_images: bool) -> List[str]:
     files = []
     for msg in messages:
         if isinstance(msg.content, list):
@@ -444,7 +481,8 @@ def extract_files_from_messages(messages: List[Message], include_images: bool) -
     return files
 
 
-def merge_generate_cfgs(base_generate_cfg: Optional[dict], new_generate_cfg: Optional[dict]) -> dict:
+def merge_generate_cfgs(base_generate_cfg: Optional[dict],
+                        new_generate_cfg: Optional[dict]) -> dict:
     generate_cfg: dict = copy.deepcopy(base_generate_cfg or {})
     if new_generate_cfg:
         for k, v in new_generate_cfg.items():
@@ -487,8 +525,12 @@ def build_text_completion_prompt(
                 assert msg.role == ASSISTANT
                 tool_call = msg.function_call.arguments
                 try:
-                    tool_call = {'name': msg.function_call.name, 'arguments': json.loads(tool_call)}
-                    tool_call = json.dumps(tool_call, ensure_ascii=False, indent=2)
+                    tool_call = {
+                        'name': msg.function_call.name,
+                        'arguments': json.loads(tool_call)
+                    }
+                    tool_call = json.dumps(
+                        tool_call, ensure_ascii=False, indent=2)
                 except json.decoder.JSONDecodeError:
                     tool_call = '{"name": "' + msg.function_call.name + '", "arguments": ' + tool_call + '}'
                 if content:
@@ -508,25 +550,30 @@ def encode_image_as_base64(path: str, max_short_side_length: int = -1) -> str:
     from PIL import Image
     image = Image.open(path)
 
-    if (max_short_side_length > 0) and (min(image.size) > max_short_side_length):
+    if ((max_short_side_length > 0)
+            and (min(image.size) > max_short_side_length)):
         ori_size = image.size
         image = resize_image(image, short_side_length=max_short_side_length)
-        logging.debug(f'Image "{path}" resized from {ori_size} to {image.size}.')
+        logging.debug(
+            f'Image "{path}" resized from {ori_size} to {image.size}.')
 
     image = image.convert(mode='RGB')
     buffered = BytesIO()
     image.save(buffered, format='JPEG')
-    return 'data:image/jpeg;base64,' + base64.b64encode(buffered.getvalue()).decode('utf-8')
+    return 'data:image/jpeg;base64,' + base64.b64encode(
+        buffered.getvalue()).decode('utf-8')
 
 
 def encode_audio_as_base64(path: str) -> str:
     with open(path, 'rb') as audio_file:
-        return 'data:;base64,' + base64.b64encode(audio_file.read()).decode('utf-8')
+        return 'data:;base64,' + base64.b64encode(
+            audio_file.read()).decode('utf-8')
 
 
 def encode_video_as_base64(path: str) -> str:
     with open(path, 'rb') as video_file:
-        return 'data:;base64,' + base64.b64encode(video_file.read()).decode('utf-8')
+        return 'data:;base64,' + base64.b64encode(
+            video_file.read()).decode('utf-8')
 
 
 def load_image_from_base64(image_base64: Union[bytes, str]):
@@ -549,7 +596,8 @@ def resize_image(img, short_side_length: int = 1080):
         new_height = short_side_length
         new_width = int((short_side_length / height) * width)
 
-    resized_img = img.resize((new_width, new_height), resample=Image.Resampling.BILINEAR)
+    resized_img = img.resize((new_width, new_height),
+                             resample=Image.Resampling.BILINEAR)
     return resized_img
 
 
@@ -570,7 +618,8 @@ def rm_default_system(messages: List[Message]) -> List[Message]:
             else:
                 return messages
         elif isinstance(messages[0].content, list):
-            if len(messages[0].content) == 1 and messages[0].content[0].text.strip() == DEFAULT_SYSTEM_MESSAGE:
+            if len(messages[0].content) == 1 and messages[0].content[
+                    0].text.strip() == DEFAULT_SYSTEM_MESSAGE:
                 return messages[1:]
             else:
                 return messages

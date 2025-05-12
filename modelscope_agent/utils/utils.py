@@ -29,6 +29,7 @@ def singleton(cls):
 
     return get_instance
 
+
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:

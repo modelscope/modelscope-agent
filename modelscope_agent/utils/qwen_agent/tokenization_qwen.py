@@ -1,17 +1,16 @@
 """Tokenization classes for QWen."""
 
 import base64
+import logging
 import unicodedata
 from pathlib import Path
 from typing import Collection, Dict, List, Set, Union
-import logging
 
 import tiktoken
 
-
 VOCAB_FILES_NAMES = {'vocab_file': 'qwen.tiktoken'}
 
-PAT_STR = r"""(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"""
+PAT_STR = r"""(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"""  # NOQA
 ENDOFTEXT = '<|endoftext|>'
 IMSTART = '<|im_start|>'
 IMEND = '<|im_end|>'
@@ -21,14 +20,15 @@ IMEND = '<|im_end|>'
 EXTRAS = tuple((f'<|extra_{i}|>' for i in range(205)))
 # changed to use actual index to avoid misconfiguration with vocabulary expansion
 SPECIAL_START_ID = 151643
-SPECIAL_TOKENS = tuple(enumerate(
-    ((
-        ENDOFTEXT,
-        IMSTART,
-        IMEND,
-    ) + EXTRAS),
-    start=SPECIAL_START_ID,
-))
+SPECIAL_TOKENS = tuple(
+    enumerate(
+        ((
+            ENDOFTEXT,
+            IMSTART,
+            IMEND,
+        ) + EXTRAS),
+        start=SPECIAL_START_ID,
+    ))
 SPECIAL_TOKENS_SET = set(t for i, t in SPECIAL_TOKENS)
 
 
@@ -36,7 +36,9 @@ def _load_tiktoken_bpe(tiktoken_bpe_file: str) -> Dict[bytes, int]:
     with open(tiktoken_bpe_file, 'rb') as f:
         contents = f.read()
     return {
-        base64.b64decode(token): int(rank) for token, rank in (line.split() for line in contents.splitlines() if line)
+        base64.b64decode(token): int(rank)
+        for token, rank in (line.split() for line in contents.splitlines()
+                            if line)
     }
 
 
@@ -59,19 +61,23 @@ class QWenTokenizer:
         # use ignore if you are in streaming inference
         self.errors = errors
 
-        self.mergeable_ranks = _load_tiktoken_bpe(vocab_file)  # type: Dict[bytes, int]
+        self.mergeable_ranks = _load_tiktoken_bpe(
+            vocab_file)  # type: Dict[bytes, int]
         self.special_tokens = {token: index for index, token in SPECIAL_TOKENS}
 
         # try load extra vocab from file
         if extra_vocab_file is not None:
-            used_ids = set(self.mergeable_ranks.values()) | set(self.special_tokens.values())
+            used_ids = set(self.mergeable_ranks.values()) | set(
+                self.special_tokens.values())
             extra_mergeable_ranks = _load_tiktoken_bpe(extra_vocab_file)
             for token, index in extra_mergeable_ranks.items():
                 if token in self.mergeable_ranks:
                     logging.info(f'extra token {token} exists, skipping')
                     continue
                 if index in used_ids:
-                    logging.info(f'the index {index} for extra token {token} exists, skipping')
+                    logging.info(
+                        f'the index {index} for extra token {token} exists, skipping'
+                    )
                     continue
                 self.mergeable_ranks[token] = index
             # the index may be sparse after this, but don't worry tiktoken.Encoding will handle this
@@ -86,7 +92,9 @@ class QWenTokenizer:
             self.special_tokens
         ) == enc.n_vocab, f'{len(self.mergeable_ranks) + len(self.special_tokens)} != {enc.n_vocab} in encoding'
 
-        self.decoder = {v: k for k, v in self.mergeable_ranks.items()}  # type: dict[int, bytes|str]
+        self.decoder = {v: k
+                        for k, v in self.mergeable_ranks.items()
+                        }  # type: dict[int, bytes|str]
         self.decoder.update({v: k for k, v in self.special_tokens.items()})
 
         self.tokenizer = enc  # type: tiktoken.Encoding
@@ -118,7 +126,9 @@ class QWenTokenizer:
     def get_vocab(self) -> Dict[bytes, int]:
         return self.mergeable_ranks
 
-    def convert_tokens_to_ids(self, tokens: Union[bytes, str, List[Union[bytes, str]]]) -> List[int]:
+    def convert_tokens_to_ids(
+            self, tokens: Union[bytes, str, List[Union[bytes,
+                                                       str]]]) -> List[int]:
         ids = []
         if isinstance(tokens, (str, bytes)):
             if tokens in self.special_tokens:
@@ -133,10 +143,10 @@ class QWenTokenizer:
         return ids
 
     def tokenize(
-            self,
-            text: str,
-            allowed_special: Union[Set, str] = 'all',
-            disallowed_special: Union[Collection, str] = (),
+        self,
+        text: str,
+        allowed_special: Union[Set, str] = 'all',
+        disallowed_special: Union[Collection, str] = (),
     ) -> List[Union[bytes, str]]:
         """
         Converts a string in a sequence of tokens.
@@ -158,7 +168,10 @@ class QWenTokenizer:
         text = unicodedata.normalize('NFC', text)
 
         # this implementation takes a detour: text -> token id -> token surface forms
-        for t in self.tokenizer.encode(text, allowed_special=allowed_special, disallowed_special=disallowed_special):
+        for t in self.tokenizer.encode(
+                text,
+                allowed_special=allowed_special,
+                disallowed_special=disallowed_special):
             tokens.append(self.decoder[t])
         return tokens
 
@@ -204,28 +217,34 @@ class QWenTokenizer:
     def count_tokens(self, text: str) -> int:
         return len(self.tokenize(text))
 
-    def truncate(self, text: str, max_token: int, start_token: int = 0, keep_both_sides: bool = False) -> str:
+    def truncate(self,
+                 text: str,
+                 max_token: int,
+                 start_token: int = 0,
+                 keep_both_sides: bool = False) -> str:
         token_list = self.tokenize(text)[start_token:]
         if len(token_list) <= max_token:
             return self.convert_tokens_to_string(token_list)
 
         if keep_both_sides:
-            ellipsis_tokens = self.tokenize("...")
+            ellipsis_tokens = self.tokenize('...')
             ellipsis_len = len(ellipsis_tokens)
             available = max_token - ellipsis_len
-            if available <= 0: # Degenerate case: not enough space even for "..."
+            if available <= 0:  # Degenerate case: not enough space even for "..."
                 return self.convert_tokens_to_string(token_list[:max_token])
 
             left_len = available // 2
             right_len = available - left_len
-            token_list = token_list[:left_len] + ellipsis_tokens + token_list[-right_len:]
+            token_list = token_list[:left_len] + ellipsis_tokens + token_list[
+                -right_len:]
         else:
             token_list = token_list[:max_token]
 
         return self.convert_tokens_to_string(token_list)
 
 
-tokenizer = QWenTokenizer(Path(__file__).resolve().parent.parent / 'qwen.tiktoken')
+tokenizer = QWenTokenizer(
+    Path(__file__).resolve().parent.parent / 'qwen.tiktoken')
 
 
 def count_tokens(text: str) -> int:
