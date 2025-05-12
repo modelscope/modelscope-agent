@@ -59,7 +59,7 @@ class AgentWithMCP(Agent):
     @enable_run_callback
     def run(self, messages: List[Union[Dict, 'Message']],
             **kwargs) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
-        from qwen_agent.llm.schema import CONTENT, ROLE, SYSTEM, ContentItem, Message
+        from modelscope_agent.utils.qwen_agent.schema import CONTENT, ROLE, SYSTEM, ContentItem, Message
 
         """Return one response generator based on the received messages.
 
@@ -106,7 +106,7 @@ class AgentWithMCP(Agent):
                 yield [x.model_dump() if not isinstance(x, dict) else x for x in rsp]
 
     def _run(self, messages: List, *args, **kwargs):
-        from qwen_agent.llm.schema import FUNCTION
+        from modelscope_agent.utils.qwen_agent.schema import FUNCTION
         stream = kwargs.get('stream', True)
         messages = copy.deepcopy(messages)
         num_llm_calls_available = 20
@@ -155,7 +155,7 @@ class AgentWithMCP(Agent):
         Returns:
             The output of tools.
         """
-        from qwen_agent.llm.schema import ContentItem
+        from modelscope_agent.utils.qwen_agent.schema import ContentItem
         if tool_name not in self.function_map:
             return f'Tool {tool_name} does not exists.'
         tool = self.function_map[tool_name]
