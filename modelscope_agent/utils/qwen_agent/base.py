@@ -672,7 +672,7 @@ def _rm_think(text: str) -> str:
 
 
 
-def get_chat_model(model: str, model_server: str, **kwargs) -> BaseChatModel:
+def get_chat_model(cfg: Union[dict, str] = 'qwen-plus') -> BaseChatModel:
     """The interface of instantiating LLM objects.
 
     Args:
@@ -697,12 +697,9 @@ def get_chat_model(model: str, model_server: str, **kwargs) -> BaseChatModel:
     Returns:
         LLM object.
     """
-
-    cfg = dict(
-        model=model,
-        model_server=model_server,
-        **kwargs,
-    )
+    print(f'>>LLM_REGISTRY: {LLM_REGISTRY}')
+    if isinstance(cfg, str):
+        cfg = {'model': cfg}
 
     if 'model_type' in cfg:
         model_type = cfg['model_type']
@@ -724,7 +721,7 @@ def get_chat_model(model: str, model_server: str, **kwargs) -> BaseChatModel:
 
     if 'model_server' in cfg:
         if cfg['model_server'].strip().startswith('http'):
-            model_type = 'oai'
+            model_type = 'openai_fn_call'
             cfg['model_type'] = model_type
             return LLM_REGISTRY[model_type](cfg)
 

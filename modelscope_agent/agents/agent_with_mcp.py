@@ -4,7 +4,8 @@ import json
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent import Agent
-from modelscope_agent.utils.qwen_agent.base import BaseChatModel
+from modelscope_agent.utils.qwen_agent.base import get_chat_model
+from modelscope_agent.llm.base import BaseChatModel
 from modelscope_agent.agent import enable_run_callback
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool, ToolServiceProxy)
 
@@ -43,6 +44,10 @@ class AgentWithMCP(Agent):
             openapi_list: the openapi list for remote calling only
             kwargs: other potential parameters
         """
+
+        if isinstance(llm, Dict):
+            llm = get_chat_model(cfg=llm)
+
         super().__init__(
             function_list=function_list,
             llm=llm,
