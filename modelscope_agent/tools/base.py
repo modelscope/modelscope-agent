@@ -152,7 +152,7 @@ class BaseTool(ABC):
         """
         self.cfg = cfg.get(self.name, {})
 
-        self.schema = self.cfg.get('schema', 'oai')
+        self.schema = self.cfg.get('schema', None)
         self.function = self._build_function()
         self.function_plain_text = self._parser_function()
 

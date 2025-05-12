@@ -5,6 +5,7 @@ from .dashscope import DashScopeLLM, QwenChatAtDS
 from .modelscope import ModelScopeChatGLM, ModelScopeLLM
 from .ollama import OllamaLLM
 from .openai import OpenAi
+from .openai_fn_call import TextChatAtOAI
 from .vllm import VllmLLM
 from .zhipu import ZhipuLLM
 
