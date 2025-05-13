@@ -1,10 +1,11 @@
-modelscope_studio
+exceptiongroup
+git+https://github.com/modelscope/modelscope-agent.git@master
 gradio
 langchain
 langchain-openai
 langchain_core
-langgraph
 langchain_mcp_adapters
+langgraph
 mcp
-exceptiongroup
+modelscope_studio==1.2.3
 oss2

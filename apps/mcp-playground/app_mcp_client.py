@@ -1,31 +1,32 @@
-from typing import List, Callable
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.language_models import BaseChatModel
-# from langgraph.prebuilt import create_react_agent
-from langchain_mcp_adapters.client import MultiServerMCPClient
-import json
+# flake8: noqa: F401
 import os
 import re
 from contextlib import asynccontextmanager
+from typing import Callable, List
 
+import json
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+# from langgraph.prebuilt import create_react_agent
+from langchain_mcp_adapters.client import MultiServerMCPClient
 from modelscope_agent.agent import Agent
 
 
 def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
     mcp_servers = {}
-    for server_name, server in mcp_config.get("mcpServers", {}).items():
-        if server["type"] == "stdio" or (enabled_mcp_servers is not None
+    for server_name, server in mcp_config.get('mcpServers', {}).items():
+        if server['type'] == 'stdio' or (enabled_mcp_servers is not None
                                          and server_name
                                          not in enabled_mcp_servers):
             continue
         new_server = {**server}
-        new_server["transport"] = server["type"]
-        del new_server["type"]
-        if server.get("env"):
+        new_server['transport'] = server['type']
+        del new_server['type']
+        if server.get('env'):
             env = {'PYTHONUNBUFFERED': '1', 'PATH': os.environ.get('PATH', '')}
-            env.update(server["env"])
-            new_server["env"] = env
+            env.update(server['env'])
+            new_server['env'] = env
         mcp_servers[server_name] = new_server
     return mcp_servers
 
@@ -38,7 +39,13 @@ async def get_mcp_client(mcp_servers: dict):
 
 async def get_mcp_prompts(mcp_config: dict, get_llm: Callable):
     try:
+        print(f'>>mcp_config: {mcp_config}')
+        print(f'>>get_llm: {get_llm}')
+
         mcp_servers = parse_mcp_config(mcp_config)
+
+        print(f'>>mcp_servers: {mcp_servers}')
+
         if len(mcp_servers.keys()) == 0:
             return {}
         llm: BaseChatModel = get_llm()
@@ -77,6 +84,9 @@ Ensure:
 
 Return only the JSON object without any additional explanation or text."""
             response = await llm.ainvoke(prompt)
+
+            print(f'>>response for ainvoke: {response}')
+
             if hasattr(response, 'content'):
                 content = response.content
             else:
@@ -91,14 +101,14 @@ Return only the JSON object without any additional explanation or text."""
             for mcp_name in mcp_tool_descriptions.keys():
                 if mcp_name not in raw_examples:
                     raw_examples[mcp_name] = [
-                        f"请使用 {mcp_name} 服务的功能帮我查询信息或解决问题",
+                        f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
                     ]
             return raw_examples
     except Exception as e:
         print('Prompt Error:', e)
         return {
             mcp_name: [
-                f"请使用 {mcp_name} 服务的功能帮我查询信息或解决问题",
+                f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
             ]
             for mcp_name in mcp_servers.keys()
         }
@@ -107,7 +117,7 @@ Return only the JSON object without any additional explanation or text."""
 def convert_mcp_name(tool_name: str, mcp_names: dict):
     if not tool_name:
         return tool_name
-    separators = tool_name.split("__TOOL__")
+    separators = tool_name.split('__TOOL__')
     if len(separators) >= 2:
         mcp_name_idx, mcp_tool_name = separators[:2]
     else:
@@ -119,20 +129,21 @@ def convert_mcp_name(tool_name: str, mcp_names: dict):
 
     if not mcp_name:
         return mcp_tool_name
-    return f"[{mcp_name}] {mcp_tool_name}"
+    return f'[{mcp_name}] {mcp_tool_name}'
 
 
 def generate_with_mcp(messages: List[dict], mcp_config: dict,
-                            enabled_mcp_servers: list, sys_prompt: str,
-                            get_llm: dict, chatbot):
+                      enabled_mcp_servers: list, sys_prompt: str,
+                      get_llm: dict, chatbot):
     mcp_servers = {}
-    mcp_servers["mcpServers"] = parse_mcp_config(mcp_config, enabled_mcp_servers)
+    mcp_servers['mcpServers'] = parse_mcp_config(mcp_config,
+                                                 enabled_mcp_servers)
     agent_executor = Agent(
         mcp=mcp_servers, llm=get_llm, instruction=sys_prompt)
-    response = agent_executor.run("你好")
+    response = agent_executor.run('你好')
     for chunk in response:
         response += chunk
-        chatbot[-1]["content"] = response
+        chatbot[-1]['content'] = response
         yield chatbot
 
 
