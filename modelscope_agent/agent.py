@@ -1,16 +1,18 @@
 import copy
 import os
+import json
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
-from modelscope_agent.llm import get_chat_model
-from modelscope_agent.llm.base import BaseChatModel
+# from modelscope_agent.llm import get_chat_model
+# from modelscope_agent.llm.base import BaseChatModel
+from qwen_agent.llm import get_chat_model
+from qwen_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          OpenapiServiceProxy, ToolServiceProxy)
 from modelscope_agent.utils.utils import has_chinese_chars
-
 
 def enable_run_callback(func):
 
@@ -46,7 +48,7 @@ class Agent(ABC):
     }  # used to record all the tools' instance, moving here to avoid `del` method crash.
 
     def __init__(self,
-                 function_list: Optional[List[Union[str, Dict]]] = None,
+                 function_list: Union[Dict, List[Union[str, Dict]], None] = None,
                  llm: Optional[Union[Dict, BaseChatModel]] = None,
                  storage_path: Optional[str] = None,
                  name: Optional[str] = None,
@@ -77,7 +79,7 @@ class Agent(ABC):
         """
         if isinstance(llm, Dict):
             self.llm_config = llm
-            self.llm = get_chat_model(**self.llm_config)
+            self.llm = get_chat_model(cfg=self.llm_config)
         else:
             self.llm = llm
         self.stream = kwargs.get('stream', True)
@@ -107,18 +109,95 @@ class Agent(ABC):
         self.callback_manager = CallbackManager(callbacks)
 
     @enable_run_callback
-    def run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
-        if 'lang' not in kwargs:
-            if has_chinese_chars([args, kwargs]):
-                kwargs['lang'] = 'zh'
-            else:
-                kwargs['lang'] = 'en'
-        result = self._run(*args, **kwargs)
-        return result
+    def run(self, messages: List[Union[Dict, 'Message']],
+            **kwargs) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
+        from qwen_agent.llm.schema import CONTENT, DEFAULT_SYSTEM_MESSAGE, ROLE, SYSTEM, ContentItem, Message
 
-    @abstractmethod
-    def _run(self, *args, **kwargs) -> Union[str, Iterator[str]]:
-        raise NotImplementedError
+        """Return one response generator based on the received messages.
+
+        This method performs a uniform type conversion for the inputted messages,
+        and calls the _run method to generate a reply.
+
+        Args:
+            messages: A list of messages.
+
+        Yields:
+            The response generator.
+        """
+        messages = copy.deepcopy(messages)
+        _return_message_type = 'dict'
+        new_messages = []
+        # Only return dict when all input messages are dict
+        if not messages:
+            _return_message_type = 'message'
+        for msg in messages:
+            if isinstance(msg, dict):
+                new_messages.append(Message(**msg))
+            else:
+                new_messages.append(msg)
+                _return_message_type = 'message'
+        print(f'new_messages: {new_messages}')
+        if self.instruction:
+            if not new_messages or new_messages[0][ROLE] != SYSTEM:
+                # Add the system instruction to the agent
+                new_messages.insert(0, Message(role=SYSTEM, content=self.instruction))
+            else:
+                # Already got system message in new_messages
+                if isinstance(new_messages[0][CONTENT], str):
+                    new_messages[0][CONTENT] = self.instruction + '\n\n' + new_messages[0][CONTENT]
+                else:
+                    assert isinstance(new_messages[0][CONTENT], list)
+                    assert new_messages[0][CONTENT][0].text
+                    new_messages[0][CONTENT] = [ContentItem(text=self.instruction + '\n\n')
+                                               ] + new_messages[0][CONTENT]  # noqa
+
+        for rsp in self._run(messages=new_messages, **kwargs):
+            if _return_message_type == 'message':
+                yield [Message(**x) if isinstance(x, dict) else x for x in rsp]
+            else:
+                yield [x.model_dump() if not isinstance(x, dict) else x for x in rsp]
+
+    # @abstractmethod
+    def _run(self, messages: List, *args, **kwargs):
+        from qwen_agent.llm.schema import FUNCTION
+        from qwen_agent.utils.utils import merge_generate_cfgs
+        stream = kwargs.get('stream', True)
+        messages = copy.deepcopy(messages)
+        num_llm_calls_available = 20
+        response = []
+        extra_generate_cfg = {'lang': 'zh'}
+        if kwargs.get('seed') is not None:
+            extra_generate_cfg['seed'] = kwargs['seed']
+        while True and num_llm_calls_available > 0:
+            num_llm_calls_available -= 1
+            output_stream = self.llm.chat(messages=messages,
+                             functions=[func.function for func in self.function_map.values()],
+                             stream=stream,
+                             extra_generate_cfg=extra_generate_cfg)
+            output = []
+            for output in output_stream:
+                if output:
+                    yield response + output
+            if output:
+                response.extend(output)
+                messages.extend(output)
+                used_any_tool = False
+                for out in output:
+                    use_tool, tool_name, tool_args, _ = self._detect_tool(out)
+                    if use_tool:
+                        tool_result = self._call_tool(tool_name, tool_args, **kwargs)
+                        fn_msg = {
+                            'role': FUNCTION,
+                            'name': tool_name,
+                            'content': tool_result,
+                        }
+                        messages.append(fn_msg)
+                        response.append(fn_msg)
+                        yield response
+                        used_any_tool = True
+                if not used_any_tool:
+                    break
+        yield response
 
     def _call_llm(self,
                   prompt: Optional[str] = None,
@@ -132,28 +211,39 @@ class Agent(ABC):
             stream=self.stream,
             **kwargs)
 
-    def _call_tool(self, tool_list: list, **kwargs):
-        """
-        Use when calling tools in bot()
+    def _call_tool(self, tool_name: str, tool_args: Union[str, dict] = '{}', **kwargs) -> Union[str, List]:
+        """The interface of calling tools for the agent.
 
+        Args:
+            tool_name: The name of one tool.
+            tool_args: Model generated or user given tool parameters.
+
+        Returns:
+            The output of tools.
         """
-        # version < 0.6.6 only one tool is in the tool_list
-        tool_name = tool_list[0]['name']
-        tool_args = tool_list[0]['arguments']
-        # for openapi tool only
-        kwargs['tool_name'] = tool_name
-        self.callback_manager.on_tool_start(tool_name, tool_args)
+        if tool_name not in self.function_map:
+            return f'Tool {tool_name} does not exists.'
+        tool = self.function_map[tool_name]
         try:
-            result = self.function_map[tool_name].call(tool_args, **kwargs)
-        except BaseException as e:
+            tool_result = tool.call(tool_args, **kwargs)
+        except Exception as ex:
             import traceback
-            print(
-                f'The error is {e}, and the traceback is {traceback.format_exc()}'
-            )
-            result = f'Tool api {tool_name} failed to call. Args: {tool_args}.'
-            result += f'Details: {str(e)[:200]}'
-        self.callback_manager.on_tool_end(tool_name, result)
-        return result
+            exception_type = type(ex).__name__
+            exception_message = str(ex)
+            traceback_info = ''.join(traceback.format_tb(ex.__traceback__))
+            error_message = f'An error occurred when calling tool `{tool_name}`:\n' \
+                            f'{exception_type}: {exception_message}\n' \
+                            f'Traceback:\n{traceback_info}'
+            print(error_message)
+            return error_message
+
+        if isinstance(tool_result, str):
+            return tool_result
+        elif isinstance(tool_result, list) and all(isinstance(item, ContentItem) for item in tool_result):
+            return tool_result  # multimodal tool results
+        else:
+            return json.dumps(tool_result, ensure_ascii=False, indent=4)
+
 
     def _register_openapi_for_remote_calling(self, openapi: Union[str, Dict],
                                              **kwargs):
@@ -195,6 +285,14 @@ class Agent(ABC):
         """
         tool_name = tool
         tool_cfg = {}
+        if isinstance(tool, dict) and 'mcpServers' in tool:
+            from modelscope_agent.tools.mcp import MCPManager
+            tools = MCPManager(tool).get_tools()
+            for tool in tools:
+                tool_name = tool.name
+                if tool_name not in self.function_map:
+                    self.function_map[tool_name] = tool
+            return
         if isinstance(tool, dict):
             tool_name = next(iter(tool))
             tool_cfg = tool[tool_name]
@@ -274,22 +372,18 @@ class Agent(ABC):
             - str: text replies except for tool calls
         """
 
-        func_calls = []
-        assert isinstance(message, dict)
-        # deprecating
-        if 'function_call' in message and message['function_call']:
-            func_call = message['function_call']
-            func_calls.append(func_call)
+        func_name = None
+        func_args = None
 
-        # Follow OpenAI API, allow multi func_calls
-        if 'tool_calls' in message and message['tool_calls']:
-            for item in message['tool_calls']:
-                func_call = item['function']
-                func_calls.append(func_call)
+        if message.function_call:
+            func_call = message.function_call
+            func_name = func_call.name
+            func_args = func_call.arguments
+        text = message.content
+        if not text:
+            text = ''
 
-        text = message.get('content', '')
-
-        return (len(func_calls) > 0), func_calls, text
+        return (func_name is not None), func_name, func_args, text
 
     def _parse_image_url(self, image_url: List[Union[str, Dict]],
                          messages: List[Dict]) -> List[Dict]:
