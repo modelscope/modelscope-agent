@@ -1,0 +1,9 @@
+{
+    "notebook": {
+      "command": "/path/to/fastmcp",
+      "args": [
+        "run",
+        "/path/to/notebook/server.py"
+      ]
+    }
+}
