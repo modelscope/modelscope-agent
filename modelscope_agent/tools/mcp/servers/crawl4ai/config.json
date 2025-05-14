@@ -1,0 +1,9 @@
+{
+    "crawl4ai": {
+      "command": "/path/to/fastmcp",
+      "args": [
+        "run",
+        "/path/to/crawl4ai/server.py"
+      ]
+    }
+}
