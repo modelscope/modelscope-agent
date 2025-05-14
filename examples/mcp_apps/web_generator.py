@@ -31,32 +31,31 @@ def test_web_gen():
     }
 
     # ONLY FOR TEST
-    function_list = [{
-        'mcpServers': {
-            'amap-maps': {
-                'type': 'sse',
-                'url': 'https://mcp.api-inference.modelscope.cn/sse/xxx'
-            },
-            'MiniMax-MCP': {
-                'type': 'sse',
-                'url': 'https://mcp.api-inference.modelscope.cn/sse/xxx'
-            },
-            'web-search': {
-                'command': 'npx',
-                'args': ['-y', 'tavily-mcp@0.1.4'],
-                'env': {
-                    'TAVILY_API_KEY': ''
-                },
-                'disabled': False,
-                'autoApprove': []
-            },
-            'edgeone-pages-mcp-server': {
-                'command': 'npx',
-                'args': ['edgeone-pages-mcp']
-            },
-            'notebook': None,
-        }
-    }]
+    # Note: the `config.json` format:
+    """
+    {
+      "mcpServers": {
+        "amap-maps": {
+          "type": "sse",
+          "url": "https://mcp.api-inference.modelscope.cn/sse/xxx"
+        },
+        "MiniMax-MCP": {
+          "type": "sse",
+          "url": "https://mcp.api-inference.modelscope.cn/sse/xxx"
+        },
+        "edgeone-pages-mcp-server": {
+          "command": "npx",
+          "args": ["edgeone-pages-mcp"]
+        },
+        "notebook": {}
+      }
+    }
+    """
+    import json
+    with open('./config.json', 'r', encoding='utf-8') as f:
+        mcp_config_json = json.load(f)
+
+    function_list = [mcp_config_json]
 
     bot = AgentWithMCP(
         function_list=function_list,

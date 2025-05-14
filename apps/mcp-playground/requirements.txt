@@ -1,0 +1,11 @@
+exceptiongroup
+gradio
+https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/tmp/modelscope_agent-0.8.0-py3-none-any.whl
+langchain
+langchain-openai
+langchain_core
+langchain_mcp_adapters
+langgraph
+mcp
+modelscope_studio==1.2.3
+oss2

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "amap-maps": {
+      "type": "sse",
+      "url": "https://mcp.api-inference.modelscope.cn/sse/6d2f001a63354d"
+    },
+    "MiniMax-MCP": {
+      "type": "sse",
+      "url": "https://mcp.api-inference.modelscope.cn/sse/0c73b1853bab4b"
+    },
+    "edgeone-pages-mcp-server": {
+      "command": "npx",
+      "args": ["edgeone-pages-mcp"]
+    },
+    "notebook": {}
+  }
+}
