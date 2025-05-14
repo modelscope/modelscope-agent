@@ -1,18 +1,16 @@
 import copy
 import os
-import json
-from abc import ABC, abstractmethod
+from abc import ABC
 from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+import json
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
-# from modelscope_agent.llm import get_chat_model
-# from modelscope_agent.llm.base import BaseChatModel
-from qwen_agent.llm import get_chat_model
-from qwen_agent.llm.base import BaseChatModel
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          OpenapiServiceProxy, ToolServiceProxy)
-from modelscope_agent.utils.utils import has_chinese_chars
+from modelscope_agent.utils.qwen_agent.base import (BaseChatModel,
+                                                    get_chat_model)
+
 
 def enable_run_callback(func):
 
@@ -48,7 +46,8 @@ class Agent(ABC):
     }  # used to record all the tools' instance, moving here to avoid `del` method crash.
 
     def __init__(self,
-                 function_list: Union[Dict, List[Union[str, Dict]], None] = None,
+                 function_list: Union[Dict, List[Union[str, Dict]],
+                                      None] = None,
                  llm: Optional[Union[Dict, BaseChatModel]] = None,
                  storage_path: Optional[str] = None,
                  name: Optional[str] = None,
@@ -109,10 +108,12 @@ class Agent(ABC):
         self.callback_manager = CallbackManager(callbacks)
 
     @enable_run_callback
-    def run(self, messages: List[Union[Dict, 'Message']],
-            **kwargs) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
-        from qwen_agent.llm.schema import CONTENT, DEFAULT_SYSTEM_MESSAGE, ROLE, SYSTEM, ContentItem, Message
-
+    def run(self, messages: List[Union[Dict, 'Message']], **kwargs
+            ) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
+        from modelscope_agent.utils.qwen_agent.schema import (CONTENT, ROLE,
+                                                              SYSTEM,
+                                                              ContentItem,
+                                                              Message)
         """Return one response generator based on the received messages.
 
         This method performs a uniform type conversion for the inputted messages,
@@ -140,27 +141,34 @@ class Agent(ABC):
         if self.instruction:
             if not new_messages or new_messages[0][ROLE] != SYSTEM:
                 # Add the system instruction to the agent
-                new_messages.insert(0, Message(role=SYSTEM, content=self.instruction))
+                new_messages.insert(
+                    0, Message(role=SYSTEM, content=self.instruction))
             else:
                 # Already got system message in new_messages
                 if isinstance(new_messages[0][CONTENT], str):
-                    new_messages[0][CONTENT] = self.instruction + '\n\n' + new_messages[0][CONTENT]
+                    new_messages[0][
+                        CONTENT] = self.instruction + '\n\n' + new_messages[0][
+                            CONTENT]
                 else:
                     assert isinstance(new_messages[0][CONTENT], list)
                     assert new_messages[0][CONTENT][0].text
-                    new_messages[0][CONTENT] = [ContentItem(text=self.instruction + '\n\n')
-                                               ] + new_messages[0][CONTENT]  # noqa
+                    new_messages[0][CONTENT] = [
+                        ContentItem(text=self.instruction + '\n\n')
+                    ] + new_messages[0][CONTENT]  # noqa
 
         for rsp in self._run(messages=new_messages, **kwargs):
             if _return_message_type == 'message':
                 yield [Message(**x) if isinstance(x, dict) else x for x in rsp]
             else:
-                yield [x.model_dump() if not isinstance(x, dict) else x for x in rsp]
+                yield [
+                    x.model_dump() if not isinstance(x, dict) else x
+                    for x in rsp
+                ]
 
     # @abstractmethod
     def _run(self, messages: List, *args, **kwargs):
-        from qwen_agent.llm.schema import FUNCTION
-        from qwen_agent.utils.utils import merge_generate_cfgs
+        from modelscope_agent.utils.qwen_agent.schema import FUNCTION
+
         stream = kwargs.get('stream', True)
         messages = copy.deepcopy(messages)
         num_llm_calls_available = 20
@@ -170,10 +178,13 @@ class Agent(ABC):
             extra_generate_cfg['seed'] = kwargs['seed']
         while True and num_llm_calls_available > 0:
             num_llm_calls_available -= 1
-            output_stream = self.llm.chat(messages=messages,
-                             functions=[func.function for func in self.function_map.values()],
-                             stream=stream,
-                             extra_generate_cfg=extra_generate_cfg)
+            output_stream = self.llm.chat(
+                messages=messages,
+                functions=[
+                    func.function for func in self.function_map.values()
+                ],
+                stream=stream,
+                extra_generate_cfg=extra_generate_cfg)
             output = []
             for output in output_stream:
                 if output:
@@ -185,7 +196,8 @@ class Agent(ABC):
                 for out in output:
                     use_tool, tool_name, tool_args, _ = self._detect_tool(out)
                     if use_tool:
-                        tool_result = self._call_tool(tool_name, tool_args, **kwargs)
+                        tool_result = self._call_tool(tool_name, tool_args,
+                                                      **kwargs)
                         fn_msg = {
                             'role': FUNCTION,
                             'name': tool_name,
@@ -211,7 +223,10 @@ class Agent(ABC):
             stream=self.stream,
             **kwargs)
 
-    def _call_tool(self, tool_name: str, tool_args: Union[str, dict] = '{}', **kwargs) -> Union[str, List]:
+    def _call_tool(self,
+                   tool_name: str,
+                   tool_args: Union[str, dict] = '{}',
+                   **kwargs) -> Union[str, List]:
         """The interface of calling tools for the agent.
 
         Args:
@@ -239,11 +254,11 @@ class Agent(ABC):
 
         if isinstance(tool_result, str):
             return tool_result
-        elif isinstance(tool_result, list) and all(isinstance(item, ContentItem) for item in tool_result):
+        elif isinstance(tool_result, list) and all(
+                isinstance(item, ContentItem) for item in tool_result):
             return tool_result  # multimodal tool results
         else:
             return json.dumps(tool_result, ensure_ascii=False, indent=4)
-
 
     def _register_openapi_for_remote_calling(self, openapi: Union[str, Dict],
                                              **kwargs):

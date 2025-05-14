@@ -12,23 +12,6 @@ default_mcp_config = json.dumps({'mcpServers': {}},
                                 indent=4,
                                 ensure_ascii=False)
 
-default_history_config = json.dumps(
-    {
-        'history': [{
-            'role': 'user',
-            'content': '介绍一下你自己',
-            'sent_from': '',
-            'send_to': 'all'
-        }, {
-            'role': 'assistant',
-            'content': '我是一个能够调用工具的智能ai',
-            'sent_from': '',
-            'send_to': 'all'
-        }]
-    },
-    indent=4,
-    ensure_ascii=False)
-
 default_sys_prompt = 'You are a helpful assistant.'
 
 # for internal
@@ -48,15 +31,13 @@ default_mcp_servers = [{
 } for mcp_name in default_mcp_prompts.keys()]
 
 bot_avatars = {
-    'Qwen/Qwen2.5-72B-Instruct':
+    'Qwen':
     os.path.join(os.path.dirname(__file__), './assets/qwen.png'),
-    'Qwen/Qwen3-235B-A22B':
+    'QwQ':
     os.path.join(os.path.dirname(__file__), './assets/qwen.png'),
-    'Qwen/QwQ-32B':
-    os.path.join(os.path.dirname(__file__), './assets/qwen.png'),
-    'LLM-Research/Llama-4-Maverick-17B-128E-Instruct':
+    'LLM-Research':
     os.path.join(os.path.dirname(__file__), './assets/meta.webp'),
-    'deepseek-ai/DeepSeek-V3-0324':
+    'deepseek-ai':
     os.path.join(os.path.dirname(__file__), './assets/deepseek.png'),
 }
 
@@ -64,12 +45,62 @@ mcp_prompt_model = 'Qwen/Qwen2.5-72B-Instruct'
 
 model_options = [
     {
-        'label': 'Qwen2.5-72B-Instruct',
-        'value': 'Qwen/Qwen2.5-72B-Instruct'
+        'label': 'Qwen3-235B-A22B',
+        'value': 'Qwen/Qwen3-235B-A22B',
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': False,
+            }
+        },
+        'tag': {
+            'label': '正常模式',
+            'color': '#54C1FA'
+        }
     },
     {
         'label': 'Qwen3-235B-A22B',
-        'value': 'Qwen/Qwen3-235B-A22B'
+        'value': 'Qwen/Qwen3-235B-A22B:thinking',
+        'thought': True,
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': True,
+            }
+        },
+        'tag': {
+            'label': '深度思考',
+            'color': '#36CFD1'
+        }
+    },
+    {
+        'label': 'Qwen3-32B',
+        'value': 'Qwen/Qwen3-32B',
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': False,
+            }
+        },
+        'tag': {
+            'label': '正常模式',
+            'color': '#54C1FA'
+        }
+    },
+    {
+        'label': 'Qwen3-32B',
+        'value': 'Qwen/Qwen3-32B:thinking',
+        'thought': True,
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': True,
+            }
+        },
+        'tag': {
+            'label': '深度思考',
+            'color': '#36CFD1'
+        }
+    },
+    {
+        'label': 'Qwen2.5-72B-Instruct',
+        'value': 'Qwen/Qwen2.5-72B-Instruct'
     },
     {
         'label': 'DeepSeek-V3-0324',
@@ -82,9 +113,15 @@ model_options = [
     {
         'label': 'QwQ-32B',
         'value': 'Qwen/QwQ-32B',
-        'thought': True
+        'thought': True,
+        'tag': {
+            'label': '推理模型',
+            'color': '#624AFF'
+        }
     },
 ]
+
+model_options_map = {model['value']: model for model in model_options}
 
 primary_color = '#816DF8'
 
@@ -130,7 +167,7 @@ def bot_config(disabled_actions=None):
 def welcome_config(prompts: dict, loading=False):
     return ChatbotWelcomeConfig(
         icon='./assets/mcp.png',
-        title='MCP 实验场',
+        title='ModelScope MCP 实验场',
         styles=dict(icon=dict(borderRadius='50%', overflow='hidden')),
         description='调用 MCP 工具以拓展模型能力',
         prompts=dict(

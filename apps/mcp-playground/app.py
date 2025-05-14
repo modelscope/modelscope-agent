@@ -5,17 +5,18 @@ import modelscope_studio.components.antd as antd
 import modelscope_studio.components.antdx as antdx
 import modelscope_studio.components.base as ms
 import modelscope_studio.components.pro as pro
-from app_mcp_client import generate_with_mcp, get_mcp_prompts, parse_mcp_config
 from config import (bot_avatars, bot_config, default_locale,
                     default_mcp_config, default_mcp_prompts,
                     default_mcp_servers, default_theme, mcp_prompt_model,
-                    primary_color, user_config, welcome_config)
+                    model_options, model_options_map, primary_color,
+                    user_config, welcome_config)
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
 from langchain.chat_models import init_chat_model
-from modelscope_agent.agents.agent_with_mcp import AgentWithMCP
+from mcp_client import generate_with_mcp, get_mcp_prompts
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
+from tools.oss import file_path_to_oss_url
 from ui_components.config_form import ConfigForm
 from ui_components.mcp_servers_button import McpServersButton
 
@@ -37,14 +38,14 @@ def format_messages(messages, oss_cache):
             for content in message['content']:
                 if content['type'] == 'text':
                     contents += content['content']
-                # elif content["type"] == "file":
-                #     files = []
-                #     for file_path in content["content"]:
-                #         file_url = oss_cache.get(
-                #             file_path, file_path_to_oss_url(file_path))
-                #         oss_cache[file_path] = file_url
-                #         files.append(file_url)
-                #     contents += f"\n\nAttachment links: [{','.join(files)}]\n\n"
+                elif content['type'] == 'file':
+                    files = []
+                    for file_path in content['content']:
+                        file_url = oss_cache.get(
+                            file_path, file_path_to_oss_url(file_path))
+                        oss_cache[file_path] = file_url
+                        files.append(file_url)
+                    contents += f"\n\nAttachment links: [{','.join(files)}]\n\n"
 
             formatted_messages.append({'role': 'user', 'content': contents})
 
@@ -62,12 +63,23 @@ def format_messages(messages, oss_cache):
     return formatted_messages
 
 
-def submit(input_value, config_form_value, mcp_config_value,
-           mcp_servers_btn_value, chatbot_value, oss_state_value,
-           history_config):
-    model = config_form_value.get('model', '')
+def format_chatbot_header(model, model_config):
+    tag_label = model_config.get('tag', {}).get('label')
+    model_name = model.split('/')[1]
+    if tag_label:
+        return f'{model_name} `{tag_label}`'
+    else:
+        return model_name
+
+
+async def submit(input_value, config_form_value, mcp_config_value,
+                 mcp_servers_btn_value, chatbot_value, oss_state_value):
+    model_value = config_form_value.get('model', '')
+    model = model_value.split(':')[0]
+    model_config = next(
+        (x for x in model_options if x['value'] == model_value))
+    model_params = model_config.get('model_params', {})
     sys_prompt = config_form_value.get('sys_prompt', '')
-    history_config = json.loads(history_config)
 
     enabled_mcp_servers = [
         item['name'] for item in mcp_servers_btn_value['data_source']
@@ -92,8 +104,8 @@ def submit(input_value, config_form_value, mcp_config_value,
         'role': 'assistant',
         'loading': True,
         'content': [],
-        'header': model.split('/')[1],
-        'avatar': bot_avatars.get(model, None),
+        'header': format_chatbot_header(model, model_config),
+        'avatar': bot_avatars.get(model.split('/')[0], None),
         'status': 'pending'
     })
     yield gr.update(
@@ -107,169 +119,65 @@ def submit(input_value, config_form_value, mcp_config_value,
         tool_name = ''
         tool_args = ''
         tool_content = ''
-
-        get_llm = {
-            'model': model,
-            'model_server': 'https://api-inference.modelscope.cn/v1/',
-            'api_key': api_key
-        }
-        mcp_servers = {}
-        mcp_config = merge_mcp_config(
-            json.loads(mcp_config_value), internal_mcp_config)
-        mcp_servers['mcpServers'] = parse_mcp_config(mcp_config,
-                                                     enabled_mcp_servers)
-
-        agent_executor = AgentWithMCP(
-            function_list=[mcp_servers],
-            mcp=mcp_servers,
-            llm=get_llm,
-            instruction=sys_prompt)
-
-        agent_messages = format_messages(chatbot_value[:-1],
-                                         oss_state_value['oss_cache'])
-        # response = agent_executor.run(agent_messages[-1]["content"], history=history_config["history"])
-        response = agent_executor.run(
-            agent_messages, history=history_config['history'])
-        text = ''
-        for chunk in response:
-            msg = chunk[-1]
-            # text += chunk
+        async for chunk in generate_with_mcp(
+                format_messages(chatbot_value[:-1],
+                                oss_state_value['oss_cache']),
+                mcp_config=merge_mcp_config(
+                    json.loads(mcp_config_value), internal_mcp_config),
+                enabled_mcp_servers=enabled_mcp_servers,
+                sys_prompt=sys_prompt,
+                get_llm=lambda: init_chat_model(
+                    model=model,
+                    model_provider='openai',
+                    api_key=api_key,
+                    base_url='https://api-inference.modelscope.cn/v1/',
+                    **model_params)):
             chatbot_value[-1]['loading'] = False
             current_content = chatbot_value[-1]['content']
-            # 这里用来判断是否划分新的框类
-            # if prev_chunk_type is None:
-            #     current_content.append({})
-            #     prev_chunk_type = "text"
-            # for msg in chunk:
-            if msg['role'] == 'assistant':
-                if msg.get('reasoning_content'):
-                    msg_type = 'think'
-                    if prev_chunk_type != msg_type:
-                        current_content.append({})
-                    assert isinstance(msg['reasoning_content'],
-                                      str), 'Now only supports text messages'
-                    if not isinstance(current_content[-1].get('content'), str):
-                        current_content[-1]['content'] = ''
-                    current_content[-1]['type'] = 'text'
-                    current_content[-1]['content'] = msg['reasoning_content']
-                    prev_chunk_type = msg_type
-                if msg.get('content'):
-                    msg_type = 'text'
-                    if prev_chunk_type != msg_type:
-                        current_content.append({})
-                    assert isinstance(msg['content'],
-                                      str), 'Now only supports text messages'
-                    if not isinstance(current_content[-1].get('content'), str):
-                        current_content[-1]['content'] = ''
-                    current_content[-1]['type'] = 'text'
-                    current_content[-1]['content'] = msg['content']
-                    prev_chunk_type = msg_type
-                if msg.get('function_call'):
-                    msg_type = 'tool_call'
-                    if prev_chunk_type != msg_type:
-                        current_content.append({})
 
-                    current_content[-1]['type'] = 'tool'
-                    current_content[-1]['editable'] = False
-                    current_content[-1]['copyable'] = False
-                    if not isinstance(current_content[-1].get('options'),
-                                      dict):
-                        current_content[-1]['options'] = {
-                            'title': '',
-                            'status': 'pending'
-                        }
-                    if msg['function_call']['name']:
-                        tool_name = msg['function_call']['name']
-                        current_content[-1]['options'][
-                            'title'] = f'**🔧 调用 MCP 工具** `{tool_name}`'
-                    if msg['function_call']['arguments']:
-                        tool_args = msg['function_call']['arguments']
-                        current_content[-1][
-                            'content'] = f'**📝 参数**\n```json\n{tool_args}\n```\n\n'
-                    prev_chunk_type = msg_type
-            if msg['role'] == 'function':
-                chunk_content = msg['content']
+            if prev_chunk_type != chunk['type'] and not (
+                    prev_chunk_type == 'tool_call_chunks'
+                    and chunk['type'] == 'tool'):
+                current_content.append({})
+            prev_chunk_type = chunk['type']
+            if chunk['type'] == 'content':
+                current_content[-1]['type'] = 'text'
+                if not isinstance(current_content[-1].get('content'), str):
+                    current_content[-1]['content'] = ''
+                current_content[-1]['content'] += chunk['content']
+            elif chunk['type'] == 'tool':
+                if not isinstance(current_content[-1].get('content'), str):
+                    current_content[-1]['content'] = ''
+                chunk_content = chunk['content']
                 current_content[-1]['content'] = current_content[-1][
                     'content'] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
-                prev_chunk_type = 'function'
-                # faca_dic["content"] = faca_dic["content"] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
+                tool_name = ''
+                tool_args = ''
+                tool_content = ''
+                current_content[-1]['options']['status'] = 'done'
+            elif chunk['type'] == 'tool_call_chunks':
+                current_content[-1]['type'] = 'tool'
+                current_content[-1]['editable'] = False
+                current_content[-1]['copyable'] = False
+                if not isinstance(current_content[-1].get('options'), dict):
+                    current_content[-1]['options'] = {
+                        'title': '',
+                        'status': 'pending'
+                    }
+                if chunk['next_tool']:
+                    tool_name += ' '
+                    tool_content = tool_content + f'**📝 参数**\n```json\n{tool_args}\n```\n\n'
+                    tool_args = ''
+                if chunk['name']:
+                    tool_name += chunk['name']
+                    current_content[-1]['options'][
+                        'title'] = f'**🔧 调用 MCP 工具** `{tool_name}`'
+                if chunk['content']:
+                    tool_args += chunk['content']
+                    current_content[-1][
+                        'content'] = tool_content + f'**📝 参数**\n```json\n{tool_args}\n```'
+
             yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
-        # chatbot_value = generate_with_mcp(
-        #     format_messages(
-        #         chatbot_value[:-1],
-        #         oss_state_value["oss_cache"]),
-        #     mcp_config=merge_mcp_config(json.loads(mcp_config_value),
-        #         internal_mcp_config),
-        #     enabled_mcp_servers=enabled_mcp_servers,
-        #     sys_prompt=sys_prompt,
-        #     get_llm={
-        #             "model": model,
-        #             "model_server": "openai",
-        #             "api_key": api_key,
-        #             "api_base": "https://api-inference.modelscope.cn/v1/",
-        #             },
-        #     chatbot = chatbot_value
-        # )
-
-        # async for chunk in generate_with_mcp(
-        #         format_messages(chatbot_value[:-1],
-        #                         oss_state_value["oss_cache"]),
-        #         mcp_config=merge_mcp_config(json.loads(mcp_config_value),
-        #                                     internal_mcp_config),
-        #         enabled_mcp_servers=enabled_mcp_servers,
-        #         sys_prompt=sys_prompt,
-        #         get_llm={
-        #             "model": model,
-        #             "model_server": "openai",
-        #             "api_key": api_key,
-        #             "api_base": "https://api-inference.modelscope.cn/v1/",
-        #             }):
-        #     chatbot_value[-1]["loading"] = False
-        #     current_content = chatbot_value[-1]["content"]
-
-        #     if prev_chunk_type != chunk["type"] and not (
-        #             prev_chunk_type == "tool_call_chunks"
-        #             and chunk["type"] == "tool"):
-        #         current_content.append({})
-        #     prev_chunk_type = chunk["type"]
-        #     if chunk["type"] == "content":
-        #         current_content[-1]['type'] = "text"
-        #         if not isinstance(current_content[-1].get("content"), str):
-        #             current_content[-1]['content'] = ''
-        #         current_content[-1]['content'] += chunk['content']
-        #     elif chunk["type"] == "tool":
-        #         if not isinstance(current_content[-1].get("content"), str):
-        #             current_content[-1]['content'] = ''
-        #         chunk_content = chunk["content"]
-        #         current_content[-1]["content"] = current_content[-1][
-        #             "content"] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
-        #         tool_name = ""
-        #         tool_args = ""
-        #         tool_content = ""
-        #         current_content[-1]['options']["status"] = "done"
-        #     elif chunk["type"] == "tool_call_chunks":
-        #         current_content[-1]['type'] = "tool"
-        #         current_content[-1]['editable'] = False
-        #         current_content[-1]['copyable'] = False
-        #         if not isinstance(current_content[-1].get("options"), dict):
-        #             current_content[-1]['options'] = {
-        #                 "title": "",
-        #                 "status": "pending"
-        #             }
-        #         if chunk["next_tool"]:
-        #             tool_name += ' '
-        #             tool_content = tool_content + f"**📝 参数**\n```json\n{tool_args}\n```\n\n"
-        #             tool_args = ""
-        #         if chunk["name"]:
-        #             tool_name += chunk["name"]
-        #             current_content[-1]['options'][
-        #                 "title"] = f"**🔧 调用 MCP 工具** `{tool_name}`"
-        #         if chunk["content"]:
-        #             tool_args += chunk["content"]
-        #             current_content[-1][
-        #                 'content'] = tool_content + f"**📝 参数**\n```json\n{tool_args}\n```"
-        print('ok')
-        # yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
     except ExceptionGroup as eg:
         e = eg.exceptions[0]
         chatbot_value[-1]['loading'] = False
@@ -439,16 +347,6 @@ def load(mcp_servers_btn_value, browser_state_value, url_mcp_config_value):
     return gr.skip()
 
 
-# def init_user(uuid_str, state, _user_token=None):
-#     try:
-#         allow_tool_hub = False
-
-# def init_all(uuid_str, _state, _user_token):
-#     init_user(uuid_str, _state, _user_token)
-#     in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT',
-#                                  'None') == 'studio' and allow_tool_hub
-
-
 def lighten_color(hex_color, factor=0.2):
     hex_color = hex_color.lstrip('#')
 
@@ -469,6 +367,12 @@ def lighten_color(hex_color, factor=0.2):
 lighten_primary_color = lighten_color(primary_color, 0.4)
 
 css = f"""
+@media (max-width: 768px) {{
+    .mcp-playground-header {{
+        margin-top: 36px;
+    }}
+}}
+
 .ms-gr-auto-loading-default-antd {{
     z-index: 1001 !important;
 }}
@@ -478,7 +382,10 @@ css = f"""
 }}
 """
 
-with gr.Blocks(css=css) as demo:
+js = 'function init() { window.MODEL_OPTIONS_MAP=' + json.dumps(
+    model_options_map) + '}'
+
+with gr.Blocks(css=css, js=js) as demo:
     browser_state = gr.BrowserState(
         {
             'mcp_config': default_mcp_config,
@@ -508,18 +415,24 @@ with gr.Blocks(css=css) as demo:
                             preview=False,
                             width=20,
                             height=20)
-                        ms.Text('MCP 广场')
-            with antd.Flex(justify='center', gap='small', align='center'):
-                antd.Image(
-                    './assets/logo.png',
-                    preview=False,
-                    elem_style=dict(backgroundColor='#fff'),
-                    width=50,
-                    height=50)
-                antd.Typography.Title(
-                    'MCP Playground',
-                    level=1,
-                    elem_style=dict(fontSize=28, margin=0))
+                        ms.Text('ModelScope MCP 广场')
+            with ms.Div(elem_style=dict(overflow='hidden')):
+                with antd.Flex(
+                        justify='center',
+                        gap='small',
+                        align='center',
+                        elem_classes='mcp-playground-header'):
+                    with ms.Div(elem_style=dict(flexShrink=0, display='flex')):
+                        antd.Image(
+                            './assets/logo.png',
+                            preview=False,
+                            elem_style=dict(backgroundColor='#fff'),
+                            width=50,
+                            height=50)
+                    antd.Typography.Title(
+                        'MCP Playground',
+                        level=1,
+                        elem_style=dict(fontSize=28, margin=0))
 
         with antd.Tabs():
             with antd.Tabs.Item(label='实验场'):
@@ -577,7 +490,7 @@ with gr.Blocks(css=css) as demo:
             with antd.Tabs.Item(label='配置'):
                 with antd.Flex(vertical=True, gap='small'):
                     with antd.Card():
-                        config_form, mcp_config_confirm_btn, reset_mcp_config_btn, mcp_config, history_config = ConfigForm(
+                        config_form, mcp_config_confirm_btn, reset_mcp_config_btn, mcp_config = ConfigForm(
                         )
 
     url_mcp_config = gr.Textbox(visible=False)
@@ -617,8 +530,7 @@ with gr.Blocks(css=css) as demo:
     submit_event = input.submit(
         fn=submit,
         inputs=[
-            input, config_form, mcp_config, mcp_servers_btn, chatbot,
-            oss_state, history_config
+            input, config_form, mcp_config, mcp_servers_btn, chatbot, oss_state
         ],
         outputs=[input, clear_btn, chatbot])
     input.cancel(

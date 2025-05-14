@@ -41,15 +41,6 @@ def test_web_gen():
                 'type': 'sse',
                 'url': 'https://mcp.api-inference.modelscope.cn/sse/xxx'
             },
-            'web-search': {
-                'command': 'npx',
-                'args': ['-y', 'tavily-mcp@0.1.4'],
-                'env': {
-                    'TAVILY_API_KEY': ''
-                },
-                'disabled': False,
-                'autoApprove': []
-            },
             'edgeone-pages-mcp-server': {
                 'command': 'npx',
                 'args': ['edgeone-pages-mcp']
