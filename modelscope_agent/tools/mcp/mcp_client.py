@@ -250,17 +250,17 @@ class MCPClient:
         for mcp_server in mcp_servers:
 
             # Activate local planner `notebook`
-            if mcp_server == 'notebook':
+            if mcp_server in ['notebook', 'crawl4ai']:
                 mcp_path = os.path.dirname(os.path.abspath(__file__))
-                notebook_mcp_path = os.path.join(mcp_path, 'servers',
-                                                 mcp_server)
-                notebook_mcp_config_path = os.path.join(
-                    notebook_mcp_path, 'config.json')
-                if os.path.exists(notebook_mcp_config_path):
+                buildin_mcp_path = os.path.join(mcp_path, 'servers',
+                                                mcp_server)
+                buildin_mcp_config_path = os.path.join(buildin_mcp_path,
+                                                       'config.json')
+                if os.path.exists(buildin_mcp_config_path):
                     print(
-                        f'Got local planner `notebook`: {notebook_mcp_config_path}'
+                        f'Got local planner `notebook`: {buildin_mcp_config_path}'
                     )
-                    with open(notebook_mcp_config_path, 'r') as f:
+                    with open(buildin_mcp_config_path, 'r') as f:
                         content = json.load(f)
                         mcp_content = content[mcp_server]
                         command = mcp_content['command']
@@ -284,7 +284,7 @@ class MCPClient:
                         for idx in range(len(args)):
                             if 'server.py' in args[idx]:
                                 args[idx] = os.path.join(
-                                    notebook_mcp_path, 'server.py')
+                                    buildin_mcp_path, 'server.py')
 
                     mcp_servers[mcp_server] = mcp_content
 

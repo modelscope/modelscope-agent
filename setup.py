@@ -42,4 +42,7 @@ setup(
     install_requires=parse_requirements('requirements.txt'),
     long_description=readme(),
     long_description_content_type='text/markdown',
+    package_data={
+        'modelscope_agent.tools.mcp.servers.notebook': ['config.json'],
+    },
 )
