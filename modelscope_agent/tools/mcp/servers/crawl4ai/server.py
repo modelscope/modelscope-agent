@@ -1,7 +1,6 @@
 import json
 import trafilatura
 from crawl4ai import AsyncWebCrawler
-# from crawl4ai import *
 from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
 from crawl4ai.browser_manager import BrowserManager
 from fastmcp import FastMCP
