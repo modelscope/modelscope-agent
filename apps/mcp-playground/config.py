@@ -53,16 +53,16 @@ bot_avatars = {
     os.path.join(os.path.dirname(__file__), "./assets/deepseek.png"),
 }
 
-mcp_prompt_model = "Qwen/Qwen2.5-72B-Instruct"
+mcp_prompt_model = "Qwen/Qwen3-235B-A22B"
 
 model_options = [
     {
-        "label": "Qwen2.5-72B-Instruct",
-        "value": "Qwen/Qwen2.5-72B-Instruct"
+        "label": "Qwen3-235B-A22B",
+        "value": "Qwen/Qwen3-235B-A22B"
     },
     {
-        "label":"Qwen3-235B-A22B",
-        "value":"Qwen/Qwen3-235B-A22B"
+        "label": "Qwen2.5-72B-Instruct",
+        "value": "Qwen/Qwen2.5-72B-Instruct"
     },
     {
         "label": "DeepSeek-V3-0324",

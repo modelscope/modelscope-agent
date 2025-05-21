@@ -1,4 +1,3 @@
-modelscope_studio
 gradio
 langchain
 langchain-openai
@@ -7,4 +6,7 @@ langgraph
 langchain_mcp_adapters
 mcp
 exceptiongroup
+fastmcp   # todo: tbd...
+modelscope_studio==1.2.3
 oss2
+http://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/tmp/modelscope_agent-0.8.0rc1-py3-none-any.whl

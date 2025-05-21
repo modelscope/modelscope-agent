@@ -166,6 +166,8 @@ class Agent(ABC):
         num_llm_calls_available = 20
         response = []
         extra_generate_cfg = {'lang': 'zh'}
+        enable_thinking = kwargs.get('enable_thinking', False)
+        extra_generate_cfg['extra_body'] = {'enable_thinking': enable_thinking}
         if kwargs.get('seed') is not None:
             extra_generate_cfg['seed'] = kwargs['seed']
         while True and num_llm_calls_available > 0:
@@ -198,18 +200,6 @@ class Agent(ABC):
                 if not used_any_tool:
                     break
         yield response
-
-    def _call_llm(self,
-                  prompt: Optional[str] = None,
-                  messages: Optional[List[Dict]] = None,
-                  stop: Optional[List[str]] = None,
-                  **kwargs) -> Union[str, Iterator[str]]:
-        return self.llm.chat(
-            prompt=prompt,
-            messages=messages,
-            stop=stop,
-            stream=self.stream,
-            **kwargs)
 
     def _call_tool(self, tool_name: str, tool_args: Union[str, dict] = '{}', **kwargs) -> Union[str, List]:
         """The interface of calling tools for the agent.

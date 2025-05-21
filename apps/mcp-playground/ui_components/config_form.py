@@ -92,15 +92,6 @@ def ConfigForm():
         with antd.Form.Item(form_name="sys_prompt", label="系统提示"):
             antd.Input.Textarea(auto_size=dict(minRows=2, maxRows=4))
 
-        with antd.Form.Item(form_name="history", label="历史信息"):
-            history_config = gr.Code(default_history_config,
-                                 show_label=False,
-                                 container=False,
-                                 max_lines=20,
-                                 lines=3,
-                                 language="json")
-            # antd.Input.Textarea(auto_size=dict(minRows=2, maxRows=4))
-
     def add_mcp_server(mcp_config_value, add_mcp_server_form_value):
         if not mcp_config_value:
             mcp_config_value = "{}"
@@ -141,4 +132,4 @@ def ConfigForm():
         queue=False)
     model_select.change(fn=select_model, outputs=[thought_tip], queue=False)
 
-    return config_form, mcp_config_confirm_btn, reset_mcp_config_btn, mcp_config, history_config
+    return config_form, mcp_config_confirm_btn, reset_mcp_config_btn, mcp_config

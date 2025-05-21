@@ -17,6 +17,25 @@ from env import api_key, internal_mcp_config
 from modelscope_agent.agent import Agent
 
 
+def run_install(command: str):
+    import subprocess
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, shell=True, check=True)
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
+        print(f"'{command}' executed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing '{command}':")
+        print("STDOUT:", e.stdout)
+        print("STDERR:", e.stderr)
+        print("Return code:", e.returncode)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e} for command: {command}")
+
+print(f'>>Installing npm...')
+run_install('sudo apt update')
+run_install('sudo apt install -y npm')
+
 def merge_mcp_config(mcp_config1, mcp_config2):
     return {
         "mcpServers": {
@@ -60,10 +79,10 @@ def format_messages(messages, oss_cache):
 
 
 def submit(input_value, config_form_value, mcp_config_value,
-                 mcp_servers_btn_value, chatbot_value, oss_state_value, history_config):
+                 mcp_servers_btn_value, chatbot_value, oss_state_value):
     model = config_form_value.get("model", "")
     sys_prompt = config_form_value.get("sys_prompt", "")
-    history_config = json.loads(history_config)
+    history_config = config_form_value.get("history_config", [])
 
     enabled_mcp_servers = [
         item["name"] for item in mcp_servers_btn_value["data_source"]
@@ -119,7 +138,7 @@ def submit(input_value, config_form_value, mcp_config_value,
             llm=get_llm, instruction=sys_prompt)
         agent_messages = format_messages(chatbot_value[:-1],oss_state_value["oss_cache"])
         # response = agent_executor.run(agent_messages[-1]["content"], history=history_config["history"])
-        response = agent_executor.run(agent_messages, history=history_config["history"])
+        response = agent_executor.run(agent_messages, history=history_config)
         text = ""
         for chunk in response:
             msg = chunk[-1]
@@ -551,7 +570,7 @@ with gr.Blocks(css=css) as demo:
             with antd.Tabs.Item(label="配置"):
                 with antd.Flex(vertical=True, gap="small"):
                     with antd.Card():
-                        config_form, mcp_config_confirm_btn, reset_mcp_config_btn, mcp_config, history_config = ConfigForm(
+                        config_form, mcp_config_confirm_btn, reset_mcp_config_btn, mcp_config = ConfigForm(
                         )
 
     url_mcp_config = gr.Textbox(visible=False)
@@ -592,7 +611,7 @@ with gr.Blocks(css=css) as demo:
     submit_event = input.submit(fn=submit,
                                 inputs=[
                                     input, config_form, mcp_config,
-                                    mcp_servers_btn, chatbot, oss_state, history_config
+                                    mcp_servers_btn, chatbot, oss_state
                                 ],
                                 outputs=[input, clear_btn, chatbot])
     input.cancel(fn=cancel,
