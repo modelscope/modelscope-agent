@@ -1,6 +1,7 @@
 exceptiongroup
+fastmcp   # todo: tbd...
 gradio
-https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/tmp/modelscope_agent-0.8.0-py3-none-any.whl
+https://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/tmp/modelscope_agent-0.8.0rc0-py3-none-any.whl
 langchain
 langchain-openai
 langchain_core

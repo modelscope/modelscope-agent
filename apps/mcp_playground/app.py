@@ -1,4 +1,6 @@
 # flake8: noqa: E501
+from datetime import datetime
+
 import gradio as gr
 import json
 import modelscope_studio.components.antd as antd
@@ -13,12 +15,74 @@ from config import (bot_avatars, bot_config, default_locale,
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
 from langchain.chat_models import init_chat_model
-from mcp_client import generate_with_mcp, get_mcp_prompts
+from mcp_client import get_mcp_client, get_mcp_prompts
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
 from tools.oss import file_path_to_oss_url
 from ui_components.config_form import ConfigForm
 from ui_components.mcp_servers_button import McpServersButton
+
+DEFAULT_SYSTEM = f"""You are an assistant that helps generate comprehensive documentations or \
+webpages from gathered information. Today is {datetime.now().strftime("%Y-%m-%d")}.
+
+    ## Planning
+
+    You need to create a CONCISE, FOCUSED plan with ONLY meaningful, actionable steps, \
+    rely on the plan after you made it.
+
+    If you are making website, just make one single step for writing code to avoid too much messages. \
+    When developing a website, please implement complete and ready-to-use code. \
+    There is no need to save space when implementing the code. Please implement every line of code. \
+    Use proper event delegation or direct event binding
+
+    Give your final result(documentation/code) in <result></result> block.
+
+    Here shows a plan example:
+
+     ```
+    1. Research & Content Gathering:
+       1.1. Search and collect comprehensive information on [topic] using user's language
+       1.2. Identify and crawl authoritative sources for detailed content
+       1.3. Crawl enough high-quality medias(e.g. image links) from compatible platforms
+
+    2. Content Creation & Organization:
+       2.1. Develop main content sections with complete information
+       2.3. Organize information with logical hierarchy and flow
+
+    3. Design & Animation Implementation:
+       3.1. Create responsive layout with modern aesthetic, with all the useful information collected
+       3.2. Implement key animations for enhanced user experience
+       3.3. Write the final code...
+    ```
+
+    When executing specific task steps, please pay attention to the consistency of the previous and next content. \
+    When generating a series of images, you need to ensure that the images are generated consistently. \
+    Please clearly describe the main features such as color, type, and shape when generating each image.
+
+    History messages of the previous main step will not be kept, \
+    so you need to WRITE a concise but essential summary_and_result \
+    when calling `notebook---advance_to_next_step` for each sub-step.
+    In the later steps, you can only see the plans you made and the summary_and_result from the previous steps.
+    So you must MINIMIZE DEPENDENCIES between the the steps in the plan.
+    Note: The URL needs to retain complete information.
+
+    Here are some summary_and_result examples:
+
+    · Topic X has three primary categories: A, B, and C
+    · Latest statistics show 45% increase in adoption since 2023
+    · Expert consensus indicates approach Y is most effective
+    · Primary source: https://example.com/comprehensive-guide (contains detailed sections on implementation)
+    · Images: ["https://example.com/image1.jpg?Expires=a&KeyId=b&Signature=c", "https://example.com/image2.jpg", \
+    "https://example.com/diagram.png"] (Please copy the entire content of the url without doing any changes)
+    · Reference documentation: https://docs.example.com/api (sections 3.2-3.4 particularly relevant)
+    · Will focus on mobile-first approach due to 78% of users accessing via mobile devices
+    · Selected blue/green color scheme based on industry standards and brand compatibility
+    · Decided to implement tabbed interface for complex data presentation
+    · CODE:
+    ```
+    ... # complete and ready-to-use code here
+    ```
+    """
 
 
 def merge_mcp_config(mcp_config1, mcp_config2):
@@ -74,6 +138,11 @@ def format_chatbot_header(model, model_config):
 
 async def submit(input_value, config_form_value, mcp_config_value,
                  mcp_servers_btn_value, chatbot_value, oss_state_value):
+
+    print(
+        f'====submit: >>input_value: {input_value}, >>config_from_value: {config_form_value}, >>mcp_config_value: {mcp_config_value}, >>mcp_servers_btn_value: {mcp_servers_btn_value}, >>chatbot_value: {chatbot_value}, >>oss_state_value: {oss_state_value}'
+    )
+
     model_value = config_form_value.get('model', '')
     model = model_value.split(':')[0]
     model_config = next(
@@ -115,69 +184,55 @@ async def submit(input_value, config_form_value, mcp_config_value,
                 disabled_actions=['edit', 'retry', 'delete']),
             user_config=user_config(disabled_actions=['edit', 'delete']))
     try:
-        prev_chunk_type = None
-        tool_name = ''
-        tool_args = ''
-        tool_content = ''
-        async for chunk in generate_with_mcp(
-                format_messages(chatbot_value[:-1],
-                                oss_state_value['oss_cache']),
-                mcp_config=merge_mcp_config(
-                    json.loads(mcp_config_value), internal_mcp_config),
-                enabled_mcp_servers=enabled_mcp_servers,
-                sys_prompt=sys_prompt,
-                get_llm=lambda: init_chat_model(
-                    model=model,
-                    model_provider='openai',
-                    api_key=api_key,
-                    base_url='https://api-inference.modelscope.cn/v1/',
-                    **model_params)):
-            chatbot_value[-1]['loading'] = False
-            current_content = chatbot_value[-1]['content']
+        # prev_chunk_type = None
+        # tool_name = ''
+        # tool_args = ''
+        # tool_content = ''
 
-            if prev_chunk_type != chunk['type'] and not (
-                    prev_chunk_type == 'tool_call_chunks'
-                    and chunk['type'] == 'tool'):
-                current_content.append({})
-            prev_chunk_type = chunk['type']
-            if chunk['type'] == 'content':
-                current_content[-1]['type'] = 'text'
-                if not isinstance(current_content[-1].get('content'), str):
-                    current_content[-1]['content'] = ''
-                current_content[-1]['content'] += chunk['content']
-            elif chunk['type'] == 'tool':
-                if not isinstance(current_content[-1].get('content'), str):
-                    current_content[-1]['content'] = ''
-                chunk_content = chunk['content']
-                current_content[-1]['content'] = current_content[-1][
-                    'content'] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
-                tool_name = ''
-                tool_args = ''
-                tool_content = ''
-                current_content[-1]['options']['status'] = 'done'
-            elif chunk['type'] == 'tool_call_chunks':
-                current_content[-1]['type'] = 'tool'
-                current_content[-1]['editable'] = False
-                current_content[-1]['copyable'] = False
-                if not isinstance(current_content[-1].get('options'), dict):
-                    current_content[-1]['options'] = {
-                        'title': '',
-                        'status': 'pending'
-                    }
-                if chunk['next_tool']:
-                    tool_name += ' '
-                    tool_content = tool_content + f'**📝 参数**\n```json\n{tool_args}\n```\n\n'
-                    tool_args = ''
-                if chunk['name']:
-                    tool_name += chunk['name']
-                    current_content[-1]['options'][
-                        'title'] = f'**🔧 调用 MCP 工具** `{tool_name}`'
-                if chunk['content']:
-                    tool_args += chunk['content']
-                    current_content[-1][
-                        'content'] = tool_content + f'**📝 参数**\n```json\n{tool_args}\n```'
+        in_mcp_servers = merge_mcp_config(
+            json.loads(mcp_config_value), internal_mcp_config)
+        in_api_config = {
+            'api_key': api_key,
+            'model': model,
+            'model_server': 'https://api-inference.modelscope.cn/v1/',
+            'model_type': 'openai_fn_call'
+        }
 
-            yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
+        kwargs = {}
+        if 'qwen3' in in_api_config['model'].lower():
+            kwargs.update({
+                'stream': True,
+                'max_tokens': 16384,
+                'extra_body': {
+                    'enable_thinking': False
+                }
+            })
+        elif 'claude' in in_api_config['model'].lower():
+            kwargs.update({'max_tokens': 64000})
+
+        async with get_mcp_client(
+                mcp_servers=in_mcp_servers,
+                api_config=in_api_config) as client:
+            async for chunk in client.process_query(
+                    messages=format_messages(chatbot_value[:-1],
+                                             oss_state_value['oss_cache']),
+                    **kwargs):
+
+                # >>chunk: 你好！有什么我可以帮你的吗？, >>chatbot_value: [{'role': 'user', 'content': [{'type': 'text', 'content': '你好'}], 'class_names': {'content': 'user-message-content'}}, {'role': 'assistant', 'loading': True, 'content': [], 'header': 'Qwen3-235B-A22B `正常模式`', 'avatar': '/home/studio_service/PROJECT/./assets/qwen.png', 'status': 'pending'}]
+                print(f'>>chunk: {chunk}, >>chatbot_value: {chatbot_value}')
+
+                chatbot_value[-1]['loading'] = False
+                current_content = chatbot_value[-1]['content']
+                print(f'>>current_content: {current_content}')
+
+                if len(current_content) > 0:
+                    current_content[-1]['type'] = 'text'
+                    current_content[-1]['content'] += chunk
+                else:
+                    current_content.append({'type': 'text', 'content': chunk})
+
+                yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
+
     except ExceptionGroup as eg:
         e = eg.exceptions[0]
         chatbot_value[-1]['loading'] = False
@@ -200,6 +255,7 @@ async def submit(input_value, config_form_value, mcp_config_value,
         print('Error: ', e)
         raise gr.Error(str(e))
     finally:
+        print(f'>>chatbot_value for finally: {chatbot_value}')
         chatbot_value[-1]['status'] = 'done'
         yield gr.update(loading=False), gr.update(disabled=False), gr.update(
             value=chatbot_value,
@@ -316,6 +372,9 @@ def save_mcp_config_wrapper(initial: bool):
 
 def save_mcp_servers(mcp_servers_btn_value, browser_state_value):
     browser_state_value['mcp_servers'] = mcp_servers_btn_value['data_source']
+    print(
+        f'==save_mcp_servers   >>browser_state_value: {browser_state_value}, >>mcp_servers_btn_value: {mcp_servers_btn_value}'
+    )
     return gr.update(value=browser_state_value)
 
 
@@ -542,4 +601,4 @@ with gr.Blocks(css=css, js=js) as demo:
 
 demo.queue(
     default_concurrency_limit=100, max_size=100).launch(
-        ssr_mode=False, max_threads=100)
+        ssr_mode=False, max_threads=100, debug=True)
