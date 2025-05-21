@@ -4,12 +4,7 @@ from modelscope_studio.components.pro.chatbot import ChatbotWelcomeConfig, Chatb
 
 max_mcp_server_count = 10
 
-default_mcp_config = json.dumps({"mcpServers": {
-    "time": {
-      "type": "sse",
-      "url": "https://mcp.api-inference.modelscope.cn/sse/35bd8831457242"
-    }
-}},
+default_mcp_config = json.dumps({"mcpServers": {}},
                                 indent=4,
                                 ensure_ascii=False)
 
@@ -57,27 +52,83 @@ mcp_prompt_model = "Qwen/Qwen3-235B-A22B"
 
 model_options = [
     {
-        "label": "Qwen3-235B-A22B",
-        "value": "Qwen/Qwen3-235B-A22B"
+        'label': 'Qwen3-235B-A22B',
+        'value': 'Qwen/Qwen3-235B-A22B',
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': False,
+            }
+        },
+        'tag': {
+            'label': '正常模式',
+            'color': '#54C1FA'
+        }
     },
     {
-        "label": "Qwen2.5-72B-Instruct",
-        "value": "Qwen/Qwen2.5-72B-Instruct"
+        'label': 'Qwen3-235B-A22B',
+        'value': 'Qwen/Qwen3-235B-A22B:thinking',
+        'thought': True,
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': True,
+            }
+        },
+        'tag': {
+            'label': '深度思考',
+            'color': '#36CFD1'
+        }
     },
     {
-        "label": "DeepSeek-V3-0324",
-        "value": "deepseek-ai/DeepSeek-V3-0324",
+        'label': 'Qwen3-32B',
+        'value': 'Qwen/Qwen3-32B',
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': False,
+            }
+        },
+        'tag': {
+            'label': '正常模式',
+            'color': '#54C1FA'
+        }
     },
     {
-        "label": "Llama-4-Maverick-17B-128E-Instruct",
-        "value": "LLM-Research/Llama-4-Maverick-17B-128E-Instruct",
+        'label': 'Qwen3-32B',
+        'value': 'Qwen/Qwen3-32B:thinking',
+        'thought': True,
+        'model_params': {
+            'extra_body': {
+                'enable_thinking': True,
+            }
+        },
+        'tag': {
+            'label': '深度思考',
+            'color': '#36CFD1'
+        }
     },
     {
-        "label": "QwQ-32B",
-        "value": "Qwen/QwQ-32B",
-        "thought": True
+        'label': 'Qwen2.5-72B-Instruct',
+        'value': 'Qwen/Qwen2.5-72B-Instruct'
+    },
+    {
+        'label': 'DeepSeek-V3-0324',
+        'value': 'deepseek-ai/DeepSeek-V3-0324',
+    },
+    {
+        'label': 'Llama-4-Maverick-17B-128E-Instruct',
+        'value': 'LLM-Research/Llama-4-Maverick-17B-128E-Instruct',
+    },
+    {
+        'label': 'QwQ-32B',
+        'value': 'Qwen/QwQ-32B',
+        'thought': True,
+        'tag': {
+            'label': '推理模型',
+            'color': '#624AFF'
+        }
     },
 ]
+
+model_options_map = {model['value']: model for model in model_options}
 
 primary_color = "#816DF8"
 

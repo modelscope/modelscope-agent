@@ -15,7 +15,7 @@ from modelscope_agent.agent import Agent
 def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
     mcp_servers = {}
     for server_name, server in mcp_config.get("mcpServers", {}).items():
-        if server["type"] == "stdio" or (enabled_mcp_servers is not None
+        if server.get("type", "") == "stdio" or (enabled_mcp_servers is not None
                                          and server_name
                                          not in enabled_mcp_servers):
             continue

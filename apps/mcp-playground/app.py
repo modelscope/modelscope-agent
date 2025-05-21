@@ -1,18 +1,28 @@
+# flake8: noqa: E501
+from datetime import datetime
+
 import gradio as gr
-import modelscope_studio.components.base as ms
-import modelscope_studio.components.antd as antd
-import modelscope_studio.components.pro as pro
-import modelscope_studio.components.antdx as antdx
-from modelscope_studio.components.pro.multimodal_input import MultimodalInputUploadConfig
 import json
-from langchain.chat_models import init_chat_model
+import modelscope_studio.components.antd as antd
+import modelscope_studio.components.antdx as antdx
+import modelscope_studio.components.base as ms
+import modelscope_studio.components.pro as pro
+from config import (bot_avatars, bot_config, default_locale,
+                    default_mcp_config, default_mcp_prompts,
+                    default_mcp_servers, default_theme, mcp_prompt_model,
+                    model_options, model_options_map, primary_color,
+                    user_config, welcome_config)
+from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
+from langchain.chat_models import init_chat_model
+# from mcp_client import get_mcp_prompts, get_mcp_client
+from app_mcp_client import generate_with_mcp, get_mcp_prompts, parse_mcp_config
+
+from modelscope_studio.components.pro.multimodal_input import \
+    MultimodalInputUploadConfig
+from tools.oss import file_path_to_oss_url
 from ui_components.config_form import ConfigForm
 from ui_components.mcp_servers_button import McpServersButton
-from app_mcp_client import generate_with_mcp, get_mcp_prompts, parse_mcp_config
-from config import bot_config, default_mcp_config, default_mcp_prompts, default_mcp_servers, user_config, welcome_config, default_theme, default_locale, bot_avatars, primary_color, mcp_prompt_model
-from env import api_key, internal_mcp_config
-# from tools.oss import file_path_to_oss_url
 
 from modelscope_agent.agent import Agent
 
@@ -53,14 +63,14 @@ def format_messages(messages, oss_cache):
             for content in message["content"]:
                 if content["type"] == "text":
                     contents += content["content"]
-                # elif content["type"] == "file":
-                #     files = []
-                #     for file_path in content["content"]:
-                #         file_url = oss_cache.get(
-                #             file_path, file_path_to_oss_url(file_path))
-                #         oss_cache[file_path] = file_url
-                #         files.append(file_url)
-                #     contents += f"\n\nAttachment links: [{','.join(files)}]\n\n"
+                elif content["type"] == "file":
+                    files = []
+                    for file_path in content["content"]:
+                        file_url = oss_cache.get(
+                            file_path, file_path_to_oss_url(file_path))
+                        oss_cache[file_path] = file_url
+                        files.append(file_url)
+                    contents += f"\n\nAttachment links: [{','.join(files)}]\n\n"
 
             formatted_messages.append({"role": "user", "content": contents})
 
@@ -78,9 +88,22 @@ def format_messages(messages, oss_cache):
     return formatted_messages
 
 
+def format_chatbot_header(model, model_config):
+    tag_label = model_config.get('tag', {}).get('label')
+    model_name = model.split('/')[1]
+    if tag_label:
+        return f'{model_name} `{tag_label}`'
+    else:
+        return model_name
+
+
 def submit(input_value, config_form_value, mcp_config_value,
                  mcp_servers_btn_value, chatbot_value, oss_state_value):
-    model = config_form_value.get("model", "")
+    model_value = config_form_value.get("model", "")
+    model = model_value.split(':')[0]
+    model_config = next(
+        (x for x in model_options if x['value'] == model_value))
+    model_params = model_config.get('model_params', {})
     sys_prompt = config_form_value.get("sys_prompt", "")
     history_config = config_form_value.get("history_config", [])
 
@@ -107,8 +130,8 @@ def submit(input_value, config_form_value, mcp_config_value,
         "role": "assistant",
         "loading": True,
         "content": [],
-        "header": model.split("/")[1],
-        "avatar": bot_avatars.get(model, None),
+        "header": format_chatbot_header(model, model_config),
+        "avatar": bot_avatars.get(model.split('/')[0], None),
         "status": "pending"
     })
     yield gr.update(
@@ -122,12 +145,13 @@ def submit(input_value, config_form_value, mcp_config_value,
         tool_name = ""
         tool_args = ""
         tool_content = ""
-        
-        get_llm={
+
+        in_api_config = {
                     "model": model,
                     "model_server": "https://api-inference.modelscope.cn/v1/",
-                    "api_key": api_key
-                    }
+                    "api_key": api_key,
+
+                }
         mcp_servers = {}
         mcp_config = merge_mcp_config(json.loads(mcp_config_value),internal_mcp_config)
         mcp_servers["mcpServers"] = parse_mcp_config(mcp_config, enabled_mcp_servers)
@@ -135,7 +159,7 @@ def submit(input_value, config_form_value, mcp_config_value,
         agent_executor = Agent(
             # mcp=mcp_servers,
             function_list=[mcp_servers],
-            llm=get_llm, instruction=sys_prompt)
+            llm=in_api_config, instruction=sys_prompt)
         agent_messages = format_messages(chatbot_value[:-1],oss_state_value["oss_cache"])
         # response = agent_executor.run(agent_messages[-1]["content"], history=history_config["history"])
         response = agent_executor.run(agent_messages, history=history_config)
@@ -437,16 +461,6 @@ def load(mcp_servers_btn_value, browser_state_value, url_mcp_config_value):
                                           indent=4)), gr.skip(), gr.skip()
     return gr.skip()
 
-# def init_user(uuid_str, state, _user_token=None):
-#     try:
-#         allow_tool_hub = False
-
-# def init_all(uuid_str, _state, _user_token):
-#     init_user(uuid_str, _state, _user_token)
-#     in_ms_studio = os.getenv('MODELSCOPE_ENVIRONMENT',
-#                                  'None') == 'studio' and allow_tool_hub
-
-
 
 def lighten_color(hex_color, factor=0.2):
     hex_color = hex_color.lstrip("#")
@@ -468,6 +482,12 @@ def lighten_color(hex_color, factor=0.2):
 lighten_primary_color = lighten_color(primary_color, 0.4)
 
 css = f"""
+@media (max-width: 768px) {{
+    .mcp-playground-header {{
+        margin-top: 36px;
+    }}
+}}
+
 .ms-gr-auto-loading-default-antd {{
     z-index: 1001 !important;
 }}
@@ -477,7 +497,10 @@ css = f"""
 }}
 """
 
-with gr.Blocks(css=css) as demo:
+js = 'function init() { window.MODEL_OPTIONS_MAP=' + json.dumps(
+    model_options_map) + '}'
+
+with gr.Blocks(css=css, js=js) as demo:
     browser_state = gr.BrowserState(
         {
             "mcp_config": default_mcp_config,
@@ -506,16 +529,24 @@ with gr.Blocks(css=css) as demo:
                                    preview=False,
                                    width=20,
                                    height=20)
-                        ms.Text("MCP 广场")
-            with antd.Flex(justify="center", gap="small", align="center"):
-                antd.Image("./assets/logo.png",
-                           preview=False,
-                           elem_style=dict(backgroundColor="#fff"),
-                           width=50,
-                           height=50)
-                antd.Typography.Title("MCP Playground",
-                                      level=1,
-                                      elem_style=dict(fontSize=28, margin=0))
+                        ms.Text("ModelScope MCP 广场")
+            with ms.Div(elem_style=dict(overflow='hidden')):
+                with antd.Flex(
+                        justify='center',
+                        gap='small',
+                        align='center',
+                        elem_classes='mcp-playground-header'):
+                    with ms.Div(elem_style=dict(flexShrink=0, display='flex')):
+                        antd.Image(
+                            './assets/logo.png',
+                            preview=False,
+                            elem_style=dict(backgroundColor='#fff'),
+                            width=50,
+                            height=50)
+                    antd.Typography.Title(
+                        'MCP Playground',
+                        level=1,
+                        elem_style=dict(fontSize=28, margin=0))
 
         with antd.Tabs():
             with antd.Tabs.Item(label="实验场"):
