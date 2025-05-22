@@ -1,12 +1,14 @@
 # flake8: noqa: E501
+import os
 from datetime import datetime
-
+from openai import AsyncOpenAI
 import gradio as gr
 import json
 import modelscope_studio.components.antd as antd
 import modelscope_studio.components.antdx as antdx
 import modelscope_studio.components.base as ms
 import modelscope_studio.components.pro as pro
+
 from config import (bot_avatars, bot_config, default_locale,
                     default_mcp_config, default_mcp_prompts,
                     default_mcp_servers, default_theme, mcp_prompt_model,
@@ -14,9 +16,7 @@ from config import (bot_avatars, bot_config, default_locale,
                     user_config, welcome_config)
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
-from langchain.chat_models import init_chat_model
-# from mcp_client import get_mcp_prompts, get_mcp_client
-from app_mcp_client import generate_with_mcp, get_mcp_prompts, parse_mcp_config
+from app_mcp_client import get_mcp_prompts, parse_mcp_config
 
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
@@ -42,9 +42,12 @@ def run_install(command: str):
     except Exception as e:
         print(f"An unexpected error occurred: {e} for command: {command}")
 
-print(f'>>Installing npm...')
-run_install('sudo apt update')
-run_install('sudo apt install -y npm')
+
+if os.getenv("LOCAL_RUN", 'true').lower() not in ['true', '1']:
+    print(f'>>Installing npm...')
+    run_install('sudo apt update')
+    run_install('sudo apt install -y npm')
+
 
 def merge_mcp_config(mcp_config1, mcp_config2):
     return {
@@ -152,10 +155,8 @@ def submit(input_value, config_form_value, mcp_config_value,
                     "api_key": api_key,
 
                 }
-        mcp_servers = {}
-        mcp_config = merge_mcp_config(json.loads(mcp_config_value),internal_mcp_config)
-        mcp_servers["mcpServers"] = parse_mcp_config(mcp_config, enabled_mcp_servers)
-        
+        mcp_config = merge_mcp_config(json.loads(mcp_config_value), internal_mcp_config)
+        mcp_servers = parse_mcp_config(mcp_config, enabled_mcp_servers)
         agent_executor = Agent(
             # mcp=mcp_servers,
             function_list=[mcp_servers],
@@ -164,6 +165,10 @@ def submit(input_value, config_form_value, mcp_config_value,
         # response = agent_executor.run(agent_messages[-1]["content"], history=history_config["history"])
         response = agent_executor.run(agent_messages, history=history_config)
         text = ""
+        tool_name = ""
+        tool_args = ""
+        tool_content = ""
+        use_tool = False
         for chunk in response:
             msg = chunk[-1]
             # text += chunk
@@ -199,7 +204,7 @@ def submit(input_value, config_form_value, mcp_config_value,
                     msg_type = "tool_call"
                     if prev_chunk_type != msg_type:
                         current_content.append({})
-                    
+
                     current_content[-1]['type'] = "tool"
                     current_content[-1]['editable'] = False
                     current_content[-1]['copyable'] = False
@@ -208,93 +213,35 @@ def submit(input_value, config_form_value, mcp_config_value,
                             "title": "",
                             "status": "pending"
                             }
-                    if msg["function_call"]["name"]:
+                    if use_tool:
+                        last_tool = tool_name.split(' ')[-1]
+                        # deepseek api 存在多返回'}\n</tool'后又在下一chunk删除的情况
+                        if (msg["function_call"]["name"] and last_tool != msg["function_call"]["name"]) or (tool_args not in msg["function_call"]["arguments"]
+                                                                                                            and tool_args.strip('}\n</tool') != msg["function_call"]["arguments"].strip('}\n</tool').strip('}')):
+                            tool_name = tool_name + " " + msg["function_call"]["name"]
+                            tool_content = tool_content + f"**📝 参数**\n```json\n{tool_args}\n```\n\n"
+                            tool_args = ""
+                            current_content[-1]['options']["title"] = f"**🔧 调用 MCP 工具** `{tool_name}`"
+                    elif msg["function_call"]["name"]:
                         tool_name = msg["function_call"]["name"]
                         current_content[-1]['options']["title"] = f"**🔧 调用 MCP 工具** `{tool_name}`"
                     if msg["function_call"]["arguments"]:
                         tool_args = msg["function_call"]["arguments"]
-                        current_content[-1]['content'] = f"**📝 参数**\n```json\n{tool_args}\n```\n\n"
+                        current_content[-1]['content'] = tool_content +  f"**📝 参数**\n```json\n{tool_args}\n```\n\n"
+                    if msg["function_call"]["name"]:
+                        use_tool = True
                     prev_chunk_type = msg_type
             if msg['role'] == 'function':
+                use_tool = False
                 chunk_content = msg["content"]
                 current_content[-1]["content"] = current_content[-1]["content"] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
                 prev_chunk_type = "function"
+                tool_name = ""
+                tool_args = ""
+                tool_content = ""
+                current_content[-1]['options']["status"] = "done"
                 # faca_dic["content"] = faca_dic["content"] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
             yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
-        # chatbot_value = generate_with_mcp(
-        #     format_messages(
-        #         chatbot_value[:-1],
-        #         oss_state_value["oss_cache"]),
-        #     mcp_config=merge_mcp_config(json.loads(mcp_config_value),
-        #         internal_mcp_config),
-        #     enabled_mcp_servers=enabled_mcp_servers,
-        #     sys_prompt=sys_prompt,
-        #     get_llm={
-        #             "model": model,
-        #             "model_server": "openai",
-        #             "api_key": api_key,
-        #             "api_base": "https://api-inference.modelscope.cn/v1/",
-        #             },
-        #     chatbot = chatbot_value
-        # )
-
-        # async for chunk in generate_with_mcp(
-        #         format_messages(chatbot_value[:-1],
-        #                         oss_state_value["oss_cache"]),
-        #         mcp_config=merge_mcp_config(json.loads(mcp_config_value),
-        #                                     internal_mcp_config),
-        #         enabled_mcp_servers=enabled_mcp_servers,
-        #         sys_prompt=sys_prompt,
-        #         get_llm={
-        #             "model": model,
-        #             "model_server": "openai",
-        #             "api_key": api_key,
-        #             "api_base": "https://api-inference.modelscope.cn/v1/",
-        #             }):
-        #     chatbot_value[-1]["loading"] = False
-        #     current_content = chatbot_value[-1]["content"]
-
-        #     if prev_chunk_type != chunk["type"] and not (
-        #             prev_chunk_type == "tool_call_chunks"
-        #             and chunk["type"] == "tool"):
-        #         current_content.append({})
-        #     prev_chunk_type = chunk["type"]
-        #     if chunk["type"] == "content":
-        #         current_content[-1]['type'] = "text"
-        #         if not isinstance(current_content[-1].get("content"), str):
-        #             current_content[-1]['content'] = ''
-        #         current_content[-1]['content'] += chunk['content']
-        #     elif chunk["type"] == "tool":
-        #         if not isinstance(current_content[-1].get("content"), str):
-        #             current_content[-1]['content'] = ''
-        #         chunk_content = chunk["content"]
-        #         current_content[-1]["content"] = current_content[-1][
-        #             "content"] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
-        #         tool_name = ""
-        #         tool_args = ""
-        #         tool_content = ""
-        #         current_content[-1]['options']["status"] = "done"
-        #     elif chunk["type"] == "tool_call_chunks":
-        #         current_content[-1]['type'] = "tool"
-        #         current_content[-1]['editable'] = False
-        #         current_content[-1]['copyable'] = False
-        #         if not isinstance(current_content[-1].get("options"), dict):
-        #             current_content[-1]['options'] = {
-        #                 "title": "",
-        #                 "status": "pending"
-        #             }
-        #         if chunk["next_tool"]:
-        #             tool_name += ' '
-        #             tool_content = tool_content + f"**📝 参数**\n```json\n{tool_args}\n```\n\n"
-        #             tool_args = ""
-        #         if chunk["name"]:
-        #             tool_name += chunk["name"]
-        #             current_content[-1]['options'][
-        #                 "title"] = f"**🔧 调用 MCP 工具** `{tool_name}`"
-        #         if chunk["content"]:
-        #             tool_args += chunk["content"]
-        #             current_content[-1][
-        #                 'content'] = tool_content + f"**📝 参数**\n```json\n{tool_args}\n```"
         print("ok")
         # yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
     except ExceptionGroup as eg:
@@ -415,9 +362,8 @@ def save_mcp_config_wrapper(initial: bool):
                 gr.Success("保存成功")
             prompts = await get_mcp_prompts(
                 mcp_config=merge_mcp_config(mcp_config, internal_mcp_config),
-                get_llm=lambda: init_chat_model(
-                    model=mcp_prompt_model,
-                    model_provider="openai",
+                model=mcp_prompt_model,
+                openai_client=AsyncOpenAI(
                     api_key=api_key,
                     base_url="https://api-inference.modelscope.cn/v1/"))
 

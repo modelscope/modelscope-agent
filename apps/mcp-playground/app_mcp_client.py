@@ -1,9 +1,5 @@
-from typing import List, Callable
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.language_models import BaseChatModel
-# from langgraph.prebuilt import create_react_agent
-from langchain_mcp_adapters.client import MultiServerMCPClient
+from typing import List
+from modelscope_agent.tools.mcp.mcp_client import MCPClient
 import json
 import os
 import re
@@ -15,36 +11,37 @@ from modelscope_agent.agent import Agent
 def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
     mcp_servers = {}
     for server_name, server in mcp_config.get("mcpServers", {}).items():
-        if server.get("type", "") == "stdio" or (enabled_mcp_servers is not None
+        if server.get("type", "") in ["stdio", ""] or (enabled_mcp_servers is not None
                                          and server_name
                                          not in enabled_mcp_servers):
             continue
         new_server = {**server}
-        new_server["transport"] = server["type"]
+        new_server["transport"] = server.get("type", )
         del new_server["type"]
         if server.get("env"):
             env = {'PYTHONUNBUFFERED': '1', 'PATH': os.environ.get('PATH', '')}
             env.update(server["env"])
             new_server["env"] = env
         mcp_servers[server_name] = new_server
-    return mcp_servers
+    return {'mcpServers': mcp_servers}
 
 
 @asynccontextmanager
 async def get_mcp_client(mcp_servers: dict):
-    async with MultiServerMCPClient(mcp_servers) as client:
-        yield client
+    async with MCPClient(mcp_servers) as client:
+        await client.connect_all_servers()
+        return client
 
 
-async def get_mcp_prompts(mcp_config: dict, get_llm: Callable):
+async def get_mcp_prompts(mcp_config: dict, model: str, openai_client: "openai.AsyncOpenAI"):
     try:
         mcp_servers = parse_mcp_config(mcp_config)
         if len(mcp_servers.keys()) == 0:
             return {}
-        llm: BaseChatModel = get_llm()
-        async with get_mcp_client(mcp_servers) as client:
+        async with MCPClient(mcp_servers) as client:
+            tools = await client.get_tools()
             mcp_tool_descriptions = {}
-            for mcp_name, server_tools in client.server_name_to_tools.items():
+            for mcp_name, server_tools in tools.items():
                 mcp_tool_descriptions[mcp_name] = {}
                 for tool in server_tools:
                     mcp_tool_descriptions[mcp_name][
@@ -76,11 +73,17 @@ Ensure:
 5. Each service MUST have exactly 2-4 example queries - not fewer than 2 and not more than 4
 
 Return only the JSON object without any additional explanation or text."""
-            response = await llm.ainvoke(prompt)
-            if hasattr(response, 'content'):
-                content = response.content
-            else:
-                content = str(response)
+
+            response = await openai_client.chat.completions.create(
+                model=model,
+                stream=False,
+                extra_body = {'enable_thinking': False},
+                messages=[{
+                    'role': 'user',
+                    'content': prompt
+                }])
+            print(f'response: {response}')
+            content = response.choices[0].message.content
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 json_content = json_match.group(0)
@@ -100,7 +103,7 @@ Return only the JSON object without any additional explanation or text."""
             mcp_name: [
                 f"请使用 {mcp_name} 服务的功能帮我查询信息或解决问题",
             ]
-            for mcp_name in mcp_servers.keys()
+            for mcp_name in mcp_servers["mcpServers"].keys()
         }
 
 

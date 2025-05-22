@@ -2,6 +2,7 @@ import os
 import shutil
 from contextlib import AsyncExitStack
 from typing import Dict, Any, Literal
+from types import TracebackType
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -145,6 +146,22 @@ class MCPClient:
             tools[key].extend(response.tools)
         return tools
 
+    async def __aenter__(self) -> "MCPClient":
+        try:
+            await self.connect_all_servers()
+            return self
+        except Exception:
+            await self.exit_stack.aclose()
+            raise
+
     async def cleanup(self):
         """Clean up resources"""
+        await self.exit_stack.aclose()
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         await self.exit_stack.aclose()
