@@ -1,6 +1,5 @@
 # flake8: noqa: E501
 import os
-from datetime import datetime
 
 import gradio as gr
 import json

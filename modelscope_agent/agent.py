@@ -8,11 +8,11 @@ import json
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          OpenapiServiceProxy, ToolServiceProxy)
-from modelscope_agent.utils.utils import has_chinese_chars
 # from modelscope_agent.llm import get_chat_model
 # from modelscope_agent.llm.base import BaseChatModel
-from qwen_agent.llm import get_chat_model
-from qwen_agent.llm.base import BaseChatModel
+from modelscope_agent.utils.qwen_agent.base import (BaseChatModel,
+                                                    get_chat_model)
+from modelscope_agent.utils.utils import has_chinese_chars
 
 
 def enable_run_callback(func):
@@ -113,7 +113,7 @@ class Agent(ABC):
     @enable_run_callback
     def run(self, messages: List[Union[Dict, 'Message']], **kwargs
             ) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
-        from qwen_agent.llm.schema import CONTENT, DEFAULT_SYSTEM_MESSAGE, ROLE, SYSTEM, ContentItem, Message
+        from modelscope_agent.utils.qwen_agent.schema import CONTENT, ROLE, SYSTEM, ContentItem, Message
         """Return one response generator based on the received messages.
 
         This method performs a uniform type conversion for the inputted messages,
@@ -167,8 +167,7 @@ class Agent(ABC):
 
     # @abstractmethod
     def _run(self, messages: List, *args, **kwargs):
-        from qwen_agent.llm.schema import FUNCTION
-        from qwen_agent.utils.utils import merge_generate_cfgs
+        from modelscope_agent.utils.qwen_agent.schema import FUNCTION
         stream = kwargs.get('stream', True)
         messages = copy.deepcopy(messages)
         num_llm_calls_available = 20

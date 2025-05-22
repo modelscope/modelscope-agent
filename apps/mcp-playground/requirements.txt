@@ -10,4 +10,3 @@ langgraph
 mcp
 modelscope_studio==1.2.3
 oss2
-qwen-agent==0.0.21
