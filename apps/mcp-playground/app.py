@@ -1,6 +1,5 @@
 # flake8: noqa: E501
 import os
-from datetime import datetime
 
 import gradio as gr
 import json
@@ -8,7 +7,7 @@ import modelscope_studio.components.antd as antd
 import modelscope_studio.components.antdx as antdx
 import modelscope_studio.components.base as ms
 import modelscope_studio.components.pro as pro
-from app_mcp_client import get_mcp_prompts, parse_mcp_config
+from app_mcp_client import get_mcp_prompts
 from config import (bot_avatars, bot_config, default_locale,
                     default_mcp_config, default_mcp_prompts,
                     default_mcp_servers, default_theme, mcp_prompt_model,
@@ -17,6 +16,7 @@ from config import (bot_avatars, bot_config, default_locale,
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
 from modelscope_agent.agent import Agent
+from modelscope_agent.tools.mcp.utils import merge_mcp_config, parse_mcp_config
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
 from openai import AsyncOpenAI
@@ -46,15 +46,6 @@ if os.getenv('LOCAL_RUN', 'true').lower() not in ['true', '1']:
     print(f'>>Installing npm...')
     run_install('sudo apt update')
     run_install('sudo apt install -y npm')
-
-
-def merge_mcp_config(mcp_config1, mcp_config2):
-    return {
-        'mcpServers': {
-            **mcp_config1.get('mcpServers', {}),
-            **mcp_config2.get('mcpServers', {})
-        }
-    }
 
 
 def format_messages(messages, oss_cache):

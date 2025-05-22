@@ -1,36 +1,9 @@
-# flake8: noqa: F401
-import os
+# flake8: noqa
 import re
-from contextlib import asynccontextmanager
 
 import json
 from modelscope_agent.tools.mcp.mcp_client import MCPClient
-
-
-def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
-    mcp_servers = {}
-    for server_name, server in mcp_config.get('mcpServers', {}).items():
-        if server.get('type', '') in [
-                'stdio', ''
-        ] or (enabled_mcp_servers is not None
-              and server_name not in enabled_mcp_servers):
-            continue
-        new_server = {**server}
-        new_server['transport'] = server.get('type', )
-        del new_server['type']
-        if server.get('env'):
-            env = {'PYTHONUNBUFFERED': '1', 'PATH': os.environ.get('PATH', '')}
-            env.update(server['env'])
-            new_server['env'] = env
-        mcp_servers[server_name] = new_server
-    return {'mcpServers': mcp_servers}
-
-
-@asynccontextmanager
-async def get_mcp_client(mcp_servers: dict):
-    async with MCPClient(mcp_servers) as client:
-        await client.connect_all_servers()
-        return client
+from modelscope_agent.tools.mcp.utils import parse_mcp_config
 
 
 async def get_mcp_prompts(mcp_config: dict, model: str,
@@ -104,7 +77,7 @@ Return only the JSON object without any additional explanation or text."""
             mcp_name: [
                 f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
             ]
-            for mcp_name in mcp_servers['mcpServers'].keys()
+            for mcp_name in mcp_config['mcpServers'].keys()
         }
 
 

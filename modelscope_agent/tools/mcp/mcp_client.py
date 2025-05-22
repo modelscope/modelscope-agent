@@ -34,15 +34,15 @@ class MCPClient:
                     command = shutil.which('fastmcp')
                     if not command:
                         raise FileNotFoundError(
-                            f'Cannot locate the fastmcp command file for {mcp_content}, '
+                            f'Cannot locate the fastmcp command file for {mcp_server_name}, '
                             f'please install fastmcp by `pip install fastmcp`')
                     mcp_content['command'] = command
                 if 'uv' in command:
                     command = shutil.which('uv')
                     if not command:
                         raise FileNotFoundError(
-                            'Cannot locate the uv command, '
-                            'please consider your installation of Python.')
+                            'Cannot locate the uv command, please consider your installation of Python.'
+                        )
 
                 args = mcp_content['args']
                 for idx in range(len(args)):

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import threading
 from typing import Any, Dict, List, Union
 
@@ -14,7 +15,6 @@ class MCPManager:
 
     def __init__(self,
                  mcp_config: Dict[str, Any],
-                 api_config: Dict[str, Any],
                  tool_includes: List[Union[str, Dict[str, List]]]
                  or None = None,
                  tool_excludes: List[Union[str, Dict[str, List]]]
@@ -24,8 +24,7 @@ class MCPManager:
         self.loop_thread = threading.Thread(
             target=self.start_loop, daemon=True)
         self.loop_thread.start()
-
-        self.client: MCPClient = MCPClient(mcp_config, api_config)
+        self.client: MCPClient = MCPClient(mcp_config)
         self.all_tools = self.init_tools()
         self.tool_includes = tool_includes
         self.tool_excludes = tool_excludes
@@ -84,7 +83,7 @@ class MCPManager:
 
     async def init_tools_async(self):
         client = self.client
-        await client.connect_all_servers(None)
+        await client.connect_all_servers()
         mcp_tools = await client.get_tools()
         ms_tools = []
         for server_name, tools in mcp_tools.items():
@@ -128,8 +127,7 @@ class MCPManager:
             parameters = tool_parameters
 
             def call(self, params: Union[str, dict], **kwargs) -> str:
-                tool_args = json.loads(params) if isinstance(params,
-                                                             str) else params
+                tool_args = json.loads(params)
                 # Submit coroutine to the event loop and wait for the result
                 future = asyncio.run_coroutine_threadsafe(
                     manager.client.call_tool(mcp_server_name, tool_name,

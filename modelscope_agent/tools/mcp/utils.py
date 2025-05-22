@@ -35,3 +35,31 @@ def fix_json_brackets(json_str):
         result.append('}' if open_bracket == '{' else ']')
 
     return ''.join(result)
+
+
+def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
+    mcp_servers = {}
+    for server_name, server in mcp_config.get('mcpServers', {}).items():
+        if server.get('type', '') in [
+                'stdio', ''
+        ] or (enabled_mcp_servers is not None
+              and server_name not in enabled_mcp_servers):
+            continue
+        new_server = {**server}
+        new_server['transport'] = server.get('type', )
+        del new_server['type']
+        if server.get('env'):
+            env = {'PYTHONUNBUFFERED': '1', 'PATH': os.environ.get('PATH', '')}
+            env.update(server['env'])
+            new_server['env'] = env
+        mcp_servers[server_name] = new_server
+    return {'mcpServers': mcp_servers}
+
+
+def merge_mcp_config(mcp_config1, mcp_config2):
+    return {
+        'mcpServers': {
+            **mcp_config1.get('mcpServers', {}),
+            **mcp_config2.get('mcpServers', {})
+        }
+    }
