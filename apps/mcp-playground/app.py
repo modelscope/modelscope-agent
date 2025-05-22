@@ -19,7 +19,7 @@ from modelscope_agent.agent import Agent
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
 from openai import AsyncOpenAI
-from tools.oss import file_path_to_oss_url
+from oss_util import file_path_to_oss_url
 from ui_components.config_form import ConfigForm
 from ui_components.mcp_servers_button import McpServersButton
 
