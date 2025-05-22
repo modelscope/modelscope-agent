@@ -35,10 +35,10 @@ async def get_mcp_client(mcp_servers: dict):
 
 async def get_mcp_prompts(mcp_config: dict, model: str, openai_client: "openai.AsyncOpenAI"):
     try:
-        mcp_servers = parse_mcp_config(mcp_config)
-        if len(mcp_servers.keys()) == 0:
+        mcp_config = parse_mcp_config(mcp_config)
+        if len(mcp_config['mcpServers'].keys()) == 0:
             return {}
-        async with MCPClient(mcp_servers) as client:
+        async with MCPClient(mcp_config) as client:
             tools = await client.get_tools()
             mcp_tool_descriptions = {}
             for mcp_name, server_tools in tools.items():
@@ -123,17 +123,3 @@ def convert_mcp_name(tool_name: str, mcp_names: dict):
     if not mcp_name:
         return mcp_tool_name
     return f"[{mcp_name}] {mcp_tool_name}"
-
-
-def generate_with_mcp(messages: List[dict], mcp_config: dict,
-                            enabled_mcp_servers: list, sys_prompt: str,
-                            get_llm: dict, chatbot):
-    mcp_servers = {}
-    mcp_servers["mcpServers"] = parse_mcp_config(mcp_config, enabled_mcp_servers)
-    agent_executor = Agent(
-        mcp=mcp_servers, llm=get_llm, instruction=sys_prompt)
-    response = agent_executor.run("你好")
-    for chunk in response:
-        response += chunk
-        chatbot[-1]["content"] = response
-        yield chatbot
