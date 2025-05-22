@@ -1,4 +1,4 @@
-# flake8: noqa: F401
+# flake8: noqa
 import gradio as gr
 import json
 import modelscope_studio.components.antd as antd

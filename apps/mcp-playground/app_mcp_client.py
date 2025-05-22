@@ -1,58 +1,48 @@
-# flake8: noqa: F401
+# flake8: noqa
 import os
 import re
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Dict, List
 
 import json
-from exceptiongroup import ExceptionGroup
-from langchain_core.language_models import BaseChatModel
-from langchain_mcp_adapters.client import MultiServerMCPClient
 from modelscope_agent.tools.mcp.mcp_client import MCPClient
 
 
 def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
     mcp_servers = {}
     for server_name, server in mcp_config.get('mcpServers', {}).items():
-        if server.get('type') == 'stdio' or not server.get('url') or (
-                enabled_mcp_servers is not None
-                and server_name not in enabled_mcp_servers):
+        if server.get('type', '') in [
+                'stdio', ''
+        ] or (enabled_mcp_servers is not None
+              and server_name not in enabled_mcp_servers):
             continue
         new_server = {**server}
-        # new_server["transport"] = server.get("type", "sse")
-        new_server['transport'] = 'sse'
-        if hasattr(server, 'type'):
-            del new_server['type']
+        new_server['transport'] = server.get('type', )
+        del new_server['type']
         if server.get('env'):
             env = {'PYTHONUNBUFFERED': '1', 'PATH': os.environ.get('PATH', '')}
             env.update(server['env'])
             new_server['env'] = env
         mcp_servers[server_name] = new_server
-    return mcp_servers
+    return {'mcpServers': mcp_servers}
 
 
 @asynccontextmanager
-async def get_mcp_client_back(mcp_servers: dict):
-    async with MultiServerMCPClient(mcp_servers) as client:
-        yield client
+async def get_mcp_client(mcp_servers: dict):
+    async with MCPClient(mcp_servers) as client:
+        await client.connect_all_servers()
+        return client
 
 
-@asynccontextmanager
-async def get_mcp_client(mcp_servers: Dict[str, Any], api_config: Dict[str,
-                                                                       Any]):
-    async with MCPClient(mcp_servers, api_config) as client:
-        yield client
-
-
-async def get_mcp_prompts(mcp_config: dict, get_llm: Callable):
+async def get_mcp_prompts(mcp_config: dict, model: str,
+                          openai_client: 'openai.AsyncOpenAI'):
     try:
-        mcp_servers = parse_mcp_config(mcp_config)
-        if len(mcp_servers.keys()) == 0:
+        mcp_config = parse_mcp_config(mcp_config)
+        if len(mcp_config['mcpServers'].keys()) == 0:
             return {}
-        llm: BaseChatModel = get_llm()
-        async with get_mcp_client_back(mcp_servers) as client:
+        async with MCPClient(mcp_config) as client:
+            tools = await client.get_tools()
             mcp_tool_descriptions = {}
-            for mcp_name, server_tools in client.server_name_to_tools.items():
+            for mcp_name, server_tools in tools.items():
                 mcp_tool_descriptions[mcp_name] = {}
                 for tool in server_tools:
                     mcp_tool_descriptions[mcp_name][
@@ -84,11 +74,17 @@ Ensure:
 5. Each service MUST have exactly 2-4 example queries - not fewer than 2 and not more than 4
 
 Return only the JSON object without any additional explanation or text."""
-            response = await llm.ainvoke(prompt)
-            if hasattr(response, 'content'):
-                content = response.content
-            else:
-                content = str(response)
+
+            response = await openai_client.chat.completions.create(
+                model=model,
+                stream=False,
+                extra_body={'enable_thinking': False},
+                messages=[{
+                    'role': 'user',
+                    'content': prompt
+                }])
+            print(f'response: {response}')
+            content = response.choices[0].message.content
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 json_content = json_match.group(0)
@@ -102,21 +98,13 @@ Return only the JSON object without any additional explanation or text."""
                         f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
                     ]
             return raw_examples
-    except ExceptionGroup as eg:
-        print('Prompt ExceptionGroup Error:', eg)
-        return {
-            mcp_name: [
-                f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
-            ]
-            for mcp_name in mcp_servers.keys()
-        }
     except Exception as e:
         print('Prompt Error:', e)
         return {
             mcp_name: [
                 f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
             ]
-            for mcp_name in mcp_servers.keys()
+            for mcp_name in mcp_config['mcpServers'].keys()
         }
 
 
@@ -136,16 +124,3 @@ def convert_mcp_name(tool_name: str, mcp_names: dict):
     if not mcp_name:
         return mcp_tool_name
     return f'[{mcp_name}] {mcp_tool_name}'
-
-
-async def generate_with_mcp(messages: List[dict], mcp_config: dict,
-                            enabled_mcp_servers: list, sys_prompt: str,
-                            get_llm: Callable):
-
-    # todo: only for test
-    print(
-        f'>>messages: {messages}, mcp_config: {mcp_config}, enabled_mcp_servers: {enabled_mcp_servers}, sys_prompt: {sys_prompt}, get_llm: {get_llm}'
-    )
-    # [{'role': 'user', 'content': '北京今天天气怎么样'}], mcp_config: {'mcpServers': {'arxiv': {'type': 'sse', 'url': 'https://mcp-fb59e3e6-1e8e-461a.api-inference.modelscope.cn/sse'}, '高德地图': {'type': 'sse', 'url': 'https://mcp-948d4e04-78ae-4500.api-inference.modelscope.cn/sse'}, 'time': {'type': 'sse', 'url': 'https://mcp-80d0e36d-3045-4599.api-inference.modelscope.cn/sse'}, 'fetch': {'type': 'sse', 'url': 'https://mcp-cdb79f47-15a7-4a72.api-inference.modelscope.cn/sse'}}}, enabled_mcp_servers: ['高德地图', 'time', 'fetch'], sys_prompt: You are a helpful assistant., get_llm: <function submit.<locals>.<lambda> at 0x7f5346b68860>
-
-    pass

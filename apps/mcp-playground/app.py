@@ -1,4 +1,5 @@
 # flake8: noqa: E501
+import os
 from datetime import datetime
 
 import gradio as gr
@@ -7,6 +8,7 @@ import modelscope_studio.components.antd as antd
 import modelscope_studio.components.antdx as antdx
 import modelscope_studio.components.base as ms
 import modelscope_studio.components.pro as pro
+from app_mcp_client import get_mcp_prompts, parse_mcp_config
 from config import (bot_avatars, bot_config, default_locale,
                     default_mcp_config, default_mcp_prompts,
                     default_mcp_servers, default_theme, mcp_prompt_model,
@@ -14,75 +16,36 @@ from config import (bot_avatars, bot_config, default_locale,
                     user_config, welcome_config)
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
-from langchain.chat_models import init_chat_model
-from mcp_client import get_mcp_client, get_mcp_prompts
+from modelscope_agent.agent import Agent
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
+from openai import AsyncOpenAI
 from tools.oss import file_path_to_oss_url
 from ui_components.config_form import ConfigForm
 from ui_components.mcp_servers_button import McpServersButton
 
-DEFAULT_SYSTEM = f"""You are an assistant that helps generate comprehensive documentations or \
-webpages from gathered information. Today is {datetime.now().strftime("%Y-%m-%d")}.
 
-    ## Planning
+def run_install(command: str):
+    import subprocess
+    try:
+        result = subprocess.run(
+            command, capture_output=True, text=True, shell=True, check=True)
+        print('STDOUT:', result.stdout)
+        print('STDERR:', result.stderr)
+        print(f"'{command}' executed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing '{command}':")
+        print('STDOUT:', e.stdout)
+        print('STDERR:', e.stderr)
+        print('Return code:', e.returncode)
+    except Exception as e:
+        print(f'An unexpected error occurred: {e} for command: {command}')
 
-    You need to create a CONCISE, FOCUSED plan with ONLY meaningful, actionable steps, \
-    rely on the plan after you made it.
 
-    If you are making website, just make one single step for writing code to avoid too much messages. \
-    When developing a website, please implement complete and ready-to-use code. \
-    There is no need to save space when implementing the code. Please implement every line of code. \
-    Use proper event delegation or direct event binding
-
-    Give your final result(documentation/code) in <result></result> block.
-
-    Here shows a plan example:
-
-     ```
-    1. Research & Content Gathering:
-       1.1. Search and collect comprehensive information on [topic] using user's language
-       1.2. Identify and crawl authoritative sources for detailed content
-       1.3. Crawl enough high-quality medias(e.g. image links) from compatible platforms
-
-    2. Content Creation & Organization:
-       2.1. Develop main content sections with complete information
-       2.3. Organize information with logical hierarchy and flow
-
-    3. Design & Animation Implementation:
-       3.1. Create responsive layout with modern aesthetic, with all the useful information collected
-       3.2. Implement key animations for enhanced user experience
-       3.3. Write the final code...
-    ```
-
-    When executing specific task steps, please pay attention to the consistency of the previous and next content. \
-    When generating a series of images, you need to ensure that the images are generated consistently. \
-    Please clearly describe the main features such as color, type, and shape when generating each image.
-
-    History messages of the previous main step will not be kept, \
-    so you need to WRITE a concise but essential summary_and_result \
-    when calling `notebook---advance_to_next_step` for each sub-step.
-    In the later steps, you can only see the plans you made and the summary_and_result from the previous steps.
-    So you must MINIMIZE DEPENDENCIES between the the steps in the plan.
-    Note: The URL needs to retain complete information.
-
-    Here are some summary_and_result examples:
-
-    · Topic X has three primary categories: A, B, and C
-    · Latest statistics show 45% increase in adoption since 2023
-    · Expert consensus indicates approach Y is most effective
-    · Primary source: https://example.com/comprehensive-guide (contains detailed sections on implementation)
-    · Images: ["https://example.com/image1.jpg?Expires=a&KeyId=b&Signature=c", "https://example.com/image2.jpg", \
-    "https://example.com/diagram.png"] (Please copy the entire content of the url without doing any changes)
-    · Reference documentation: https://docs.example.com/api (sections 3.2-3.4 particularly relevant)
-    · Will focus on mobile-first approach due to 78% of users accessing via mobile devices
-    · Selected blue/green color scheme based on industry standards and brand compatibility
-    · Decided to implement tabbed interface for complex data presentation
-    · CODE:
-    ```
-    ... # complete and ready-to-use code here
-    ```
-    """
+if os.getenv('LOCAL_RUN', 'true').lower() not in ['true', '1']:
+    print(f'>>Installing npm...')
+    run_install('sudo apt update')
+    run_install('sudo apt install -y npm')
 
 
 def merge_mcp_config(mcp_config1, mcp_config2):
@@ -136,19 +99,15 @@ def format_chatbot_header(model, model_config):
         return model_name
 
 
-async def submit(input_value, config_form_value, mcp_config_value,
-                 mcp_servers_btn_value, chatbot_value, oss_state_value):
-
-    print(
-        f'====submit: >>input_value: {input_value}, >>config_from_value: {config_form_value}, >>mcp_config_value: {mcp_config_value}, >>mcp_servers_btn_value: {mcp_servers_btn_value}, >>chatbot_value: {chatbot_value}, >>oss_state_value: {oss_state_value}'
-    )
-
+def submit(input_value, config_form_value, mcp_config_value,
+           mcp_servers_btn_value, chatbot_value, oss_state_value):
     model_value = config_form_value.get('model', '')
     model = model_value.split(':')[0]
     model_config = next(
         (x for x in model_options if x['value'] == model_value))
     model_params = model_config.get('model_params', {})
     sys_prompt = config_form_value.get('sys_prompt', '')
+    history_config = config_form_value.get('history_config', [])
 
     enabled_mcp_servers = [
         item['name'] for item in mcp_servers_btn_value['data_source']
@@ -184,55 +143,121 @@ async def submit(input_value, config_form_value, mcp_config_value,
                 disabled_actions=['edit', 'retry', 'delete']),
             user_config=user_config(disabled_actions=['edit', 'delete']))
     try:
-        # prev_chunk_type = None
-        # tool_name = ''
-        # tool_args = ''
-        # tool_content = ''
+        prev_chunk_type = None
+        tool_name = ''
+        tool_args = ''
+        tool_content = ''
 
-        in_mcp_servers = merge_mcp_config(
-            json.loads(mcp_config_value), internal_mcp_config)
         in_api_config = {
-            'api_key': api_key,
             'model': model,
             'model_server': 'https://api-inference.modelscope.cn/v1/',
-            'model_type': 'openai_fn_call'
+            'api_key': api_key,
         }
-
-        kwargs = {}
-        if 'qwen3' in in_api_config['model'].lower():
-            kwargs.update({
-                'stream': True,
-                'max_tokens': 16384,
-                'extra_body': {
-                    'enable_thinking': False
-                }
-            })
-        elif 'claude' in in_api_config['model'].lower():
-            kwargs.update({'max_tokens': 64000})
-
-        async with get_mcp_client(
-                mcp_servers=in_mcp_servers,
-                api_config=in_api_config) as client:
-            async for chunk in client.process_query(
-                    messages=format_messages(chatbot_value[:-1],
-                                             oss_state_value['oss_cache']),
-                    **kwargs):
-
-                # >>chunk: 你好！有什么我可以帮你的吗？, >>chatbot_value: [{'role': 'user', 'content': [{'type': 'text', 'content': '你好'}], 'class_names': {'content': 'user-message-content'}}, {'role': 'assistant', 'loading': True, 'content': [], 'header': 'Qwen3-235B-A22B `正常模式`', 'avatar': '/home/studio_service/PROJECT/./assets/qwen.png', 'status': 'pending'}]
-                print(f'>>chunk: {chunk}, >>chatbot_value: {chatbot_value}')
-
-                chatbot_value[-1]['loading'] = False
-                current_content = chatbot_value[-1]['content']
-                print(f'>>current_content: {current_content}')
-
-                if len(current_content) > 0:
+        mcp_config = merge_mcp_config(
+            json.loads(mcp_config_value), internal_mcp_config)
+        mcp_config = parse_mcp_config(mcp_config, enabled_mcp_servers)
+        agent_executor = Agent(
+            # mcp=mcp_servers,
+            function_list=[mcp_config],
+            llm=in_api_config,
+            instruction=sys_prompt)
+        agent_messages = format_messages(chatbot_value[:-1],
+                                         oss_state_value['oss_cache'])
+        # response = agent_executor.run(agent_messages[-1]["content"], history=history_config["history"])
+        response = agent_executor.run(agent_messages, history=history_config)
+        text = ''
+        tool_name = ''
+        tool_args = ''
+        tool_content = ''
+        use_tool = False
+        for chunk in response:
+            msg = chunk[-1]
+            # text += chunk
+            chatbot_value[-1]['loading'] = False
+            current_content = chatbot_value[-1]['content']
+            # 这里用来判断是否划分新的框类
+            # if prev_chunk_type is None:
+            #     current_content.append({})
+            #     prev_chunk_type = "text"
+            # for msg in chunk:
+            if msg['role'] == 'assistant':
+                if msg.get('reasoning_content'):
+                    msg_type = 'think'
+                    if prev_chunk_type != msg_type:
+                        current_content.append({})
+                    assert isinstance(msg['reasoning_content'],
+                                      str), 'Now only supports text messages'
+                    if not isinstance(current_content[-1].get('content'), str):
+                        current_content[-1]['content'] = ''
                     current_content[-1]['type'] = 'text'
-                    current_content[-1]['content'] += chunk
-                else:
-                    current_content.append({'type': 'text', 'content': chunk})
+                    current_content[-1]['content'] = msg['reasoning_content']
+                    prev_chunk_type = msg_type
+                if msg.get('content'):
+                    msg_type = 'text'
+                    if prev_chunk_type != msg_type:
+                        current_content.append({})
+                    assert isinstance(msg['content'],
+                                      str), 'Now only supports text messages'
+                    if not isinstance(current_content[-1].get('content'), str):
+                        current_content[-1]['content'] = ''
+                    current_content[-1]['type'] = 'text'
+                    current_content[-1]['content'] = msg['content']
+                    prev_chunk_type = msg_type
+                if msg.get('function_call'):
+                    msg_type = 'tool_call'
+                    if prev_chunk_type != msg_type:
+                        current_content.append({})
 
-                yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
-
+                    current_content[-1]['type'] = 'tool'
+                    current_content[-1]['editable'] = False
+                    current_content[-1]['copyable'] = False
+                    if not isinstance(current_content[-1].get('options'),
+                                      dict):
+                        current_content[-1]['options'] = {
+                            'title': '',
+                            'status': 'pending'
+                        }
+                    if use_tool:
+                        last_tool = tool_name.split(' ')[-1]
+                        # deepseek api 存在多返回'}\n</tool'后又在下一chunk删除的情况
+                        if (msg['function_call']['name']
+                                and last_tool != msg['function_call']['name']
+                            ) or (tool_args
+                                  not in msg['function_call']['arguments']
+                                  and tool_args.strip('}\n</tool') !=
+                                  msg['function_call']['arguments'].strip(
+                                      '}\n</tool').strip('}')):
+                            tool_name = tool_name + ' ' + msg['function_call'][
+                                'name']
+                            tool_content = tool_content + f'**📝 参数**\n```json\n{tool_args}\n```\n\n'
+                            tool_args = ''
+                            current_content[-1]['options'][
+                                'title'] = f'**🔧 调用 MCP 工具** `{tool_name}`'
+                    elif msg['function_call']['name']:
+                        tool_name = msg['function_call']['name']
+                        current_content[-1]['options'][
+                            'title'] = f'**🔧 调用 MCP 工具** `{tool_name}`'
+                    if msg['function_call']['arguments']:
+                        tool_args = msg['function_call']['arguments']
+                        current_content[-1][
+                            'content'] = tool_content + f'**📝 参数**\n```json\n{tool_args}\n```\n\n'
+                    if msg['function_call']['name']:
+                        use_tool = True
+                    prev_chunk_type = msg_type
+            if msg['role'] == 'function':
+                use_tool = False
+                chunk_content = msg['content']
+                current_content[-1]['content'] = current_content[-1][
+                    'content'] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
+                prev_chunk_type = 'function'
+                tool_name = ''
+                tool_args = ''
+                tool_content = ''
+                current_content[-1]['options']['status'] = 'done'
+                # faca_dic["content"] = faca_dic["content"] + f'\n\n**🎯 结果**\n```\n{chunk_content}\n```'
+            yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
+        print('ok')
+        # yield gr.skip(), gr.skip(), gr.update(value=chatbot_value)
     except ExceptionGroup as eg:
         e = eg.exceptions[0]
         chatbot_value[-1]['loading'] = False
@@ -255,7 +280,6 @@ async def submit(input_value, config_form_value, mcp_config_value,
         print('Error: ', e)
         raise gr.Error(str(e))
     finally:
-        print(f'>>chatbot_value for finally: {chatbot_value}')
         chatbot_value[-1]['status'] = 'done'
         yield gr.update(loading=False), gr.update(disabled=False), gr.update(
             value=chatbot_value,
@@ -352,9 +376,8 @@ def save_mcp_config_wrapper(initial: bool):
                 gr.Success('保存成功')
             prompts = await get_mcp_prompts(
                 mcp_config=merge_mcp_config(mcp_config, internal_mcp_config),
-                get_llm=lambda: init_chat_model(
-                    model=mcp_prompt_model,
-                    model_provider='openai',
+                model=mcp_prompt_model,
+                openai_client=AsyncOpenAI(
                     api_key=api_key,
                     base_url='https://api-inference.modelscope.cn/v1/'))
 
@@ -372,9 +395,6 @@ def save_mcp_config_wrapper(initial: bool):
 
 def save_mcp_servers(mcp_servers_btn_value, browser_state_value):
     browser_state_value['mcp_servers'] = mcp_servers_btn_value['data_source']
-    print(
-        f'==save_mcp_servers   >>browser_state_value: {browser_state_value}, >>mcp_servers_btn_value: {mcp_servers_btn_value}'
-    )
     return gr.update(value=browser_state_value)
 
 
@@ -601,4 +621,4 @@ with gr.Blocks(css=css, js=js) as demo:
 
 demo.queue(
     default_concurrency_limit=100, max_size=100).launch(
-        ssr_mode=False, max_threads=100, debug=True)
+        ssr_mode=False, max_threads=100)

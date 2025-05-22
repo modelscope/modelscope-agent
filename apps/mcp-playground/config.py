@@ -12,6 +12,23 @@ default_mcp_config = json.dumps({'mcpServers': {}},
                                 indent=4,
                                 ensure_ascii=False)
 
+default_history_config = json.dumps(
+    {
+        'history': [{
+            'role': 'user',
+            'content': '介绍一下你自己',
+            'sent_from': '',
+            'send_to': 'all'
+        }, {
+            'role': 'assistant',
+            'content': '我是一个能够调用工具的智能ai',
+            'sent_from': '',
+            'send_to': 'all'
+        }]
+    },
+    indent=4,
+    ensure_ascii=False)
+
 default_sys_prompt = 'You are a helpful assistant.'
 
 # for internal
@@ -31,17 +48,19 @@ default_mcp_servers = [{
 } for mcp_name in default_mcp_prompts.keys()]
 
 bot_avatars = {
-    'Qwen':
+    'Qwen/Qwen2.5-72B-Instruct':
     os.path.join(os.path.dirname(__file__), './assets/qwen.png'),
-    'QwQ':
+    'Qwen/Qwen3-235B-A22B':
     os.path.join(os.path.dirname(__file__), './assets/qwen.png'),
-    'LLM-Research':
+    'Qwen/QwQ-32B':
+    os.path.join(os.path.dirname(__file__), './assets/qwen.png'),
+    'LLM-Research/Llama-4-Maverick-17B-128E-Instruct':
     os.path.join(os.path.dirname(__file__), './assets/meta.webp'),
-    'deepseek-ai':
+    'deepseek-ai/DeepSeek-V3-0324':
     os.path.join(os.path.dirname(__file__), './assets/deepseek.png'),
 }
 
-mcp_prompt_model = 'Qwen/Qwen2.5-72B-Instruct'
+mcp_prompt_model = 'Qwen/Qwen3-235B-A22B'
 
 model_options = [
     {
@@ -167,7 +186,7 @@ def bot_config(disabled_actions=None):
 def welcome_config(prompts: dict, loading=False):
     return ChatbotWelcomeConfig(
         icon='./assets/mcp.png',
-        title='ModelScope MCP 实验场',
+        title='MCP 实验场',
         styles=dict(icon=dict(borderRadius='50%', overflow='hidden')),
         description='调用 MCP 工具以拓展模型能力',
         prompts=dict(

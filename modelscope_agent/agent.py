@@ -1,6 +1,6 @@
 import copy
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
@@ -8,8 +8,11 @@ import json
 from modelscope_agent.callbacks import BaseCallback, CallbackManager
 from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
                                          OpenapiServiceProxy, ToolServiceProxy)
-from modelscope_agent.utils.qwen_agent.base import (BaseChatModel,
-                                                    get_chat_model)
+from modelscope_agent.utils.utils import has_chinese_chars
+# from modelscope_agent.llm import get_chat_model
+# from modelscope_agent.llm.base import BaseChatModel
+from qwen_agent.llm import get_chat_model
+from qwen_agent.llm.base import BaseChatModel
 
 
 def enable_run_callback(func):
@@ -110,10 +113,7 @@ class Agent(ABC):
     @enable_run_callback
     def run(self, messages: List[Union[Dict, 'Message']], **kwargs
             ) -> Union[Iterator[List['Message']], Iterator[List[Dict]]]:
-        from modelscope_agent.utils.qwen_agent.schema import (CONTENT, ROLE,
-                                                              SYSTEM,
-                                                              ContentItem,
-                                                              Message)
+        from qwen_agent.llm.schema import CONTENT, DEFAULT_SYSTEM_MESSAGE, ROLE, SYSTEM, ContentItem, Message
         """Return one response generator based on the received messages.
 
         This method performs a uniform type conversion for the inputted messages,
@@ -167,13 +167,15 @@ class Agent(ABC):
 
     # @abstractmethod
     def _run(self, messages: List, *args, **kwargs):
-        from modelscope_agent.utils.qwen_agent.schema import FUNCTION
-
+        from qwen_agent.llm.schema import FUNCTION
+        from qwen_agent.utils.utils import merge_generate_cfgs
         stream = kwargs.get('stream', True)
         messages = copy.deepcopy(messages)
         num_llm_calls_available = 20
         response = []
         extra_generate_cfg = {'lang': 'zh'}
+        enable_thinking = kwargs.get('enable_thinking', False)
+        extra_generate_cfg['extra_body'] = {'enable_thinking': enable_thinking}
         if kwargs.get('seed') is not None:
             extra_generate_cfg['seed'] = kwargs['seed']
         while True and num_llm_calls_available > 0:
@@ -210,18 +212,6 @@ class Agent(ABC):
                 if not used_any_tool:
                     break
         yield response
-
-    def _call_llm(self,
-                  prompt: Optional[str] = None,
-                  messages: Optional[List[Dict]] = None,
-                  stop: Optional[List[str]] = None,
-                  **kwargs) -> Union[str, Iterator[str]]:
-        return self.llm.chat(
-            prompt=prompt,
-            messages=messages,
-            stop=stop,
-            stream=self.stream,
-            **kwargs)
 
     def _call_tool(self,
                    tool_name: str,
