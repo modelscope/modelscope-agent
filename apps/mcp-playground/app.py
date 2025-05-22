@@ -15,7 +15,7 @@ from config import (bot_avatars, bot_config, default_locale,
                     user_config, welcome_config)
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
-from modelscope_agent.agent import Agent
+from modelscope_agent.agents.agent_with_mcp import AgentWithMCP
 from modelscope_agent.tools.mcp.utils import merge_mcp_config, parse_mcp_config
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
@@ -147,11 +147,13 @@ def submit(input_value, config_form_value, mcp_config_value,
         mcp_config = merge_mcp_config(
             json.loads(mcp_config_value), internal_mcp_config)
         mcp_config = parse_mcp_config(mcp_config, enabled_mcp_servers)
-        agent_executor = Agent(
-            # mcp=mcp_servers,
-            function_list=[mcp_config],
+
+        agent_executor = AgentWithMCP(
             llm=in_api_config,
-            instruction=sys_prompt)
+            mcp_config=mcp_config,
+            instruction=sys_prompt,
+        )
+
         agent_messages = format_messages(chatbot_value[:-1],
                                          oss_state_value['oss_cache'])
         # response = agent_executor.run(agent_messages[-1]["content"], history=history_config["history"])

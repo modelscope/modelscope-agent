@@ -1,20 +1,8 @@
-import asyncio
-import copy
-import os
-import re
-from datetime import datetime, timedelta
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from datetime import datetime
+from typing import Dict, Union
 
-import json
 from modelscope_agent import Agent
-from modelscope_agent.agent import enable_run_callback
-from modelscope_agent.llm.base import BaseChatModel
-from modelscope_agent.tools.base import (TOOL_REGISTRY, BaseTool,
-                                         ToolServiceProxy)
-from modelscope_agent.tools.mcp import MCPManager
-from modelscope_agent.tools.mcp.utils import fix_json_brackets
-from qwen_agent.llm import get_chat_model
-from qwen_agent.llm.schema import CONTENT, ROLE, SYSTEM, ContentItem, Message
+from qwen_agent.llm.base import BaseChatModel
 
 
 class AgentWithMCP(Agent):
@@ -81,6 +69,15 @@ class AgentWithMCP(Agent):
         ```
         """
 
-    def __init__(self, mcp_config: dict):
+    def __init__(self,
+                 llm: Union[Dict, BaseChatModel],
+                 mcp_config: Dict,
+                 instruction: Union[str, dict] = None):
 
-        super().__init__()
+        self.mcp_config = mcp_config
+
+        super().__init__(
+            llm=llm,
+            function_list=[self.mcp_config],
+            instruction=instruction or self.default_system,
+        )
