@@ -1,5 +1,6 @@
 # flake8: noqa: E501
 import os
+from datetime import datetime
 
 import gradio as gr
 import json
@@ -19,7 +20,7 @@ from modelscope_agent.agent import Agent
 from modelscope_studio.components.pro.multimodal_input import \
     MultimodalInputUploadConfig
 from openai import AsyncOpenAI
-from oss_util import file_path_to_oss_url
+from tools.oss import file_path_to_oss_url
 from ui_components.config_form import ConfigForm
 from ui_components.mcp_servers_button import McpServersButton
 
@@ -475,7 +476,6 @@ with gr.Blocks(css=css, js=js) as demo:
 
     with ms.Application(), antdx.XProvider(
             locale=default_locale, theme=default_theme), ms.AutoLoading():
-
         with antd.Badge.Ribbon(placement='start'):
             with ms.Slot('text'):
                 with antd.Typography.Link(

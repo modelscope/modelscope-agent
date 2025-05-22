@@ -1,4 +1,4 @@
-# flake8: noqa
+# flake8: noqa: F401
 import os
 import re
 from contextlib import asynccontextmanager
@@ -104,7 +104,7 @@ Return only the JSON object without any additional explanation or text."""
             mcp_name: [
                 f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
             ]
-            for mcp_name in mcp_config['mcpServers'].keys()
+            for mcp_name in mcp_servers['mcpServers'].keys()
         }
 
 

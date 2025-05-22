@@ -1,4 +1,4 @@
-# flake8: noqa
+# flake8: noqa: F401
 from typing import List
 
 import gradio as gr
