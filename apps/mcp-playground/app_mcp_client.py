@@ -1,27 +1,28 @@
-from typing import List
-from modelscope_agent.tools.mcp.mcp_client import MCPClient
-import json
 import os
 import re
 from contextlib import asynccontextmanager
+from typing import List
 
+import json
 from modelscope_agent.agent import Agent
+from modelscope_agent.tools.mcp.mcp_client import MCPClient
 
 
 def parse_mcp_config(mcp_config: dict, enabled_mcp_servers: list = None):
     mcp_servers = {}
-    for server_name, server in mcp_config.get("mcpServers", {}).items():
-        if server.get("type", "") in ["stdio", ""] or (enabled_mcp_servers is not None
-                                         and server_name
-                                         not in enabled_mcp_servers):
+    for server_name, server in mcp_config.get('mcpServers', {}).items():
+        if server.get('type', '') in [
+                'stdio', ''
+        ] or (enabled_mcp_servers is not None
+              and server_name not in enabled_mcp_servers):
             continue
         new_server = {**server}
-        new_server["transport"] = server.get("type", )
-        del new_server["type"]
-        if server.get("env"):
+        new_server['transport'] = server.get('type', )
+        del new_server['type']
+        if server.get('env'):
             env = {'PYTHONUNBUFFERED': '1', 'PATH': os.environ.get('PATH', '')}
-            env.update(server["env"])
-            new_server["env"] = env
+            env.update(server['env'])
+            new_server['env'] = env
         mcp_servers[server_name] = new_server
     return {'mcpServers': mcp_servers}
 
@@ -33,7 +34,8 @@ async def get_mcp_client(mcp_servers: dict):
         return client
 
 
-async def get_mcp_prompts(mcp_config: dict, model: str, openai_client: "openai.AsyncOpenAI"):
+async def get_mcp_prompts(mcp_config: dict, model: str,
+                          openai_client: 'openai.AsyncOpenAI'):
     try:
         mcp_config = parse_mcp_config(mcp_config)
         if len(mcp_config['mcpServers'].keys()) == 0:
@@ -77,7 +79,7 @@ Return only the JSON object without any additional explanation or text."""
             response = await openai_client.chat.completions.create(
                 model=model,
                 stream=False,
-                extra_body = {'enable_thinking': False},
+                extra_body={'enable_thinking': False},
                 messages=[{
                     'role': 'user',
                     'content': prompt
@@ -94,23 +96,23 @@ Return only the JSON object without any additional explanation or text."""
             for mcp_name in mcp_tool_descriptions.keys():
                 if mcp_name not in raw_examples:
                     raw_examples[mcp_name] = [
-                        f"请使用 {mcp_name} 服务的功能帮我查询信息或解决问题",
+                        f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
                     ]
             return raw_examples
     except Exception as e:
         print('Prompt Error:', e)
         return {
             mcp_name: [
-                f"请使用 {mcp_name} 服务的功能帮我查询信息或解决问题",
+                f'请使用 {mcp_name} 服务的功能帮我查询信息或解决问题',
             ]
-            for mcp_name in mcp_servers["mcpServers"].keys()
+            for mcp_name in mcp_servers['mcpServers'].keys()
         }
 
 
 def convert_mcp_name(tool_name: str, mcp_names: dict):
     if not tool_name:
         return tool_name
-    separators = tool_name.split("__TOOL__")
+    separators = tool_name.split('__TOOL__')
     if len(separators) >= 2:
         mcp_name_idx, mcp_tool_name = separators[:2]
     else:
@@ -122,4 +124,4 @@ def convert_mcp_name(tool_name: str, mcp_names: dict):
 
     if not mcp_name:
         return mcp_tool_name
-    return f"[{mcp_name}] {mcp_tool_name}"
+    return f'[{mcp_name}] {mcp_tool_name}'

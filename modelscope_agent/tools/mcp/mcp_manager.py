@@ -1,23 +1,28 @@
-
-import os
-import json
 import asyncio
+import os
 import threading
-from typing import Dict, Any, List, Union
-from .mcp_client import MCPClient
+from typing import Any, Dict, List, Union
+
+import json
+
 from ..base import BaseTool
+from .mcp_client import MCPClient
 
 DEFAULT_TOOL_EXCLUDES = [{'amap-maps': ['maps_geo']}]
 
 
 class MCPManager:
+
     def __init__(self,
                  mcp_config: Dict[str, Any],
-                 tool_includes: List[Union[str, Dict[str, List]]] or None = None,
-                 tool_excludes: List[Union[str, Dict[str, List]]] or None = DEFAULT_TOOL_EXCLUDES):
+                 tool_includes: List[Union[str, Dict[str, List]]]
+                 or None = None,
+                 tool_excludes: List[Union[str, Dict[str, List]]]
+                 or None = DEFAULT_TOOL_EXCLUDES):
         self.tool_meta: Dict[str, ]
         self.loop = asyncio.new_event_loop()
-        self.loop_thread = threading.Thread(target=self.start_loop, daemon=True)
+        self.loop_thread = threading.Thread(
+            target=self.start_loop, daemon=True)
         self.loop_thread.start()
         self.client: MCPClient = MCPClient(mcp_config)
         self.all_tools = self.init_tools()
@@ -28,7 +33,8 @@ class MCPManager:
         allowed_tools = []
         for tool in self.all_tools:
             service_name = tool.name.split('---')[0]
-            api_name = tool.name.split('---')[1] if '---' in tool.name else None
+            api_name = tool.name.split(
+                '---')[1] if '---' in tool.name else None
 
             # 默认行为: 如果includes为None则包含所有工具
             should_include = True if self.tool_includes is None else False
@@ -61,14 +67,13 @@ class MCPManager:
 
         return allowed_tools
 
-
-
     def start_loop(self):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
 
     def init_tools(self):
-        future = asyncio.run_coroutine_threadsafe(self.init_tools_async(), self.loop)
+        future = asyncio.run_coroutine_threadsafe(self.init_tools_async(),
+                                                  self.loop)
         try:
             result = future.result()
             return result
@@ -92,7 +97,8 @@ class MCPManager:
                 required_fields = {'type', 'properties', 'required'}
                 missing_fields = required_fields - parameters.keys()
                 if missing_fields:
-                    raise ValueError(f'Missing required fields in schema: {missing_fields}')
+                    raise ValueError(
+                        f'Missing required fields in schema: {missing_fields}')
 
                 # Keep only the necessary fields
                 cleaned_parameters = {
@@ -101,15 +107,17 @@ class MCPManager:
                     'required': parameters['required']
                 }
                 register_name = server_name + '---' + tool.name
-                agent_tool = self.create_tool_class(register_name=register_name,
-                                                    mcp_server_name=server_name,
-                                                    tool_name=tool.name,
-                                                    tool_desc=tool.description,
-                                                    tool_parameters=cleaned_parameters)
+                agent_tool = self.create_tool_class(
+                    register_name=register_name,
+                    mcp_server_name=server_name,
+                    tool_name=tool.name,
+                    tool_desc=tool.description,
+                    tool_parameters=cleaned_parameters)
                 ms_tools.append(agent_tool)
         return ms_tools
 
-    def create_tool_class(self, register_name, mcp_server_name, tool_name, tool_desc, tool_parameters):
+    def create_tool_class(self, register_name, mcp_server_name, tool_name,
+                          tool_desc, tool_parameters):
         manager = self
         mcp_server_name = mcp_server_name
 
@@ -121,8 +129,9 @@ class MCPManager:
             def call(self, params: Union[str, dict], **kwargs) -> str:
                 tool_args = json.loads(params)
                 # Submit coroutine to the event loop and wait for the result
-                future = asyncio.run_coroutine_threadsafe(manager.client.call_tool(mcp_server_name, tool_name, tool_args),
-                                                          manager.loop)
+                future = asyncio.run_coroutine_threadsafe(
+                    manager.client.call_tool(mcp_server_name, tool_name,
+                                             tool_args), manager.loop)
                 try:
                     result = future.result()
                     return result
@@ -138,5 +147,3 @@ class MCPManager:
         del self.client
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.loop_thread.join()
-
-

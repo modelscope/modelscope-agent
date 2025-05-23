@@ -1,13 +1,13 @@
+exceptiongroup
+fastmcp   # todo: tbd...
 gradio
+http://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/tmp/modelscope_agent-0.8.0rc2-py3-none-any.whl
 langchain
 langchain-openai
 langchain_core
-langgraph
 langchain_mcp_adapters
+langgraph
 mcp
-exceptiongroup
-fastmcp   # todo: tbd...
 modelscope_studio==1.2.3
-qwen-agent==0.0.21
 oss2
-http://modelscope-agent.oss-cn-hangzhou.aliyuncs.com/tmp/modelscope_agent-0.8.0rc2-py3-none-any.whl
+qwen-agent==0.0.21
