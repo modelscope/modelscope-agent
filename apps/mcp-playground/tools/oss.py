@@ -8,10 +8,10 @@ from oss2.credentials import EnvironmentVariableCredentialsProvider
 # OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET。
 auth = oss2.ProviderAuthV4(EnvironmentVariableCredentialsProvider())
 
-bucket = oss2.Bucket(auth, endpoint, bucket_name, region=region)
-
 
 def file_path_to_oss_url(file_path: str):
+    bucket = oss2.Bucket(auth, endpoint, bucket_name, region=region)
+
     if file_path.startswith('http'):
         return file_path
     ext = file_path.split('.')[-1]

@@ -15,7 +15,6 @@ from config import (bot_avatars, bot_config, default_locale,
                     user_config, welcome_config)
 from env import api_key, internal_mcp_config
 from exceptiongroup import ExceptionGroup
-from modelscope_agent.agent import Agent
 from modelscope_agent.agents.agent_with_mcp import AgentWithMCP
 from modelscope_agent.tools.mcp.utils import merge_mcp_config, parse_mcp_config
 from modelscope_studio.components.pro.multimodal_input import \
