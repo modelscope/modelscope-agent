@@ -41,11 +41,16 @@ jobs:
         run: |
           echo "MS_AGENT_HOME=$RUNNER_TEMP/ms-agent-check-home" >> "$GITHUB_ENV"
           python scripts/check_webui_release.py --tag "$RELEASE_TAG"
-      - name: Backend and SDK regression tests
+      - name: Install backend test dependencies
         run: |
           uv sync --project webui/backend --locked --inexact --extra local-embed
-          (cd webui/backend && uv run --no-sync pytest -q)
-          uv run --project webui/backend --no-sync pytest tests/cli tests/ui tests/release -q
+      - name: Check optional embedding runtime
+        run: webui/backend/.venv/bin/python -X faulthandler -c "import fastembed; print('Optional embedding runtime imported')"
+      - name: Backend regression tests
+        working-directory: webui/backend
+        run: .venv/bin/python -X faulthandler -m pytest -q
+      - name: SDK and release regression tests
+        run: webui/backend/.venv/bin/python -X faulthandler -m pytest tests/cli tests/ui tests/release -q
       - name: Frontend types, CSS and SSR build
         run: |
           mkdir -p "$RUNNER_TEMP/ms-agent-package-source"
