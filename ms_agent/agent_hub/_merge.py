@@ -530,6 +530,7 @@ SEMANTIC_GROUPS = [
         'openclaw': 'USER.md',
         'hermes': 'memories/USER.md',
         'qwenpaw': 'memory/USER.md',
+        'qoder': 'memory/USER.md',
         'ms-agent': 'PROFILE.md'
     },
     {
@@ -664,6 +665,56 @@ def _resolve_target_path(source_product: str, source_path: str,
     return source_path
 
 
+# Where UNMAPPED loose memory files (the ``memory/*`` / ``memories/*`` detail
+# files that travel beside the canonical ``MEMORY.md`` index) land on each
+# target framework. ``None`` means the target has a single-file memory slot:
+# the detail is inlined INTO that file instead of written beside it, because a
+# file the runtime never reads is a false promise of migration.
+#
+# * hermes keeps memory in ``memories/`` (plural) and reads the directory;
+# * openclaw / qwenpaw / qoder keep ``memory/*.md`` beside their index;
+# * nanobot's runtime reads ONLY ``memory/MEMORY.md`` (its MemoryStore has a
+#   fixed file list and never scans the directory) -> inline merge;
+# * openhuman injects ``MEMORY.md`` every session and keeps the bulk memory in
+#   the Obsidian-style ``wiki/`` vault (its Memory Tree mirror) -> detail
+#   routes into ``wiki/memory/``;
+# * ms-agent has no home-level memory slot at all (runtime memory is
+#   project-level) -> unmapped, the target-spec filter drops it like any
+#   other out-of-scope file.
+_MEMORY_LOOSE_HOME = {
+    'hermes': 'memories/',
+    'openclaw': 'memory/',
+    'qwenpaw': 'memory/',
+    'qoder': 'memory/',
+    'openhuman': 'wiki/memory/',
+    'nanobot': None,
+}
+
+# The single memory file a ``None`` entry in :data:`_MEMORY_LOOSE_HOME`
+# stands for (nanobot): loose detail is inlined into it.
+_SINGLE_FILE_MEMORY_SLOT = 'memory/MEMORY.md'
+
+
+def _rehome_loose_memory(path: str, target_product: str) -> str | None:
+    """Relocate one loose memory file onto the target's memory layout.
+
+    Returns the new relative path, or ``None`` when the target only reads a
+    single memory file and the content must be inlined into it instead.
+    Non-``.md`` payloads (openclaw ``memory/*.json``, nanobot
+    ``memory/history.jsonl``) and targets without a table entry keep the
+    original path, so the downstream target-spec filter decides their fate
+    exactly as before.
+    """
+    if not path.endswith('.md'):
+        return path
+    if target_product not in _MEMORY_LOOSE_HOME:
+        return path
+    home = _MEMORY_LOOSE_HOME[target_product]
+    if home is None:
+        return None
+    return home + path.split('/', 1)[1]
+
+
 def _extract_user_diff_text(user_content: str, source_default: str) -> str:
     """Extract user customizations as a text block.
 
@@ -758,6 +809,11 @@ def merge_resources(
 
     handled_target_paths = set()
     overflow_blocks: list[tuple[str, str]] = []
+    # Loose memory detail files deferred for inlining into the target's
+    # single-file memory slot (nanobot); applied after the loop so the
+    # canonical index -- possibly processed AFTER the detail files -- forms
+    # the base they append to.
+    loose_inline: list[tuple[str, str]] = []
 
     for path, content in incoming.items():
         # Skills: direct import, skip if exists.  Hermes' official
@@ -845,8 +901,7 @@ def merge_resources(
                                                target_product)
 
         if target_path is None:
-            if path.startswith('memory/') or path.startswith(
-                    'memories/') or path.startswith('wiki/'):
+            if path.startswith('wiki/'):
                 result.merged_files[path] = content
                 result.actions.append(
                     MergeAction(
@@ -854,6 +909,36 @@ def merge_resources(
                         action='import',
                         detail=
                         f'No mapping for {target_product}, imported as-is',
+                    ))
+                continue
+            if path.startswith('memory/') or path.startswith('memories/'):
+                # Unmapped memory file (e.g. a framework the USER group does
+                # not cover): re-home it onto the target's memory layout so
+                # the detail lands where the target's runtime actually reads
+                # it -- or inline it into the single-file slot -- instead of
+                # passing through verbatim only to die on the target-spec
+                # filter with the index left dangling.
+                new_path = _rehome_loose_memory(path, target_product)
+                if new_path is None:
+                    loose_inline.append((path, content))
+                    result.actions.append(
+                        MergeAction(
+                            path=_SINGLE_FILE_MEMORY_SLOT,
+                            action='merged',
+                            detail=(f'Loose memory detail {path} inlined into '
+                                    f'{_SINGLE_FILE_MEMORY_SLOT}'),
+                            src_path=path,
+                            dst_path=_SINGLE_FILE_MEMORY_SLOT,
+                        ))
+                    continue
+                result.merged_files[new_path] = content
+                result.actions.append(
+                    MergeAction(
+                        path=new_path,
+                        action='import',
+                        detail=(f'No mapping for {target_product}, '
+                                'imported as-is') if new_path == path else
+                        (f'Loose memory file rehomed {path} -> {new_path}'),
                     ))
                 continue
             user_diff = _extract_user_diff_text(content,
@@ -990,12 +1075,43 @@ def merge_resources(
             continue
 
         if path.startswith('memory/') or path.startswith('memories/'):
-            result.merged_files[target_path] = content
+            # Canonical memory files with an explicit semantic mapping (the
+            # MEMORY.md / USER.md groups) travel verbatim to their mapped
+            # slot. Unmapped LOOSE files fell back to their source path,
+            # which no target is guaranteed to accept: re-home them onto the
+            # target's memory layout (or inline into its single-file slot)
+            # so they never die silently on the target-spec filter.
+            if PATH_MAP.get((source_product, path), {}).get(
+                    target_product) is not None:
+                result.merged_files[target_path] = content
+                result.actions.append(
+                    MergeAction(
+                        path=target_path,
+                        action='import',
+                        detail='Memory file imported directly',
+                    ))
+                continue
+            new_path = _rehome_loose_memory(path, target_product)
+            if new_path is None:
+                loose_inline.append((path, content))
+                result.actions.append(
+                    MergeAction(
+                        path=_SINGLE_FILE_MEMORY_SLOT,
+                        action='merged',
+                        detail=(f'Loose memory detail {path} inlined into '
+                                f'{_SINGLE_FILE_MEMORY_SLOT}'),
+                        src_path=path,
+                        dst_path=_SINGLE_FILE_MEMORY_SLOT,
+                    ))
+                continue
+            result.merged_files[new_path] = content
             result.actions.append(
                 MergeAction(
-                    path=target_path,
+                    path=new_path,
                     action='import',
-                    detail='Memory file imported directly',
+                    detail='Memory file imported directly'
+                    if new_path == path else
+                    (f'Loose memory file rehomed {path} -> {new_path}'),
                 ))
             continue
 
@@ -1028,6 +1144,18 @@ def merge_resources(
             base = target_defaults.get(catch_all, '')
         result.merged_files[catch_all] = (
             base.rstrip() + '\n\n' + block if base.strip() else block)
+
+    # Inline loose memory detail into the target's single-file memory slot
+    # (nanobot reads ONLY ``memory/MEMORY.md``): the canonical index -- if
+    # any -- forms the base, detail files append as sourced sections in a
+    # deterministic order.
+    if loose_inline:
+        base = result.merged_files.get(_SINGLE_FILE_MEMORY_SLOT, '').rstrip()
+        for src_path, detail in sorted(loose_inline):
+            block = (f'## Imported from {source_product} {src_path}\n\n'
+                     f'{detail.strip()}')
+            base = f'{base}\n\n{block}' if base else block
+        result.merged_files[_SINGLE_FILE_MEMORY_SLOT] = base + '\n'
 
     return result
 
