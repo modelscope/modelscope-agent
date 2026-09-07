@@ -1,4 +1,8 @@
+import os
+import subprocess
+import sys
 import time
+from pathlib import Path
 
 from app.backends.ms_agent.skill_change_tracker import SkillChangeTracker
 
@@ -99,3 +103,27 @@ def test_webui_mutation_marks_scope_dirty_without_a_watcher():
         assert second.roots == ()
     finally:
         tracker.stop_all()
+
+
+def test_process_exit_joins_shared_native_watchers(tmp_path):
+    """A bare adapter user must not leave watchfiles in Python GC teardown."""
+    backend = Path(__file__).resolve().parents[1]
+    code = '''import atexit, json, sys, threading
+from pathlib import Path
+atexit.register(lambda: print(json.dumps([
+    t.name for t in threading.enumerate() if t.name.startswith("skill-watch-")
+])))
+from app.backends.ms_agent.skill_change_tracker import skill_change_tracker
+snapshot = skill_change_tracker.register("exit-check", [Path(sys.argv[1])])
+assert snapshot.ready and not snapshot.fail_safe
+'''
+    result = subprocess.run(
+        [sys.executable, "-X", "faulthandler", "-c", code, str(tmp_path)],
+        cwd=backend,
+        env={**os.environ, "MS_AGENT_HOME": str(tmp_path / "home")},
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("[]"), result.stdout

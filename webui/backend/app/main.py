@@ -65,8 +65,10 @@ def create_app() -> FastAPI:
         from app.backends.ms_agent.runtime import registry
         from app.backends.ms_agent.skill_index import skill_index
 
-        await registry.close_all()
-        skill_index.stop()
+        try:
+            await registry.close_all()
+        finally:
+            skill_index.stop()
 
     app.include_router(chat.router)
     app.include_router(presence.router)

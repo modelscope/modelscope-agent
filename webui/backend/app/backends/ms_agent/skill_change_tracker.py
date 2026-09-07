@@ -7,6 +7,7 @@ to perform its existing full reconciliation at the next turn boundary.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import threading
 from dataclasses import dataclass, field
@@ -191,7 +192,13 @@ class SkillChangeTracker:
             state.stop_event.set()
         for state in states:
             if state.thread is not None:
-                state.thread.join(timeout=0.25)
+                # watch() polls stop_event at most every rust_timeout (20 ms).
+                # Do not leave native callbacks alive during Python teardown.
+                state.thread.join()
 
 
 skill_change_tracker = SkillChangeTracker()
+# CLI utilities and tests may use the singleton without an ASGI lifespan.
+# atexit runs before module/GC teardown, while Rust callbacks can still safely
+# release their Python references. Normal server shutdown stops it earlier.
+atexit.register(skill_change_tracker.stop_all)

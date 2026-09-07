@@ -11,6 +11,15 @@ import pytest
 from app.backends.ms_agent import titler
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _stop_skill_watchers():
+    """Tests call adapters without an ASGI lifespan; close their shared state."""
+    yield
+    from app.backends.ms_agent.skill_index import skill_index
+
+    skill_index.stop()
+
+
 @pytest.fixture(autouse=True)
 def _stub_titler(monkeypatch):
     """Keep the offline suite network-free: never let chat.stream fire the real
