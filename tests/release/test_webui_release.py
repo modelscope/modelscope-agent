@@ -1,6 +1,7 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
 """Release guards must reject version drift and overwriting published bytes."""
 import importlib.util
+import json
 import pytest
 import subprocess
 import sys
@@ -13,45 +14,66 @@ import publish_webui_release as publish  # noqa: E402
 import webui_packaging as packaging  # noqa: E402
 
 
-def test_resource_selection_omits_undeclared_local_files(tmp_path, monkeypatch):
+@pytest.fixture
+def webui_tree(tmp_path, monkeypatch):
+    validator = packaging.frontend_validator()
     webui = tmp_path / 'webui'
-    for name in ('backend/app/main.py', 'backend/.env',
-                 '.claude/skills/local/SKILL.md', 'frontend/local-notes.md'):
-        file = webui / name
+    (webui / 'frontend').mkdir(parents=True)
+    monkeypatch.setattr(packaging, 'WEBUI', webui)
+    monkeypatch.setattr(packaging, 'frontend_validator', lambda: validator)
+    return webui
+
+
+def test_new_source_and_data_files_are_included_automatically(webui_tree):
+    before = set(packaging.resource_paths(include_build=False))
+    new_files = {'backend/app/new_feature.py',
+                 'backend/app/data/new_words.txt',
+                 'frontend/app/routes/new_page.tsx',
+                 'frontend/public/new_icon.svg'}
+    for name in new_files:
+        file = webui_tree / name
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text('new resource')
+    assert set(packaging.resource_paths(include_build=False)) - before == new_files
+
+
+def test_resource_selection_omits_local_config_and_caches(webui_tree):
+    before = packaging.resource_paths(include_build=False)
+    for name in ('backend/.env', 'backend/app/.env',
+                 'backend/app/__pycache__/main.pyc',
+                 'backend/app/main.pyc', 'backend/.venv/local.py',
+                 '.claude/skills/local/SKILL.md', 'frontend/local-notes.md',
+                 'frontend/node_modules/library/index.js',
+                 'frontend/app/.local/note.txt',
+                 'frontend/public/antd/manifest.json'):
+        file = webui_tree / name
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text('local content')
-    inputs = tmp_path / 'resource-files.txt'
-    inputs.write_text('# Package inputs\nbackend/app/main.py\n')
-    monkeypatch.setattr(packaging, 'WEBUI', webui)
-    monkeypatch.setattr(packaging, 'RESOURCE_LIST', inputs)
-    assert packaging.resource_paths(include_build=False) == [
-        'backend/app/main.py'
-    ]
+    assert packaging.resource_paths(include_build=False) == before
 
 
 @pytest.mark.parametrize('name', [
-    '../secret', '/tmp/secret', 'backend/../../secret',
-    'backend\\..\\..\\secret'
+    '../secret', '/tmp/secret', 'build/../../secret',
+    'build\\..\\..\\secret'
 ])
-def test_resource_list_rejects_paths_outside_webui(tmp_path, monkeypatch, name):
-    inputs = tmp_path / 'resource-files.txt'
-    inputs.write_text(name + '\n')
-    monkeypatch.setattr(packaging, 'WEBUI', tmp_path / 'webui')
-    monkeypatch.setattr(packaging, 'RESOURCE_LIST', inputs)
-    with pytest.raises(RuntimeError, match='Invalid WebUI resource path'):
-        packaging.resource_paths(include_build=False)
+def test_resource_selection_rejects_invalid_build_paths(webui_tree, name):
+    manifest = webui_tree / 'frontend/build/webui-build.json'
+    manifest.parent.mkdir()
+    manifest.write_text(json.dumps({'outputs': {name: 'hash'}}))
+    with pytest.raises(RuntimeError, match='Invalid.*path'):
+        packaging.resource_paths()
 
 
-def test_resource_list_rejects_symlinks(tmp_path, monkeypatch):
-    webui = tmp_path / 'webui'
-    webui.mkdir()
-    private = tmp_path / 'private'
-    private.write_text('private content')
-    (webui / 'config').symlink_to(private)
-    inputs = tmp_path / 'resource-files.txt'
-    inputs.write_text('config\n')
-    monkeypatch.setattr(packaging, 'WEBUI', webui)
-    monkeypatch.setattr(packaging, 'RESOURCE_LIST', inputs)
+@pytest.mark.parametrize('directory', [False, True])
+def test_resource_selection_rejects_symlinks(webui_tree, directory):
+    private = webui_tree.parent / 'private'
+    if directory:
+        private.mkdir()
+    else:
+        private.write_text('private content')
+    app = webui_tree / 'backend/app'
+    app.mkdir(parents=True)
+    (app / 'config').symlink_to(private, target_is_directory=directory)
     with pytest.raises(RuntimeError, match='Invalid WebUI resource path'):
         packaging.resource_paths(include_build=False)
 

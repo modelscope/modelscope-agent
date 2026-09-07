@@ -26,14 +26,16 @@ build; `ms-agent ui` prepares it when first started.
 
 ## Package inputs
 
-[`resource-files.txt`](resource-files.txt) lists WebUI source files relative to
-`webui/`. Add new runtime or frontend build inputs here when adding files.
-Generated frontend outputs are read from the frontend build manifest.
-Local configuration, caches and developer notes are not package inputs.
+Backend code and data are collected from `webui/backend/app/`. Frontend source
+files use the same discovery rules as build validation; generated outputs come
+from the frontend build manifest. New source files are included automatically.
+Hidden local files and Python caches are excluded, and dependency directories
+are outside the selected source directories. No Git metadata is needed to
+build a wheel from an sdist.
 
 `setup.py` loads [`webui_packaging.py`](webui_packaging.py) directly, and
 `MANIFEST.in` includes the helper in the sdist. `.gitignore` controls Git tracking;
-package contents are controlled separately by this file list and the build rules.
+package contents are controlled separately by the build rules.
 
 ## Validation tools
 

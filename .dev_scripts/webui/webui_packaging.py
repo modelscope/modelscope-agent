@@ -1,5 +1,5 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
-"""Explicit WebUI release inputs, shared by setuptools and release preparation."""
+"""WebUI package resources, shared by setuptools and release preparation."""
 import hashlib
 import importlib.util
 import json
@@ -9,7 +9,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WEBUI = ROOT / 'webui'
 MANIFEST = 'RESOURCE-MANIFEST.json'
-RESOURCE_LIST = Path(__file__).with_name('resource-files.txt')
 
 
 def digest(file):
@@ -34,12 +33,23 @@ def frontend_validator():
 
 
 def resource_paths(include_build=True):
-    """Select declared package inputs without copying local working files."""
+    """Collect backend resources and frontend inputs without local caches."""
     selected = {
-        line.strip()
-        for line in RESOURCE_LIST.read_text(encoding='utf-8').splitlines()
-        if line.strip() and not line.lstrip().startswith('#')
+        'README.md', 'README_ZH.md', 'backend/.env.example',
+        'backend/pyproject.toml', 'backend/uv.lock'
     }
+    for file in (WEBUI / 'backend/app').rglob('*'):
+        rel = file.relative_to(WEBUI)
+        if (any(
+                part.startswith('.')
+                or part in {'__pycache__', 'node_modules'}
+                for part in rel.parts) or file.suffix in {'.pyc', '.pyo'}):
+            continue
+        if file.is_file() or file.is_symlink():
+            selected.add(rel.as_posix())
+    selected.update(
+        file.relative_to(WEBUI).as_posix()
+        for file in frontend_validator().source_files(WEBUI / 'frontend'))
     build_manifest = WEBUI / 'frontend/build/webui-build.json'
     if include_build and build_manifest.is_file():
         build = json.loads(build_manifest.read_text(encoding='utf-8'))
@@ -60,14 +70,6 @@ def resource_paths(include_build=True):
 
 def validate_frontend():
     frontend_validator().validate_build(WEBUI / 'frontend')
-    build = json.loads(
-        (WEBUI
-         / 'frontend/build/webui-build.json').read_text(encoding='utf-8'))
-    allowed = set(resource_paths(include_build=False))
-    unexpected = {'frontend/' + rel for rel in build['inputs']} - allowed
-    if unexpected:
-        raise RuntimeError('Frontend inputs absent from resource-files.txt: '
-                           + ', '.join(sorted(unexpected)))
 
 
 def write_manifest(sdk_commit):

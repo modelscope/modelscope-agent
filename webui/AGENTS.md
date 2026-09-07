@@ -46,8 +46,8 @@ A service failure must stop the launched stack. Shutdown must close SDK
 resources and file watchers before Python exits.
 
 `pnpm build` generates the CSS, client files, SSR output and build manifest as a
-unit. Package preparation validates that they match. When adding files needed
-at runtime, update `.dev_scripts/webui/resource-files.txt` as well.
+unit. Package preparation validates that they match and discovers package files
+from the backend source tree and frontend build inputs.
 
 Backend tests run from `backend/` with `uv run pytest`; frontend checks run from
 `frontend/` with `pnpm typecheck` and `pnpm build`. For launcher changes, verify
