@@ -11,6 +11,7 @@ from ms_agent.agent_hub._merge import (
     _extract_user_diff_text,
     _resolve_target_path,
     merge_resources,
+    merged_away_pairs,
 )
 
 
@@ -287,6 +288,23 @@ class TestResolveTargetPath(unittest.TestCase):
         self.assertEqual(_resolve_target_path("ms-agent", "PROFILE.md", "qwenpaw"), "memory/USER.md")
         self.assertIsNone(_resolve_target_path("qwenpaw", "PROFILE.md", "ms-agent"))
 
+    def test_cross_product_qoder_user_md(self):
+        # qoder keeps its user profile inside the memory dir; it joins the
+        # USER group so it lands on each target's profile slot.
+        self.assertEqual(
+            _resolve_target_path("qoder", "memory/USER.md", "hermes"),
+            "memories/USER.md")
+        self.assertEqual(
+            _resolve_target_path("qoder", "memory/USER.md", "nanobot"),
+            "USER.md")
+        self.assertEqual(
+            _resolve_target_path("qoder", "memory/USER.md", "ms-agent"),
+            "PROFILE.md")
+        # openhuman has no USER slot: the merger re-homes it into the wiki
+        # vault instead of dropping it.
+        self.assertIsNone(
+            _resolve_target_path("qoder", "memory/USER.md", "openhuman"))
+
     def test_cross_product_ms_agent_no_memory_slot(self):
         # ms-agent has NO memory slot (memory is project-level at runtime, not
         # part of the global home layout). An inbound MEMORY.md therefore has no
@@ -319,9 +337,10 @@ class TestMergeResources(unittest.TestCase):
 
     def test_qoder_memory_maps_and_topic_files_pass_through(self):
         """Cross-framework, qoder's user-level memory index maps onto the
-        target's MEMORY.md slot while topic files keep their original path
-        (kept only if the target spec accepts it); both travel verbatim --
-        memory is user data, never rebased onto a target template."""
+        target's MEMORY.md slot while loose topic files re-home onto the
+        target's memory layout (openclaw keeps ``memory/*.md``, so the path
+        is unchanged here); both travel verbatim -- memory is user data,
+        never rebased onto a target template."""
         result = merge_resources(
             incoming={
                 "memory/MEMORY.md": "# Memory Index\n\n- [t](t.md) — x\n",
@@ -336,6 +355,124 @@ class TestMergeResources(unittest.TestCase):
                          "# Memory Index\n\n- [t](t.md) — x\n")
         self.assertEqual(result.merged_files["memory/t.md"],
                          "---\nname: t\n---\n\ntopic body\n")
+
+    def test_loose_memory_rehomed_for_hermes(self):
+        """hermes keeps memory in ``memories/`` (plural): loose detail files
+        re-home there so the index and its details stay co-located and the
+        index links resolve, instead of dying on the target-spec filter."""
+        result = merge_resources(
+            incoming={
+                "memory/MEMORY.md": "# Memory Index\n",
+                "memory/t.md": "topic body\n",
+            },
+            source_product="qoder",
+            target_product="hermes",
+            source_defaults={},
+            target_defaults={},
+        )
+        self.assertEqual(result.merged_files["memories/MEMORY.md"],
+                         "# Memory Index\n")
+        self.assertEqual(result.merged_files["memories/t.md"], "topic body\n")
+        self.assertNotIn("memory/t.md", result.merged_files)
+
+    def test_loose_memory_routed_into_openhuman_wiki(self):
+        """openhuman injects MEMORY.md every session and keeps bulk memory in
+        the Obsidian-style ``wiki/`` vault, so loose detail routes into
+        ``wiki/memory/`` -- including an unmapped USER profile."""
+        result = merge_resources(
+            incoming={
+                "memory/MEMORY.md": "# Memory Index\n",
+                "memory/t.md": "topic body\n",
+                "memory/USER.md": "profile body\n",
+            },
+            source_product="qoder",
+            target_product="openhuman",
+            source_defaults={},
+            target_defaults={},
+        )
+        self.assertEqual(result.merged_files["MEMORY.md"], "# Memory Index\n")
+        self.assertEqual(result.merged_files["wiki/memory/t.md"],
+                         "topic body\n")
+        self.assertEqual(result.merged_files["wiki/memory/USER.md"],
+                         "profile body\n")
+
+    def test_loose_memory_inlined_for_nanobot(self):
+        """nanobot's runtime reads ONLY ``memory/MEMORY.md`` (fixed file
+        list, no directory scan), so loose detail is inlined into it --
+        writing files beside the index would be a false promise of
+        migration. The index forms the base, details append as sourced
+        sections, and each merge is recorded for the CLI hint table."""
+        result = merge_resources(
+            incoming={
+                "memory/MEMORY.md": "# Memory Index\n",
+                "memory/t.md": "topic body\n",
+            },
+            source_product="qoder",
+            target_product="nanobot",
+            source_defaults={},
+            target_defaults={},
+        )
+        merged = result.merged_files["memory/MEMORY.md"]
+        self.assertTrue(merged.startswith("# Memory Index\n"))
+        self.assertIn("## Imported from qoder memory/t.md", merged)
+        self.assertIn("topic body", merged)
+        self.assertNotIn("memory/t.md", result.merged_files)
+        self.assertIn(("memory/t.md", "memory/MEMORY.md"),
+                      merged_away_pairs(result))
+
+    def test_loose_memory_inlined_without_index(self):
+        """With no canonical index on the source, the inlined sections alone
+        form nanobot's MEMORY.md."""
+        result = merge_resources(
+            incoming={"memory/t.md": "topic body\n"},
+            source_product="qoder",
+            target_product="nanobot",
+            source_defaults={},
+            target_defaults={},
+        )
+        merged = result.merged_files["memory/MEMORY.md"]
+        self.assertIn("## Imported from qoder memory/t.md", merged)
+        self.assertIn("topic body", merged)
+
+    def test_loose_memory_rehomed_from_hermes_source(self):
+        """The re-home is source-agnostic: hermes ``memories/*.md`` detail
+        lands in the target's ``memory/`` layout (qoder)."""
+        result = merge_resources(
+            incoming={"memories/note.md": "note body\n"},
+            source_product="hermes",
+            target_product="qoder",
+            source_defaults={},
+            target_defaults={},
+        )
+        self.assertEqual(result.merged_files["memory/note.md"], "note body\n")
+
+    def test_loose_non_md_memory_not_rehomed(self):
+        """Non-Markdown payloads (openclaw ``memory/*.json``, nanobot
+        ``history.jsonl``) keep their original path -- the target-spec
+        filter decides their fate exactly as before."""
+        result = merge_resources(
+            incoming={"memory/notes.json": "{}"},
+            source_product="qoder",
+            target_product="hermes",
+            source_defaults={},
+            target_defaults={},
+        )
+        self.assertIn("memory/notes.json", result.merged_files)
+        self.assertNotIn("memories/notes.json", result.merged_files)
+
+    def test_loose_memory_keeps_path_for_ms_agent(self):
+        """ms-agent has no home-level memory slot: loose detail keeps its
+        original path at the merge level and the target-spec filter drops
+        it (memory stays out of ms-agent by design)."""
+        result = merge_resources(
+            incoming={"memory/t.md": "topic body\n"},
+            source_product="qoder",
+            target_product="ms-agent",
+            source_defaults={},
+            target_defaults={},
+        )
+        self.assertEqual(result.merged_files.get("memory/t.md"),
+                         "topic body\n")
 
     def test_fills_missing_from_target_defaults(self):
         """merge_resources fills target defaults for absent source files."""
