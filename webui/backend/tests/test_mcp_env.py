@@ -8,12 +8,27 @@ from app.backends.ms_agent import mcp_health
 def test_env_files_published_to_environ():
     """settings.py publishes backend/.env + repo-root .env into os.environ
     (key presence only — values are never asserted or printed)."""
-    # CORS_ORIGINS lives in backend/.env; its being loadable proves the
-    # injection ran at import time (conftest imports app.core.settings).
-    from app.core.settings import settings
+    from dotenv import dotenv_values
 
-    assert settings.cors_origins  # settings side intact
-    assert "CORS_ORIGINS" in os.environ or "cors_origins" in os.environ
+    from app.core.settings import _ENV_FILES, settings
+
+    # Compare against whatever the dotenv chain actually declares rather than one
+    # hard-coded key: this asserts the injection ran (conftest imports
+    # app.core.settings) without breaking the next time a key is renamed.
+    declared = {
+        key
+        for env_file in _ENV_FILES
+        if env_file.exists()
+        for key, value in dotenv_values(env_file).items()
+        if value is not None
+    }
+    if not declared:
+        import pytest
+
+        pytest.skip("no .env present (copy backend/.env.example to run this)")
+
+    assert declared <= set(os.environ)
+    assert settings.cors_origin_list  # settings side intact
 
 
 def test_probe_runtime_view_expands_placeholders(monkeypatch):

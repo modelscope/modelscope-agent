@@ -36,9 +36,13 @@ async def chat_attach(body: ChatAttach):
 
 
 class PermissionResolve(BaseModel):
-    """Answer to a restricted-mode authorization card (step kind
-    "authorization"): the SSE turn is suspended on this request_id until it is
-    resolved here or the backend times out to deny."""
+    """Answer to an authorization card (step kind "authorization"): the SSE
+    turn is suspended on this request_id until it is resolved here.
+
+    In "always ask" mode the wait has no deadline — the user asked to be
+    consulted, so the question stays open until they answer it or the session
+    closes. Full access bounds the wait (``FULL_ACCESS_ASK_TIMEOUT_S``), since
+    nobody may be watching at all."""
 
     session_id: str
     request_id: str

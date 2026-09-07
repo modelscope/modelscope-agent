@@ -2,6 +2,7 @@ import { Drawer, Segmented, Select, Tooltip } from 'antd'
 import type { TreeDataNode } from 'antd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CodeEditor } from '~/components/common/CodeEditor'
+import { DeferredSkeleton } from '~/components/common/DeferredSkeleton'
 import { FolderTree } from '~/components/common/FolderTree'
 import { Markdown } from '~/components/common/Markdown'
 import { api } from '~/lib/api'
@@ -91,9 +92,16 @@ export function SkillDetailDrawer({
     if (!open || !skill) return
     setSelected('SKILL.md')
     setViewMode('preview')
-    // Seed SKILL.md from the already-loaded skill body for an instant first
-    // paint; the file list arrives async.
-    setBodies({ 'SKILL.md': skill.content ?? '' })
+    // Start with NO cached bodies. This used to seed
+    // `bodies['SKILL.md'] = skill.content` as an "instant first paint", but
+    // `content` on a discovered skill is its DESCRIPTION, not the file (see
+    // backends/ms_agent/skills.py `_discovered_to_schema`) — so the pane showed a
+    // single paragraph where the real document belongs. Worse, the lazy loader
+    // below bails on `selected in bodies`, so the seed also SUPPRESSED the fetch
+    // that would have corrected it: the first open only looked right by racing
+    // (its effect still saw an empty `bodies` closure and fetched), while every
+    // reopen re-seeded and stuck at the description.
+    setBodies({})
     setFiles(['SKILL.md'])
     const seq = ++fetchSeq.current
     api
@@ -102,6 +110,8 @@ export function SkillDetailDrawer({
         if (seq !== fetchSeq.current) return
         if (rows.length) setFiles(rows.map((r) => r.path))
       })
+      // Swallowed on purpose: `files` keeps its ['SKILL.md'] default, which is
+      // a usable tree. Nothing is gated on this request resolving.
       .catch(() => {})
   }, [open, skill])
 
@@ -116,7 +126,14 @@ export function SkillDetailDrawer({
         if (seq !== fetchSeq.current) return
         setBodies((prev) => ({ ...prev, [f.path]: f.content }))
       })
-      .catch(() => {})
+      .catch(() => {
+        if (seq !== fetchSeq.current) return
+        // Must record the path as fetched. `isLoading` below is
+        // `!(selected in bodies)`, so bailing without writing anything leaves
+        // the pane on its skeleton permanently — `''` renders as an empty file,
+        // and the toast `api.ts` raises is what says the read failed.
+        setBodies((prev) => ({ ...prev, [selected]: '' }))
+      })
   }, [open, skill, selected, bodies])
 
   const treeData = useMemo(() => buildTree(files), [files])
@@ -125,6 +142,10 @@ export function SkillDetailDrawer({
   const language = languageFor(selected)
   const isMarkdown = language === 'markdown'
   const isBinary = body === null
+  // `undefined` = not fetched yet; `null` = binary; `''` = a genuinely empty
+  // file. Only the first deserves a loading state — without this the pane
+  // rendered an empty document while the request was in flight.
+  const isLoading = skill != null && !(selected in bodies)
 
   return (
     <Drawer
@@ -201,7 +222,9 @@ export function SkillDetailDrawer({
               )}
             </header>
             <div className="min-h-0 flex-1 overflow-auto">
-              {isBinary ? (
+              {isLoading ? (
+                <DeferredSkeleton rows={8} className="px-4 py-4" />
+              ) : isBinary ? (
                 <div className="flex h-full items-center justify-center text-sm text-msa-text-3">
                   {t.skillDetail.binaryFile}
                 </div>

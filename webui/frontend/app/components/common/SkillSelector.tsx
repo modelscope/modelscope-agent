@@ -30,34 +30,42 @@ export function SkillSelector({ items, project }: SkillSelectorProps) {
 
   const content = (
     <div className="w-[min(280px,calc(100vw-32px))]">
-      {/* Header: title only — enablement is settings-driven */}
+      {/* Header: title only — enablement is settings-driven. With nothing
+          enabled the title itself states that, so no list section follows. */}
       <div className="px-[14px] py-[14px]">
-        <span className="text-xs text-msa-text-2">
-          {t.home.skillPopoverTitle}
-        </span>
-      </div>
-
-      <div className="h-px bg-msa-line-1" />
-
-      {/* List */}
-      <div className="max-h-[280px] overflow-y-auto p-[6px]">
         {enabledItems.length ? (
-          enabledItems.map((it) => (
-            <div
-              key={it.id}
-              className="flex items-center gap-2 rounded-[8px] px-[10px] py-2.5"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm text-msa-text-1">
-                {it.name}
-              </span>
-            </div>
-          ))
+          <span className="text-xs text-msa-text-2">
+            {t.home.skillPopoverTitle}
+          </span>
         ) : (
-          <div className="px-[10px] py-2 text-sm text-msa-text-3">—</div>
+          <span className="text-xs font-medium text-msa-text-3">
+            {t.home.skillPopoverEmpty}
+          </span>
         )}
       </div>
 
       <div className="h-px bg-msa-line-1" />
+
+      {/* List — omitted entirely when empty; a placeholder row would only
+          repeat what the header already said. */}
+      {enabledItems.length ? (
+        <>
+          <div className="max-h-[280px] overflow-y-auto p-[6px]">
+            {enabledItems.map((it) => (
+              <div
+                key={it.id}
+                className="flex items-center gap-2 rounded-[8px] px-[10px] py-2.5"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm text-msa-text-1">
+                  {it.name}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="h-px bg-msa-line-1" />
+        </>
+      ) : null}
 
       {/* Footer: settings link */}
       <div className="px-[14px] py-[14px]">

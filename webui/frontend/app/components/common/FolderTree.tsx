@@ -1,4 +1,4 @@
-import { ConfigProvider, Dropdown, Tree } from 'antd'
+import { Dropdown, Tree } from 'antd'
 import type { MenuProps, TreeDataNode, TreeProps } from 'antd'
 import {
   type FC,
@@ -629,66 +629,56 @@ export function FolderTree({
     else actions.onMoveMany(moves)
   }
 
-  return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Tree: { nodeSelectedBg: 'transparent', nodeHoverBg: 'transparent' }
-        }
+  return q && styledData.length === 0 ? (
+    <div className="px-3 py-6 text-center text-xs text-msa-text-3">
+      {t.workspace.noSearchResults}
+    </div>
+  ) : (
+    <div
+      // F2 or Enter starts an inline rename of the single selected node
+      // (editor-style). Enter is ignored while a rename input is already
+      // open — that keystroke belongs to the input (it commits the name) —
+      // and while a search box or any other field has focus.
+      // Capture phase: antd Tree also acts on Enter (it re-selects the node,
+      // which would open the file preview), so the rename shortcut has to
+      // claim the keystroke before the Tree sees it.
+      onKeyDownCapture={(e) => {
+        if (!actions || renamingKey || selectedKeys.length !== 1) return
+        if (e.key !== 'F2' && e.key !== 'Enter') return
+        const el = e.target as HTMLElement | null
+        if (
+          el &&
+          (el.tagName === 'INPUT' ||
+            el.tagName === 'TEXTAREA' ||
+            el.isContentEditable)
+        )
+          return
+        e.preventDefault()
+        e.stopPropagation()
+        setRenamingKey(selectedKeys[0])
       }}
     >
-      {q && styledData.length === 0 ? (
-        <div className="px-3 py-6 text-center text-xs text-msa-text-3">
-          {t.workspace.noSearchResults}
-        </div>
-      ) : (
-        <div
-          // F2 or Enter starts an inline rename of the single selected node
-          // (editor-style). Enter is ignored while a rename input is already
-          // open — that keystroke belongs to the input (it commits the name) —
-          // and while a search box or any other field has focus.
-          // Capture phase: antd Tree also acts on Enter (it re-selects the node,
-          // which would open the file preview), so the rename shortcut has to
-          // claim the keystroke before the Tree sees it.
-          onKeyDownCapture={(e) => {
-            if (!actions || renamingKey || selectedKeys.length !== 1) return
-            if (e.key !== 'F2' && e.key !== 'Enter') return
-            const el = e.target as HTMLElement | null
-            if (
-              el &&
-              (el.tagName === 'INPUT' ||
-                el.tagName === 'TEXTAREA' ||
-                el.isContentEditable)
-            )
-              return
-            e.preventDefault()
-            e.stopPropagation()
-            setRenamingKey(selectedKeys[0])
-          }}
-        >
-          <Tree
-            multiple
-            blockNode
-            draggable={actions ? { icon: false } : false}
-            selectedKeys={selectedKeys}
-            treeData={styledData}
-            expandedKeys={expandedKeys}
-            autoExpandParent={autoExpandParent}
-            onExpand={(keys) => {
-              setExpandedKeys(keys.map(String))
-              setAutoExpandParent(false)
-            }}
-            onDrop={onDrop}
-            onDragStart={actions ? onDragStart : undefined}
-            className={className}
-            rootClassName="folder-tree"
-            classNames={{
-              itemSwitcher: 'before:hidden'
-            }}
-            onSelect={handleTreeSelect}
-          />
-        </div>
-      )}
-    </ConfigProvider>
+      <Tree
+        multiple
+        blockNode
+        draggable={actions ? { icon: false } : false}
+        selectedKeys={selectedKeys}
+        treeData={styledData}
+        expandedKeys={expandedKeys}
+        autoExpandParent={autoExpandParent}
+        onExpand={(keys) => {
+          setExpandedKeys(keys.map(String))
+          setAutoExpandParent(false)
+        }}
+        onDrop={onDrop}
+        onDragStart={actions ? onDragStart : undefined}
+        className={className}
+        rootClassName="folder-tree"
+        classNames={{
+          itemSwitcher: 'before:hidden'
+        }}
+        onSelect={handleTreeSelect}
+      />
+    </div>
   )
 }

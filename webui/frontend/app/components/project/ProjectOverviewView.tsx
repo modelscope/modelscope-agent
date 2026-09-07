@@ -3,7 +3,6 @@ import './ProjectOverviewView.css'
 import {
   App,
   Button,
-  ConfigProvider,
   Drawer,
   Dropdown,
   Popconfirm,
@@ -11,22 +10,28 @@ import {
   Space,
   Table,
   Tabs,
-  Tooltip
+  Tooltip,
+  Typography
 } from 'antd'
 import type { MenuProps } from 'antd'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useRevalidator, useSearchParams } from 'react-router'
 import { Composer } from '~/components/common/Composer'
 import { IconButton } from '~/components/common/IconButton'
-import { MsaButton } from '~/components/common/MsaButton'
 import { McpTabPanel } from '~/components/project/McpTabPanel'
 import { SkillTabPanel } from '~/components/project/SkillTabPanel'
 import { ProjectWidgetRail } from '~/components/project/ProjectWidgetRail'
 import { api } from '~/lib/api'
 import { dispatchWorkspaceChanged, useOnWorkspaceChanged } from '~/lib/events'
 import type { ChatFileRef, MessageSegment } from '~/lib/agentProvider'
-import { downloadWorkspaceAll, downloadWorkspacePath } from '~/lib/download'
-import { EmptyState } from '~/components/common/EmptyState'
+import {
+  DownloadEmptyError,
+  downloadErrorText,
+  downloadWorkspaceAll,
+  downloadWorkspacePath,
+  hasDownloadableFiles
+} from '~/lib/download'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { SessionRightRail } from '~/components/session/SessionRightRail'
 import { RailDrawer } from '~/components/common/RailDrawer'
 import { DeferredSkeleton } from '~/components/common/DeferredSkeleton'
@@ -64,6 +69,7 @@ export function ProjectOverviewView({
 }: Props) {
   const { t } = useT()
   const navigate = useNavigate()
+  const revalidator = useRevalidator()
   const [searchParams, setSearchParams] = useSearchParams()
   const VALID_TABS = ['recent', 'workspace', 'mcps', 'skills'] as const
   const tabFromUrl = searchParams.get('tab') ?? 'recent'
@@ -92,6 +98,12 @@ export function ProjectOverviewView({
       project_id: project.id,
       preview: text
     })
+    // Refresh the sidebar's session list BEFORE leaving: the app layout no
+    // longer revalidates on a route change (see its `shouldRevalidate`), so
+    // without this the session just created would be missing from the list
+    // until the next explicit refresh. Awaited so the navigation below cannot
+    // interrupt it.
+    await revalidator.revalidate()
     // Carry the composer's FULL submission across the navigation. `segments` is
     // the ordered text+skill-pill layout: dropping it here downgraded a
     // "/skill …" first message to plain text, so the skill never ran for a
@@ -123,13 +135,20 @@ export function ProjectOverviewView({
   return (
     <div className="flex h-full min-h-0 rounded-[16px] bg-msa-fill-0 px-4 py-4 md:px-9 md:py-6">
       {/* Main content */}
-      <section className="min-h-0 min-w-0 flex-5 flex-shrink-0">
+      <section className="min-h-0 min-w-0 flex-5 shrink-0">
         <div className="w-full flex flex-col h-full">
           {/* Project title with edit icon */}
           <div className="flex items-center gap-2 mb-[12px]">
-            <h1 className="text-xl font-bold text-msa-text-1 my-0">
+            <Typography.Title
+              level={1}
+              className="my-0 text-xl font-bold text-msa-text-1"
+              ellipsis={{
+                rows: 1,
+                tooltip: project.name
+              }}
+            >
               {project.name}
-            </h1>
+            </Typography.Title>
             {onEditProject && (
               <IconButton
                 icon={<EditIcon className="h-4 w-4" />}
@@ -161,92 +180,80 @@ export function ProjectOverviewView({
           />
 
           {/* Tabs: Recent / Workspace / MCPs / Skills */}
-          <ConfigProvider
-            theme={{
-              components: {
-                Tabs: {
-                  itemSelectedColor: 'var(--msa-text-1)',
-                  itemHoverColor: 'var(--msa-text-1)',
-                  itemActiveColor: 'var(--msa-text-1)'
-                }
-              }
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            indicator={{ size: 8, align: 'center' }}
+            className={`h-0 flex-1 pov-tabs-scroll-content`}
+            classNames={{
+              indicator: 'bg-msa-text-1 h-[2px]',
+              header: 'before:hidden',
+              body: 'h-full'
             }}
-          >
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              indicator={{ size: 8, align: 'center' }}
-              className={`h-0 flex-1 pov-tabs-scroll-content`}
-              classNames={{
-                indicator: 'bg-msa-text-1 h-[2px]',
-                header: 'before:hidden',
-                body: 'h-full'
-              }}
-              items={[
-                {
-                  key: 'recent',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'recent' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'recent' && (
-                        <RecentChatsIcon className="h-4 w-4" />
-                      )}
-                      {t.projectDetail.tabRecent}
-                    </span>
-                  ),
-                  children: (
-                    <RecentChats projectId={project.id} sessions={sessions} />
-                  )
-                },
-                {
-                  key: 'workspace',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'workspace' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'workspace' && (
-                        <WorkspaceIcon className="h-4 w-4" />
-                      )}
-                      {t.projectDetail.tabWorkspace}
-                    </span>
-                  ),
-                  children: (
-                    <WorkspacePanel
-                      project={project}
-                      onOpenFile={openWorkspaceFile}
-                    />
-                  )
-                },
-                {
-                  key: 'mcps',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'mcps' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'mcps' && <McpIcon className="h-4 w-4" />}
-                      {t.projectDetail.tabMcps}
-                    </span>
-                  ),
-                  children: <McpTabPanel project={project} />
-                },
-                {
-                  key: 'skills',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'skills' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'skills' && (
-                        <SkillIcon className="h-4 w-4" />
-                      )}
-                      {t.projectDetail.tabSkills}
-                    </span>
-                  ),
-                  children: <SkillTabPanel project={project} />
-                }
-              ]}
-            />
-          </ConfigProvider>
+            items={[
+              {
+                key: 'recent',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'recent' ? 'font-semibold' : ''}`}
+                  >
+                    {activeTab === 'recent' && (
+                      <RecentChatsIcon className="h-4 w-4" />
+                    )}
+                    {t.projectDetail.tabRecent}
+                  </span>
+                ),
+                children: (
+                  <RecentChats projectId={project.id} sessions={sessions} />
+                )
+              },
+              {
+                key: 'workspace',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'workspace' ? 'font-semibold' : ''} `}
+                  >
+                    {activeTab === 'workspace' && (
+                      <WorkspaceIcon className="h-4 w-4" />
+                    )}
+                    {t.projectDetail.tabWorkspace}
+                  </span>
+                ),
+                children: (
+                  <WorkspacePanel
+                    project={project}
+                    onOpenFile={openWorkspaceFile}
+                  />
+                )
+              },
+              {
+                key: 'mcps',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'mcps' ? 'font-semibold' : ''}`}
+                  >
+                    {activeTab === 'mcps' && <McpIcon className="h-4 w-4" />}
+                    {t.projectDetail.tabMcps}
+                  </span>
+                ),
+                children: <McpTabPanel project={project} />
+              },
+              {
+                key: 'skills',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'skills' ? 'font-semibold' : ''}`}
+                  >
+                    {activeTab === 'skills' && (
+                      <SkillIcon className="h-4 w-4" />
+                    )}
+                    {t.projectDetail.tabSkills}
+                  </span>
+                ),
+                children: <SkillTabPanel project={project} />
+              }
+            ]}
+          />
         </div>
       </section>
 
@@ -343,13 +350,11 @@ function RecentChats({
         size="lg"
         description={`${t.projectDetail.recentEmpty}${t.projectDetail.recentEmptyHint}`}
         action={
-          <MsaButton
-            variant="primary"
-            className="!rounded-full !px-6 !py-2 !h-auto"
+          <EmptyStateAction
             onClick={() => navigate(`/projects/${projectId}/new`)}
           >
             {t.projectDetail.startChat}
-          </MsaButton>
+          </EmptyStateAction>
         }
       />
     )
@@ -457,6 +462,12 @@ function WorkspacePanel({
   // Zip the whole workspace and download it as `<project>.zip`.
   const handleDownloadAll = async () => {
     if (!files || files.length === 0) return
+    // A listing of only (empty) folders has no bytes to zip, and the button
+    // stays enabled for it — say so instead of letting the click do nothing.
+    if (!hasDownloadableFiles(files)) {
+      message.warning(t.workspace.downloadEmpty)
+      return
+    }
     setDownloadingAll(true)
     try {
       await downloadWorkspaceAll(
@@ -464,19 +475,25 @@ function WorkspacePanel({
         files,
         `${project.name || 'workspace'}.zip`
       )
-    } catch {
-      message.error(t.workspace.downloadFailed)
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
     } finally {
       setDownloadingAll(false)
     }
   }
 
-  // Download a row: a file streams directly, a folder is zipped automatically.
+  // Download a row: a file fetches its bytes, a folder is zipped automatically.
   const handleDownload = async (path: string) => {
     try {
       await downloadWorkspacePath(project.id, path, files ?? [])
-    } catch {
-      message.error(t.workspace.downloadFailed)
+    } catch (err) {
+      // An empty folder didn't fail, it just has nothing in it — same notice the
+      // download-all button gives, so the two agree on that situation.
+      if (err instanceof DownloadEmptyError) {
+        message.warning(t.workspace.downloadEmpty)
+        return
+      }
+      message.error(downloadErrorText(t, err))
     }
   }
 
@@ -643,7 +660,7 @@ function WorkspacePanel({
               </Tooltip>
               <Dropdown
                 menu={addMenu}
-                trigger={['click']}
+                trigger={['hover']}
                 onOpenChange={setAddMenuOpen}
               >
                 <Button size="small" type="text">
@@ -836,7 +853,7 @@ function WorkspacePanel({
               </Tooltip>
               <Dropdown
                 menu={addMenu}
-                trigger={['click']}
+                trigger={['hover']}
                 onOpenChange={setAddMenuOpen}
               >
                 <Button size="small" type="text">

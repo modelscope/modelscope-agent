@@ -95,7 +95,7 @@ def create_project(body: ProjectCreate) -> Project:
 def get_project(pid: str) -> Project:
     proj = pm().get(pid)
     if proj is None:
-        raise NotFound("project not found")
+        raise NotFound("Project not found.")
     return project_to_schema(proj)
 
 
@@ -116,14 +116,14 @@ def update_project(pid: str, body: ProjectUpdate) -> Project:
     manager = pm()
     proj = manager.get(pid)
     if proj is None:
-        raise NotFound("project not found")
+        raise NotFound("Project not found.")
 
     locked = _backend_locked(proj)
     if (body.memory_backend is not None
             and body.memory_backend != _memory_backend(proj.memory_backend)
             and locked):
         raise BadRequest(
-            "memory backend cannot be changed once memory has been enabled")
+            "The memory type cannot be changed once memory has been enabled.")
 
     # The project directory is its identity and holds all of its data. The SDK's
     # update() only rewrites the `path` field — it does not move anything on
@@ -132,7 +132,10 @@ def update_project(pid: str, body: ProjectUpdate) -> Project:
     # unchanged value is fine (the edit form submits the whole shape).
     if (body.local_path is not None
             and body.local_path != (proj.path or "")):
-        raise BadRequest("project path cannot be changed after creation")
+        raise BadRequest("The project location cannot be changed after creation.")
+
+    was_enabled = bool(proj.memory_enabled)
+    prev_models = (sidecar.get("projects", pid, {}) or {}).get("memory_models")
 
     fields: dict = {}
     if body.name is not None:
@@ -178,6 +181,21 @@ def update_project(pid: str, body: ProjectUpdate) -> Project:
         from app.backends.ms_agent.runtime import registry
 
         registry.set_project_permission_mode(pid, body.permission_mode)
+    # Memory config is frozen into the agent (and into the shared store client)
+    # at build time, so a live runtime would keep serving the old models /
+    # recall size — indistinguishable from the setting doing nothing. Drop the
+    # project's idle runtimes so the next turn is built from what was just
+    # saved. Unlike the permission mode there is nothing to hot-swap: the
+    # embedder decides the vector store's identity.
+    memory_changed = (
+        (body.memory_enabled is not None
+         and bool(body.memory_enabled) != was_enabled)
+        or "memory_backend" in fields
+        or ("memory_models" in side and side["memory_models"] != prev_models))
+    if memory_changed:
+        from app.backends.ms_agent.runtime import registry
+
+        registry.discard_project(pid)
     return project_to_schema(proj)
 
 
@@ -185,9 +203,9 @@ def delete_project(pid: str) -> None:
     manager = pm()
     proj = manager.get(pid)
     if proj is None:
-        raise NotFound("project not found")
+        raise NotFound("Project not found.")
     if _is_default(pid):
-        raise BadRequest("cannot delete default project")
+        raise BadRequest("The default project cannot be deleted.")
     manager.delete(pid)  # removes the project dir incl. its sessions
     sidecar.drop("projects", pid)
     sidecar.drop("memory", pid)

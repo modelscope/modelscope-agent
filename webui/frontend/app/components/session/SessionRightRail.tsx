@@ -1,12 +1,4 @@
-import {
-  App,
-  Button,
-  Dropdown,
-  Input,
-  Modal,
-  Splitter,
-  Tooltip
-} from 'antd'
+import { App, Button, Dropdown, Input, Modal, Splitter, Tooltip } from 'antd'
 import type { MenuProps, TreeDataNode } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeEditor } from '~/components/common/CodeEditor'
@@ -19,7 +11,12 @@ import { IconButton } from '~/components/common/IconButton'
 import { api } from '~/lib/api'
 import { dispatchWorkspaceChanged, useOnWorkspaceChanged } from '~/lib/events'
 import { collectDroppedFiles } from '~/lib/dropFiles'
-import { downloadWorkspaceAll, downloadWorkspaceFile } from '~/lib/download'
+import {
+  downloadErrorText,
+  downloadWorkspaceAll,
+  downloadWorkspaceFile,
+  hasDownloadableFiles
+} from '~/lib/download'
 import { useT } from '~/lib/i18n'
 import type { Project, WorkspaceFile } from '~/lib/types'
 import { MsaButton } from '../common/MsaButton'
@@ -113,7 +110,6 @@ function toTreeData(node: DirNode): TreeDataNode[] {
   }))
   return [...dirs, ...files]
 }
-
 
 type PreviewKind = 'text' | 'image' | 'video' | 'audio' | 'unsupported'
 
@@ -313,6 +309,12 @@ export function SessionRightRail({
   // Zip the whole workspace and download it as `<project>.zip`.
   const handleDownloadAll = async () => {
     if (!files || files.length === 0) return
+    // A listing of only (empty) folders has no bytes to zip, and the button
+    // stays enabled for it — say so instead of letting the click do nothing.
+    if (!hasDownloadableFiles(files)) {
+      message.warning(t.workspace.downloadEmpty)
+      return
+    }
     setDownloadingAll(true)
     try {
       await downloadWorkspaceAll(
@@ -320,8 +322,8 @@ export function SessionRightRail({
         files,
         `${project.name || 'workspace'}.zip`
       )
-    } catch {
-      message.error(t.workspace.downloadFailed)
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
     } finally {
       setDownloadingAll(false)
     }
@@ -561,9 +563,26 @@ export function SessionRightRail({
       }
     })
 
-  const downloadMany = (paths: string[]) => {
+  // Every download fetches its bytes, so failures are ours to report (see
+  // lib/download.ts) — an unhandled rejection would otherwise leave the click
+  // looking like it did nothing.
+  const downloadOne = async (path: string) => {
+    try {
+      await downloadWorkspaceFile(project.id, path)
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
+    }
+  }
+
+  const downloadMany = async (paths: string[]) => {
     // Folders can't be streamed as a single file; caller passes files only.
-    paths.forEach((p) => downloadWorkspaceFile(project.id, p))
+    try {
+      await Promise.all(
+        paths.map((p) => downloadWorkspaceFile(project.id, p))
+      )
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
+    }
   }
 
   const copyPaths = async (paths: string[]) => {
@@ -596,7 +615,7 @@ export function SessionRightRail({
     onRename: renameTo,
     onDelete: deleteEntry,
     onCopyPath: copyPath,
-    onDownload: (path) => downloadWorkspaceFile(project.id, path),
+    onDownload: downloadOne,
     onMove: moveEntry,
     onUploadTo: uploadEntries,
     onDeleteMany: deleteMany,
@@ -711,8 +730,11 @@ export function SessionRightRail({
           <EmptyState
             description={t.workspace.empty}
             action={
-              <Dropdown menu={addMenu} trigger={['click']}>
-                <MsaButton variant="primary" icon={<AddIcon className="h-4 w-4" />}>
+              <Dropdown menu={addMenu} trigger={['hover']}>
+                <MsaButton
+                  variant="primary"
+                  icon={<AddIcon className="h-4 w-4" />}
+                >
                   {t.workspace.addFile}
                 </MsaButton>
               </Dropdown>
@@ -736,7 +758,13 @@ export function SessionRightRail({
                 />
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1"
+                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-1"
+                // stable both-edges: the styled scrollbar reserves a gutter on
+                // the right only; mirroring it on the left keeps the selected
+                // tree-row highlight's left/right insets equal. The former px-2
+                // is dropped because the ~8px gutter already supplies that inset,
+                // keeping the total spacing the same as before.
+                style={{ scrollbarGutter: 'stable both-edges' }}
                 onDragOver={(e) => {
                   // Native OS file drag over empty tree area -> upload to root.
                   // Folder nodes handle (and stop) their own drops.
@@ -777,7 +805,7 @@ export function SessionRightRail({
                   {t.workspace.downloadAll}
                 </Button>
                 <div className="w-px bg-msa-line-1" />
-                <Dropdown menu={addMenu} trigger={['click']}>
+                <Dropdown menu={addMenu} trigger={['hover']}>
                   <Button
                     type="text"
                     size="small"
@@ -812,9 +840,7 @@ export function SessionRightRail({
                         type="text"
                         size="small"
                         icon={<DownloadIcon className="h-4 w-4" />}
-                        onClick={() =>
-                          downloadWorkspaceFile(project.id, selectedFile)
-                        }
+                        onClick={() => downloadOne(selectedFile)}
                         className="!text-msa-text-2"
                       />
                     </Tooltip>

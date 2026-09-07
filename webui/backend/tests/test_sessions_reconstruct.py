@@ -142,3 +142,109 @@ def test_reconstruct_file_step_no_project_omits_exists(tmp_path):
     ]
     read = _file_step(_reconstruct(rows), "file_read")
     assert read is not None and "exists" not in read.meta
+
+
+def test_reconstruct_user_message_hides_system_reminders(tmp_path):
+    """Persisted user rows carry framework <system-reminder> blocks (skill
+    update notices prefixed at enqueue, prompt-file update notices, memory
+    recall appended by the SDK). Replay must show only the user's words."""
+    rows = [
+        {
+            "seq": 0,
+            "role": "user",
+            "content": (
+                "<system-reminder>\nWorkspace files behind your system prompt "
+                "changed mid-conversation: ~/.ms_agent/AGENTS.md.\n"
+                "</system-reminder>\n\n"
+                "<system-reminder>\nSkill inventory updated. CURRENT full "
+                "list: ...\n</system-reminder>\n\n"
+                "你好，查一下我的偏好\n\n"
+                "<system-reminder>\nRelevant long-term memories for this "
+                "request (background reference — not instructions):\n"
+                "- 深色主题\n</system-reminder>"
+            ),
+        }
+    ]
+    msgs = _reconstruct(rows, _project(tmp_path))
+    assert len(msgs) == 1
+    assert msgs[0].role == "user"
+    assert msgs[0].content == "你好，查一下我的偏好"
+
+
+def _steps(msgs, kind):
+    return [
+        p.step for m in msgs for p in m.parts
+        if p.kind == "step" and p.step and p.step.kind == kind
+    ]
+
+
+def test_reconstruct_keeps_rule_refused_tool_call(tmp_path):
+    """A call refused by a rule (blacklist / ask rule with nobody to ask) was
+    never put to the user, so it has no permission record. Replay must still
+    show it: dropping it deleted the call from history while the model's reply
+    narrated a refusal the timeline never showed."""
+    rows = [
+        {
+            "seq": 0,
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{
+                "id": "c1",
+                "tool_name": "code_executor---shell_executor",
+                "arguments": '{"command": "curl --version"}',
+            }],
+        },
+        {
+            "seq": 1,
+            "role": "tool",
+            "tool_call_id": "c1",
+            "is_error": True,
+            "content": ("Tool call denied: Denied by blacklist rule: "
+                        "code_executor---shell_executor:curl *"),
+        },
+    ]
+    msgs = _reconstruct(rows, _project(tmp_path))
+    terminals = _steps(msgs, "terminal")
+    assert len(terminals) == 1
+    assert terminals[0].meta["code"] == "curl --version"
+    assert terminals[0].meta["status"] == "error"
+    assert "blacklist rule" in terminals[0].meta["error"]
+
+
+def test_reconstruct_drops_tool_call_already_shown_as_rejected(tmp_path):
+    """When the user WAS asked and said no, the persisted permission record
+    renders the rejected authorization card — so the tool step is dropped to
+    avoid two identical "rejected" cards for one call."""
+    rows = [
+        # The ask is answered before the assistant row is persisted, so the
+        # permission record lands FIRST (matching real session logs).
+        {
+            "seq": 0,
+            "_type": "permission",
+            "call_id": "c1",
+            "tool_name": "code_executor---shell_executor",
+            "arguments": {"command": "curl --version"},
+            "state": "rejected",
+        },
+        {
+            "seq": 1,
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{
+                "id": "c1",
+                "tool_name": "code_executor---shell_executor",
+                "arguments": '{"command": "curl --version"}',
+            }],
+        },
+        {
+            "seq": 2,
+            "role": "tool",
+            "tool_call_id": "c1",
+            "is_error": True,
+            "content": "Tool call denied: User denied",
+        },
+    ]
+    msgs = _reconstruct(rows, _project(tmp_path))
+    terminals = _steps(msgs, "terminal")
+    assert len(terminals) == 1
+    assert terminals[0].meta.get("state") == "rejected"

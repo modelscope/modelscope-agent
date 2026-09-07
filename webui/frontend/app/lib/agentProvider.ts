@@ -3,7 +3,50 @@ import {
   type TransformMessage,
   type XRequestOptions,
 } from "@ant-design/x-sdk";
+import { readFailure } from "~/lib/api";
+import { dispatchImageDelivery } from "~/lib/imageDelivery";
 import { dispatchWorkspaceChanged } from "~/lib/events";
+
+/** Name carried by the error `assertChatStream` throws, so a caller can tell a
+ * rejected response apart from an abort or a bare network failure. */
+export const CHAT_STREAM_ERROR = "ChatStreamError";
+
+/**
+ * Guard every chat response: unless it IS the SSE stream we expect, reject it
+ * with whatever explanation its body carries.
+ *
+ * Neither streaming path validates this on its own. XRequest routes purely on
+ * content-type and never reads a failed body: a non-2xx becomes the opaque
+ * `Fetch failed with status N`, while a rejection delivered as
+ * `application/json` with a 2xx status is handed to `onUpdate` as if it were a
+ * message — `transformMessage` then finds no `data` on it, returns the untouched
+ * (empty) assistant message, and the turn silently produces nothing at all. The
+ * hand-rolled /api/chat/attach reader is worse: it skips every line without a
+ * `data:` prefix, so a rejection leaves its placeholder bubble stuck loading
+ * forever.
+ *
+ * Both shapes occur for real — the ModelScope gateway answers a request whose
+ * content trips its security inspection with `{ code, message }` instead of
+ * proxying to us, and its HTTP status is not something we control.
+ */
+export async function assertChatStream(response: Response): Promise<Response> {
+  const mime = (response.headers.get("content-type") || "")
+    .split(";")[0]
+    .trim();
+  if (response.ok && mime === "text/event-stream") return response;
+  // Not our stream, so the body is a (small) error report and reading it whole
+  // costs nothing — this response is never handed back for streaming.
+  let body: unknown;
+  try {
+    body = JSON.parse(await response.text());
+  } catch {
+    body = undefined;
+  }
+  const failure = readFailure(body);
+  const err = new Error(failure?.message || `HTTP ${response.status}`);
+  err.name = CHAT_STREAM_ERROR;
+  throw err;
+}
 
 /**
  * Wire shape of a single SSE frame from POST /api/chat.
@@ -31,6 +74,11 @@ export interface ChatFileRef {
   // deleted — the bubble then shows a generic card + "deleted" note. Live
   // uploads leave this undefined (treated as present).
   exists?: boolean;
+  // Images only: what actually happened to this picture on the turn it was
+  // attached to. Undefined for non-images, for live uploads before the turn
+  // runs, and for turns recorded before this was tracked — all of which render
+  // as no badge, never as a wrong one.
+  delivery?: "delivered" | "degraded" | "unreadable";
 }
 
 /** Request body sent to the backend. */
@@ -79,7 +127,11 @@ export type StepKind =
   | "browser"
   | "artifact"
   | "authorization"
-  | "tasks";
+  | "tasks"
+  // Transient: the model is still writing a tool call. Never persisted and
+  // never replayed — it exists only to fill the streaming gap before
+  // `tool_call_started`, and is removed the moment a real step arrives.
+  | "tool_composing";
 
 /** A single tool-call step card, rendered inline in stream order. */
 export interface AgentStep {
@@ -105,10 +157,20 @@ export interface AgentTask {
  */
 export type AgentPart =
   | { kind: "text"; text: string }
-  // `startedAt` (epoch ms) is stamped when a live thought block opens so the UI
-  // can tick a live "thinking Ns" counter until `done`; `duration` is the final
-  // elapsed seconds (from the closing frame, or persisted on replay).
-  | { kind: "thought"; text: string; startedAt?: number; duration?: number; done?: boolean }
+  // `startedAt` (epoch ms) is what the live "thinking Ns" counter counts from
+  // until `done`; `duration` is the final elapsed seconds. `block` is the
+  // SERVER's id for this reasoning block, so frames find it by id rather than
+  // by position. `derived` marks a duration this client guessed — the server's
+  // number always replaces it.
+  | {
+      kind: "thought"
+      text: string
+      startedAt?: number
+      duration?: number
+      done?: boolean
+      block?: number
+      derived?: boolean
+    }
   | { kind: "tasks"; tasks: AgentTask[] }
   | { kind: "step"; step: AgentStep }
   // A turn/API failure surfaced as its own alert card (not body text), so it
@@ -155,6 +217,10 @@ export interface AgentMessage {
   /** Configuration-style content echo (user messages only): the segment array
    * as sent/replayed, so the bubble re-renders skill pills. */
   segments?: MessageSegment[];
+  /** Server history only: the trailing message of a turn that is still running
+   * (its finished rounds are also being replayed on the live stream, so an
+   * attached viewer renders one description of the turn, not two). */
+  partial?: boolean;
 }
 
 export class AgentChatProvider extends AbstractChatProvider<
@@ -275,6 +341,16 @@ export class AgentChatProvider extends AbstractChatProvider<
       if (durationMs != null) out = { ...out, loopDurationMs: durationMs };
       if (changed?.length) out = { ...out, changedFiles: changed };
       if (planFile) out = { ...out, planFile };
+      // The turn is over: close any thought still marked live. A thought
+      // normally closes on `reasoning_ended`, so this only bites when an error
+      // ended the turn while reasoning was still streaming AND the `error` frame
+      // didn't already run this cleanup (e.g. it was suppressed as a duplicate) —
+      // last-resort stop for the "thinking Ns" counter.
+      if (out.parts?.some((p) => p.kind === "thought" && !p.done)) {
+        const parts = [...out.parts];
+        finalizeOpenThoughts(parts);
+        out = { ...out, parts };
+      }
       return out;
     }
     // Content-bearing frames fold in via the shared reducer (also used by the
@@ -307,6 +383,13 @@ export function applyChunk(base: AgentMessage, c: AgentChunk): AgentMessage {
         : base;
     }
     case "text":
+      // Answer text means reasoning is over. Normally `reasoning_ended` (a
+      // duration-bearing thought frame) already closed the block, so this is a
+      // no-op; it only bites when that frame never came.
+      finalizeOpenThoughts(parts);
+      // The model is talking again, so whatever call it was writing has been
+      // delivered: the placeholder for it is stale (see sweepComposing).
+      sweepComposing(parts);
       appendTextPart(parts, c.content);
       // Keep `content` in sync for serialization / fallback rendering.
       return { ...base, content: (base.content || "") + c.content, parts };
@@ -314,9 +397,31 @@ export function applyChunk(base: AgentMessage, c: AgentChunk): AgentMessage {
       appendThoughtPart(parts, c.content, meta);
       return { ...base, parts };
     case "task":
+      // A plan snapshot begins: reasoning is over, close any open thought.
+      finalizeOpenThoughts(parts);
+      // This snapshot IS the output of the todo call being composed — and the
+      // todo tools are exactly the ones that emit no step of their own, so
+      // without this sweep their placeholder has nothing to retire it.
+      sweepComposing(parts);
       appendTaskSnapshot(parts, meta);
       return { ...base, parts };
     case "step":
+      // A tool call begins: reasoning is over. This is the common gap — the
+      // model often goes straight from reasoning to a tool call (which may then
+      // sit awaiting authorization) with NO `reasoning_ended` in between, so
+      // without this the "thinking Ns …" counter would keep ticking behind the
+      // tool card. Freeze it here.
+      //
+      // An image-delivery report is exempt: it says what became of an attached
+      // picture on THIS REQUEST and draws no card, and the SDK publishes it once
+      // the response's first chunk has arrived — which for a thinking model is
+      // normally mid-reasoning. Closing the block there cut one continuous
+      // thought into two live (a first block holding the couple of words that
+      // made it into chunk one, then the sentence that continued them), while
+      // the finished turn — rebuilt from the message's single
+      // `reasoning_content` — showed one block: the same reasoning changed shape
+      // the moment the turn stopped running.
+      if (meta.kind !== IMAGE_DELIVERY) finalizeOpenThoughts(parts);
       appendStepPart(parts, meta);
       return { ...base, parts };
     case "error": {
@@ -324,6 +429,19 @@ export function applyChunk(base: AgentMessage, c: AgentChunk): AgentMessage {
       // failure is not part of the reply. `content` still gets the message so
       // the plain-text fallback (and copy) keep working.
       const msg = String(meta.message ?? "");
+      // An error ends the turn, so any reasoning still in flight is over.
+      // Normally a thought closes the moment the backend maps `reasoning_ended`
+      // (a duration-bearing frame), so a completed turn's blocks are already
+      // done. The gap is an ERROR that terminates the turn WHILE reasoning is
+      // still streaming (rate limit, insufficient balance, dropped connection):
+      // `reasoning_ended` never arrives, and — unlike a manual Stop, which the
+      // ChatPanel `stoppedLocally` path closes client-side — an error turn has no
+      // such cleanup, so the block stays `done:false` and its "thinking Ns"
+      // counter ticks forever. Force it closed here.
+      finalizeOpenThoughts(parts);
+      // A turn that died mid-call leaves a placeholder that would otherwise keep
+      // pulsing under the error card, as if the call were still being written.
+      sweepComposing(parts);
       parts.push({
         kind: "error",
         text: msg,
@@ -333,6 +451,34 @@ export function applyChunk(base: AgentMessage, c: AgentChunk): AgentMessage {
     }
     default:
       return base;
+  }
+}
+
+/** Force any still-open thought block closed (sets `done`, freezing its live
+ * counter). Called on terminal events other than the normal duration-bearing
+ * close frame — an errored/interrupted turn never emits that frame, and neither
+ * does a turn where the model goes straight from reasoning to a tool call, so
+ * the block would otherwise tick forever. Idempotent: already-done blocks
+ * untouched.
+ *
+ * When no authoritative `duration` arrived we DERIVE one from `startedAt`, so
+ * the header freezes at the elapsed value the live counter last showed. Without
+ * this the UI, seeing `done` but no `duration`, blanks the time entirely (see
+ * ThoughtsFlow: `shown = isDone ? duration : elapsed`). It is marked `derived`
+ * because it only measures from when THIS client first saw the block; the
+ * server's closing frame replaces it if one still arrives. */
+export function finalizeOpenThoughts(parts: AgentPart[]): void {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.kind === "thought" && !part.done) {
+      const derived = part.duration == null && part.startedAt != null;
+      const duration =
+        part.duration ??
+        (part.startedAt != null
+          ? Math.max(0, Math.floor((Date.now() - part.startedAt) / 1000))
+          : undefined);
+      parts[i] = { ...part, done: true, duration, derived: derived || undefined };
+    }
   }
 }
 
@@ -346,10 +492,26 @@ function appendTextPart(parts: AgentPart[], text: string): void {
   }
 }
 
+/** Count from the server's age for the block (`elapsed_ms`), but only take
+ * corrections bigger than a second: every stamp arrives a little late, and
+ * applying each one nudged the counter backwards across second boundaries
+ * (67s → 66s under a refresh-every-2s stress run). The large corrections are
+ * the ones that matter — a client that joined mid-block or replayed the buffer. */
+function rebase(startedAt: number | undefined, elapsedMs: number | undefined) {
+  if (elapsedMs == null) return startedAt;
+  const fromServer = Date.now() - elapsedMs;
+  if (startedAt == null || Math.abs(fromServer - startedAt) > 1000)
+    return fromServer;
+  return startedAt;
+}
+
 /**
- * Append streamed reasoning to the open thought block, or start a new one. A
- * chunk carrying `meta.duration` finalizes the block (sets duration + done), so
- * a later thought (after an intervening block) starts fresh.
+ * Fold one `thought` frame into its reasoning block, found by the SERVER's id:
+ * a closing frame can arrive after other parts, and matching "the last part"
+ * silently dropped it there — leaving the block ticking. Time is the server's
+ * too, so a re-attached client (which replays the block in a burst) keeps the
+ * real elapsed instead of "<1s", and `meta.duration` always wins over a value
+ * this client derived. Frames without `block` fall back to the tail block.
  */
 function appendThoughtPart(
   parts: AgentPart[],
@@ -357,25 +519,63 @@ function appendThoughtPart(
   meta: Record<string, unknown>,
 ): void {
   const duration = typeof meta.duration === "number" ? meta.duration : undefined;
-  const last = parts[parts.length - 1];
-  if (last && last.kind === "thought" && !last.done) {
-    parts[parts.length - 1] = {
-      kind: "thought",
-      text: last.text + text,
-      startedAt: last.startedAt,
-      duration: duration ?? last.duration,
-      done: duration != null ? true : last.done,
+  const block = typeof meta.block === "number" ? meta.block : undefined;
+  const elapsedMs =
+    typeof meta.elapsed_ms === "number" ? meta.elapsed_ms : undefined;
+
+  // Which block does this frame belong to? By id when the server names one;
+  // otherwise the most recent thought block, and only while it is still open.
+  let idx = -1;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    if (p.kind !== "thought") continue;
+    if (block != null) {
+      if (p.block !== block) continue;
+      idx = i;
+      break;
+    }
+    // Still open, or closed only by this client's guess — a late authoritative
+    // frame still belongs to it (this is what makes the fix work on its own,
+    // against a backend that does not name blocks yet).
+    if (!p.done || p.derived) idx = i;
+    break; // at most one block is open, and it is the most recent one
+  }
+
+  if (idx >= 0) {
+    const prev = parts[idx] as Extract<AgentPart, { kind: "thought" }>;
+    parts[idx] = {
+      ...prev,
+      text: prev.text + text,
+      startedAt: rebase(prev.startedAt, elapsedMs),
+      duration: duration ?? (prev.derived ? undefined : prev.duration),
+      // More reasoning after a block this client had sealed itself means the
+      // guess was wrong and the model is still thinking — re-open it.
+      done: duration != null ? true : prev.derived ? false : prev.done,
+      derived: duration != null ? undefined : prev.derived,
+      block: prev.block ?? block,
     };
-  } else {
-    // A new live thought block: stamp its start so the UI can tick a counter.
+  } else if (text) {
+    // At most one block is ever open: a new one means every earlier one is
+    // over. The server already closes them, so this normally finds nothing —
+    // but an orphaned block only shows up as a counter that never stops.
+    finalizeOpenThoughts(parts);
     parts.push({
       kind: "thought",
       text,
-      startedAt: Date.now(),
+      startedAt: Date.now() - (elapsedMs ?? 0),
       duration,
       done: duration != null,
+      block,
     });
   }
+  // Nothing to open: the ONLY chunk that carries no text is the one closing a
+  // thought (`_close_thought` sends duration and an empty body), and with no
+  // open block to close, the model reasoned for a measurable time without
+  // emitting a word. That used to append a text-less block, which rendered as
+  // nothing yet still counted as the turn's last part — collapsing the block
+  // above it, taking the streaming cursor with it, and hiding the final answer
+  // by making the tail not-a-text (see `splitTurn`). A duration with no
+  // reasoning to label is not worth a part.
 }
 
 /** Append a plan SNAPSHOT block. The backend re-sends the whole plan (one
@@ -401,6 +601,39 @@ function appendTaskSnapshot(
   parts.push({ kind: "tasks", tasks: upsertTask(undefined, meta) });
 }
 
+const COMPOSING = "tool_composing";
+/** A `step` frame that reports something about the REQUEST rather than a step of
+ * the round — it renders nothing and must leave the turn's live state alone. */
+const IMAGE_DELIVERY = "image_delivery";
+
+/** Drop every "still writing this call" placeholder.
+ *
+ * The placeholder is the ONE part with no event of its own to retire it: the
+ * backend emits it from `tool_call_composing` and then simply stops mentioning
+ * it, on the assumption that the call it describes will show up as a step and
+ * take its place. Two kinds of frame break that assumption, and both used to
+ * leave a row pulsing "preparing {tool}" over work that was already finished:
+ *
+ * - tools that render NO card of their own (`todo_list---*`, `task_control---*`
+ *   map to no step meta server-side), so no step ever arrives for them — their
+ *   result surfaces as a plan snapshot instead;
+ * - a turn that ends before the call lands (error), where the last frame is not
+ *   a step either.
+ *
+ * So every frame that proves the composing phase is over sweeps, not just the
+ * step frame. Sweeping ALL placeholders (not the matching index) is deliberate:
+ * the SDK writes a round's calls as one array, so any evidence the round moved
+ * on retires the whole set. Beyond the stale animation this also keeps `isLast`
+ * and the summary split honest — both read the tail of `parts`, and a leftover
+ * placeholder sitting there collapses the block that should be open and hides a
+ * final answer that should be outside the fold. */
+function sweepComposing(parts: AgentPart[]): void {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    if (p.kind === "step" && p.step.kind === COMPOSING) parts.splice(i, 1);
+  }
+}
+
 /** Append a tool-call step as its own ordered block, rendered inline in stream
  * order (no task nesting).
  *
@@ -412,6 +645,42 @@ function appendTaskSnapshot(
  * - rejected + errored result → the incoming step is DROPPED (the rejected
  *   auth card already tells the story). */
 function appendStepPart(parts: AgentPart[], meta: Record<string, unknown>): void {
+  // An image outcome is a report about the REQUEST, not a step in the round. It
+  // produces no card at all: the model's own reply already says it cannot see
+  // the picture, and the badge on the attachment says why — a third telling in
+  // between would be noise. Broadcast so the bubble can update mid-turn.
+  //
+  // Handled first, ahead of everything that treats a step as proof the round
+  // moved on: this frame arrives right after the response's first chunk, so it
+  // lands in the middle of whatever is still in flight — including the first
+  // `tool_composing` frame of a round, whose placeholder the sweep below would
+  // retire while the call was still being written.
+  if (meta.kind === IMAGE_DELIVERY) {
+    dispatchImageDelivery(String(meta.path ?? ""), String(meta.state ?? ""));
+    return;
+  }
+  // "Still writing this call" placeholders: one per tool-call index, updated in
+  // place as the arguments grow. Handled before everything below because they
+  // carry no call_id and must never merge with a real step.
+  if (meta.kind === COMPOSING) {
+    const index = Number(meta.index ?? 0);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      if (
+        p.kind === "step" &&
+        p.step.kind === COMPOSING &&
+        Number(p.step.meta.index ?? 0) === index
+      ) {
+        parts[i] = { kind: "step", step: { kind: COMPOSING, meta } };
+        return;
+      }
+    }
+    parts.push({ kind: "step", step: { kind: COMPOSING, meta } });
+    return;
+  }
+  // A real step landed: the round is represented by its own cards now.
+  sweepComposing(parts);
+
   const isRunning = meta.status === "running";
   // Paths this step just wrote, handed to the workspace listeners so a freshly
   // written file is merged into the live file set immediately. Without them the
@@ -454,27 +723,39 @@ function appendStepPart(parts: AgentPart[], meta: Record<string, unknown>): void
       }
     }
   }
-  // Fallback for buffers/history without call_id: continue an authorization card
-  // by tool_name when the tool result arrives. `tool_name` is stamped only on
-  // ask cards, so it identifies one whatever kind it renders as (a shell ask is
-  // a terminal card).
+  // Fallback for buffers whose ASK card carries no call_id: continue it by
+  // tool_name when the tool result arrives. `tool_name` is stamped only on ask
+  // cards, so it identifies one whatever kind it renders as (a shell ask is a
+  // terminal card).
+  //
+  // Two conditions keep this from reaching across calls, because a tool name is
+  // not an identity — the same tool is called again in a later round all the
+  // time, and a denied one is retried immediately:
+  //   * the candidate must carry NO call_id. One that carries a DIFFERENT id is
+  //     a different call, already identified, and must never be overwritten.
+  //   * it must belong to the same round (`group`).
+  // Without them a retry hijacked the earlier call's card: the retry landed in
+  // the previous round's slot instead of below the "let me try again" reasoning
+  // (so its own position rendered blank), and it erased what that slot said —
+  // a timed-out ask's "rejected" state was replaced by the retry's pending
+  // buttons, i.e. live approval buttons for a request already answered.
   if (meta.kind !== "authorization") {
     const name = String(meta.tool ?? meta.name ?? "");
+    const group = String(meta.group ?? "");
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i];
-      if (
-        p.kind === "step" &&
-        String(p.step.meta.tool_name ?? "") === name &&
-        name !== ""
-      ) {
-        if (p.step.meta.state === "rejected" && meta.status === "error") {
-          return; // rejection already shown by the auth card
-        }
-        parts[i] = { kind: "step", step: { kind: meta.kind as StepKind, meta } };
-        if (meta.kind === "file_write" || meta.kind === "file_edit")
-          notifyWorkspace();
-        return;
+      if (p.kind !== "step") continue;
+      if (String(p.step.meta.tool_name ?? "") !== name || name === "") continue;
+      if (String(p.step.meta.call_id ?? "") !== "") continue;
+      const otherGroup = String(p.step.meta.group ?? "");
+      if (otherGroup && group && otherGroup !== group) continue;
+      if (p.step.meta.state === "rejected" && meta.status === "error") {
+        return; // rejection already shown by the auth card
       }
+      parts[i] = { kind: "step", step: { kind: meta.kind as StepKind, meta } };
+      if (meta.kind === "file_write" || meta.kind === "file_edit")
+        notifyWorkspace();
+      return;
     }
   }
   parts.push({ kind: "step", step: { kind: meta.kind as StepKind, meta } });
@@ -563,6 +844,12 @@ export interface HistoryMessage {
   // same segment shape the composer sent (loose backend shape, narrowed in
   // historyToAgentMessages).
   segments?: { type: "text" | "skill"; text?: string; id?: string; name?: string }[];
+  // Assistant turns only: this is the trailing message of a turn that is STILL
+  // RUNNING — the rounds it finished are on disk, the rest is still coming over
+  // the live stream. A viewer attached to that stream is receiving the same
+  // rounds again and drops this copy (see ChatPanel); a viewer without a stream
+  // keeps it, since it is all they have.
+  partial?: boolean;
 }
 
 /** Convert persisted history rows into the live AgentMessage view-model. */
@@ -578,6 +865,7 @@ export function historyToAgentMessages(
       msg.changedFiles = row.changed_files;
     if (typeof row.plan_file === "string" && row.plan_file)
       msg.planFile = row.plan_file;
+    if (row.partial) msg.partial = true;
     if (row.files && row.files.length > 0) msg.files = row.files;
     if (row.segments && row.segments.length > 0)
       msg.segments = row.segments.map(

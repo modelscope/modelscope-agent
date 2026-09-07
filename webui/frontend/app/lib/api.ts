@@ -1,18 +1,24 @@
+import { SERVER_API_BASE } from './env'
 import type {
   AgentSettings,
   Artifact,
+  GenerationDefaults,
   Instruction,
   Mcp,
   McpHealth,
   MemoryBackend,
   MemoryDoc,
   MemoryItem,
+  MemoryRebuildResult,
   MemoryStatus,
   Model,
   Profile,
   Project,
   Provider,
   Scope,
+  SearchProvider,
+  SearchSettings,
+  SearchSettingsUpdate,
   Session,
   SessionMessage,
   SessionPlan,
@@ -20,14 +26,11 @@ import type {
   WorkspaceFile
 } from './types'
 
-// On the server (loaders/SSR) there is no page origin, so relative `/api`
-// paths can't be fetched. Resolve them against the backend directly. In the
-// browser this stays empty so the same-origin proxy / nginx handles routing.
-const SERVER_API_BASE =
-  typeof window === 'undefined'
-    ? (process.env.API_BASE_URL ?? 'http://127.0.0.1:8000')
-    : ''
-
+// On the server (loaders/SSR) there is no page origin, so relative `/api` paths
+// can't be fetched; `SERVER_API_BASE` resolves them against the backend and is
+// empty in the browser, where a same-origin proxy handles routing (vite's in
+// dev, `frontend/server.js` in production).
+// Declared in `env.ts` — the single place this app reads `process.env`.
 const resolve = (input: RequestInfo): RequestInfo =>
   SERVER_API_BASE && typeof input === 'string' && input.startsWith('/')
     ? SERVER_API_BASE + input
@@ -98,6 +101,30 @@ function isEnvelope(v: unknown): v is ApiEnvelope {
   )
 }
 
+/** Failure declared by a body's own non-zero `code`, whether or not it carries
+ * a `data` key.
+ *
+ * Our backend always answers with the full `{ code, message, data }` envelope,
+ * but a request can be answered by something sitting IN FRONT of it: the
+ * ModelScope gateway rejects a request whose content trips its security
+ * inspection with `{ code: 400, message }` — no `data` at all.
+ * Requiring `data` to recognise an envelope meant such a body was not an
+ * envelope, so its message never reached the toast; and since a non-zero code
+ * was only ever read on a non-2xx response, a rejection delivered with a 2xx
+ * status passed as SUCCESS — the error object itself became the payload and
+ * nothing was reported to the user.
+ *
+ * Exported because the streaming paths (POST /api/chat and /api/chat/attach)
+ * bypass `json()` entirely yet face the same gateway — see `assertChatStream`. */
+export function readFailure(
+  v: unknown
+): { code: number; message: string } | null {
+  if (typeof v !== 'object' || v === null) return null
+  const { code, message } = v as { code?: unknown; message?: unknown }
+  if (typeof code !== 'number' || code === 0) return null
+  return { code, message: typeof message === 'string' ? message : '' }
+}
+
 // De-duplicate concurrent identical GETs. On a session open several components
 // (e.g. two Composer instances + pills) each fetch models/mcps/skills/settings
 // at once; sharing one in-flight request per URL avoids a request storm and the
@@ -148,10 +175,13 @@ async function json<T>(
       }
     }
 
-    if (!res.ok) {
-      const message = isEnvelope(body) ? body.message : ''
-      const code = isEnvelope(body) ? body.code : res.status
-      const err = new ApiError(message, res.status, code)
+    // A failure is either transport-level (non-2xx) or declared by the body
+    // itself through a non-zero `code` — an intercepting gateway may report its
+    // rejection with a 2xx status, and that is still a failure, not a payload.
+    const failure = readFailure(body)
+    if (!res.ok || failure) {
+      const message = failure?.message ?? ''
+      const err = new ApiError(message, res.status, failure?.code ?? res.status)
       if (!suppresses(opts, res.status)) reportError?.(message, err)
       throw err
     }
@@ -162,9 +192,13 @@ async function json<T>(
   })()
   if (key) {
     inflightGets.set(key, run)
-    void run.finally(() => {
+    // `then(f, f)` rather than `finally`: a derived promise from `.finally()`
+    // re-throws the rejection with nobody to catch it, so every failed deduped
+    // GET logged an "Uncaught (in promise)" even though the caller handled it.
+    const clear = () => {
       if (inflightGets.get(key) === run) inflightGets.delete(key)
-    })
+    }
+    run.then(clear, clear)
   }
   return run
 }
@@ -253,6 +287,15 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body)
     }),
+  /** Acknowledge a turn that finished unwatched, clearing the sidebar's unread
+   * dot. Silent: this is a background bookkeeping write the user never asked
+   * for, so a failure must not raise a toast over the conversation. */
+  markSessionRead: (id: string) =>
+    json<void>(
+      `/api/sessions/${pid(id)}/read`,
+      { method: 'POST' },
+      { silent: true }
+    ),
   listArtifacts: (sessionId: string) =>
     json<Artifact[]>(`/api/sessions/${pid(sessionId)}/artifacts`),
 
@@ -279,7 +322,11 @@ export const api = {
     }),
   deleteMcp: (id: string) =>
     json<void>(`/api/mcps/${pid(id)}`, { method: 'DELETE' }),
-  checkMcpHealth: (id: string) => json<McpHealth>(`/api/mcps/${pid(id)}/health`),
+  checkMcpHealth: (id: string) =>
+    json<McpHealth>(`/api/mcps/${pid(id)}/health`),
+  /** Reachability of every ENABLED server, across scopes. Cached server-side
+   *  (60 s), so calling it on mount does not re-pay a dead server's timeout. */
+  listMcpHealth: () => json<McpHealth[]>('/api/mcps/health'),
 
   // Skills
   listSkills: (scope?: Scope) => json<Skill[]>(`/api/skills${q({ scope })}`),
@@ -293,8 +340,28 @@ export const api = {
     json<{ path: string; content: string | null }>(
       `/api/skills/${encodeURIComponent(id)}/file?path=${encodeURIComponent(path)}`
     ),
-  createSkill: (body: Omit<Skill, 'id' | 'created_at'>) =>
-    json<Skill>('/api/skills', { method: 'POST', body: JSON.stringify(body) }),
+  createSkill: (
+    body: Omit<Skill, 'id' | 'created_at' | 'origin' | 'removable'> & {
+      /** Bundle imports only: replace a same-named skill in this scope instead
+       * of being rejected with 409. */
+      overwrite?: boolean
+    },
+    opts?: ApiCallOpts
+  ) =>
+    json<Skill>(
+      '/api/skills',
+      { method: 'POST', body: JSON.stringify(body) },
+      opts
+    ),
+  importSkillsFromPath: (
+    body: { path: string; scope: Scope; overwrite?: boolean },
+    opts?: ApiCallOpts
+  ) =>
+    json<Skill[]>(
+      '/api/skills/import-path',
+      { method: 'POST', body: JSON.stringify(body) },
+      opts
+    ),
   updateSkill: (
     id: string,
     body: Partial<Omit<Skill, 'id' | 'created_at' | 'scope'>>
@@ -328,12 +395,14 @@ export const api = {
       {},
       opts
     ),
-  // Start the vector store over with the current embedder (the remedy for an
-  // embedder mismatch); the old store is moved aside, never deleted.
+  // Re-embed the store with the current embedder (the remedy for an embedder
+  // mismatch): entries are carried over, the old store is kept as a backup, and
+  // the swap happens only once the new one is complete. 409 if one is running.
   rebuildMemory: (projectId: string) =>
-    json<MemoryStatus>(`/api/projects/${pid(projectId)}/memory/rebuild`, {
-      method: 'POST'
-    }),
+    json<MemoryRebuildResult>(
+      `/api/projects/${pid(projectId)}/memory/rebuild`,
+      { method: 'POST' }
+    ),
 
   // Memory as ONE markdown document — file backend only (vector rejects with
   // 400). Same store as the item endpoints above, viewed wholesale.
@@ -397,6 +466,13 @@ export const api = {
   // Relative so the same-origin proxy routes it; browser-only usage.
   workspaceFileRawUrl: (projectId: string, path: string) =>
     `/api/projects/${pid(projectId)}/workspace/files/${fp(path)}/raw`,
+  // URL for a zip of the workspace, or of one folder in it. The server builds
+  // and streams the archive; `path` is omitted for the whole workspace. Not
+  // under `/files/` — that route's catch-all would swallow the segment.
+  workspaceArchiveUrl: (projectId: string, path?: string) =>
+    `/api/projects/${pid(projectId)}/workspace/archive${
+      path ? `?path=${encodeURIComponent(path)}` : ''
+    }`,
   deleteWorkspaceFile: (projectId: string, path: string, opts?: ApiCallOpts) =>
     json<void>(
       `/api/projects/${pid(projectId)}/workspace/files/${fp(path)}`,
@@ -454,7 +530,8 @@ export const api = {
   listProviders: () => json<Provider[]>('/api/providers'),
   createProvider: (body: {
     id: string
-    name: string
+    /** Optional — the server falls back to the id. */
+    name?: string
     base_url?: string
     protocol?: 'openai' | 'anthropic'
     default_generation_params?: Record<string, unknown>
@@ -489,11 +566,23 @@ export const api = {
 
   listModels: (providerId?: string) =>
     json<Model[]>(`/api/models${q({ provider_id: providerId })}`),
+  /** What the runtime will send for this provider/model before any override. */
+  getGenerationDefaults: (
+    providerId: string,
+    model: string,
+    opts?: ApiCallOpts
+  ) =>
+    json<GenerationDefaults>(
+      `/api/models/generation-defaults${q({ provider_id: providerId, model })}`,
+      undefined,
+      opts
+    ),
   createModel: (body: {
     provider_id: string
     name: string
     display_name?: string
     advanced_params?: Record<string, unknown>
+    supports_vision?: boolean | null
   }) =>
     json<Model>('/api/models', { method: 'POST', body: JSON.stringify(body) }),
   updateModel: (
@@ -501,6 +590,7 @@ export const api = {
     body: Partial<{
       display_name: string
       advanced_params: Record<string, unknown>
+      supports_vision: boolean | null
     }>
   ) =>
     json<Model>(`/api/models/${pid(id)}`, {
@@ -509,10 +599,27 @@ export const api = {
     }),
   deleteModel: (id: string) =>
     json<void>(`/api/models/${pid(id)}`, { method: 'DELETE' }),
+  /** Forget that this model was seen refusing images, and try again.
+   *
+   * The runtime remembers a refusal so a conversation stops paying for a
+   * request it expects to fail — but that record is a cache, and a rate limit
+   * or a gateway hiccup can write one. Before this existed the only way to
+   * revoke it was restarting the backend. */
+  retryVision: (id: string) =>
+    json<Model>(`/api/models/${pid(id)}/vision/retry`, { method: 'POST' }),
 
   getAgentSettings: () => json<AgentSettings>('/api/agent-settings'),
   putAgentSettings: (body: AgentSettings) =>
     json<AgentSettings>('/api/agent-settings', {
+      method: 'PUT',
+      body: JSON.stringify(body)
+    }),
+
+  listSearchProviders: () =>
+    json<SearchProvider[]>('/api/search-settings/providers'),
+  getSearchSettings: () => json<SearchSettings>('/api/search-settings'),
+  putSearchSettings: (body: SearchSettingsUpdate) =>
+    json<SearchSettings>('/api/search-settings', {
       method: 'PUT',
       body: JSON.stringify(body)
     }),

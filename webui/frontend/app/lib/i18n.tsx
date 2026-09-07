@@ -1,3 +1,5 @@
+import xEnUS from '@ant-design/x/locale/en_US'
+import xZhCN from '@ant-design/x/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
 import {
@@ -36,7 +38,18 @@ export function dictFor(lang: string | undefined): Dict {
   return lang === 'zh' ? dict.zh : dict.en
 }
 
-type AntdLocale = typeof enUS
+/**
+ * XProvider's `locale` prop is typed `xLocale & antdLocale` and is forwarded to
+ * BOTH antd's ConfigProvider and x's own LocaleContext, so it has to carry both
+ * vocabularies. Passing antd's locale alone left every @ant-design/x component
+ * on its built-in English defaults — visible as "Image / Code / Reset" in the
+ * Mermaid diagram toolbar while the rest of the UI was Chinese.
+ *
+ * The two objects are disjoint apart from `locale` itself (same value in both),
+ * so a plain merge is safe; antd's spread goes last so its `locale` string stays
+ * authoritative for the date/number formatting that reads it.
+ */
+type AntdLocale = typeof enUS & typeof xEnUS
 
 interface LangContextValue {
   lang: Lang
@@ -47,7 +60,10 @@ interface LangContextValue {
 
 const LangContext = createContext<LangContextValue | null>(null)
 
-const antdLocales: Record<Lang, AntdLocale> = { en: enUS, zh: zhCN }
+const antdLocales: Record<Lang, AntdLocale> = {
+  en: { ...xEnUS, ...enUS },
+  zh: { ...xZhCN, ...zhCN }
+}
 
 export function LangProvider({
   initialLang = 'en',

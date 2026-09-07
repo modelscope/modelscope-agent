@@ -1,11 +1,13 @@
-import { Actions, CodeHighlighter, Mermaid } from '@ant-design/x'
-import { ConfigProvider } from 'antd'
-import { useContext } from 'react'
+import { CodeHighlighter, Mermaid } from '@ant-design/x'
+import { CheckOutlined } from '@ant-design/icons'
+import { ConfigProvider, Typography } from 'antd'
+import { useContext, useState } from 'react'
 import { XMarkdown } from '@ant-design/x-markdown'
 import type { ComponentProps } from '@ant-design/x-markdown'
 import Latex from '@ant-design/x-markdown/plugins/Latex'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useTheme } from '~/lib/theme'
+import { useT } from '~/lib/i18n'
 import CopyIcon from '~/assets/icons/copy.svg?react'
 import './Markdown.css'
 // Typography themes (x-markdown-light / x-markdown-dark) are @imported in
@@ -61,14 +63,38 @@ function useHighlightProps() {
   }
 }
 
+/** The project's copy affordance: our glyph, our wording, neutral colour (see
+ * Markdown.css). Shared by the code-block header and the Mermaid toolbar so a
+ * "copy" button looks the same wherever markdown renders one.
+ *
+ * `Actions.Copy` (what both x components use by default) only forwards `text`
+ * plus a single `icon`, leaving the COPIED state on antd's defaults — its own
+ * check glyph and wording. It is an antd `Typography.Text copyable` internally,
+ * so using that directly costs nothing and exposes the two-slot `icon` /
+ * `tooltips` ([idle, copied]) pairs this needs. */
+function CopyAction({ text }: { text: string }) {
+  const { t } = useT()
+  return (
+    <Typography.Text
+      className="msa-md-copy"
+      copyable={{
+        text,
+        icon: [
+          <CopyIcon key="idle" className="h-4 w-4" />,
+          <CheckOutlined key="copied" className="text-sm !text-msa-green-5" />
+        ],
+        tooltips: [t.chat.copyReply, t.chat.copied]
+      }}
+    />
+  )
+}
+
 /** Code-block header matching CodeHighlighter's built-in one (language name
- * left, copy action right) with ONE change: the copy glyph is our own
- * `copy.svg`, the same asset the assistant-bubble copy button uses.
+ * left, copy action right) with ONE change: the copy action is ours, so its
+ * glyphs and labels line up with the assistant-bubble copy button.
  *
  * A custom `header` is the only way in — CodeHighlighter exposes no icon prop
- * and hardcodes `<Actions.Copy text={code} />`. `Actions.Copy` itself does take
- * an `icon`, so the built-in copy behaviour (clipboard write + copied feedback)
- * is kept as-is; only the glyph is swapped.
+ * and hardcodes `<Actions.Copy text={code} />`.
  *
  * The header/title class names have to be reproduced for the component's own
  * stylesheet to still apply, so the prefix is resolved the same way the
@@ -81,7 +107,7 @@ function CodeHeader({ lang, code }: { lang: string; code: string }) {
   return (
     <div className={`${prefixCls}-header`}>
       <span className={`${prefixCls}-header-title`}>{lang}</span>
-      <Actions.Copy text={code} icon={<CopyIcon className="h-4 w-4" />} />
+      <CopyAction text={code} />
     </div>
   )
 }
@@ -113,7 +139,7 @@ function Code(props: ComponentProps) {
         </CodeHighlighter>
       )
     }
-    return <Mermaid>{body}</Mermaid>
+    return <MermaidBlock code={body} />
   }
   return (
     <CodeHighlighter
@@ -128,9 +154,40 @@ function Code(props: ComponentProps) {
   )
 }
 
+/** Mermaid diagram with the project's chrome.
+ *
+ * Two deviations from the stock component:
+ *  - The built-in copy action is `Actions.Copy` (antd's default glyph/wording).
+ *    `enableCopy: false` drops it and a `customActions` entry renders ours via
+ *    `actionRender`, which the component supports for arbitrary JSX.
+ *  - `classNames.header` hangs a hook for Markdown.css to put the toolbar band
+ *    on project fill/line tokens instead of x's own palette.
+ *
+ * The copy action is view-dependent: stock Mermaid only offers it in CODE view
+ * (image view gets zoom/download instead), and `customActions` are appended to
+ * whichever set is active — so it has to be gated on the render type or it would
+ * also sit next to the zoom controls, offering to copy source from a picture. */
+function MermaidBlock({ code }: { code: string }) {
+  const [isCode, setIsCode] = useState(false)
+  return (
+    <Mermaid
+      classNames={{ header: 'msa-mermaid-header' }}
+      onRenderTypeChange={(value) => setIsCode(String(value) === 'code')}
+      actions={{
+        enableCopy: false,
+        customActions: isCode
+          ? [{ key: 'copy', actionRender: () => <CopyAction text={code} /> }]
+          : []
+      }}
+    >
+      {code}
+    </Mermaid>
+  )
+}
+
 /** `<mermaid>` tag emitted by x-markdown for mermaid fences → diagram. */
 function MermaidTag(props: ComponentProps) {
-  return <Mermaid>{textOf(props.children)}</Mermaid>
+  return <MermaidBlock code={textOf(props.children)} />
 }
 
 /** Links always open in a NEW tab. Markdown here is model output (citations,

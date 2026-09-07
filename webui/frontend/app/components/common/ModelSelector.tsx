@@ -1,6 +1,7 @@
 import { CheckOutlined } from '@ant-design/icons'
 import { Popover } from 'antd'
 import { Fragment, useMemo, useState } from 'react'
+import { ProviderTags } from '~/components/models/ProviderTags'
 import { useT } from '~/lib/i18n'
 import type { AgentSettings, Model, Provider } from '~/lib/types'
 import { PillButton } from './PillButton'
@@ -71,8 +72,14 @@ export function ModelSelector({
       }}
       content={
         <div className="flex h-[300px] w-[min(661px,calc(100vw-32px))] ">
-          {/* Left: providers */}
-          <div className="flex shrink-0 flex-col gap-1 border-r border-msa-line-1 p-[6px] h-full overflow-y-auto">
+          {/* Left: providers.
+              Fixed width, not shrink-0 alone: without a cap the column expands
+              to fit the widest provider name, which squeezes the models column
+              (min-w-0 flex-1) down to a few characters. 280px keeps common
+              provider names on one line next to their status tags, while the
+              row's own `truncate` handles longer canonical or custom names.
+              The models column keeps ~380px, still ample for model names. */}
+          <div className="flex w-[280px] shrink-0 flex-col gap-1 border-r border-msa-line-1 p-[6px] h-full overflow-y-auto">
             {(providers ?? []).map((p) => {
               const selected = p.id === effectiveProviderId
               return (
@@ -81,14 +88,21 @@ export function ModelSelector({
                   type="button"
                   title={p.name}
                   onClick={() => setActiveProviderId(p.id)}
-                  className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-[8px] border-0 px-[10px] py-[13px] text-left text-sm font-medium transition-colors ${
+                  className={`flex w-full cursor-pointer items-center gap-2 rounded-[8px] border-0 px-[10px] py-[13px] text-left text-sm font-medium transition-colors ${
                     selected
                       ? 'bg-msa-fill-4 text-msa-text-brand1'
                       : 'bg-msa-fill-0 text-msa-text-1 hover:bg-msa-fill-4 hover:text-msa-text-brand1'
                   }`}
                 >
-                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  <JumpIcon className="h-[15px] w-[15px] shrink-0 text-msa-text-3" />
+                  {/* No `flex-1` on the name: it would claim the row's slack and
+                      push the tags over to the arrow, reading as if they
+                      belonged to it. Shrinking (the flex default) still lets
+                      `truncate` cut a long name, and `ml-auto` keeps the arrow
+                      pinned right. Same tags as the settings provider list, so
+                      "built-in" and "key on file" mean the same thing here. */}
+                  <span className="min-w-0 truncate">{p.name}</span>
+                  <ProviderTags provider={p} />
+                  <JumpIcon className="ml-auto h-[15px] w-[15px] shrink-0 text-msa-text-3" />
                 </button>
               )
             })}

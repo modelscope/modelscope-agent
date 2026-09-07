@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class Profile(BaseModel):
-    agent_calls_user: str = "User"
+    # "" = not set; the old "User" default was schema boilerplate that the
+    # model never saw anyway (the field used to be a dead sidecar entry).
+    agent_calls_user: str = ""
     description: str = ""
     updated_at: datetime
 

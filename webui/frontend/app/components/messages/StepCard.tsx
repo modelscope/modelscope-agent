@@ -2,8 +2,10 @@ import { Typography } from 'antd'
 import { FileTypeIcon } from '~/components/common/FileCard'
 import { useT } from '~/lib/i18n'
 import { useFileExists } from '~/lib/workspaceFiles'
-import { InlineCode } from './InlineCode'
+import { InlineCode, stepTitleLine } from './InlineCode'
+import { CollapsibleRows } from './CollapsibleRows'
 import { faviconOf, parseWebSearchResults } from './searchResults'
+import { deniedNote } from './authOutcome'
 import type { AgentStep } from '~/lib/agentProvider'
 import type { OnOpenStep, OnOpenFile } from './types'
 import { TerminalStepCard } from './steps/TerminalStepCard'
@@ -36,19 +38,14 @@ function FileStepCard({
   const icon = <FileTypeIcon name={path} className="h-4 w-4" />
   if (!exists) {
     return (
-      <StepCardShell
-        icon={icon}
-        disabled
-        note={t.home.fileDeleted}
-        tipText={`${label}：${path}`}
-      >
+      <StepCardShell icon={icon} disabled note={t.home.fileDeleted}>
         <span className="align-middle">{label}：</span>
         <InlineCode>{path}</InlineCode>
       </StepCardShell>
     )
   }
   return (
-    <StepCardShell icon={icon} onClick={onOpen} tipText={`${label}：${path}`}>
+    <StepCardShell icon={icon} onClick={onOpen}>
       <span className="align-middle">{label}：</span>
       <InlineCode>{path}</InlineCode>
     </StepCardShell>
@@ -78,8 +75,7 @@ function MultiFileRow({
         {icon}
       </span>
       <Typography.Text
-        ellipsis={{ tooltip: { title: `${label}：${path}` } }}
-        className={`min-w-0 flex-1 !text-sm ${
+        className={`${stepTitleLine} !text-sm ${
           exists ? '!text-msa-text-1' : '!text-msa-text-3'
         }`}
       >
@@ -112,7 +108,9 @@ function MultiFileRow({
 
 /** Wrapper for a SINGLE tool call that read/edited SEVERAL files: one bordered
  * card holding the file rows flat inside, so it reads as one tool invocation
- * (matching the "used 1 tool" count) rather than N separate tool cards. */
+ * (matching the "used 1 tool" count) rather than N separate tool cards. Past
+ * five files the tail folds behind a chevron, with the last visible row fading
+ * out (see CollapsibleRows); `relative` anchors that folded chevron. */
 function MultiFileStepCard({
   paths,
   label,
@@ -125,16 +123,18 @@ function MultiFileStepCard({
   onOpen: (path: string) => void
 }) {
   return (
-    <div className="flex w-fit max-w-full flex-col gap-0.5 rounded-xl border border-msa-line-1 bg-msa-fill-1 p-1.5">
-      {paths.map((p, i) => (
-        <MultiFileRow
-          key={`${p}-${i}`}
-          path={p}
-          label={label}
-          serverExists={serverExists}
-          onOpen={() => onOpen(p)}
-        />
-      ))}
+    <div className="relative flex w-fit max-w-full flex-col gap-0.5 rounded-xl border border-msa-line-1 bg-msa-fill-1 p-1.5">
+      <CollapsibleRows>
+        {paths.map((p, i) => (
+          <MultiFileRow
+            key={`${p}-${i}`}
+            path={p}
+            label={label}
+            serverExists={serverExists}
+            onOpen={() => onOpen(p)}
+          />
+        ))}
+      </CollapsibleRows>
     </div>
   )
 }
@@ -202,7 +202,6 @@ export function StepCard({
               <InlineCode>{String(meta.name ?? '')}</InlineCode>
             </>
           }
-          titleText={`${t.chat.stepLoadSkill} ${String(meta.name ?? '')}`}
         />
       )
     case 'skill_list': {
@@ -225,7 +224,6 @@ export function StepCard({
               label
             )
           }
-          titleText={query ? `${label} ${query}` : label}
         />
       )
     }
@@ -255,7 +253,6 @@ export function StepCard({
               label
             )
           }
-          titleText={skill ? `${label} ${skill}` : label}
         />
       )
     }
@@ -294,7 +291,6 @@ export function StepCard({
               <InlineCode>{path}</InlineCode>
             </>
           }
-          titleText={`${askLabel} ${path}`}
         />
       )
       // An ask (or a refusal) has no room in a one-line row for the decision
@@ -360,7 +356,6 @@ export function StepCard({
               <InlineCode>{title}</InlineCode>
             </>
           }
-          titleText={`${t.chat.stepBrowser} ${title}`}
         />
       )
     }
@@ -381,7 +376,6 @@ export function StepCard({
                 <InlineCode>{query}</InlineCode>
               </>
             }
-            titleText={`${t.chat.stepSearchFiles} ${query}`}
           />
         )
       }
@@ -403,7 +397,6 @@ export function StepCard({
                 <InlineCode>{query}</InlineCode>
               </>
             }
-            titleText={`${t.chat.stepSearch} ${query}`}
           />
         )
       }
@@ -439,20 +432,12 @@ export function StepCard({
           // the rail, which the user has to open to see.
           note={
             denied
-              ? t.chat.authRejected
+              ? deniedNote(t, meta)
               : failed
                 ? t.chat.callFailed
                 : undefined
           }
           noteTone={denied ? 'muted' : 'danger'}
-          tipText={
-            results.length > 0
-              ? `${t.chat.stepSearch} ${query} ${t.chat.searchedPages.replace(
-                  '{n}',
-                  String(results.length)
-                )}`
-              : `${t.chat.stepSearch} ${query}`
-          }
         >
           <span className="align-middle">{t.chat.stepSearch}</span>{' '}
           <InlineCode>{query}</InlineCode>
@@ -462,7 +447,9 @@ export function StepCard({
               <span className="align-middle">
                 {t.chat.searchedPages.replace('{n}', String(results.length))}
               </span>
-              <span className="ml-1.5 inline-flex items-center align-middle">
+              {/* No margin of its own: the row is a flex line now, so the
+                  label/count/favicon gaps all come from its `gap-1`. */}
+              <span className="inline-flex items-center align-middle">
                 {favicons.map((src, i) => (
                   <img
                     key={i}

@@ -13,8 +13,16 @@ dependencies = [
     "mem0ai>=2.0.12",
     "ms-agent",
     "pydantic-settings>=2.14.2",
+    # httpx refuses to CONSTRUCT a client — any client, even for a host covered
+    # by NO_PROXY — when ALL_PROXY names a socks5:// endpoint and this is
+    # missing, so a developer behind the usual local proxy gets an ImportError
+    # instead of a working backend. 12 KB, pure Python, no dependencies.
+    "socksio>=1.0.0",
     "sse-starlette>=3.4.5",
     "uvicorn[standard]>=0.50.2",
+    # Direct dependency: the skill change tracker uses its public API.  Do not
+    # rely on uvicorn's optional transitive dependency remaining installed.
+    "watchfiles>=1.2.0",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +34,7 @@ local-embed = ["fastembed>=0.8"]
 [project.scripts]
 dev = "app.main:dev"
 serve = "app.main:serve"
+webui = "app.launcher:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -54,16 +63,12 @@ url = "https://mirrors.aliyun.com/pypi/simple/"
 default = true
 
 [tool.uv.sources]
-# ADAPTED FROM ms-agent-webui (upstream of this snapshot): there the SDK is a
-# git pin; here the backend lives INSIDE the ms-agent checkout it runs against,
-# so it must build from the containing tree. Editable keeps the two in step —
-# otherwise `ms-agent ui` would silently serve a stale SDK after framework code
-# changed right next to it.
-#
-# This block plus `uv.lock` are the only permanent differences from the source
-# repo; every other file under webui/ is a byte-exact copy. Do not "fix" the
-# rest here — it will be overwritten by the next snapshot (see docs/MIGRATION.md).
-ms-agent = { path = "../..", editable = true }
+# uv.lock pins an official SDK commit. Refresh it deliberately with
+# `uv lock --upgrade-package ms-agent` after updating SDK compatibility.
+# For local SDK development, override with an editable checkout of whichever
+# worktree you are on — `uv pip install -e <path-to-sdk>` after `uv sync`, then
+# `uv run --no-sync` so the override is not reverted.
+ms-agent = { git = "https://github.com/modelscope/ms-agent.git", branch = "main" }
 
 [dependency-groups]
 dev = [

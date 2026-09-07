@@ -1,8 +1,117 @@
+import { Tooltip } from 'antd'
 import { FileCard } from '~/components/common/FileCard'
-import type { AgentMessage } from '~/lib/agentProvider'
+import type { AgentMessage, ChatFileRef } from '~/lib/agentProvider'
 import type { OnOpenFile } from '~/components/messages/types'
 import { useT } from '~/lib/i18n'
-import { useWorkspaceFileSet } from '~/lib/workspaceFiles'
+import { useFileExists } from '~/lib/workspaceFiles'
+import { useImageDelivery } from '~/lib/imageDelivery'
+
+/**
+ * "This picture did not reach the model."
+ *
+ * The single most useful thing this area was missing. Whether an attached image
+ * actually entered the request was decided deep in the transport, written down
+ * nowhere, and communicated to the user only by the model — in sentences it made
+ * up. So "I can't see the image" could mean the switch was off, the endpoint had
+ * refused, or the model was simply confabulating, and nothing on screen told
+ * them apart. Each has a different remedy.
+ *
+ * Deliberately a corner dot rather than a banner: the normal case is silence,
+ * and a conversation that switched models mid-way then explains its own history
+ * — the turns the model could see have no dot, the ones it could not do.
+ *
+ * The dot means "the model has never received this picture", not "not on this
+ * turn": once an image has been shown the record does not go back, so turning
+ * the switch on clears the badge and the user can see that it worked.
+ *
+ * Subscribes to the live map itself rather than receiving it from the card, so a
+ * delivery report mid-turn re-renders one dot instead of every attachment.
+ */
+function DeliveryBadge({
+  path,
+  recorded
+}: {
+  path: string
+  recorded?: string
+}) {
+  const { t } = useT()
+  const delivery = useImageDelivery().get(path) ?? recorded
+  if (!delivery || delivery === 'delivered') return null
+  const label =
+    delivery === 'unreadable' ? t.chat.imageUnreadable : t.chat.imageNotSent
+  return (
+    <Tooltip title={label}>
+      <span
+        aria-label={label}
+        className="absolute left-1 top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-msa-bg-1"
+      />
+    </Tooltip>
+  )
+}
+
+/** A single attached-file card with LIVE existence: a webui rename/delete flips
+ * it to the disabled "deleted" card immediately. Uses the shared `useFileExists`
+ * guard (a missing path is only "deleted" when the workspace listing actually
+ * covers its directory), NOT a bare `!fileSet.has(path)` membership test which
+ * mis-flags live files whenever the listing lags or its path root differs. */
+function UserFileCard({
+  file: f,
+  onOpenFile
+}: {
+  file: ChatFileRef
+  onOpenFile?: OnOpenFile
+}) {
+  const { t } = useT()
+  const deleted = !useFileExists(f.path, f.exists !== false)
+  // A deleted file always falls back to the doc card, so it follows the
+  // document branch below regardless of its original type.
+  const isMedia =
+    !deleted &&
+    (f.type === 'image' || f.type === 'audio' || f.type === 'video')
+  const card = (
+    <FileCard
+      name={f.name}
+      byte={f.size}
+      type={f.type ?? 'file'}
+      src={f.url}
+      deleted={deleted}
+      note={deleted ? t.home.fileDeleted : undefined}
+      onOpen={isMedia && onOpenFile ? () => onOpenFile(f.path) : undefined}
+    />
+  )
+  // Media is NOT wrapped in a whole-card control: the picture/player owns its
+  // own clicks (antd preview, native controls), so the open-in-workspace action
+  // is a corner button inside the card instead. Wrapping it would put a handler
+  // and a tooltip over an area the user is actually clicking for something else.
+  if (isMedia) {
+    return (
+      <div className="relative">
+        {card}
+        <DeliveryBadge path={f.path} recorded={f.delivery} />
+      </div>
+    )
+  }
+  if (deleted || !onOpenFile) {
+    return <div className={deleted ? 'cursor-not-allowed' : ''}>{card}</div>
+  }
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      title={t.session.openInWorkspace}
+      onClick={() => onOpenFile(f.path)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpenFile(f.path)
+        }
+      }}
+      className="group/filecard cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-msa-line-2"
+    >
+      {card}
+    </div>
+  )
+}
 
 /** User message bubble content (right-aligned, preserves line breaks). Any
  * files the user attached this turn render as cards above the text; media use
@@ -12,60 +121,23 @@ import { useWorkspaceFileSet } from '~/lib/workspaceFiles'
  * generic card with a "deleted" note and is not clickable. */
 export function UserBubble({
   message,
+  id,
   onOpenFile
 }: {
   message: AgentMessage
+  /** Item key of this turn, stamped onto the root so the message navigator can
+   * locate the bubble while tracking the reading position. */
+  id?: string
   onOpenFile?: OnOpenFile
 }) {
-  const { t } = useT()
   const files = message.files ?? []
-  // Live workspace path set: deletions/renames/creations flip the cards'
-  // deleted state immediately (fallback: the server-baked `exists` flag).
-  const fileSet = useWorkspaceFileSet()
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-msa-msg-key={id}>
       {files.length > 0 && (
         <div className="flex flex-wrap items-start justify-end gap-2">
-          {files.map((f) => {
-            const deleted = fileSet
-              ? !fileSet.has(f.path)
-              : f.exists === false
-            const card = (
-              <FileCard
-                name={f.name}
-                byte={f.size}
-                type={f.type ?? 'file'}
-                src={f.url}
-                deleted={deleted}
-                note={deleted ? t.home.fileDeleted : undefined}
-              />
-            )
-            if (deleted || !onOpenFile) {
-              return (
-                <div key={f.path} className={deleted ? 'cursor-not-allowed' : ''}>
-                  {card}
-                </div>
-              )
-            }
-            return (
-              <div
-                key={f.path}
-                role="button"
-                tabIndex={0}
-                title={t.session.openInWorkspace}
-                onClick={() => onOpenFile(f.path)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onOpenFile(f.path)
-                  }
-                }}
-                className="group/filecard cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-msa-line-2"
-              >
-                {card}
-              </div>
-            )
-          })}
+          {files.map((f) => (
+            <UserFileCard key={f.path} file={f} onOpenFile={onOpenFile} />
+          ))}
         </div>
       )}
       {message.segments && message.segments.length > 0 ? (

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '~/lib/api'
+import { useOnProjectSettingsChanged } from '~/lib/events'
 import { useT } from '~/lib/i18n'
 import type { Scope } from '~/lib/types'
 import { MsaTextArea } from '~/components/common/MsaTextArea'
@@ -11,13 +12,17 @@ export function InstructionsCard({ scope }: { scope: Scope }) {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoaded(false)
     api.getInstruction(scope).then((r) => {
       setContent(r.content)
       setLoaded(true)
     })
   }, [scope])
+
+  useEffect(load, [load])
+  // Re-fetch when the edit modal saves (it writes to the same endpoint).
+  useOnProjectSettingsChanged(load)
 
   const onBlur = async () => {
     if (!loaded) return

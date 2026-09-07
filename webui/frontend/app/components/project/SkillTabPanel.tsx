@@ -2,7 +2,7 @@ import { Pagination, Segmented } from 'antd'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { CardSkeletonGrid } from '~/components/common/CardSkeletonGrid'
-import { EmptyState } from '~/components/common/EmptyState'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { MsaButton } from '~/components/common/MsaButton'
 import { api } from '~/lib/api'
 import { dispatchMcpSkillChanged } from '~/lib/events'
@@ -91,7 +91,15 @@ export function SkillTabPanel({ project }: Props) {
         {items === null ? (
           <CardSkeletonGrid className="grid grid-cols-1 gap-3 md:grid-cols-2" />
         ) : items.length === 0 ? (
-          <EmptyState size="lg" description={t.resources.skillEmpty} />
+          <EmptyState
+            size="lg"
+            description={`${t.resources.skillEmpty}${t.resources.skillEmptyHint}`}
+            action={
+              <EmptyStateAction onClick={() => setShowLocal(true)}>
+                {t.resources.addNow}
+              </EmptyStateAction>
+            }
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -106,10 +114,14 @@ export function SkillTabPanel({ project }: Props) {
                       refreshAndNotify()
                     }}
                     onView={() => setDetailSkill(s)}
-                    onRemove={async () => {
-                      await api.deleteSkill(s.id)
-                      refreshAndNotify()
-                    }}
+                    onRemove={
+                      s.removable
+                        ? async () => {
+                            await api.deleteSkill(s.id)
+                            refreshAndNotify()
+                          }
+                        : undefined
+                    }
                   />
                 ))}
             </div>

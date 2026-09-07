@@ -2,6 +2,7 @@ import { Tooltip } from 'antd'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import IconModelSettings from '~/assets/icons/model-settings.svg?react'
 import IconMcpSkill from '~/assets/icons/mcp-skill-manage.svg?react'
+import IconSearch from '~/assets/icons/search.svg?react'
 import IconPersonalize from '~/assets/icons/personalize.svg?react'
 import IconAppearance from '~/assets/icons/appearance.svg?react'
 
@@ -34,6 +35,7 @@ export default function SettingsLayout() {
     [
       { to: 'models', label: t.settings.navModels, icon: IconModelSettings },
       { to: 'mcp-skills', label: t.settings.navMcpSkills, icon: IconMcpSkill },
+      { to: 'search', label: t.settings.navSearch, icon: IconSearch },
       {
         to: 'personalization',
         label: t.settings.navPersonalization,

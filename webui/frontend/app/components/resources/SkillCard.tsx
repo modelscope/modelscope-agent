@@ -1,4 +1,4 @@
-import { Button, Dropdown, Popconfirm, Tooltip } from 'antd'
+import { Button, Dropdown, Popconfirm } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMemo, useState } from 'react'
 import { MsaSwitch } from '~/components/common/MsaSwitch'
@@ -10,7 +10,7 @@ interface SkillCardProps {
   skill: Skill
   onToggle: (v: boolean) => void
   onView?: () => void
-  onRemove: () => void
+  onRemove?: () => void
 }
 
 export function SkillCard({
@@ -36,12 +36,16 @@ export function SkillCard({
       ...(onView
         ? [{ key: 'view', label: t.resources.tryIt, onClick: onView }]
         : []),
-      {
-        key: 'remove',
-        label: t.resources.remove,
-        danger: true,
-        onClick: () => setConfirmOpen(true)
-      }
+      ...(onRemove
+        ? [
+            {
+              key: 'remove',
+              label: t.resources.remove,
+              danger: true,
+              onClick: () => setConfirmOpen(true)
+            }
+          ]
+        : [])
     ]
   }
 
@@ -62,29 +66,42 @@ export function SkillCard({
         <span className="min-w-0 flex-1 truncate text-xs text-msa-text-3">
           {oneLiner || t.resources.noDescription}
         </span>
-        <Popconfirm
-          title={t.resources.confirmRemoveSkill}
-          open={confirmOpen}
-          onConfirm={() => {
-            setConfirmOpen(false)
-            onRemove()
-          }}
-          onCancel={() => setConfirmOpen(false)}
-          okText={t.resources.remove}
-          okButtonProps={{ danger: true }}
-        >
-          <Dropdown menu={menu} trigger={['click']} placement="bottomRight">
-            <Tooltip title={t.resources.more}>
+        {/* The whole card toggles the skill, so the action area has to swallow
+            its clicks — INCLUDING the confirm popup's. That popup renders in a
+            portal but is a React child of Popconfirm, and React events bubble
+            along the component tree, not the DOM one: confirming "remove" also
+            ran the card's onToggle, firing a DELETE and a PATCH at the same
+            skill. Whichever the server finished second answered 404 ("Skill not
+            found") for an operation that had actually succeeded. */}
+        <span onClick={(e) => e.stopPropagation()}>
+          <Popconfirm
+            title={
+              skill.origin === 'legacy-path'
+                ? t.resources.confirmRemoveLegacySkill
+                : t.resources.confirmRemoveSkill
+            }
+            open={confirmOpen}
+            onConfirm={() => {
+              setConfirmOpen(false)
+              onRemove?.()
+            }}
+            onCancel={() => setConfirmOpen(false)}
+            okText={t.resources.remove}
+            okButtonProps={{ danger: true }}
+          >
+            {/* More menu — hover-triggered, so it carries no tooltip (that would
+                overlap the menu); the i18n label moves to `aria-label`. */}
+            <Dropdown menu={menu} trigger={['hover']} placement="bottomRight">
               <Button
+                aria-label={t.resources.more}
                 size="small"
                 type="text"
                 icon={<MoreIcon className="h-4 w-4" />}
                 className="!text-msa-text-3"
-                onClick={(e) => e.stopPropagation()}
               />
-            </Tooltip>
-          </Dropdown>
-        </Popconfirm>
+            </Dropdown>
+          </Popconfirm>
+        </span>
       </div>
     </div>
   )

@@ -26,7 +26,7 @@ def _decode_id(mcp_id: str) -> tuple[str, str]:
         scope, name = base64.urlsafe_b64decode(mcp_id + pad).decode().split("\x1f", 1)
         return scope, name
     except Exception:
-        raise NotFound("mcp not found")
+        raise NotFound("MCP server not found.")
 
 
 def _mm_for(scope: str):
@@ -39,9 +39,9 @@ def _mm_for(scope: str):
         pid = scope.split(":", 1)[1]
         proj = pm().get(pid)
         if proj is None:
-            raise BadRequest(f"unknown project: {pid}")
+            raise BadRequest("Project not found.")
         return MCPConfigManager(global_root=home(), project_root=proj.path), "project"
-    raise BadRequest(f"invalid scope: {scope!r}")
+    raise BadRequest("Invalid MCP location.")
 
 
 def _endpoint(entry: dict) -> tuple[str, str]:
@@ -61,7 +61,7 @@ def _server(transport: str, endpoint: str, env: dict | None = None, headers: dic
     if transport == "stdio":
         parts = shlex.split(endpoint)
         if not parts:
-            raise BadRequest("empty stdio command")
+            raise BadRequest("The command cannot be empty.")
         server = {"command": parts[0], "args": parts[1:]}
         if env:
             server["env"] = env
@@ -102,6 +102,23 @@ def _is_tombstone(entry: dict) -> bool:
     if entry.get("_removed"):
         return True
     return not entry.get("url") and not entry.get("command")
+
+
+def _live(mm, name: str, sdk_scope: str) -> dict | None:
+    """The server `name` defines in `sdk_scope`, or None — masks read as absent.
+
+    Every id-addressed operation has to agree with :func:`list_mcps` about what
+    exists, and a mask is precisely a row that exists in the file while NOT
+    defining a server. Using the raw `mm.get` instead made the two disagree, so
+    a name the user could no longer see was also a name they could no longer
+    use: re-adding it returned "already exists", `GET` returned a phantom entry
+    with an empty endpoint, and `PATCH` wrote `{enabled: true, _removed: true,
+    url: ""}` — an enabled row for a server that was never defined.
+    """
+    entry = mm.get(name, sdk_scope)
+    if entry is None or _is_tombstone(entry):
+        return None
+    return entry
 
 
 def list_mcps(scope: str | None = None) -> list[Mcp]:
@@ -163,8 +180,11 @@ def health() -> list[McpHealth]:
         return []
 
     async def _run():
+        # Cached (60 s): the list page probes every enabled server at once, so
+        # without it each visit re-paid the full timeout for every dead entry.
         return await asyncio.gather(
-            *(mcp_health.check_server(entry) for _, _, _, entry in entries)
+            *(mcp_health.check_server_cached(name, entry)
+              for _, name, _, entry in entries)
         )
 
     results = asyncio.run(_run())
@@ -182,10 +202,18 @@ def health_one(mcp_id: str) -> McpHealth:
 
     scope, name = _decode_id(mcp_id)
     mm, sdk_scope = _mm_for(scope)
-    entry = mm.get(name, sdk_scope)
+    entry = _live(mm, name, sdk_scope)
     if entry is None:
-        raise NotFound("mcp not found")
-    ok, err = asyncio.run(mcp_health.check_server(entry))
+        raise NotFound("MCP server not found.")
+    # A user asking "reconnect" wants the truth NOW, not a cached verdict — and
+    # the fresh answer replaces the cached one so the next session build agrees.
+    # Only THIS server's verdict is dropped (a full clear made the next sweep
+    # re-pay every dead entry's timeout), and the probe is DEEP: for stdio a
+    # real spawn+initialize — the shallow existence check kept a green light on
+    # a package that crashes at startup. The budget covers a cold uvx install.
+    mcp_health.invalidate_server(name, entry)
+    ok, err = asyncio.run(
+        mcp_health.check_server_cached(name, entry, timeout=45.0, deep=True))
     return McpHealth(id=mcp_id, name=name, scope=scope, healthy=ok, error=err)
 
 
@@ -196,10 +224,11 @@ def create_mcp(body: McpCreate) -> Mcp:
     # each save its own partial view — silently resurrecting the other's changes.
     with settings_lock():
         mm, sdk_scope = _mm_for(body.scope)
-        if mm.get(body.name, sdk_scope) is not None:
-            raise Conflict("mcp name already exists in this scope")
+        if _live(mm, body.name, sdk_scope) is not None:
+            raise Conflict("An MCP server with this name already exists here.")
         server = _server(body.transport, body.endpoint, body.env, body.headers)
         server["enabled"] = body.enabled
+        # `add` replaces the whole row, so re-adding over a mask clears it.
         mm.add(body.name, server, scope=sdk_scope)
         mid = _encode_id(body.scope, body.name)
         if body.description:
@@ -211,9 +240,9 @@ def create_mcp(body: McpCreate) -> Mcp:
 def get_mcp(mcp_id: str) -> Mcp:
     scope, name = _decode_id(mcp_id)
     mm, sdk_scope = _mm_for(scope)
-    entry = mm.get(name, sdk_scope)
+    entry = _live(mm, name, sdk_scope)
     if entry is None:
-        raise NotFound("mcp not found")
+        raise NotFound("MCP server not found.")
     return _to_schema(scope, name, entry)
 
 
@@ -225,14 +254,14 @@ def update_mcp(mcp_id: str, body: McpUpdate) -> Mcp:
 def _update_mcp_locked(mcp_id: str, body: McpUpdate) -> Mcp:
     scope, name = _decode_id(mcp_id)
     mm, sdk_scope = _mm_for(scope)
-    cur = mm.get(name, sdk_scope)
+    cur = _live(mm, name, sdk_scope)
     if cur is None:
-        raise NotFound("mcp not found")
+        raise NotFound("MCP server not found.")
 
     cur_transport, cur_endpoint = _endpoint(cur)
     new_name = body.name or name
-    if new_name != name and mm.get(new_name, sdk_scope) is not None:
-        raise Conflict("mcp name already exists in this scope")
+    if new_name != name and _live(mm, new_name, sdk_scope) is not None:
+        raise Conflict("An MCP server with this name already exists here.")
     transport = body.transport or cur_transport
     endpoint = body.endpoint if body.endpoint is not None else cur_endpoint
     env = body.env if body.env is not None else cur.get("env")
@@ -273,15 +302,6 @@ def _update_mcp_locked(mcp_id: str, body: McpUpdate) -> Mcp:
         registry.toggle_mcp(name, body.enabled)  # apply to any live session
     entry = mm.get(new_name, sdk_scope) or server
     return _to_schema(scope, new_name, entry)
-
-
-def _project_owned(name: str) -> bool:
-    """True when `name` is defined by the PROJECT itself rather than inherited
-    from the global scope."""
-    from ms_agent.config import MCPConfigManager
-
-    gm = MCPConfigManager(global_root=home())
-    return gm.get(name, "global") is None
 
 
 def _hard_remove_project_entry(mm, name: str) -> None:
@@ -327,7 +347,7 @@ def replace_mcps(scope: str, bodies: list[McpCreate]) -> list[Mcp]:
         built: list[tuple[str, dict, str | None]] = []
         for body in bodies:
             if body.name in seen:
-                raise Conflict(f"duplicate mcp name: {body.name}")
+                raise Conflict(f"Duplicate MCP server name: {body.name}")
             seen.add(body.name)
             server = _server(body.transport, body.endpoint, body.env, body.headers)
             server["enabled"] = body.enabled
@@ -366,15 +386,32 @@ def delete_mcp(mcp_id: str) -> None:
 def _delete_mcp_locked(mcp_id: str) -> None:
     scope, name = _decode_id(mcp_id)
     mm, sdk_scope = _mm_for(scope)
-    if mm.get(name, sdk_scope) is None:
-        raise NotFound("mcp not found")
-    if sdk_scope == "project" and _project_owned(name):
+    if _live(mm, name, sdk_scope) is None:
+        raise NotFound("MCP server not found.")
+    if sdk_scope == "project":
+        # Deleting a project entry removes the OVERRIDE, so a global server of
+        # the same name is inherited again. It used to leave a mask instead,
+        # which suppressed the global too: the user removed their project-level
+        # copy and silently lost the server everywhere in that project, with
+        # nothing left in either tab to explain it.
+        #
+        # "Off for this project" is a different intent and already has its own
+        # control — the card's switch writes `enabled: false`, and the project
+        # layer wins the merge, so it masks the global exactly as before
+        # (verified: the agent resolves no server for that name). Delete and
+        # disable now mean two different things instead of the same one.
+        #
+        # This also makes delete agree with `replace_mcps`, which has always
+        # hard-removed project rows absent from the submitted document.
         _hard_remove_project_entry(mm, name)
     else:
-        # Global: real delete. Project entry shadowing a GLOBAL server: mask it,
-        # so the server stays defined globally but is off for this project.
-        mm.remove(name, sdk_scope)
+        mm.remove(name, sdk_scope)  # global: a real delete
     sidecar.drop("mcps", mcp_id)
     from app.backends.ms_agent.runtime import registry
 
     registry.toggle_mcp(name, False)  # disconnect from any live session
+    if sdk_scope == "project":
+        # A live agent froze its MCP set at build time, so an inherited global
+        # that just became visible again would not reach it. Retire the runtimes
+        # so the next idle turn resolves the name afresh.
+        registry.mark_all_stale()

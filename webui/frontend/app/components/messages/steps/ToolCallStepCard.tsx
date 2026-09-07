@@ -4,9 +4,11 @@ import type { ReactNode } from 'react'
 import { MsaButton } from '~/components/common/MsaButton'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
+import { useCollapseTransition } from '../useCollapseTransition'
+import { deniedNote } from '../authOutcome'
 import type { AgentStep } from '~/lib/agentProvider'
 import type { OnOpenStep } from '../types'
-import { InlineCode } from '../InlineCode'
+import { InlineCode, stepTitleLine } from '../InlineCode'
 import { StepInProgressRow, stepHasInProgressRow } from './StepCardShell'
 import InvokeIcon from '~/assets/icons/invoke.svg?react'
 import ArrowDownIcon from '~/assets/icons/arrow-down.svg?react'
@@ -24,8 +26,7 @@ export function ToolCallStepCard({
   onOpenStep: _onOpenStep,
   isLast,
   icon,
-  title,
-  titleText
+  title
 }: {
   step: AgentStep
   onOpenStep?: OnOpenStep
@@ -35,9 +36,6 @@ export function ToolCallStepCard({
   icon?: ReactNode
   /** Header title override (defaults to the localized "Call {tool name}"). */
   title?: ReactNode
-  /** Plain-text mirror of `title` for the overflow tooltip (rich nodes like
-   * InlineCode read badly on the dark tooltip background). */
-  titleText?: string
 }) {
   const { t } = useT()
   const meta = step.meta
@@ -56,6 +54,7 @@ export function ToolCallStepCard({
   const [expanded, setExpanded] = useState(
     (isLast ?? false) || metaState === 'pending'
   )
+  const { animating, onTransitionEnd } = useCollapseTransition(expanded)
 
   // Auto-collapse once newer parts arrive (mirrors ThoughtsFlow) — except a
   // pending authorization, whose buttons must stay visible.
@@ -148,16 +147,7 @@ export function ToolCallStepCard({
           )}
         </span>
         <Typography.Text
-          className="min-w-0 flex-1 !text-sm !text-msa-text-1"
-          ellipsis={{
-            tooltip:
-              titleText ??
-              `${
-                meta.source === 'mcp'
-                  ? t.chat.stepInvokeMcp
-                  : t.chat.stepInvokeTool
-              } ${name}`
-          }}
+          className={`${stepTitleLine} !text-sm !text-msa-text-1`}
         >
           {title ?? (
             <>
@@ -179,7 +169,7 @@ export function ToolCallStepCard({
         )}
         {denied && (
           <span className="shrink-0 text-xs text-msa-text-3">
-            {t.chat.authRejected}
+            {deniedNote(t, meta)}
           </span>
         )}
         {failed && (
@@ -196,8 +186,11 @@ export function ToolCallStepCard({
 
       {/* Body: animated accordion */}
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        className={`grid duration-200 ease-in-out ${
+          animating ? 'transition-[grid-template-rows]' : ''
+        }`}
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           <div className="border-t border-msa-line-1 px-3 py-2 space-y-2">

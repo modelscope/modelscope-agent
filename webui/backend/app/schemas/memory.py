@@ -79,3 +79,17 @@ class MemoryStatus(BaseModel):
     ingest: MemoryIngestInfo | None = None
     # Whether the optional fastembed extra is installed (drives UI hints).
     local_embed_available: bool = False
+    # A re-embedding rebuild is running right now (re-embedding a large store
+    # takes a while, and a second one must not be started).
+    rebuilding: bool = False
+
+
+class MemoryRebuildResult(BaseModel):
+    """Outcome of a rebuild, so the UI can say what actually happened."""
+
+    project_id: str
+    # Entries carried into the new store, re-embedded with the current model.
+    migrated: int = 0
+    # The store already spoke the current embedder: nothing was touched.
+    reused: bool = False
+    status: MemoryStatus

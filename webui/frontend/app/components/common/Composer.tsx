@@ -1,7 +1,7 @@
 import { App, Button, Dropdown, Tooltip, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouteLoaderData } from 'react-router'
+import { useNavigate, useRevalidator, useRouteLoaderData } from 'react-router'
 import type { loader as appLoader } from '~/layouts/app'
 import { taskStatusIcon } from '~/components/messages/TaskPlan'
 import IconFolder from '~/assets/icons/folder.svg?react'
@@ -9,6 +9,7 @@ import IconTask from '~/assets/icons/task.svg?react'
 import { NewProjectModal } from '~/components/project/NewProjectModal'
 import { PillButton } from './PillButton'
 import { api } from '~/lib/api'
+import { useModelChanged } from '~/lib/modelChanged'
 import { useOnMcpSkillChanged, dispatchWorkspaceChanged } from '~/lib/events'
 import type { ChatFileRef } from '~/lib/agentProvider'
 import { useT } from '~/lib/i18n'
@@ -20,6 +21,7 @@ import type {
   Project,
   Provider,
   Scope,
+  SearchSettings,
   Skill
 } from '~/lib/types'
 import { FileCard, FileTypeIcon, fileToAttached } from './FileCard'
@@ -39,6 +41,7 @@ import AddIcon from '~/assets/icons/add.svg?react'
 import FolderIcon from '~/assets/icons/folder.svg?react'
 import SendIcon from '~/assets/icons/send.svg?react'
 import MoreIcon from '~/assets/icons/more.svg?react'
+import EditIcon from '~/assets/icons/edit.svg?react'
 
 // Sender runs PERMANENTLY in slot mode (structured input): picked skills are
 // inline tag pills among free text. Stable module-level empty config (the
@@ -137,6 +140,8 @@ export function Composer({
   const autoSize = autoSizeProp ?? { minRows: 1, maxRows: 6 }
   const { t } = useT()
   const { message } = App.useApp()
+  const navigate = useNavigate()
+  const revalidator = useRevalidator()
 
   // Projects/models/providers/settings and the global MCP + Skill lists are
   // resolved by the app layout's loader, so they are available before the first
@@ -187,11 +192,25 @@ export function Composer({
   const [createOpen, setCreateOpen] = useState(false)
   const [pickedProjectId, setPickedProjectId] = useState<string | null>(null)
 
+  const hasProjectPicker = !project && !!onProjectChange
+
+  const defaultProject = useMemo(
+    () => projects.find((p) => p.is_default) ?? null,
+    [projects]
+  )
+
   // The project whose MCP/Skill/auto config applies: the route-level project,
-  // or — on the homepage — the one chosen in the picker dropdown.
+  // or — on the homepage — the one chosen in the picker dropdown. The last
+  // branch resolves the picker's default in the SAME render that the effect
+  // below only commits one frame later: sending the first message remounts this
+  // component, and a project-less first paint would show the pills' fallbacks
+  // (notably "always ask") instead of what the turn actually runs with.
   const effectiveProject = useMemo(
-    () => project ?? projects.find((p) => p.id === pickedProjectId) ?? null,
-    [project, projects, pickedProjectId]
+    () =>
+      project ??
+      projects.find((p) => p.id === pickedProjectId) ??
+      (hasProjectPicker ? defaultProject : null),
+    [project, projects, pickedProjectId, hasProjectPicker, defaultProject]
   )
 
   // Toolbar data comes from the app layout's loader, so the pills render their
@@ -266,7 +285,24 @@ export function Composer({
     [globalSkills, projectSkills]
   )
 
-  const hasProjectPicker = !project && !!onProjectChange
+  // Web-search config is GLOBAL, so it is resolved once by the app layout's
+  // loader rather than per Composer mount — asking again on every session switch
+  // both repeated a settled question and flashed the pill in a beat after paint.
+  // Seeded into state so the fallback below can fill it when this Composer is
+  // mounted outside that layout.
+  const [searchSettings, setSearchSettings] = useState<SearchSettings | null>(
+    appData?.searchSettings ?? null
+  )
+  // Show the "search not configured" hint ONLY when search is on and the
+  // selected provider genuinely cannot run — i.e. it needs a key and has none.
+  // Providers with a keyless tier (Tavily, the default; arxiv, which needs no
+  // credential at all) work as-is, so warning about them would be false: the
+  // user is told to fix something that is not broken, on the very first screen.
+  const searchNeedsKey =
+    !!searchSettings?.enabled &&
+    !searchSettings.has_key &&
+    !searchSettings.supports_keyless &&
+    searchSettings.provider !== 'arxiv'
 
   useEffect(() => {
     // Everything here already arrived with the layout loader on the normal
@@ -277,11 +313,19 @@ export function Composer({
       api.listProviders(),
       api.listModels(),
       api.getAgentSettings()
-    ]).then(([ps, ms, s]) => {
-      setProviders(ps)
-      setModels(ms)
-      setSettings(s)
-    })
+    ])
+      .then(([ps, ms, s]) => {
+        setProviders(ps)
+        setModels(ms)
+        setSettings(s)
+      })
+      // `null` is what makes ModelSelector show a skeleton, so leaving it there
+      // on failure means a picker that never stops loading. `[]` lets it say
+      // there is nothing to pick, which is at least a resolved answer.
+      .catch(() => {
+        setProviders([])
+        setModels([])
+      })
     api
       .listMcps('global')
       .then(setGlobalMcps)
@@ -290,8 +334,16 @@ export function Composer({
       .listSkills('global')
       .then(setGlobalSkills)
       .catch(() => setGlobalSkills([]))
+    api
+      .getSearchSettings()
+      .then(setSearchSettings)
+      .catch(() => setSearchSettings(null))
     if (hasProjectPicker) {
-      api.listProjects().then(setProjects)
+      // Already `[]`, so this only keeps the rejection from going unhandled.
+      api
+        .listProjects()
+        .then(setProjects)
+        .catch(() => setProjects([]))
     }
   }, [hasProjectPicker, hasAppData])
 
@@ -299,6 +351,12 @@ export function Composer({
     if (!settings) return
     const next = await api.putAgentSettings({ ...settings, ...patch })
     setSettings(next)
+    // Refresh the loader snapshot this component SEEDS from. Sending the first
+    // message swaps ChatPanel's empty-state tree for the message-list one, which
+    // remounts the composer at a new position — the fresh instance re-seeds from
+    // `appData`, so leaving that stale made the pill snap back to the model
+    // picked before this switch until something else remounted it.
+    revalidator.revalidate()
   }
 
   // Slash-command suggestions list EVERY known skill (global + project),
@@ -420,12 +478,10 @@ export function Composer({
     [filteredSuggestions, suggestIndex, selectSuggestion, closeSuggestions]
   )
 
-  const defaultProject = useMemo(
-    () => projects.find((p) => p.is_default) ?? null,
-    [projects]
-  )
-
   // Default the picker to the default project when nothing is picked yet.
+  // `effectiveProject` already reads through to it, but the pick still has to be
+  // committed here: this is what tells the host, which routes the project_id the
+  // request is sent with.
   useEffect(() => {
     if (hasProjectPicker && defaultProject && pickedProjectId === null) {
       setPickedProjectId(defaultProject.id)
@@ -434,15 +490,16 @@ export function Composer({
   }, [hasProjectPicker, defaultProject, pickedProjectId, onProjectChange])
 
   // The project files land in: fixed project, or the picked one on the homepage
-  // new-chat (defaulted to the default project by the effect above).
-  const effectiveProjectId = project?.id ?? pickedProjectId
+  // new-chat. Derived from `effectiveProject` so uploads and the pills can never
+  // disagree about which project is meant — including the default the effect
+  // above has yet to commit.
+  const effectiveProjectId = effectiveProject?.id ?? null
 
   // Authorization mode of the effective project (optimistic local override
   // wins until the project changes). Persisted project-side; live runtimes are
   // hot-switched by the backend, so it applies to the current turn's next call.
   const permMode: PermissionMode =
     permModeLocal ?? effectiveProject?.permission_mode ?? 'restricted'
-
   useEffect(() => {
     setPermModeLocal(null)
   }, [effectiveProjectId])
@@ -452,6 +509,10 @@ export function Composer({
     setPermModeLocal(mode)
     try {
       await api.updateProject(effectiveProjectId, { permission_mode: mode })
+      // See updateSettings: the loader snapshot backing `projects` must not stay
+      // on the old mode, or the composer remounted by the first message reads it
+      // back out of `effectiveProject`.
+      revalidator.revalidate()
     } catch {
       setPermModeLocal(null) // global error toast handles the message
     }
@@ -516,6 +577,18 @@ export function Composer({
   // nothing at all. The backend would silently fall back to whatever its config
   // still holds, so the turn "works" while the UI shows no model: block sending
   // instead and say why. `null` = still loading, which must not block.
+  // The active model's "image understanding" switch. Two states, default off:
+  // anything that is not an explicit `true` means the images travel as paths.
+  // (This used to test `=== false` only, because an unset model still had a
+  // third meaning — "let the SDK decide", which in practice sent images. Now
+  // unset simply is off, so the notice has to cover it or it would go missing
+  // for exactly the models most likely to need it.)
+  const activeModel =
+    models !== null && settings !== null
+      ? models.find((m) => m.id === settings.default_model_id)
+      : undefined
+  const visionOff = activeModel !== undefined && !activeModel.supports_vision
+  const hasImageFile = files.some((f) => (f.type ?? '').startsWith('image'))
   const modelMissing =
     models !== null &&
     settings !== null &&
@@ -528,6 +601,43 @@ export function Composer({
     !modelMissing &&
     (!!draft.trim() || hasReadyFiles || pickedSkills.length > 0)
 
+  /** Turn on image understanding for the active model, in place.
+   *
+   * This used to navigate to Settings → Models. That route unmounts the
+   * composer, and both the draft and the attached files live in plain component
+   * state — so following our own suggestion threw away the message the user was
+   * in the middle of writing and left an orphaned upload in the workspace. The
+   * setting is one boolean on one model; there is nothing here worth a round
+   * trip through another page. */
+  // Opening a session re-selects the model it was held with; refresh so the
+  // pill shows the model the next turn will actually run on.
+  useModelChanged(
+    useCallback(() => {
+      api
+        .getAgentSettings()
+        .then(setSettings)
+        .catch(() => {})
+    }, [])
+  )
+
+  const enableVision = async () => {
+    if (!activeModel) return
+    try {
+      const updated = await api.updateModel(activeModel.id, {
+        supports_vision: true
+      })
+      setModels((prev) =>
+        (prev ?? []).map((m) => (m.id === updated.id ? updated : m))
+      )
+      // See updateSettings: `models` is seeded from the loader snapshot, so
+      // leaving it stale means the next composer instance reads the model as
+      // vision-less again and asks the user to enable what they just enabled.
+      revalidator.revalidate()
+    } catch {
+      message.error(t.errors.requestFailed)
+    }
+  }
+
   const handleSubmit = (value: string) => {
     const text = value.trim()
     if (hasUploading) return
@@ -538,6 +648,13 @@ export function Composer({
       setModelHintOpen(true)
       return
     }
+    // ORDER IS PART OF THE CONTRACT: the backend numbers image attachments
+    // "Image 1..N" in the order they arrive here, and the model answers "the
+    // second image" against that numbering. `files` is in the order the user
+    // picked them (addFiles appends; uploadOne only patches an entry in place,
+    // so a fast upload never jumps ahead of a slow one), and filter/map both
+    // preserve it — which is what keeps the numbering aligned with the chips the
+    // user is looking at. Do not sort or re-group this list.
     const ready = files.filter((f) => f.status === 'done' && f.path)
     if (!text && ready.length === 0 && pickedSkills.length === 0) return
     const refs: ChatFileRef[] = ready.map((f) => ({
@@ -568,6 +685,33 @@ export function Composer({
     setPickedSkills([])
     // Slot mode is uncontrolled; clear the editable area imperatively.
     senderRef.current?.clear()
+  }
+
+  /** Paste a multi-line block WITH its line breaks.
+   *
+   * Sender's slot mode is a contenteditable, and its own paste handler pipes
+   * the clipboard text through a cleaner that strips every `\n` — so pasting
+   * a paragraph arrived as one squashed line. Line breaks themselves are fully
+   * supported in that editable area (Shift+Enter inserts a real `\n` text node,
+   * and the area is `white-space: pre-wrap`), so paste is the only gap.
+   *
+   * Runs in the CAPTURE phase to preempt Sender's own handler, then inserts the
+   * text verbatim through the same imperative `insert()` used for skill pills —
+   * which builds a plain text node, exactly what Shift+Enter produces. Only
+   * multi-line text is intercepted; single-line text and pasted files keep
+   * Sender's built-in handling (`onPasteFile` below). */
+  const handlePasteCapture = (e: React.ClipboardEvent) => {
+    const text = e.clipboardData?.getData('text/plain') ?? ''
+    // Normalize CRLF/CR first: a Windows clipboard would otherwise leave stray
+    // \r characters in the value the model receives.
+    const normalized = text.replace(/\r\n?/g, '\n')
+    if (!normalized.includes('\n')) return
+    e.preventDefault()
+    e.stopPropagation()
+    senderRef.current?.insert(
+      [{ type: 'text', value: normalized.replace(/\u200B/g, '') }],
+      'cursor'
+    )
   }
 
   /** Queue files as attachments and start their uploads. Shared by the picker
@@ -603,6 +747,16 @@ export function Composer({
     setFiles((prev) => prev.filter((f) => f.id !== id))
   }
 
+  // Backspace on an empty editable area peels off attachments one at a time
+  // (last-added first), the familiar chip-input behaviour. Only fires when the
+  // area is truly empty — no text AND no skill pills — so pill backspacing (the
+  // Sender's own handling) is never pre-empted.
+  const backspaceRemovesFile =
+    draft === '' && pickedSkills.length === 0 && files.length > 0
+  const removeLastFile = () => {
+    setFiles((prev) => prev.slice(0, -1))
+  }
+
   const projectMenuItems: MenuProps['items'] = hasProjectPicker
     ? [
         // One flat list: the default project is listed inline with the rest
@@ -610,7 +764,14 @@ export function Composer({
         ...projects.map((p) => ({
           key: p.id,
           icon: <FolderIcon className="h-4 w-4" />,
-          label: p.name,
+          // Capped + truncated: an antd menu sizes itself to its widest row, so
+          // one long project name stretched the whole panel past the viewport.
+          // The full name stays reachable via the row's native tooltip.
+          label: (
+            <span className="block max-w-[240px] truncate" title={p.name}>
+              {p.name}
+            </span>
+          ),
           onClick: () => {
             setPickedProjectId(p.id)
             onProjectChange?.(p.id)
@@ -625,6 +786,12 @@ export function Composer({
         }
       ]
     : undefined
+
+  // The picker's own label, named once so the trigger can both render it
+  // truncated and hand the full string to its tooltip. No separate default
+  // fallback: `effectiveProject` resolves it, and it is only rendered under
+  // `hasProjectPicker`, so reaching the placeholder means there are no projects.
+  const pickerLabel = effectiveProject?.name ?? t.home.noProject
 
   // Shared design-spec status glyphs (single source in TaskPlan). `loading`
   // gates the running spinner — a "running" item with no live turn is stale
@@ -678,14 +845,18 @@ export function Composer({
             doesn't eat an extra gap slot (the design's tight spacing). */}
         {thinking && thinking.tasks.length > 0 && (
           <div className="flex flex-col">
-            <div className="flex items-center justify-between gap-2">
-              {/* The whole text block toggles the accordion, not just the
-                  chevron. */}
-              <button
-                type="button"
-                onClick={() => setThinkingExpanded((v) => !v)}
-                className="flex shrink-0 cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-left outline-none"
-              >
+            {/* The WHOLE row toggles the accordion (not just the text block), so
+                the hover state spans the full width. The running-task caption
+                lives inside the button for the same reason — as a sibling it
+                claimed the remaining width and left that part of the row dead.
+                `-mx-2 px-2` lets the hover fill bleed slightly past the text
+                without shifting its optical alignment. */}
+            <button
+              type="button"
+              onClick={() => setThinkingExpanded((v) => !v)}
+              className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center justify-between gap-2 rounded-lg border-none bg-transparent px-2 py-1 text-left outline-none"
+            >
+              <span className="flex shrink-0 items-center gap-1">
                 <IconTask className="h-5 w-5" />
                 <span className="text-sm font-medium text-msa-text-1">
                   {t.home.thinkingTasks}
@@ -698,8 +869,8 @@ export function Composer({
                     thinkingExpanded ? '' : 'rotate-180'
                   }`}
                 />
-              </button>
-              <div className="flex-1 w-0 flex justify-end">
+              </span>
+              <span className="flex w-0 flex-1 justify-end">
                 {runningTask && (
                   <Typography.Text
                     ellipsis={{
@@ -713,8 +884,8 @@ export function Composer({
                     </span>
                   </Typography.Text>
                 )}
-              </div>
-            </div>
+              </span>
+            </button>
 
             <div
               className={`grid transition-[grid-template-rows] duration-200 ease-out ${thinkingExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
@@ -764,12 +935,11 @@ export function Composer({
         {/* File list (optional, inside thinking wrapper) */}
         {thinking?.files && thinking.files.length > 0 && (
           <div className="flex flex-col">
-            {/* The whole text block toggles the accordion, not just the
-                chevron. */}
+            {/* Full-width hit area + hover fill, matching the tasks header. */}
             <button
               type="button"
               onClick={() => setFilesExpanded((v) => !v)}
-              className="flex w-fit cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-left outline-none"
+              className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center gap-1 rounded-lg border-none bg-transparent px-2 py-1 text-left outline-none"
             >
               <IconFolder className="h-5 w-5" />
               <span className="ml-1 text-sm font-medium text-msa-text-1">
@@ -843,13 +1013,12 @@ export function Composer({
                 <Button
                   size="small"
                   type="text"
-                  className="!text-xs !text-msa-text-3"
+                  className="!max-w-[240px] !text-xs !text-msa-text-3"
+                  title={pickerLabel}
                 >
-                  {effectiveProject
-                    ? effectiveProject.name
-                    : (defaultProject?.name ?? t.home.noProject)}
+                  <span className="min-w-0 truncate">{pickerLabel}</span>
                   <CaretDownIcon
-                    className={`ml-1 h-[7px] w-[7px] transition-transform duration-200 ${
+                    className={`ml-1 h-[7px] w-[7px] shrink-0 transition-transform duration-200 ${
                       projectMenuOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -888,7 +1057,7 @@ export function Composer({
                 </div>
               )}
             >
-              <div>
+              <div onPasteCapture={handlePasteCapture}>
                 <StableSender
                   ref={senderRef}
                   slotConfig={ALWAYS_SLOT_MODE}
@@ -928,6 +1097,13 @@ export function Composer({
                       return
                     // Skip while IME composing.
                     if (e.nativeEvent.isComposing) return
+                    // Empty input + attachments: Backspace removes the last
+                    // attachment instead of doing nothing.
+                    if (e.key === 'Backspace' && backspaceRemovesFile) {
+                      e.preventDefault()
+                      removeLastFile()
+                      return false
+                    }
                     if (
                       e.key === 'Enter' &&
                       !e.shiftKey &&
@@ -977,6 +1153,25 @@ export function Composer({
                             onRemove={() => removeFile(f.id)}
                           />
                         ))}
+                        {/* One notice for the whole group rather than a
+                            per-chip tooltip: the user has to learn this BEFORE
+                            sending, and a tooltip is easy to never hover.
+                            The remedy is a button rather than a longer
+                            sentence — the settings page is one click away, so
+                            explaining the route costs more words than walking
+                            it. */}
+                        {visionOff && hasImageFile ? (
+                          <div className="w-full text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                            {t.home.visionOffNotice}{' '}
+                            <button
+                              type="button"
+                              onClick={enableVision}
+                              className="cursor-pointer border-none bg-transparent p-0 text-[11px] font-medium leading-snug text-amber-700 underline underline-offset-2 outline-none dark:text-amber-400"
+                            >
+                              {t.home.visionOffAction}
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ) : undefined
                   }
@@ -1071,6 +1266,26 @@ export function Composer({
                                 : t.home.permAlwaysAsk}
                             </PillButton>
                           </Dropdown>
+
+                          {/* Search-not-configured hint: only when search is on
+                              but its provider has no key. Uses PillButton (not a
+                              hand-rolled button) so the background, padding,
+                              height and label truncation match the selector
+                              pills exactly — copying its classes by hand drifted
+                              on all four. `caret={false}`: it navigates rather
+                              than opening a panel. */}
+                          {searchNeedsKey && (
+                            <Tooltip title={t.home.searchUnconfiguredTip}>
+                              <PillButton
+                                caret={false}
+                                onClick={() => navigate('/settings/search')}
+                                icon={<EditIcon className="h-3.5 w-3.5" />}
+                                className="!text-msa-text-3"
+                              >
+                                {t.home.searchUnconfigured}
+                              </PillButton>
+                            </Tooltip>
+                          )}
                         </div>
                       </div>
 
@@ -1104,7 +1319,9 @@ export function Composer({
                           // `open` is only forced for the no-model hint (Enter has
                           // no hover to rely on); otherwise undefined leaves the
                           // tooltip in its normal hover mode.
-                          open={modelMissing && modelHintOpen ? true : undefined}
+                          open={
+                            modelMissing && modelHintOpen ? true : undefined
+                          }
                           title={
                             loading
                               ? t.home.stop
@@ -1158,6 +1375,11 @@ export function Composer({
             setProjects((prev) => [...prev, p])
             setPickedProjectId(p.id)
             onProjectChange?.(p.id)
+            // The local push above only feeds this picker. `projects` is loader
+            // data, and the sidebar renders from it — without this the new
+            // project is missing there, and the next composer instance seeds
+            // from the snapshot and drops it from the picker too.
+            revalidator.revalidate()
           }}
         />
       )}

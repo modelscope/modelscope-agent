@@ -52,6 +52,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useT()
   const navigate = useNavigate()
+  const location = useLocation()
   const revalidator = useRevalidator()
   const data = useRouteLoaderData('layouts/app') as AppLoaderData | undefined
   const projects = data?.projects ?? []
@@ -86,6 +87,24 @@ export function Sidebar({
   // project is no longer pinned to the top — it behaves like any other project.
   const orderedProjects = projects
 
+  // A fresh load usually lands somewhere that belongs to no project (home,
+  // settings), so every group renders collapsed and the list reads as empty
+  // even with dozens of sessions behind it. Expand the first project that
+  // actually HAS sessions — an empty one would just swap one blank list for
+  // another. Strictly a fallback: when the route already points into a project
+  // that group expands itself, and opening a second one would bury it.
+  const autoOpenProjectId = useMemo(() => {
+    const insideAProject = orderedProjects.some((p) =>
+      location.pathname.startsWith(`/projects/${p.id}`)
+    )
+    if (insideAProject) return null
+    return (
+      orderedProjects.find(
+        (p) => (sessionsByProject.get(p.id)?.length ?? 0) > 0
+      )?.id ?? null
+    )
+  }, [orderedProjects, sessionsByProject, location.pathname])
+
   const openNewChat = () => {
     navigate('/')
     onNavigate?.()
@@ -117,6 +136,7 @@ export function Sidebar({
                       draggable={false}
                     />
                   </div>
+
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/sidebar:opacity-100">
                     <IconButton
                       variant="outlined"
@@ -209,20 +229,22 @@ export function Sidebar({
               <div className="flex items-center gap-2">
                 {/* Logo / collapse toggle: on sidebar hover the logo morphs
                     into the collapse icon (same pattern as collapsed mode). */}
-                <div
-                  className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-msa-fill-0"
-                  onClick={onCollapse}
-                >
-                  <img
-                    src={logoImg}
-                    alt="MS-Agent"
-                    className="h-8 w-8 select-none transition-opacity group-hover/sidebar:opacity-0"
-                    draggable={false}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/sidebar:opacity-100">
-                    <SidebarToggleIcon className="h-5 w-5 text-msa-text-2" />
+                <Tooltip title={t.nav.collapse} placement="bottom">
+                  <div
+                    className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-msa-fill-0"
+                    onClick={onCollapse}
+                  >
+                    <img
+                      src={logoImg}
+                      alt="MS-Agent"
+                      className="h-8 w-8 select-none transition-opacity group-hover/sidebar:opacity-0"
+                      draggable={false}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/sidebar:opacity-100">
+                      <SidebarToggleIcon className="h-5 w-5 text-msa-text-2" />
+                    </div>
                   </div>
-                </div>
+                </Tooltip>
                 <MsaButton
                   variant="primary"
                   block
@@ -252,7 +274,7 @@ export function Sidebar({
             </div>
 
             {/* Projects card */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-msa-line-1 bg-msa-fill-0 p-2">
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-msa-line-1 bg-msa-fill-0 p-1.5">
               <div className="flex shrink-0 items-center justify-between px-2 py-1">
                 <span className="text-sm font-medium text-msa-text-2">
                   {t.nav.projectsTitle}
@@ -267,7 +289,16 @@ export function Sidebar({
                   />
                 </Tooltip>
               </div>
-              <div className="mt-1 min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+              {/* `-mx-1.5` full-bleeds the scroll box to both card borders so its
+                  scrollbar sits flush right; `scrollbar-gutter: stable both-edges`
+                  then reserves an equal gutter on BOTH sides, so the reserved
+                  right-hand scrollbar space is mirrored on the left and the rows
+                  end up with matching left/right gaps (otherwise the hidden thin
+                  scrollbar leaves empty space only on the right). */}
+              <div
+                className="mt-1 -mx-1.5 min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden"
+                style={{ scrollbarGutter: 'stable both-edges' }}
+              >
                 {orderedProjects.length === 0 ? (
                   <RecentEmpty />
                 ) : (
@@ -277,6 +308,7 @@ export function Sidebar({
                         key={p.id}
                         project={p}
                         sessions={sessionsByProject.get(p.id) ?? []}
+                        defaultOpen={p.id === autoOpenProjectId}
                         onNavigate={onNavigate}
                         onEditProject={openEditProject}
                       />
@@ -304,12 +336,20 @@ export function Sidebar({
         open={projectModalOpen}
         project={editingProject ?? undefined}
         onClose={() => setProjectModalOpen(false)}
-        onCreated={(p) => {
+        onCreated={async (p) => {
           setProjectModalOpen(false)
-          revalidator.revalidate()
+          // Awaited before navigating: the app layout skips revalidation on a
+          // route change (see its `shouldRevalidate`), and a navigation started
+          // in the same tick would interrupt this refresh — leaving the brand-new
+          // project missing from the list we are about to navigate into.
+          await revalidator.revalidate()
           navigate(`/projects/${p.id}`)
         }}
         onUpdated={() => {
+          // Deliberately not awaited, unlike create above: no navigation follows,
+          // so there is nothing to sequence against. Should the user click away
+          // while it is in flight, the app layout re-issues it — see its
+          // `recoverInterruptedRefresh`.
           setProjectModalOpen(false)
           revalidator.revalidate()
         }}
@@ -373,7 +413,10 @@ function ProjectRowActions({
       okButtonProps: { danger: true },
       onOk: async () => {
         await api.deleteProject(project.id)
-        revalidator.revalidate()
+        // Awaited: see the create handler — a navigation in the same tick would
+        // interrupt this refresh, and the route change itself no longer triggers
+        // one, so the deleted project would linger in the sidebar.
+        await revalidator.revalidate()
         if (location.pathname.startsWith(`/projects/${project.id}`))
           navigate('/')
       }
@@ -420,26 +463,68 @@ function ProjectRowActions({
           }}
         />
       </Tooltip>
-      {/* Extra wrapper needed because Dropdown close events bypass the trigger
-          button (and here also keeps the click off the row's toggle). */}
+      {/* More menu — opens on hover, so no tooltip (one would just cover the
+          menu it announces); the i18n label moves to `aria-label`, which is what
+          keeps this icon-only button readable to screen readers.
+          The wrapper still swallows clicks: hover-triggered menus ignore them,
+          so without it a click on the button would fall through to the row. */}
       <span onClick={(e) => e.stopPropagation()}>
         <Dropdown
           menu={projectMenu}
-          trigger={['click']}
+          trigger={['hover']}
           placement="bottomRight"
         >
-          <Tooltip title={t.resources.more}>
-            <IconButton
-              icon={<MoreIcon className="h-3.5 w-3.5" />}
-              variant="ghost"
-              size="xs"
-              className={actionClass}
-            />
-          </Tooltip>
+          <IconButton
+            aria-label={t.resources.more}
+            icon={<MoreIcon className="h-3.5 w-3.5" />}
+            variant="ghost"
+            size="xs"
+            className={actionClass}
+          />
         </Dropdown>
       </span>
     </>
   )
+}
+
+/**
+ * The "finished while you were away" marker: a turn ended with nobody watching
+ * and the conversation has not been opened since. Deliberately the running
+ * spinner's colour at a smaller size — it takes over that exact slot once the
+ * spinner disappears, and reads as "something new here", not as an error (a
+ * background turn that FAILED gets the same dot: the user still has to go look).
+ *
+ * `label` is the tooltip, which differs between a session row ("this chat") and
+ * a project row ("something in here"). Omit it on the collapsed rail's popover
+ * trigger, where a tooltip would race the popover for the same hover.
+ *
+ * `spinnerSlot` centres the dot in a spinner-sized (12px) box. Needed wherever
+ * it takes over from the spinner: equal widths keep the swap from nudging the
+ * title or the actions beside it, and the box gives the 6px dot a real hover
+ * target for its tooltip.
+ */
+function UnreadDot({
+  label,
+  spinnerSlot = false,
+  className = ''
+}: {
+  label?: string
+  spinnerSlot?: boolean
+  className?: string
+}) {
+  const dot = (
+    <span
+      className={`h-1.5 w-1.5 shrink-0 rounded-full bg-msa-text-brand1 ${className}`}
+    />
+  )
+  const body = spinnerSlot ? (
+    <span className="flex h-3 w-3 shrink-0 items-center justify-center">
+      {dot}
+    </span>
+  ) : (
+    dot
+  )
+  return label ? <Tooltip title={label}>{body}</Tooltip> : body
 }
 
 function CollapsedProjectList({
@@ -453,8 +538,20 @@ function CollapsedProjectList({
   onNavigate?: () => void
   onEditProject?: (p: Project) => void
 }) {
+  // This popover trigger is the ONLY way into any project while the sidebar is
+  // collapsed, so an unread session anywhere has to surface on the icon itself
+  // — dots inside the popover only exist once the user already hovered it.
+  const hasUnread = projects.some((p) =>
+    (sessionsByProject.get(p.id) ?? []).some((s) => s.unread)
+  )
   const content = (
-    <div className="max-h-[60vh] w-56 overflow-y-auto py-1">
+    // stable both-edges: mirror the styled scrollbar's right-hand gutter on the
+    // left too, so the hover-highlighted rows keep equal left/right insets
+    // instead of a wider gap on the scrollbar side.
+    <div
+      className="max-h-[60vh] w-56 overflow-y-auto py-1 space-y-1"
+      style={{ scrollbarGutter: 'stable both-edges' }}
+    >
       {projects.map((p) => (
         <CollapsedProjectGroup
           key={p.id}
@@ -468,14 +565,26 @@ function CollapsedProjectList({
   )
 
   return (
-    <div className="flex shrink-0 flex-col items-center justify-center rounded-[12px] bg-msa-fill-0.5 w-[40px] h-[40px] bg-msa-fill-0 hover:bg-msa-fill-3">
+    <div className="relative flex shrink-0 flex-col items-center justify-center rounded-[12px] bg-msa-fill-0.5 w-[40px] h-[40px] bg-msa-fill-0 hover:bg-msa-fill-3">
       <Popover
         content={content}
         placement="rightTop"
         trigger="hover"
         arrow={false}
         styles={{
-          container: { padding: 4 }
+          // Match the expanded sidebar's project card surface (fill-0) instead of
+          // antd's elevated default. In DARK mode `colorBgElevated` is fill-2 —
+          // the very colour SessionItem paints its active row with — so the
+          // highlight rendered with zero contrast and only the bolder, brighter
+          // TEXT showed. (Hover, also fill-2, was invisible for the same
+          // reason.) Aligning the surface is what makes the shared row component
+          // actually look identical in both places, which was the point of
+          // reusing it. Light mode already used fill-0 here and was unaffected.
+          container: {
+            padding: 4,
+            background: 'var(--msa-fill-0)',
+            border: '1px solid var(--msa-line-1)'
+          }
         }}
       >
         <IconButton
@@ -485,6 +594,11 @@ function CollapsedProjectList({
           stopPropagation={false}
         />
       </Popover>
+      {/* Outside the trigger, so it never moves the icon or intercepts the
+          hover that opens the popover. */}
+      {hasUnread && (
+        <UnreadDot className="pointer-events-none absolute right-1.5 top-1.5" />
+      )}
     </div>
   )
 }
@@ -501,6 +615,7 @@ function CollapsedProjectGroup({
   onNavigate?: () => void
   onEditProject?: (p: Project) => void
 }) {
+  const { t } = useT()
   const location = useLocation()
   const navigate = useNavigate()
   const isActiveProject = location.pathname.startsWith(
@@ -509,6 +624,8 @@ function CollapsedProjectGroup({
   const isProjectPage =
     location.pathname.replace(/\/+$/, '') === `/projects/${project.id}`
   const [open, setOpen] = useState(isActiveProject)
+  // Only while the group hides its rows — same rule as the expanded sidebar.
+  const hasUnread = !open && sessions.some((s) => s.unread)
 
   const projectName = project.name
 
@@ -518,7 +635,7 @@ function CollapsedProjectGroup({
           the NAME enters the project. Without that click the collapsed sidebar
           had no way into a project's own page at all. */}
       <div
-        className={`group flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-msa-fill-2 ${
+        className={`group flex cursor-pointer items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-msa-fill-2 ${
           isProjectPage ? 'bg-msa-fill-4' : ''
         }`}
         onClick={() => setOpen(!open)}
@@ -528,24 +645,27 @@ function CollapsedProjectGroup({
             className={`h-3 w-3 transition-transform ${open ? '' : 'rotate-180'}`}
           />
         </span>
-        <span
-          className={`min-w-0 flex-1 truncate text-sm font-semibold ${
-            isActiveProject ? 'text-msa-purple-5' : 'text-msa-text-1'
-          }`}
-          title={projectName}
+        <div
+          className="flex-1 w-0 py-2 flex items-center"
           onClick={(e) => {
             e.stopPropagation()
             navigate(`/projects/${project.id}`)
             onNavigate?.()
           }}
         >
-          {projectName}
-        </span>
-        {sessions.length > 0 && (
-          <span className="shrink-0 text-xs tabular-nums text-msa-text-2">
+          <span
+            className={`min-w-0 truncate text-sm font-semibold ${
+              isActiveProject ? 'text-msa-purple-5' : 'text-msa-text-1'
+            }`}
+            title={projectName}
+          >
+            {projectName}
+          </span>
+          <span className="shrink-0 rounded-[12px] mx-1.5 px-1.5 py-px font-medium text-xs tabular-nums text-msa-text-1 bg-msa-fill-3">
             {sessions.length}
           </span>
-        )}
+          {hasUnread && <UnreadDot label={t.sidebar.unreadProject} />}
+        </div>
         <ProjectRowActions
           project={project}
           pinned={isProjectPage}
@@ -587,11 +707,18 @@ function RecentEmpty() {
 function ProjectGroup({
   project,
   sessions,
+  defaultOpen = false,
   onNavigate,
   onEditProject
 }: {
   project: Project
   sessions: Session[]
+  /**
+   * Start expanded even though the route points elsewhere. INITIAL only, by
+   * design: the parent recomputes it as you navigate, but honouring that later
+   * would re-open a group the user just collapsed.
+   */
+  defaultOpen?: boolean
   onNavigate?: () => void
   onEditProject?: (p: Project) => void
 }) {
@@ -602,7 +729,12 @@ function ProjectGroup({
   const isActiveProject = location.pathname.startsWith(
     `/projects/${project.id}`
   )
-  const [open, setOpen] = useState(isActiveProject)
+  const [open, setOpen] = useState(isActiveProject || defaultOpen)
+  // Roll the group's unread sessions up to its header, but only while it hides
+  // them: collapsed is the state where a finished background turn would
+  // otherwise be invisible. Expanded, the rows carry their own dots and a
+  // second one up here would just double-count them.
+  const hasUnread = !open && sessions.some((s) => s.unread)
 
   useEffect(() => {
     if (isActiveProject) setOpen(true)
@@ -623,7 +755,7 @@ function ProjectGroup({
     <div>
       {/* Project header row */}
       <div
-        className={`group flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-2 transition-colors hover:bg-msa-fill-4 ${isProjectPage ? 'bg-msa-fill-4' : ''}`}
+        className={`group flex cursor-pointer items-center gap-1.5 rounded-lg px-2 transition-colors hover:bg-msa-fill-4 ${isProjectPage ? 'bg-msa-fill-4' : ''}`}
         onClick={() => setOpen(!open)}
       >
         {/* Chevron */}
@@ -639,22 +771,27 @@ function ProjectGroup({
           />
         </span>
         {/* Project name — click to enter project detail */}
-        <span
-          className={`min-w-0 flex-1 truncate text-sm font-semibold ${
-            isActiveProject ? 'text-msa-purple-5' : 'text-msa-text-1'
-          }`}
-          title={projectName}
+        <div
+          className="flex-1 w-0 py-2 flex items-center"
           onClick={(e) => {
             e.stopPropagation()
             navigate(`/projects/${project.id}`)
             onNavigate?.()
           }}
         >
-          {projectName}
-        </span>
-        <span className="shrink-0 rounded-[12px] px-[6px] py-[1px] font-[500] text-xs tabular-nums text-msa-text-1 bg-msa-fill-3">
-          {sessions.length}
-        </span>
+          <span
+            className={`min-w-0 truncate text-sm font-semibold ${
+              isActiveProject ? 'text-msa-purple-5' : 'text-msa-text-1'
+            }`}
+            title={projectName}
+          >
+            {projectName}
+          </span>
+          <span className="shrink-0 rounded-[12px] mx-1.5 px-1.5 py-px font-medium text-xs tabular-nums text-msa-text-1 bg-msa-fill-3">
+            {sessions.length}
+          </span>
+          {hasUnread && <UnreadDot label={t.sidebar.unreadProject} />}
+        </div>
         <ProjectRowActions
           project={project}
           pinned={isProjectPage}
@@ -707,8 +844,14 @@ function SessionItem({
   const navigate = useNavigate()
   const location = useLocation()
   const revalidator = useRevalidator()
-  const { running } = usePresence()
-  const isRunning = running.has(session.id) || !!session.running
+  const { running, seeded } = usePresence()
+  // Presence is the authority once it has answered; `session.running` is only a
+  // loader snapshot, covering the frames before the first heartbeat lands so a
+  // genuinely running row doesn't have to wait a round-trip for its spinner.
+  // Kept strictly subordinate: a snapshot cannot expire by itself, so honouring
+  // it after the poll has spoken is what kept spinners turning on rows whose
+  // turn had long since finished (nothing was left to contradict the snapshot).
+  const isRunning = running.has(session.id) || (!seeded && !!session.running)
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
 
@@ -719,6 +862,10 @@ function SessionItem({
       return
     }
     await api.updateSession(session.id, { title })
+    // Deliberately not awaited, unlike delete below: nothing follows it here, so
+    // awaiting would only delay this handler's own promise, which no caller
+    // consumes. A refresh lost to the user navigating away mid-flight is
+    // re-issued by the app layout (`recoverInterruptedRefresh`).
     revalidator.revalidate()
     setRenameOpen(false)
   }
@@ -732,7 +879,9 @@ function SessionItem({
       okButtonProps: { danger: true },
       onOk: async () => {
         await api.deleteSession(session.id)
-        revalidator.revalidate()
+        // Awaited for the same reason as project delete: the route change that
+        // follows no longer revalidates on its own.
+        await revalidator.revalidate()
         const isActive = location.pathname.includes(`/sessions/${session.id}`)
         if (isActive) navigate(`/projects/${projectId}`)
       }
@@ -781,27 +930,40 @@ function SessionItem({
         }`}
         title={session.title}
       >
-        <span className="min-w-0 flex-1 truncate">{session.title}</span>
-        {isRunning && (
-          <SpinnerIcon className="h-3 w-3 shrink-0 animate-spin text-msa-text-brand1" />
-        )}
-        {/* More menu — the wrapper keeps a stray click off the row's link.
-            (IconButton already stops propagation itself, so this is belt and
-            braces rather than the thing that makes the menu work.) */}
+        {/* Title and indicator travel together, trailing the text the way the
+            project row's count badge does. `flex-1` belongs to this wrapper and
+            NOT to the title: on the title it stretches to fill the row and
+            strands the indicator against the right edge, far from the words it
+            refers to. The wrapper still absorbs the same slack, so the more-menu
+            stays pinned right. */}
+        <span className="flex min-w-0 flex-1 items-center gap-1">
+          <span className="min-w-0 truncate">{session.title}</span>
+          {/* Spinner while the turn runs, dot once it has finished unwatched —
+              the same slot, never both: the dot exists precisely because the
+              spinner went away with nothing left to say the answer arrived. */}
+          {isRunning ? (
+            <SpinnerIcon className="h-3 w-3 shrink-0 animate-spin text-msa-text-brand1" />
+          ) : session.unread ? (
+            <UnreadDot spinnerSlot label={t.sidebar.unreadSession} />
+          ) : null}
+        </span>
+        {/* More menu — hover-triggered, hence no tooltip (it would sit on top of
+            the menu); the label lives on `aria-label` instead. The wrapper keeps
+            a click on the button from reaching the row's link, which a hover
+            menu no longer intercepts. */}
         <span onClick={(e) => e.stopPropagation()}>
           <Dropdown
             menu={sessionMenu}
-            trigger={['click']}
+            trigger={['hover']}
             placement="bottomRight"
           >
-            <Tooltip title={t.resources.more}>
-              <IconButton
-                icon={<MoreIcon className="h-3.5 w-3.5" />}
-                variant="ghost"
-                size="xs"
-                className={rowActionClass}
-              />
-            </Tooltip>
+            <IconButton
+              aria-label={t.resources.more}
+              icon={<MoreIcon className="h-3.5 w-3.5" />}
+              variant="ghost"
+              size="xs"
+              className={rowActionClass}
+            />
           </Dropdown>
         </span>
       </NavLink>

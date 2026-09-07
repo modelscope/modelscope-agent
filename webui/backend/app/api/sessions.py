@@ -62,6 +62,17 @@ def update_session(session_id: str, body: SessionUpdate) -> Session:
     return sessions.update_session(session_id, body)
 
 
+@router.post("/sessions/{session_id}/read", status_code=204)
+def mark_session_read(session_id: str) -> None:
+    """Acknowledge a background turn's result: clears the unread dot the sidebar
+    shows for a session that finished with nobody watching. A POST rather than a
+    side effect of GET /messages, which also runs on SSR and on every route
+    revalidation — reading data must not silently retire a notification."""
+    from app.backends.ms_agent import sessions
+
+    return sessions.mark_session_read(session_id)
+
+
 @router.get("/sessions/{session_id}/artifacts")
 def list_artifacts(session_id: str) -> list[Artifact]:
     from app.backends.ms_agent import sessions

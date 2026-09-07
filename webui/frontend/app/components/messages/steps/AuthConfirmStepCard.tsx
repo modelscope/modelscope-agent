@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react'
 import { MsaButton } from '~/components/common/MsaButton'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
+import { useCollapseTransition } from '../useCollapseTransition'
+import { deniedNote } from '../authOutcome'
 import type { AgentStep } from '~/lib/agentProvider'
-import { InlineCode } from '../InlineCode'
+import { InlineCode, stepTitleLine } from '../InlineCode'
 import InvokeIcon from '~/assets/icons/invoke.svg?react'
 import ArrowDownIcon from '~/assets/icons/arrow-down.svg?react'
 import SpinnerIcon from '~/assets/icons/generating.svg?react'
@@ -34,6 +36,7 @@ export function AuthConfirmStepCard({
   const [expanded, setExpanded] = useState(
     (isLast ?? false) || metaState === 'pending'
   )
+  const { animating, onTransitionEnd } = useCollapseTransition(expanded)
 
   // Auto-collapse once newer parts arrive — except while pending (buttons
   // must stay visible for the user to decide).
@@ -117,14 +120,7 @@ export function AuthConfirmStepCard({
           </span>
         )}
         <Typography.Text
-          className="min-w-0 flex-1 !text-sm !text-msa-text-1"
-          ellipsis={{
-            tooltip: `${
-              step.meta.source === 'mcp'
-                ? t.chat.stepInvokeMcp
-                : t.chat.stepInvokeTool
-            } ${toolName}`
-          }}
+          className={`${stepTitleLine} !text-sm !text-msa-text-1`}
         >
           <span className="align-middle">
             {step.meta.source === 'mcp'
@@ -140,7 +136,7 @@ export function AuthConfirmStepCard({
         )}
         {state === 'rejected' && (
           <span className="shrink-0 text-xs text-msa-text-3">
-            {t.chat.authRejected}
+            {deniedNote(t, step.meta)}
           </span>
         )}
         {state === 'cancelled' && (
@@ -157,8 +153,11 @@ export function AuthConfirmStepCard({
 
       {/* Body: animated accordion */}
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        className={`grid duration-200 ease-in-out ${
+          animating ? 'transition-[grid-template-rows]' : ''
+        }`}
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           <div className="border-t border-msa-line-1 px-3 py-2 space-y-2">

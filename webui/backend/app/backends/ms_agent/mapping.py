@@ -28,13 +28,15 @@ def _protocol(transport: str) -> str:
 
 
 def _generation_defaults(protocol: str, provider: str) -> dict:
-    """Effective default generation params the backend applies for a provider,
-    surfaced read-only so the settings UI can show the thinking knob. Currently
-    just the protocol-derived ``enable_thinking`` default (config.thinking_default
-    is the single source of truth)."""
-    from app.backends.ms_agent.config import thinking_default
+    """The generation params the runtime will actually send for this provider
+    before any user override, surfaced read-only for the settings UI.
 
-    return {"extra_body": {"enable_thinking": thinking_default(protocol, provider)}}
+    Usually ``{}`` — nothing about thinking is sent and the model's own default
+    stands. Resolved by the SDK (``ms_agent.llm.thinking``), which is also what
+    the request path calls, so this cannot drift from reality."""
+    from app.backends.ms_agent.config import thinking_plan
+
+    return thinking_plan(protocol, provider)["params"]
 
 
 def _mask(api_key: str) -> str:
@@ -48,7 +50,13 @@ def _mask(api_key: str) -> str:
 def project_to_schema(project) -> ProjectSchema:
     from ms_agent.project.types import DEFAULT_PROJECT_ID
 
+    from app.backends.ms_agent.config import _project_memory_models
+
     meta = sidecar.get("projects", project.id, {}) or {}
+    # The EFFECTIVE group, not the raw sidecar: a project saved without an
+    # embedding provider adopts the one its store was built with, and the edit
+    # form has to show what is actually in force.
+    mem = _project_memory_models(project)
     return ProjectSchema(
         id=project.id,
         name=project.name,
@@ -66,16 +74,16 @@ def project_to_schema(project) -> ProjectSchema:
         ),
         # Project-owned memory-model group (absent on legacy projects = the
         # follow-conversation defaults).
-        memory_llm_provider_id=(meta.get("memory_models") or {}).get("llm_provider_id"),
-        memory_llm_model=(meta.get("memory_models") or {}).get("llm_model"),
+        memory_llm_provider_id=mem.get("llm_provider_id"),
+        memory_llm_model=mem.get("llm_model"),
         memory_embed_mode=(
-            (meta.get("memory_models") or {}).get("embed_mode")
-            if (meta.get("memory_models") or {}).get("embed_mode") in ("provider", "local")
+            mem.get("embed_mode")
+            if mem.get("embed_mode") in ("provider", "local")
             else "provider"
         ),
-        memory_embed_provider_id=(meta.get("memory_models") or {}).get("embed_provider_id"),
-        memory_embed_model=(meta.get("memory_models") or {}).get("embed_model"),
-        memory_recall_top_k=(meta.get("memory_models") or {}).get("recall_top_k"),
+        memory_embed_provider_id=mem.get("embed_provider_id"),
+        memory_embed_model=mem.get("embed_model"),
+        memory_recall_top_k=mem.get("recall_top_k"),
         mcp_auto_attach=meta.get("mcp_auto_attach", True),
         skill_auto_attach=meta.get("skill_auto_attach", True),
         permission_mode=meta.get("permission_mode", "restricted"),
@@ -91,7 +99,9 @@ def session_to_schema(session) -> SessionSchema:
         project_id=session.project_id,
         updated_at=session.updated_at,
         preview=meta.get("preview", ""),
+        unread=bool(meta.get("unread", False)),
         category=meta.get("category", ""),
+        model_id=meta.get("model_id", ""),
     )
 
 
@@ -113,7 +123,12 @@ def builtin_provider_to_schema(spec, override: dict | None = None) -> ProviderSc
     return ProviderSchema(
         id=spec.name,
         kind="builtin",
-        name=spec.display_name or spec.name,
+        # Honor the user's saved display name (settings.json custom entry); fall
+        # back to the spec's default only when the user never overrode it. This
+        # used to always read the spec, so editing the display name of a builtin
+        # appeared to have no effect — base_url and protocol here already do
+        # this, `name` was the odd one out.
+        name=override.get("name") or spec.display_name or spec.name,
         base_url=override.get("base_url") or spec.default_base_url,
         api_key_masked=_mask(override.get("api_key", "")),
         protocol=protocol,
@@ -165,5 +180,7 @@ def model_to_schema(provider_id: str, name: str) -> ModelSchema:
         display_name=meta.get("display_name") or name,
         is_builtin=False,
         advanced_params=meta.get("advanced_params", {}),
+        # Absent in the sidecar => None => "unset", not False (see the schema).
+        supports_vision=meta.get("supports_vision"),
         created_at=_now(),
     )

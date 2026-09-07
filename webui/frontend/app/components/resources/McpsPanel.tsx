@@ -1,14 +1,14 @@
 import { App, Pagination } from 'antd'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { CardSkeletonGrid } from '~/components/common/CardSkeletonGrid'
-import { EmptyState } from '~/components/common/EmptyState'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
-import type { Mcp, Scope } from '~/lib/types'
+import type { Mcp, McpHealth, Scope } from '~/lib/types'
 import { McpCard } from './McpCard'
 import { McpCustomModal } from './McpCustomModal'
-import { McpJsonView } from './McpJsonView'
+import { McpJsonModal } from './McpJsonModal'
 
 type ImportSource = 'custom' | null
 
@@ -41,10 +41,69 @@ export function McpsPanel({
   const importing = importingProp ?? importingInternal
   const setImporting = onImportingChange ?? setImportingInternal
 
-  const refresh = () => api.listMcps(activeScope).then(setItems)
+  // Reachability, by mcp id. Fetched alongside the list so a stale endpoint is
+  // visible without the user having to test each card by hand — that manual
+  // probe is still there, it just is not the only way to find out any more.
+  // Stale-while-revalidate: known verdicts stay on screen during a sweep
+  // (adding one server must not send every card spinning); only cards with no
+  // verdict yet show the spinner, gated by `sweeping`.
+  const [health, setHealth] = useState<Record<string, McpHealth>>({})
+  const [sweeping, setSweeping] = useState(true)
+  const refreshHealth = () => {
+    setSweeping(true)
+    return api
+      .listMcpHealth()
+      .then((rows) =>
+        setHealth(Object.fromEntries(rows.map((h) => [h.id, h])))
+      )
+      .catch(() => {})
+      .finally(() => setSweeping(false))
+  }
+
+  // A JUST-ADDED stdio server gets one deep check (real spawn+initialize):
+  // the sweep's existence-only probe would light it green while the package
+  // is broken or still cold-installing — observed with a server that crashes
+  // against a newer mcp SDK and looked fine until a chat needed it.
+  const [deepChecking, setDeepChecking] = useState<Set<string>>(new Set())
+  const knownIdsRef = useRef<Set<string> | null>(null)
+  const deepCheck = (id: string) => {
+    setDeepChecking((prev) => new Set(prev).add(id))
+    api
+      .checkMcpHealth(id)
+      .then((result) => setHealth((prev) => ({ ...prev, [id]: result })))
+      .catch(() => {})
+      .finally(() =>
+        setDeepChecking((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      )
+  }
+
+  // `[]` on failure, never left at `null`: `null` is this list's "still
+  // loading" and would hold the skeleton up forever (health already settles
+  // that way just below the list request).
+  const refresh = () =>
+    api
+      .listMcps(activeScope)
+      .then((rows) => {
+        setItems(rows)
+        const known = knownIdsRef.current
+        knownIdsRef.current = new Set(rows.map((r) => r.id))
+        void refreshHealth()
+        if (known)
+          rows
+            .filter(
+              (r) => r.enabled && r.transport === 'stdio' && !known.has(r.id)
+            )
+            .forEach((r) => deepCheck(r.id))
+      })
+      .catch(() => setItems([]))
   useEffect(() => {
     setItems(null)
     setPage(1)
+    knownIdsRef.current = null // new scope = new baseline, not "all new"
     refresh()
   }, [activeScope])
 
@@ -56,17 +115,18 @@ export function McpsPanel({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 overflow-auto">
-        {viaJson ? (
-          <McpJsonView
-            scope={activeScope}
-            items={items ?? []}
-            onSaved={refresh}
-            onCancel={() => onViaJsonChange?.(false)}
-          />
-        ) : items === null ? (
+        {items === null ? (
           <CardSkeletonGrid />
         ) : items.length === 0 ? (
-          <EmptyState size="lg" description={t.resources.mcpEmpty} />
+          <EmptyState
+            size="lg"
+            description={`${t.resources.mcpEmpty}${t.resources.mcpEmptyHint}`}
+            action={
+              <EmptyStateAction onClick={() => setImporting('custom')}>
+                {t.resources.addNow}
+              </EmptyStateAction>
+            }
+          />
         ) : (
           <>
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,6 +136,17 @@ export function McpsPanel({
                   <McpCard
                     key={m.id}
                     mcp={m}
+                    probing={
+                      (sweeping && !health[m.id]) || deepChecking.has(m.id)
+                    }
+                    healthy={
+                      deepChecking.has(m.id)
+                        ? undefined // the shallow verdict must not flash green
+                        : health[m.id]?.healthy
+                    }
+                    healthError={
+                      deepChecking.has(m.id) ? undefined : health[m.id]?.error
+                    }
                     onToggle={async (v) => {
                       await api.updateMcp(m.id, { enabled: v })
                       refresh()
@@ -83,6 +154,7 @@ export function McpsPanel({
                     onReconnect={async () => {
                       try {
                         const result = await api.checkMcpHealth(m.id)
+                        setHealth((prev) => ({ ...prev, [m.id]: result }))
                         if (result.healthy) {
                           message.success(`${m.name}: ${t.resources.statusOk}`)
                         } else {
@@ -114,6 +186,15 @@ export function McpsPanel({
           </>
         )}
       </div>
+
+      <McpJsonModal
+        open={viaJson}
+        scope={activeScope}
+        scopeBadge={scopeBadge}
+        items={items ?? []}
+        onSaved={refresh}
+        onClose={() => onViaJsonChange?.(false)}
+      />
 
       <McpCustomModal
         open={importing === 'custom' || !!editingMcp}

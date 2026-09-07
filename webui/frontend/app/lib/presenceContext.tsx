@@ -35,18 +35,34 @@ const HEARTBEAT_MS = 10_000
  * producing a `done` frame — so the optimistic mark is dropped once this window
  * passes without the server reporting the session as running. Comfortably longer
  * than one heartbeat so a normal turn is confirmed well before it expires.
+ *
+ * This is the FLOOR, not the lifetime: a mark the server has confirmed is
+ * dropped on that very beat (see below), because from then on the poll itself
+ * tracks the turn and an outliving mark would only delay the spinner's exit.
  */
 const OPTIMISTIC_TTL_MS = 30_000
 
 interface PresenceValue {
   /** Ids of sessions with a turn currently in flight. */
   running: ReadonlySet<string>
+  /**
+   * False until the first heartbeat has answered. Consumers need this to tell
+   * "the poll hasn't reported yet" apart from "the poll says nothing is
+   * running" — an empty set means both, and treating the first as the second
+   * is what let a stale `session.running` from a loader snapshot hold a spinner
+   * on forever (nothing ever contradicted it).
+   */
+  seeded: boolean
 }
 
-const PresenceContext = createContext<PresenceValue>({ running: new Set() })
+const PresenceContext = createContext<PresenceValue>({
+  running: new Set(),
+  seeded: false
+})
 
 export function PresenceProvider({ children }: { children: ReactNode }) {
   const [running, setRunning] = useState<ReadonlySet<string>>(() => new Set())
+  const [seeded, setSeeded] = useState(false)
   const prevRef = useRef<ReadonlySet<string>>(new Set())
   const revalidator = useRevalidator()
   const revalidateRef = useRef(revalidator.revalidate)
@@ -64,11 +80,26 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
       try {
         const res = await api.postPresence()
         if (!alive) return
+        // Mark the poll as having reported BEFORE the unchanged-set bail-out
+        // below. An all-empty first answer is the single most common case and
+        // it exits early, so flagging it later would leave `seeded` false for
+        // the whole session — the exact bug this flag exists to close.
+        setSeeded(true)
         // Expire stale optimistic marks (a failed request never reports done).
         const now = Date.now()
         const optimistic = optimisticRef.current
+        const reported = new Set(res.running)
         for (const [sid, at] of optimistic) {
-          if (now - at > OPTIMISTIC_TTL_MS) optimistic.delete(sid)
+          // Confirmed by the server, or too old to be trusted — either way the
+          // mark is done. Retiring it ON CONFIRMATION is what lets the spinner
+          // leave when the TURN ends instead of when the TTL does: a mark that
+          // outlives the turn keeps the session in the published set, which both
+          // holds the spinner on and (the set never "changing") suppresses the
+          // revalidation that would refresh `session.running` — so the row stayed
+          // busy for the rest of the window even though /api/presence was empty.
+          if (reported.has(sid) || now - at > OPTIMISTIC_TTL_MS) {
+            optimistic.delete(sid)
+          }
         }
         const next = new Set([...res.running, ...optimistic.keys()])
         const prev = prevRef.current
@@ -140,7 +171,7 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
   )
   useOnSessionDone(handleDone)
 
-  const value = useMemo(() => ({ running }), [running])
+  const value = useMemo(() => ({ running, seeded }), [running, seeded])
   return (
     <PresenceContext.Provider value={value}>
       {children}

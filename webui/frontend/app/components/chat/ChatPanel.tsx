@@ -1,10 +1,13 @@
 import { StableSender as Sender } from '~/components/common/StableSender'
 import { XRequest, useXChat } from '@ant-design/x-sdk'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { App } from 'antd'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRevalidator } from 'react-router'
 import {
   AgentChatProvider,
   applyChunk,
+  assertChatStream,
+  CHAT_STREAM_ERROR,
   historyToAgentMessages,
   parseChunk,
   type AgentInput,
@@ -23,11 +26,19 @@ import {
   useOnWorkspaceChanged
 } from '~/lib/events'
 import { useT } from '~/lib/i18n'
+import {
+  claimQuestion,
+  forgetQuestion,
+  pendingQuestion,
+  rememberQuestion
+} from '~/lib/pendingTurn'
 import { usePresence } from '~/lib/presenceContext'
 import type { Artifact, SessionPlan, SessionPlanTask } from '~/lib/types'
 import { useHydrated } from '~/lib/useHydrated'
+import { ArtifactDeletedProvider } from '~/lib/workspaceFiles'
 import { MessageList } from '~/components/messages/MessageList'
 import { MessageListSkeleton } from '~/components/messages/MessageListSkeleton'
+import { MessageNavRail } from '~/components/messages/MessageNavRail'
 import type {
   ChatMessageItem,
   MessageListHandle
@@ -171,6 +182,9 @@ export function ChatPanel({
   onSessionStarted
 }: ChatPanelProps) {
   const { t } = useT()
+  // Aliased: `message` is shadowed all over this file by per-message callback
+  // params, so the toast handle gets an unambiguous name.
+  const { message: toast } = App.useApp()
   const hydrated = useHydrated()
   const listRef = useRef<MessageListHandle>(null)
   const [projectOverride, setProjectOverride] = useState<string | null>(null)
@@ -180,7 +194,11 @@ export function ChatPanel({
     () =>
       new AgentChatProvider({
         request: XRequest<AgentInput, AgentOutput, AgentMessage>('/api/chat', {
-          manual: true
+          manual: true,
+          // Reject anything that is not our SSE stream BEFORE XRequest routes on
+          // content-type, so a rejection surfaces its own reason instead of an
+          // opaque status (non-2xx) or an empty reply bubble (2xx + JSON).
+          middlewares: { onResponse: assertChatStream }
         })
       })
   )
@@ -213,6 +231,9 @@ export function ChatPanel({
     provider.onSessionStart = (id, pid) => {
       sidRef.current = id
       setStartedSessionId(id)
+      // The question was sent before this id existed; file it under the id now,
+      // so leaving and coming back can still render it (see lib/pendingTurn).
+      claimQuestion(id)
       // A brand-new chat has no id until this frame, so this is the earliest
       // point its sidebar spinner can light up.
       dispatchSessionStarted(id)
@@ -238,6 +259,10 @@ export function ChatPanel({
     provider.onSessionId = (id) => {
       sidRef.current = id
       setStartedSessionId(id)
+      // The turn is over, so the server has the question whatever the outcome
+      // (failed turns are sealed too). Unconditional, unlike the refresh-time
+      // cleanup, so a refresh that bailed out cannot leave the copy behind.
+      forgetQuestion(id)
       // Immediately clear the sidebar running spinner.
       dispatchSessionDone(id)
       revalidator.revalidate()
@@ -505,6 +530,17 @@ export function ChatPanel({
     // heartbeat. For a brand-new chat there is no id yet — `onSessionStart`
     // dispatches it as soon as the backend assigns one.
     if (sidRef.current) dispatchSessionStarted(sidRef.current)
+    // Keep the question reachable from outside this component tree. The bubble
+    // useXChat is about to add lives and dies with this mount, and for the next
+    // second or two the server has no copy either — so without this, leaving the
+    // conversation and coming back inside that window shows a turn in progress
+    // with nothing to show what was asked (see lib/pendingTurn).
+    rememberQuestion(sidRef.current, {
+      role: 'user',
+      content: text,
+      files: attached,
+      segments: segments?.length ? segments : undefined
+    })
     onRequest({
       session_id: sidRef.current,
       project_id: effectiveProjectId,
@@ -526,6 +562,10 @@ export function ChatPanel({
   // True while the attach SSE is open: drives the composer into its loading
   // state so the Stop button is available for a rejoined turn too.
   const [attaching, setAttaching] = useState(false)
+  // The question of the turn being re-attached, as the server reports it on the
+  // `turn` frame. Covers the one case the out-of-tree copy cannot: a full page
+  // reload landing mid-turn, which takes the module state with it.
+  const [liveTurnUser, setLiveTurnUser] = useState<AgentMessage | null>(null)
   const attachCtrlRef = useRef<AbortController | null>(null)
   // One-shot latch per TURN: set once a turn we attached to ends (or is stopped),
   // so a stale heartbeat can't make us rejoin a finished turn. It is re-armed
@@ -583,6 +623,10 @@ export function ChatPanel({
           body: JSON.stringify({ session_id: sid }),
           signal: ctrl.signal
         })
+        // A rejected response still HAS a body, so the reader below would happily
+        // consume it and silently drop every line for lacking a `data:` prefix —
+        // leaving the placeholder bubble loading forever.
+        await assertChatStream(resp)
         const reader = resp.body?.getReader()
         if (!reader) throw new Error('no stream')
         const decoder = new TextDecoder()
@@ -599,35 +643,60 @@ export function ChatPanel({
             if (!chunk) continue
             if (chunk.type === 'done') {
               attachDoneRef.current = true
+              // Same reasoning as `onSessionId`: the turn ended, so the copy of
+              // its question has served its purpose either way.
+              forgetQuestion(sid)
               // Turn completed: refresh history from server, then clear the
-              // attach stream in the SAME render (no flash/gap).
+              // attach stream. Through refreshMessages — not an inline fetch —
+              // so the seed bump rides along: without it, entries severed from
+              // a dropped live stream stayed in newEntries and the finished
+              // turn rendered twice.
               revalidator.revalidate()
               dispatchSessionDone(sid)
               refreshPlan() // final plan state (active:false now)
               refreshArtifacts()
-              api
-                .listSessionMessages(sid)
-                .then((msgs) => {
-                  setDisplayHistory(
-                    historyToAgentMessages(msgs as unknown as HistoryMessage[])
-                  )
+              refreshMessages()
+                .then(() => {
                   setLiveTail(null)
+                  // History now carries the question; the stand-ins for it can go.
+                  setLiveTurnUser(null)
                 })
                 .catch(() => setLiveTail(null))
               return
             }
-            // A `turn` frame only carries the turn's age (counter re-base) —
-            // it is not content, so it must not keep an otherwise empty tail
-            // alive when the attach is aborted.
-            if (chunk.type !== 'turn') sawContent = true
+            // A `turn` frame only carries the turn's age (counter re-base) and
+            // the turn's own question — it is not content, so it must not keep
+            // an otherwise empty tail alive when the attach is aborted.
+            if (chunk.type === 'turn') {
+              const asked = (
+                chunk.meta as {
+                  user?: { content?: string; segments?: MessageSegment[] }
+                } | undefined
+              )?.user
+              if (asked?.content)
+                setLiveTurnUser({
+                  role: 'user',
+                  content: asked.content,
+                  segments: asked.segments?.length ? asked.segments : undefined
+                })
+            } else {
+              sawContent = true
+            }
             setLiveTail((prev) =>
               applyChunk(prev ?? { role: 'assistant', content: '' }, chunk)
             )
           }
         }
-      } catch {
+      } catch (e) {
         // Aborted (stop/unmount) or unreachable: keep whatever streamed.
         if (!sawContent) setLiveTail(null)
+        // Only a REJECTED response gets a toast. An abort is routine (stop /
+        // navigation) and a network blip already reads as "nothing arrived", so
+        // toasting those would be pure noise; a rejection is the one case where
+        // the placeholder vanishing is otherwise unexplained.
+        if ((e as Error)?.name === CHAT_STREAM_ERROR) {
+          toast.error(`${t.chat.requestFailed}: ${(e as Error).message}`)
+        }
       } finally {
         // Only clear attaching if THIS stream's ctrl is still the active one.
         // A stale finally (from a previous session's aborted attach) must not
@@ -686,10 +755,23 @@ export function ChatPanel({
   // panel unmounts — nothing else. The backend then sees zero watchers; the turn
   // itself keeps running (only the Stop button cancels one). Keyed on sessionId,
   // which is also this panel's remount key, so in practice it fires on unmount.
+  //
+  // BOTH streams have to go, the live POST /api/chat one included: an in-flight
+  // fetch is not tied to the React tree, so leaving it open kept the backend
+  // counting a watcher for a conversation nobody was looking at any more — the
+  // turn then ended on the "someone saw it" path and never got flagged unread.
+  // Dropping it is also what re-attach was built for: coming back remounts with
+  // a fresh store seeded from the loader and replays the turn via
+  // POST /api/chat/attach, so nothing is lost by hanging up here.
+  const abortRef = useRef(abort)
+  abortRef.current = abort
+  const requestingRef = useRef(isRequesting)
+  requestingRef.current = isRequesting
   useEffect(
     () => () => {
       attachCtrlRef.current?.abort()
       attachCtrlRef.current = null
+      if (requestingRef.current) abortRef.current()
     },
     [sessionId]
   )
@@ -743,6 +825,7 @@ export function ChatPanel({
       attachCtrlRef.current = null
       attachDoneRef.current = true
       setLiveTail(null)
+      setLiveTurnUser(null)
       // Clear the flag HERE: the aborted stream's `finally` won't, because its
       // `attachCtrlRef.current === ctrl` guard now fails (we just nulled the
       // ref). Without this the composer stays in its loading state forever —
@@ -769,6 +852,9 @@ export function ChatPanel({
   // is empty but displayHistory hasn't updated yet).
   const messagesLenRef = useRef(messages.length)
   messagesLenRef.current = messages.length
+  // The entries themselves, for refreshMessages' swallow guard below.
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
 
   // Stop was pressed for the turn still in `newEntries`. Aborting the stream
   // flips `streaming` to false one render BEFORE the server-sealed interrupted
@@ -822,6 +908,36 @@ export function ChatPanel({
         // takes over.
         if (hist.length === 0 && messagesLenRef.current > seedLenRef.current)
           return
+        // Never trade a user bubble for a history that predates it. Mid-turn,
+        // the user row is persisted only after the runtime finishes preparing
+        // (seconds, on a cold build) — a refresh landing inside that window
+        // (startAttach fires one) would replace the view with a snapshot that
+        // does not contain the question, while the seed bump below hides the
+        // optimistic bubble: the message looks like it was never sent, until
+        // the turn completes and the next refresh finds it again. Skip; a
+        // later refresh (attach done, turn end) takes over.
+        //
+        // `messagesRef` only holds entries of THIS mount, so after a navigation
+        // away and back it is empty and the guard used to wave the stale history
+        // straight through — the very window it exists for. The out-of-tree
+        // question covers that case.
+        const pending = messagesRef.current.slice(
+          seedLenRef.current
+        ) as ChatMessageItem[]
+        const lastLocalUser = [...pending]
+          .reverse()
+          .find((e) => e.message?.role === 'user')
+        const asked =
+          lastLocalUser?.message.content ?? pendingQuestion(sid)?.content
+        if (asked) {
+          const lastHistUser = [...hist]
+            .reverse()
+            .find((m) => m.role === 'user')
+          if (!lastHistUser || lastHistUser.content !== asked) return
+        }
+        // The server's own copy of the question is in, so the out-of-tree one
+        // has nothing left to cover.
+        forgetQuestion(sid)
         setDisplayHistory(hist)
         // Bump seed atomically with the history update: newEntries becomes
         // empty in the same render that displayHistory becomes fresh.
@@ -832,13 +948,33 @@ export function ChatPanel({
       .catch(() => {})
   }, [])
 
-  // Items computation: displayHistory + newEntries (current streaming turn) +
+  // The turn an attach stream is replaying must not ALSO be rendered from
+  // history. The agent persists each round as it closes, so a turn rejoined
+  // mid-flight already has its finished rounds on disk — while the attach
+  // replays that same turn IN FULL (from the buffer's first event, see
+  // backend attach()). Rendering both showed the turn twice: its persisted half
+  // as a finished "processed" card, the complete replay below it still
+  // "processing" — which reads as the running header having jumped BELOW the
+  // tool calls it belongs to.
+  //
+  // Which row that is, the server states outright: it marks the trailing row
+  // `partial` while the turn is running. Older backends don't, so a missing
+  // `loop_end` marker (→ `loopDurationMs`) remains the fallback reading.
+  const lastHist = displayHistory[displayHistory.length - 1]
+  const history =
+    liveTail &&
+    lastHist?.role === 'assistant' &&
+    (lastHist.partial ?? lastHist.loopDurationMs == null)
+      ? displayHistory.slice(0, -1)
+      : displayHistory
+
+  // Items computation: history + newEntries (current streaming turn) +
   // attachMessage (if re-attaching). No splice, no liveTail insertion.
   const newEntries = messages.slice(seedLenRef.current)
   let items: ChatMessageItem[]
   if (messages.length === 0 && displayHistory.length > 0) {
     // SSR / first-render fallback (useXChat seeds async).
-    items = displayHistory.map((message, i) => ({
+    items = history.map((message, i) => ({
       id: `hist-${i}`,
       message,
       status: 'success' as const
@@ -846,7 +982,7 @@ export function ChatPanel({
   } else if (newEntries.length > 0) {
     // Active turn: canonical history + the streaming entries from useXChat.
     items = [
-      ...displayHistory.map((message, i) => ({
+      ...history.map((message, i) => ({
         id: `hist-${i}`,
         message,
         status: 'success' as const
@@ -855,13 +991,62 @@ export function ChatPanel({
     ] as ChatMessageItem[]
   } else {
     // Idle (between turns): show canonical history.
-    items = displayHistory.map((message, i) => ({
+    items = history.map((message, i) => ({
       id: `hist-${i}`,
       message,
       status: 'success' as const
     })) as ChatMessageItem[]
   }
   // Attach streaming message (live re-attach to a background turn).
+  if (liveTail) {
+    // The attach stream replays the CURRENT turn from its first frame, so a
+    // trailing assistant entry here is that same turn's first half — either
+    // the mid-turn server snapshot (the SDK persists each finished round
+    // while the loop runs) or a severed live stream. Left in place it renders
+    // as a "processed" fold of half the turn stacked above the live one,
+    // which reads as a stray previous answer. A genuinely finished turn is
+    // recognizable by its persisted loop_end duration (or its interrupted
+    // marker) and is never dropped.
+    const last = items[items.length - 1]
+    const lastMsg = last?.message as AgentMessage | undefined
+    if (
+      lastMsg?.role === 'assistant' &&
+      lastMsg.loopDurationMs === undefined &&
+      !lastMsg.parts?.some((p) => p.kind === 'interrupted')
+    ) {
+      items = items.slice(0, -1)
+    }
+  }
+  // The question of the running turn, when this view has no other copy of it:
+  // history hasn't caught up (the server writes that row a second or two into
+  // the turn) and the local store has none either, which is every mount that
+  // did not send it — a remount after navigating away, or a reload. Without
+  // this the turn streams an answer under a conversation that never shows what
+  // was asked.
+  //
+  // Gated on the turn actually being in flight, and de-duplicated by content
+  // against whatever IS rendered: it retires the moment the real row arrives,
+  // and a copy that somehow outlived its turn can never show up as a second
+  // bubble under a finished conversation.
+  const turnKnownRunning = turnLive || presenceSaysRunning || initialRunning
+  const askedRow = turnKnownRunning
+    ? pendingQuestion(sidRef.current ?? sessionId) ?? liveTurnUser
+    : null
+  if (askedRow) {
+    const shownUser = [...items]
+      .reverse()
+      .find((it) => it.message?.role === 'user')
+    if (shownUser?.message.content !== askedRow.content) {
+      items = [
+        ...items,
+        {
+          id: 'pending-user',
+          message: askedRow,
+          status: 'success' as const
+        } as ChatMessageItem
+      ]
+    }
+  }
   if (liveTail) {
     items = [
       ...items,
@@ -873,6 +1058,32 @@ export function ChatPanel({
           : 'loading') as ChatMessageItem['status']
       } as ChatMessageItem
     ]
+  }
+  // The reply slot for a turn we know is running but have no stream for yet.
+  // `liveTail` only appears once the attach has been OPENED, which on a remount
+  // lags by a second or two: the loader flag comes back stale on a back
+  // navigation, so the attach waits on the direct running-state check, and the
+  // backend then holds the stream until the runtime is built. Until then the
+  // conversation ended on the question with nothing under it — no bubble, no
+  // dots — while the composer sat in its running state.
+  //
+  // Self-limiting instead of timed: it is only added when the last row IS the
+  // question, so any assistant row at all takes its place (the attach's first
+  // frame, a history refresh, the local send placeholder), and a finished
+  // conversation — which ends on an assistant row — can never grow a spinner
+  // out of a stale `initialRunning`.
+  if (turnKnownRunning && !liveTail) {
+    const last = items[items.length - 1]
+    if (last?.message.role === 'user') {
+      items = [
+        ...items,
+        {
+          id: 'awaiting-reply',
+          message: { role: 'assistant', content: '' },
+          status: 'loading' as const
+        } as ChatMessageItem
+      ]
+    }
   }
 
   // Mirror the streaming turn's origin while it is still intact, so Stop can
@@ -938,6 +1149,14 @@ export function ChatPanel({
   }
 
   const thinkingFiles = toThinkingFiles(artifacts)
+  // The authoritative deleted state for the top-of-message "N files changed"
+  // cards: same ledger the bottom file list uses (real `os.stat`), so the two
+  // can never disagree (a live file no longer shows as "deleted" up top just
+  // because the fuzzy workspace path-set lagged or used a different root).
+  const artifactDeleted = useMemo(
+    () => new Map(artifacts.map((a) => [a.path, !!a.deleted])),
+    [artifacts]
+  )
   // Whether a task is actually being worked on RIGHT NOW. Two truth sources,
   // either suffices:
   // - planFileActive (server GET /plan → active:true when the turn is alive
@@ -984,54 +1203,76 @@ export function ChatPanel({
     )
   }
 
+  // Centered content column. Fills the width when the workspace rail is closed
+  // and narrows to 80% when it opens, leaving ~20% whitespace on the right. The
+  // width transition is kept perfectly in sync with the rail's own animation
+  // (same 300ms cubic-bezier), so the combined motion — this percentage shrinking
+  // × the section being squeezed — stays continuous and strictly monotonic (no
+  // brief grow). Shared by the list and the composer so they stay aligned.
+  const columnCls = `mx-auto flex w-full flex-col transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+    !workspaceOpen ? 'xl:w-[80%]' : ''
+  }`
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col p-[14px]">
+    <div className="flex min-h-0 flex-1 flex-col py-[14px]">
       {/*
-        Centered content column. Fills the width when the workspace rail is
-        closed (w-full) and narrows to w-[80%] when it opens, leaving ~20%
-        whitespace on the right. The width transition is kept perfectly in
-        sync with the rail's own animation (same 300ms cubic-bezier), so the
-        combined motion — this percentage shrinking × the section being
-        squeezed — stays continuous and strictly monotonic (no brief grow).
+        List row: spans the FULL width but only the LIST's height, and is the
+        positioning context for the conversation navigator. Both facts matter —
+        the navigator pins to the far left of the panel (not of the centred
+        column, which on wide screens would leave it floating in the middle of
+        the conversation) and centres/caps itself against the list alone (not the
+        composer), by CSS with no measuring. The horizontal padding lives here
+        rather than on the outer container so it doubles as the RESERVED GUTTER
+        the navigator sits in: `absolute` offsets resolve against the padding
+        box, so `left-1` lands beside the padding, clear of the bubbles (whose
+        role classNames deliberately have no left padding).
+
+        Gated on `hydrated` because the navigator drives the list through
+        `listRef`, which only exists once the real MessageList is mounted.
       */}
-      <div
-        className={`mx-auto flex min-h-0 flex-1 flex-col transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-          !workspaceOpen ? 'w-full xl:w-[80%]' : 'w-full'
-        }`}
-      >
-        {/*
-          Only the message list is client-only: XMarkdown parses on the client
-          (e.g. wrapping text in <p>), so server-rendering it would cause a
-          hydration mismatch. The composer/sender below is SSR-safe, so we keep
-          the full chat layout and swap just the list for a matching skeleton
-          until hydration. useHydrated is module-level, so client-side
-          navigations (no SSR) see the real list immediately with no flash.
-        */}
-        {hydrated ? (
-          <MessageList
-            ref={listRef}
-            items={items}
-            sessionId={sessionId ?? startedSessionId}
-            onOpenStep={onOpenStep}
-            onOpenFile={onOpenFile}
-          />
-        ) : (
-          <MessageListSkeleton items={items} />
-        )}
-        {renderSender ? (
-          renderSender(ctx)
-        ) : (
-          <div className="px-3 py-2 sm:px-4 sm:py-3">
-            <Sender
-              loading={isRequesting || attaching || stopping}
-              onChange={() => listRef.current?.scrollToBottom()}
-              onSubmit={(text) => handleSubmit(text)}
-              onCancel={stop}
-              placeholder={t.chat.placeholder}
-              autoSize={{ minRows: 1, maxRows: 6 }}
-            />
-          </div>
-        )}
+      <div className="relative flex min-h-0 flex-1 flex-col px-9">
+        {hydrated && <MessageNavRail items={items} listRef={listRef} />}
+        <div className={`${columnCls} min-h-0 flex-1`}>
+          {/*
+            Only the message list is client-only: XMarkdown parses on the client
+            (e.g. wrapping text in <p>), so server-rendering it would cause a
+            hydration mismatch. The composer/sender below is SSR-safe, so we keep
+            the full chat layout and swap just the list for a matching skeleton
+            until hydration. useHydrated is module-level, so client-side
+            navigations (no SSR) see the real list immediately with no flash.
+          */}
+          {hydrated ? (
+            <ArtifactDeletedProvider value={artifactDeleted}>
+              <MessageList
+                ref={listRef}
+                items={items}
+                sessionId={sessionId ?? startedSessionId}
+                onOpenStep={onOpenStep}
+                onOpenFile={onOpenFile}
+              />
+            </ArtifactDeletedProvider>
+          ) : (
+            <MessageListSkeleton items={items} />
+          )}
+        </div>
+      </div>
+      <div className="px-9">
+        <div className={columnCls}>
+          {renderSender ? (
+            renderSender(ctx)
+          ) : (
+            <div className="px-3 py-2 sm:px-4 sm:py-3">
+              <Sender
+                loading={isRequesting || attaching || stopping}
+                onChange={() => listRef.current?.scrollToBottom()}
+                onSubmit={(text) => handleSubmit(text)}
+                onCancel={stop}
+                placeholder={t.chat.placeholder}
+                autoSize={{ minRows: 1, maxRows: 6 }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
