@@ -39,7 +39,7 @@ def sha256(file: Path) -> str:
 
 def _local_file(frontend: Path, relative: str) -> Path:
     file = (frontend / relative).resolve()
-    if not file.is_relative_to(frontend.resolve()) or not file.is_file():
+    if frontend.resolve() not in file.parents or not file.is_file():
         raise BuildError(f"Missing or invalid frontend file: {relative}")
     return file
 

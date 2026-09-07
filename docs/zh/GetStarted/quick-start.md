@@ -64,3 +64,7 @@ ms-agent run --config ms-agent/simple_agent --modelscope_api_key xxx
 - 一个[更全面的例子](https://github.com/modelscope/ms-agent/tree/main/examples)
 - DeepResearch的[例子](https://github.com/modelscope/ms-agent/tree/main/projects/deep_research)
 - CodeGenesis的[例子](https://github.com/modelscope/ms-agent/blob/main/projects/code_genesis/README.md)
+
+## WebUI 入口
+
+使用 Python 3.12+、Node >=22.22.0、pnpm 10.17.1 和 uv >=0.5，在本次 SDK 源码根目录执行 `python -m pip install -e .`，再运行 `ms-agent ui`。首次准备依赖并构建 CSS/前端后，打开终端打印的地址（通常为 http://127.0.0.1:8000），在设置中配置模型。1.7 wheel 交付、Docker、开发与排障详见 [WebUI 完整指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。

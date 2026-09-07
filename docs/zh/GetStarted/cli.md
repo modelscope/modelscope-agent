@@ -91,23 +91,28 @@ ms-agent tui --config path/to/agent.yaml
 
 ## ui — Web UI 服务
 
-启动源码仓库中的 WebUI 开发栈。该命令同时管理内部 FastAPI 服务和公开的 React Router 开发服务。
+通过共同启动器运行构建后的 SSR 页面和 API。源码模式可准备依赖，并在前端/CSS 过期时重新构建；1.7 发布 wheel 携带预构建资源，首次启动在用户缓存准备生产 Node 依赖。
 
 ```shell
 ms-agent ui
+ms-agent ui --port 7860 --no-browser
 ```
 
-| 参数 | 说明 | 默认值 |
+| 参数 | 行为 | 默认值 |
 | --- | --- | --- |
-| `--host` | 公开前端绑定的主机 | `127.0.0.1` |
-| `--port` | 公开前端端口 | `7860` |
-| `--backend-port` | 内部 FastAPI 端口 | `8000` |
-| `--reload` | 后端源码变化时自动重载（开关） | `false` |
-| `--skip-install` | 跳过依赖同步；要求 `.venv` 和 `node_modules` 已存在（开关） | `false` |
-| `--production` | 兼容性保留参数；当前会提示不支持并退出 | `false` |
-| `--no-browser` | 不自动打开浏览器（开关） | `false` |
+| `--host` | 公开监听地址 | `127.0.0.1` |
+| `--port` | 固定公开端口，已占用时报错 | 从 8000 开始选择可用端口 |
+| `--backend-port` | 内部回环 API 端口，与公开端口不同 | 后续可用端口 |
+| `--no-browser` | 不自动打开浏览器 | `false` |
+| `--skip-install` | 不下载或同步依赖，仍检查构建和 CSS | `false` |
+| `--production` | 默认 SSR 行为的兼容参数 | `false` |
+| `--reload` | 暂不支持，请使用文档中的开发命令 | `false` |
+| `--prepare-only` | 准备资源/依赖后退出 | `false` |
+| `--startup-timeout` | 启动超时秒数 | `120` |
 
-启动器要求 uv、Node.js 22.22.0 或更高版本以及 pnpm 10.x，并会在首次使用时安装锁定的项目内依赖。安装、模型配置、环境变量、Windows 支持与排障说明见 [WebUI 完整指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。
+WebUI 要求 Python 3.12+、Node >=22.22.0、pnpm 10.17.1；源码安装另需 uv >=0.5。端口范围为 1–65535；公开端口为 65535 时，内部端口从 8000 开始自动选择。任一服务失败会停止整体。默认共享 `~/.ms_agent` 数据，通过 `MS_AGENT_HOME` 可隔离；旧默认端口 7860 可用 `--port 7860` 保留。
+
+安装、配置、wheel 缓存、Windows 和热更新开发说明见 [WebUI 完整指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。
 
 ---
 

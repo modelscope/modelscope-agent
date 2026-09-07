@@ -11,6 +11,8 @@ import pathlib
 
 import pytest
 
+pytest.importorskip("fastembed", reason="Install the local-embed extra to test the optional embedding registry")
+
 from app.backends.ms_agent import embed_warmup
 
 MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"

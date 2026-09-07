@@ -63,12 +63,9 @@ url = "https://mirrors.aliyun.com/pypi/simple/"
 default = true
 
 [tool.uv.sources]
-# uv.lock pins an official SDK commit. Refresh it deliberately with
-# `uv lock --upgrade-package ms-agent` after updating SDK compatibility.
-# For local SDK development, override with an editable checkout of whichever
-# worktree you are on — `uv pip install -e <path-to-sdk>` after `uv sync`, then
-# `uv run --no-sync` so the override is not reverted.
-ms-agent = { git = "https://github.com/modelscope/ms-agent.git", branch = "main" }
+# Embedded checkout: use this SDK worktree, never the standalone repository's
+# Git pin. Installed wheels use the current Python environment instead of uv sync.
+ms-agent = { path = "../..", editable = true }
 
 [dependency-groups]
 dev = [

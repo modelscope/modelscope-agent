@@ -518,36 +518,39 @@ aggregator:
 
 ### WebUI
 
-MS-Agent provides a local agent workspace built with a React Router frontend and a FastAPI backend. Chat responses are streamed with Server-Sent Events (SSE).
+The WebUI provides projects, sessions, streamed chat, models, skills, MCP, memory
+and workspace files. This checkout prepares the 1.7 WebUI delivery; older 1.6
+PyPI packages do not include it.
 
-#### Quick Start
-
-The current launcher is intended for a source checkout. Install these tools first:
-
-- [uv](https://docs.astral.sh/uv/)
-- Node.js 22.22.0 or newer
-- pnpm 10.x (`corepack prepare pnpm@10.17.1 --activate`)
-
-From the repository root, install MS-Agent in editable mode and start the WebUI:
+Use Python **3.12+**, Node **22.22.0+**, pnpm **10.17.1** and uv **0.5+**.
+From a checkout of this SDK revision:
 
 ```bash
-pip install -e .
+python -m pip install -e .
 ms-agent ui
 ```
 
-On the first run, the launcher creates the backend environment and installs the locked frontend dependencies. Later starts verify those local dependencies. The browser opens at <http://127.0.0.1:7860>.
+The first run prepares dependencies and builds the frontend, including CSS.
+Subsequent starts reuse a matching build. Open the printed URL, normally
+**http://127.0.0.1:8000**, then configure a model in **Settings → Models**.
+Ctrl-C stops both services. The default mode uses the same SSR launcher as the
+standalone WebUI; `--production` is a compatibility alias.
 
-Configure a model in **Settings → Models** before starting a real chat. Environment-variable bootstrap and manual development instructions are available in the [WebUI guide](webui/README.md).
-
-**Windows tip:** If the console shows garbled text, use the UTF-8 PowerShell helper:
-
-```powershell
-.\webui\scripts\start-webui.ps1
-```
-
-**Examples:**
+After a 1.7 RC is published, installation can use its prebuilt wheel:
 
 ```bash
+python -m pip install 'ms-agent[webui]==1.7.0rc0'
+ms-agent ui
+```
+
+The wheel includes WebUI source and prebuilt SSR/CSS. Its first start prepares
+production Node dependencies in a user cache. Keep the old port with
+`ms-agent ui --port 7860`; use `--no-browser` to open the URL manually.
+Data defaults to `~/.ms_agent`; use `MS_AGENT_HOME` for isolation.
+
+See the [WebUI guide](webui/README.md) for complete source/wheel/Docker setup,
+configuration, development, Windows instructions and troubleshooting.
+
 # Use another public frontend port
 ms-agent ui --port 8080
 

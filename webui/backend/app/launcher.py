@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -131,7 +132,8 @@ def _wait_for_http(
                 content = response.read()
                 valid = response.status == 200
                 if kind == "health":
-                    valid = valid and json.loads(content).get("status") == "ok"
+                    payload = json.loads(content)
+                    valid = valid and isinstance(payload, dict) and payload.get("status") == "ok"
                 elif kind == "css":
                     valid = (
                         valid
@@ -183,8 +185,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-open", action="store_true")
     parser.add_argument("--startup-timeout", type=float, default=READY_TIMEOUT_S)
     args = parser.parse_args(argv)
-    if args.startup_timeout <= 0:
-        parser.error("--startup-timeout must be positive")
+    if not math.isfinite(args.startup_timeout) or args.startup_timeout <= 0:
+        parser.error("--startup-timeout must be positive and finite")
     host = args.host.strip().removeprefix("[").removesuffix("]")
     if not host:
         parser.error("--host cannot be empty")

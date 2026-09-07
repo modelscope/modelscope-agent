@@ -559,36 +559,28 @@ OPENAI_API_KEY=xxx-xxx T2I_API_KEY=ms-xxx-xxx MANIM_TEST_API_KEY=xxx-xxx ms-agen
 
 ### WebUI
 
-MS-Agent 提供了一个本地智能体工作台，由 React Router 前端和 FastAPI 后端组成，对话通过 Server-Sent Events（SSE）实时返回。
+WebUI 提供项目、会话、流式对话、模型、技能、MCP、记忆与工作区文件管理。本次代码用于准备 1.7 的 WebUI 交付，旧版 1.6 PyPI 包不包含这套界面。
 
-#### 快速开始
-
-当前启动器面向源码仓库使用。请先安装：
-
-- [uv](https://docs.astral.sh/uv/)
-- Node.js 22.22.0 或更高版本
-- pnpm 10.x（执行 `corepack prepare pnpm@10.17.1 --activate`）
-
-在仓库根目录以 editable 模式安装 MS-Agent，然后启动 WebUI：
+需要 Python **3.12+**、Node **22.22.0+**、pnpm **10.17.1**、uv **0.5+**。在当前 SDK 源码根目录执行：
 
 ```bash
-pip install -e .
+python -m pip install -e .
 ms-agent ui
 ```
 
-第一次运行时，启动器会创建后端环境并安装前端锁定依赖；后续启动会校验这些本地依赖。浏览器默认打开 <http://127.0.0.1:7860>。
+首次运行会准备依赖并构建前端和 CSS，后续复用未变化的构建。打开命令打印的地址，通常是 **http://127.0.0.1:8000**，再到 **设置 → 模型设置** 配置模型。Ctrl-C 会关闭前后端。默认使用与独立 WebUI 相同的 SSR 启动器，`--production` 作为兼容参数保留。
 
-进行真实对话前，请先在 **设置 → 模型设置** 中配置模型。环境变量初始化和手动开发方式见 [WebUI 完整指南](webui/README_ZH.md)。
-
-**Windows 提示：** 若控制台出现乱码，建议使用 UTF-8 PowerShell 启动脚本：
-
-```powershell
-.\webui\scripts\start-webui.ps1
-```
-
-**示例**
+1.7 RC 发布后，可改用预构建 wheel：
 
 ```bash
+python -m pip install 'ms-agent[webui]==1.7.0rc0'
+ms-agent ui
+```
+
+wheel 携带 WebUI 源码与预构建 SSR/CSS；首次启动在用户缓存准备生产 Node 依赖。如需沿用旧端口，使用 `ms-agent ui --port 7860`；不自动打开浏览器可加 `--no-browser`。数据默认保存在 `~/.ms_agent`，可通过 `MS_AGENT_HOME` 隔离。
+
+完整的源码/wheel/Docker 安装、配置、开发、Windows 说明与排障步骤见 [WebUI 完整指南](webui/README_ZH.md)。
+
 # 修改公开前端端口
 ms-agent ui --port 8080
 

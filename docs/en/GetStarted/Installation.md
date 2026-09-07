@@ -37,3 +37,7 @@ MS-Agent runs using LLM API, so only a CPU environment is required.
 | Environment | Requirements |
 |-------------|--------------|
 | python      | \>=3.11      |
+
+## WebUI
+
+The 1.7 WebUI requires Python 3.12+, Node >=22.22.0 and pnpm 10.17.1. After a 1.7 package is published, install `ms-agent[webui]` to add its Python dependencies; the wheel already contains frontend source and prebuilt SSR/CSS. The first start prepares production Node dependencies in a user cache. Older 1.6 packages do not include this WebUI; before publication, use this source checkout with uv >=0.5. See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md) for reproducible source, wheel and Docker steps.
