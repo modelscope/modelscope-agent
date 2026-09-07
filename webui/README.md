@@ -174,8 +174,7 @@ keep it when replacing the container. Mount project directories separately to
 work on host files. To change the access port, change the left side of `9000:8000`.
 
 `MS_AGENT_FRONTEND_HOSTED_MODE=1` hides local-path controls that are unsuitable
-for remote users; access control still needs to be configured separately. See
-the [release guide](../docs/RELEASING.md) for image build and publication steps.
+for remote users; access control still needs to be configured separately.
 
 ## Troubleshooting
 

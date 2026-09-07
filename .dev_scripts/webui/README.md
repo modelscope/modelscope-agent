@@ -54,5 +54,4 @@ and `--logs` with a directory for test logs. Image validation uses test containe
 and volumes and removes them when finished. Neither check calls a real model.
 
 For exact automated commands, see the [package workflow](../../.github/workflows/webui-check.yaml)
-and [image workflow](../../.github/workflows/webui-image.yaml). Publishing requires
-configured credentials and a separate action; see the [release guide](../../docs/RELEASING.md).
+and [image workflow](../../.github/workflows/webui-image.yaml).
