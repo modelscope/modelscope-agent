@@ -106,6 +106,12 @@ docker run --rm -p 9000:8000 \
 
 访问 http://127.0.0.1:9000。容器内公开端口为 8000，API 使用回环地址 8001；启动前已准备好依赖。替换容器时保留命名数据卷。新的 SDK 镜像流程通过实际构建与 ACR 推拉验证后，再接替旧独立 WebUI 的 Aone 流程。
 
+镜像使用 UID 1000 运行，上述命名卷会按该用户初始化；已有的宿主机目录需要允许 UID 1000 写入。
+更换对外端口时调整 `9000:8000` 的宿主机一侧，容器内保留 8000 以匹配健康检查。其他工作目录需显式挂载。
+
+[发版操作](../docs/RELEASING.md)列出了手动镜像验证、ACR 配置和统一的 RC/正式版流程。
+普通代码检查不构建或推送镜像；手动镜像验证默认不推送，镜像安装同一轮已验收的 wheel。
+
 在 SDK 根目录准备发布包，使用 Python 3.12 和上述前端工具链：
 
 ```bash
@@ -126,7 +132,7 @@ uv run --no-sync pytest
 pnpm typecheck
 pnpm build
 # SDK 根目录，使用已安装 WebUI 和测试依赖的 Python：
-python -m pytest tests/cli tests/ui
+python -m pytest tests/cli tests/ui tests/release
 ```
 
 如需完整覆盖可选的向量记忆测试，先在 `webui/backend/` 执行 `uv sync --locked --extra local-embed`；否则相关测试会跳过。测试不会下载模型。

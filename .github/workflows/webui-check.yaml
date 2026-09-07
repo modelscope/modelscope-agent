@@ -1,0 +1,103 @@
+name: WebUI checks
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        value: ${{ jobs.check.outputs.version }}
+  workflow_dispatch:
+  push:
+    branches: [main, 'release/**', 'feat/**', 'fix/**']
+    paths: ['ms_agent/**', 'webui/**', 'requirements/**', 'tests/cli/**', 'tests/ui/**', 'tests/release/**', 'scripts/*webui*.py', 'setup.py', 'setup.cfg', 'MANIFEST.in', 'webui_packaging.py', 'README*', '.github/workflows/webui-*.yaml', '.github/workflows/publish.yaml']
+  pull_request:
+    paths: ['ms_agent/**', 'webui/**', 'requirements/**', 'tests/cli/**', 'tests/ui/**', 'tests/release/**', 'scripts/*webui*.py', 'setup.py', 'setup.cfg', 'MANIFEST.in', 'webui_packaging.py', 'README*', '.github/workflows/webui-*.yaml', '.github/workflows/publish.yaml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.17.1'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.12.8'
+      - name: Check source and tag
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          echo "MS_AGENT_HOME=$RUNNER_TEMP/ms-agent-check-home" >> "$GITHUB_ENV"
+          python scripts/check_webui_release.py --tag "$RELEASE_TAG"
+      - name: Backend and SDK regression tests
+        run: |
+          uv sync --project webui/backend --locked --inexact --extra local-embed
+          (cd webui/backend && uv run --no-sync pytest -q)
+          uv run --project webui/backend --no-sync pytest tests/cli tests/ui tests/release -q
+      - name: Frontend types, CSS and SSR build
+        run: |
+          mkdir -p "$RUNNER_TEMP/ms-agent-package-source"
+          git archive "$GITHUB_SHA" | tar -x -C "$RUNNER_TEMP/ms-agent-package-source"
+          cd "$RUNNER_TEMP/ms-agent-package-source"
+          pnpm --dir webui/frontend install --frozen-lockfile
+          pnpm --dir webui/frontend typecheck
+          python scripts/prepare_webui.py --sdk-sha "$GITHUB_SHA"
+      - name: Build wheel and sdist with locked runtime requirements
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/release-inputs"
+          cd "$RUNNER_TEMP/ms-agent-package-source"
+          uv export --project webui/backend --frozen --no-dev --no-emit-project --no-emit-package ms-agent --output-file "$GITHUB_WORKSPACE/release-inputs/runtime-requirements.txt" > /dev/null
+          uv build --python 3.12 --out-dir "$GITHUB_WORKSPACE/release-inputs"
+          cd "$GITHUB_WORKSPACE"
+          uvx --from twine==6.2.0 twine check release-inputs/*.whl release-inputs/*.tar.gz
+          python scripts/check_webui_release.py --dist release-inputs --sdk-sha "$GITHUB_SHA"
+      - name: Rebuild sdist without frontend tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/no-frontend-tools"
+          for tool in node pnpm; do
+            printf '#!/bin/sh\necho Unexpected frontend rebuild >&2\nexit 99\n' > "$RUNNER_TEMP/no-frontend-tools/$tool"
+            chmod +x "$RUNNER_TEMP/no-frontend-tools/$tool"
+          done
+          PATH="$RUNNER_TEMP/no-frontend-tools:$PATH" uv build --wheel --python 3.12 release-inputs/*.tar.gz --out-dir "$RUNNER_TEMP/sdist-wheel"
+      - name: Install and exercise the wheel outside the checkout
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/webui-wheel"
+          uv pip install --python "$RUNNER_TEMP/webui-wheel/bin/python" --require-hashes --no-deps -r release-inputs/runtime-requirements.txt
+          uv pip install --python "$RUNNER_TEMP/webui-wheel/bin/python" --no-deps release-inputs/*.whl
+          uv pip check --python "$RUNNER_TEMP/webui-wheel/bin/python"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/webui-wheel/bin/python" "$GITHUB_WORKSPACE/scripts/check_webui_install.py" --logs "$RUNNER_TEMP/webui-logs"
+      - id: metadata
+        name: Record package version
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          release = json.loads(Path('release-inputs/release.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('version=' + release['version'] + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webui-release-inputs
+          path: release-inputs/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webui-install-logs
+          path: ${{ runner.temp }}/webui-logs/
+          if-no-files-found: ignore
