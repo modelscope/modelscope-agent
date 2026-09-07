@@ -44,19 +44,9 @@ jobs:
       - name: Install backend test dependencies
         run: |
           uv sync --project webui/backend --locked --inexact --extra local-embed
-      - name: Check optional embedding runtime
-        run: webui/backend/.venv/bin/python -X faulthandler -c "import fastembed; print('Optional embedding runtime imported')"
       - name: Backend regression tests
-        id: backend-tests
         working-directory: webui/backend
         run: .venv/bin/python -X faulthandler -m pytest -q
-      - name: Diagnose native test shutdown failure
-        if: failure() && steps.backend-tests.outcome == 'failure'
-        working-directory: webui/backend
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends gdb
-          gdb --batch -ex 'set print thread-events off' -ex run -ex 'bt 30' --args .venv/bin/python -X faulthandler -m pytest -q
       - name: SDK and release regression tests
         run: webui/backend/.venv/bin/python -X faulthandler -m pytest tests/cli tests/ui tests/release -q
       - name: Frontend types, CSS and SSR build

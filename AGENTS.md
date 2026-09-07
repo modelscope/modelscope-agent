@@ -38,7 +38,6 @@ a wheel test outside the source checkout. See the WebUI README for commands.
 The normal SDK Python formatting is defined in `setup.cfg`; copied WebUI and
 skill snapshots retain their source conventions.
 
-Use ordinary `feat/` or `fix/` branch names. Commit messages are a concise Chinese
-sentence, without co-author trailers. Keep snapshots, SDK adaptations and release
-configuration in separate commits when possible. Do not publish packages,
-release tags or images unless the user has authorized that action.
+Use ordinary `feat/` or `fix/` branch names. Keep snapshots, SDK adaptations and
+release configuration in separate commits when possible. Do not publish
+packages, release tags or images unless the user has authorized that action.

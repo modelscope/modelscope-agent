@@ -9,6 +9,7 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -65,6 +66,30 @@ def create(base):
         'project_id': project_id
     })
     state = {'project': project_id, 'session': session['id'], 'name': name}
+    scope = 'project:' + project_id
+    content = f'---\nname: {name}\ndescription: Offline release check\n---\nTest only.\n'
+    skill = api(
+        base, '/api/skills', {
+            'name':
+            name,
+            'scope':
+            scope,
+            'kind':
+            'bundle',
+            'content':
+            json.dumps({
+                'format': 'webui.skill.bundle.v1',
+                'files': [{
+                    'path': 'SKILL.md',
+                    'content': content
+                }]
+            })
+        })
+    state['skill'] = skill['id']
+    # Activate a real native watcher, so stop/restart also exercises its cleanup.
+    assert any(s['id'] == state['skill']
+               for s in api(base, '/api/skills?scope='
+                            + quote(scope, safe='')))
     assert api(base, '/api/projects/' + project_id,
                {'description': 'Offline release check'},
                'PATCH')['name'] == name
@@ -91,6 +116,8 @@ def create(base):
 
 
 def verify(base, state):
+    assert api(base, '/api/skills/'
+               + quote(state['skill'], safe=''))['name'] == state['name']
     assert api(base,
                '/api/projects/' + state['project'])['name'] == state['name']
     assert api(base, '/api/sessions/' + state['session'])['title'] == (
@@ -101,6 +128,7 @@ def verify(base, state):
 
 
 def cleanup(base, state):
+    api(base, '/api/skills/' + quote(state['skill'], safe=''), method='DELETE')
     file = '/api/projects/' + state[
         'project'] + '/workspace/files/release-smoke.txt'
     api(base, file, method='DELETE')

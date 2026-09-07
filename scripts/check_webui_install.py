@@ -226,6 +226,7 @@ def main():
             'read_only_bundle': 'passed',
             'cache_reuse': 'passed',
             'crud_sse_restart': 'passed',
+            'skills_watcher_restart': 'passed',
             'signal_and_child_failure': 'passed'
         }))
 

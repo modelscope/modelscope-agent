@@ -35,13 +35,15 @@ Python 3.12、Node 22、pnpm 10.17.1、uv 0.12.8、git/curl/tini、SSR/API 与�
 
 ```bash
 gh workflow run webui-image.yaml --repo modelscope/ms-agent \
-  --ref feat/webui-sync-1.7 -f push_dev=false
+  --ref main -f push_dev=false
 gh run list --repo modelscope/ms-agent --workflow webui-image.yaml --limit 5
 ```
 
 ACR 网络和凭据准备好后，再以 `push_dev=true` 运行同一入口。此时构建、检查后只发布
 该提交的 `dev-...` 标签，不发布 PyPI 或正式版本。已存在的不同内容不会被覆盖。
 若工作流尚未进入默认分支，先完成工作流配置的合入，再执行上述命令。
+上述命令测试合入后的 `main`；测试其他版本时，把 `--ref` 换成目标仓库中实际存在的
+分支或 tag。个人 fork 中的分支应使用该 fork 的 `--repo`。
 
 本地复现完整镜像时，从同一轮检查下载 `webui-release-inputs` artifact，然后：
 
@@ -55,7 +57,7 @@ python scripts/check_webui_release.py --dist release-inputs --sdk-sha "$(git rev
 构建上下文仅为 `release-inputs/`，Dockerfile 是 [docker/webui.Dockerfile](../docker/webui.Dockerfile)，
 版本、SDK SHA、wheel SHA 从 `release.json` 读取。构建后执行
 `python scripts/check_webui_image.py --inputs release-inputs --output image.json --logs container-logs`。
-它创建独立容器/数据卷，检查 SSR、CSS、API、项目/会话/文件、SSE、重启后数据和失败退出，
+它创建独立容器/数据卷，检查 SSR、CSS、API、项目/会话/技能/文件、SSE、重启后数据和失败退出，
 最后清除测试容器和测试卷；不会请求模型或推送镜像。
 
 ## 准备本轮版本
