@@ -53,18 +53,15 @@ testpaths = ["tests"]
 required-version = ">=0.5.0"
 
 [[tool.uv.index]]
-# 国内构建机与 CI 直连 pypi.org 极不稳定：uv sync 曾在 pillow/matplotlib/
-# modelscope 这几个几 MB 的 wheel 上反复重下八九分钟，最终 30s 超时构建失败
-# （2026-08-05，run 58179298）。锁文件会把这里的地址记进每个包的 registry，
-# 所以换源必须重新 uv lock 才生效——只设环境变量对 --frozen 无效。
-# apt 与 uv 自身的安装早已固定在同一面镜像上（见 Dockerfile）。
+# Package registry URLs are recorded in uv.lock. After changing the index,
+# regenerate the lockfile with `uv lock`; --frozen keeps the existing URLs.
 name = "aliyun"
 url = "https://mirrors.aliyun.com/pypi/simple/"
 default = true
 
 [tool.uv.sources]
-# Embedded checkout: use this SDK worktree, never the standalone repository's
-# Git pin. Installed wheels use the current Python environment instead of uv sync.
+# Use the SDK in this checkout. Installed packages use the active Python
+# environment instead of synchronizing a source environment with uv.
 ms-agent = { path = "../..", editable = true }
 
 [dependency-groups]

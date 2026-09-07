@@ -45,7 +45,7 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     MS_AGENT_WEBUI_CACHE=/opt/ms-agent-webui-cache
 COPY --from=dependencies /opt/venv /opt/venv
 COPY release.json /opt/ms-agent-release/release.json
-# Preserve Aone's runtime user so existing data volumes keep working.
+# Create the persistent data directory and the preloaded WebUI dependency cache.
 RUN mkdir -p /data /opt/ms-agent-webui-cache
 WORKDIR /app
 # This uses the installed wheel and the final runtime's Node version. No source

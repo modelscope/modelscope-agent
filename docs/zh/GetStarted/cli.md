@@ -91,7 +91,7 @@ ms-agent tui --config path/to/agent.yaml
 
 ## ui — Web UI 服务
 
-通过共同启动器运行构建后的 SSR 页面和 API。源码模式可准备依赖，并在前端/CSS 过期时重新构建；1.7 发布 wheel 携带预构建资源，首次启动在用户缓存准备生产 Node 依赖。
+启动 WebUI 并在浏览器中打开。pip 安装包包含构建好的页面和样式，首次启动会在用户缓存中安装前端运行依赖；源码运行时还会按需构建前端。
 
 ```shell
 ms-agent ui

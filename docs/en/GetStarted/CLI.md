@@ -94,9 +94,9 @@ ms-agent tui --config path/to/agent.yaml
 
 ## ui — Web UI Server
 
-Start the built WebUI through the shared SSR/API launcher. Source checkouts can
-prepare dependencies and rebuild stale frontend/CSS output; 1.7 release wheels
-include prebuilt resources and prepare production Node dependencies in a user cache.
+Start the WebUI and open it in a browser. Pip installations include prebuilt
+pages and styles; the first start installs frontend runtime dependencies in a
+user cache. Source installations also prepare and rebuild the frontend when needed.
 
 ```shell
 ms-agent ui

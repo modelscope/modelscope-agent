@@ -7,15 +7,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # app/core/settings.py -> backend/ ; anchor .env to the file, not the CWD, so it
 # loads identically from the server, a script, or a test regardless of cwd.
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
-# This backend runs in two directory layouts and must resolve its dotenv chain
-# without adaptation in either one:
-#   standalone checkout:   <repo>/backend            -> repo/.env, backend/.env
-#   embedded in ms-agent:  <repo>/webui/backend      -> repo/.env, webui/.env,
-#                                                       backend/.env
-# The embedded layout inserts one directory level, so the repository root --
-# where shared provider credentials live -- sits one level higher. Detect it by
-# the parent directory's name; walking further up unconditionally would read a
-# stray .env from OUTSIDE the checkout in the standalone layout.
+# Under webui/, include the SDK root's shared .env before the WebUI and backend
+# files. Otherwise, restrict discovery to the backend and its parent directory.
+# This avoids reading an unrelated .env higher in the filesystem.
 _IS_EMBEDDED = _BACKEND_DIR.parent.name == "webui"
 _ENV_FILES = (
     (

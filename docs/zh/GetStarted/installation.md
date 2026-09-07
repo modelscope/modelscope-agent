@@ -41,4 +41,12 @@ MS-Agent使用LLM API运行，因此仅需要CPU环境即可。
 
 ## WebUI
 
-1.7 WebUI 要求 Python 3.12+、Node >=22.22.0、pnpm 10.17.1。1.7 包发布后，安装 `ms-agent[webui]` 可补齐 Python 依赖；wheel 已包含前端源码及预构建 SSR/CSS，首次启动在用户缓存准备生产 Node 依赖。旧版 1.6 包不包含这套 WebUI，发布前请使用本次源码，另需 uv >=0.5。可复现的源码、wheel 和 Docker 步骤见 [WebUI 完整指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。
+WebUI 需要 Python 3.12+、Node.js 22.22.0+ 和 pnpm 10.17.1：
+
+```shell
+npm install --global pnpm@10.17.1
+pip install -U "ms-agent[webui]"
+ms-agent ui
+```
+
+安装包已包含构建好的页面和样式，首次启动会安装前端运行依赖。源码运行另需 uv 0.5+，用于准备后端环境。完整安装与配置步骤见 [WebUI 使用指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。

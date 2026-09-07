@@ -559,36 +559,23 @@ OPENAI_API_KEY=xxx-xxx T2I_API_KEY=ms-xxx-xxx MANIM_TEST_API_KEY=xxx-xxx ms-agen
 
 ### WebUI
 
-WebUI 提供项目、会话、流式对话、模型、技能、MCP、记忆与工作区文件管理。本次代码用于准备 1.7 的 WebUI 交付，旧版 1.6 PyPI 包不包含这套界面。
+MS-Agent WebUI 是面向本地项目的智能体工作台。你可以在浏览器中与模型对话、查看工具执行过程、配置技能和 MCP 工具，并直接浏览或编辑项目文件。
 
-需要 Python **3.12+**、Node **22.22.0+**、pnpm **10.17.1**、uv **0.5+**。在当前 SDK 源码根目录执行：
+需要 **Python 3.12+**、**Node.js 22.22.0+** 和 **pnpm 10.17.1**。先用 `npm install --global pnpm@10.17.1` 安装 pnpm，再启动 WebUI：
 
 ```bash
-python -m pip install -e .
+pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-首次运行会准备依赖并构建前端和 CSS，后续复用未变化的构建。打开命令打印的地址，通常是 **http://127.0.0.1:8000**，再到 **设置 → 模型设置** 配置模型。Ctrl-C 会关闭前后端。默认使用与独立 WebUI 相同的 SSR 启动器，`--production` 作为兼容参数保留。
-
-1.7 RC 发布后，可改用预构建 wheel：
+浏览器会打开终端显示的地址，通常是 **http://127.0.0.1:8000**。首次启动会安装前端运行依赖。在 **设置 → 模型设置** 添加服务商和模型后，即可打开项目、创建会话并开始使用。按 Ctrl-C 停止服务。
 
 ```bash
-python -m pip install 'ms-agent[webui]==1.7.0rc0'
-ms-agent ui
+ms-agent ui --port 8080    # 指定访问端口
+ms-agent ui --no-browser  # 不自动打开浏览器
 ```
 
-wheel 携带 WebUI 源码与预构建 SSR/CSS；首次启动在用户缓存准备生产 Node 依赖。如需沿用旧端口，使用 `ms-agent ui --port 7860`；不自动打开浏览器可加 `--no-browser`。数据默认保存在 `~/.ms_agent`，可通过 `MS_AGENT_HOME` 隔离。
-
-完整的源码/wheel/Docker 安装、配置、开发、Windows 说明与排障步骤见 [WebUI 完整指南](webui/README_ZH.md)。
-
-# 修改公开前端端口
-ms-agent ui --port 8080
-
-# 不自动打开浏览器
-ms-agent ui --no-browser
-```
-
-依赖、配置优先级、完整参数、Windows 注意事项和排障方式请阅读 [WebUI 完整指南](webui/README_ZH.md)。这个最简启动器有意不提供生产环境 SSR 模式。
+源码安装、开发、Docker 和配置说明见 [WebUI 完整指南](webui/README_ZH.md)。
 
 ---
 

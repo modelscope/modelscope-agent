@@ -1,54 +1,55 @@
 # WebUI development
 
-Read the root `AGENTS.md` and [README.md](README.md) / [README_ZH.md](README_ZH.md)
-for installation, configuration, development and verification commands.
+MS-Agent WebUI has a FastAPI API, SDK adapters and a React Router frontend.
+Installation and development commands are in `README.md` and `README_ZH.md`.
 
-## Layout and synchronization
+## Architecture and contracts
 
-- `backend/app/api/`: HTTP routes and envelopes.
-- `backend/app/backends/ms_agent/`: SDK adapters for projects, sessions, chat,
-  models, skills, MCP, memory and files.
-- `backend/app/launcher.py`: the common SSR/API supervisor used by both
-  `ms-agent ui` and the standalone `uv run webui` entry.
-- `frontend/server.js`: SSR serving, same-origin API proxy and unbuffered SSE.
-- `frontend/app/`: React routes, components, model/chat state and translations.
-- `frontend/scripts/genAntdCss.tsx` and `buildManifest.mjs`: CSS generation and
-  build input/output validation.
-
-`SOURCE.json` records the standalone source commit. Keep common runtime and
-launcher changes upstream in that repository, then synchronize the committed
-files. Embedded `backend/pyproject.toml` and `uv.lock` use the current SDK as an
-editable path dependency. SDK packaging/CLI changes belong outside this snapshot.
-The root `.agents/skills/` contains the single copy of development skills.
+- `backend/app/api/` handles HTTP requests and response envelopes. SDK adapters
+  in `backend/app/backends/ms_agent/` implement projects, sessions, chat, models,
+  skills, MCP, memory and files through the SDK services.
+- `backend/app/launcher.py` supervises the API and frontend processes.
+  `ms_agent/cli/ui.py` prepares the environment before invoking this launcher.
+- `frontend/server.js` serves rendered pages and proxies API requests and SSE.
+  `frontend/app/` contains routes, components, client state and translations.
+- `frontend/scripts/genAntdCss.tsx` and `buildManifest.mjs` generate CSS and record
+  frontend build inputs/outputs. `backend/app/frontend.py` validates the result.
+- The API/client contract is represented by backend models and
+  `frontend/app/lib/types.ts`; update both sides when changing request or event
+  payloads. Preserve streaming frame order, identifiers and completion handling.
 
 ## UI conventions
 
-- Use project design tokens for colors, borders and backgrounds. Target Ant
-  Design internals with a co-located CSS file and a component-specific prefix;
-  avoid Tailwind arbitrary variants for those internal nodes.
-- Obtain message, modal and notification APIs from `App.useApp()` so they
-  inherit the application theme.
-- Ant Design uses `zeroRuntime`: modify the shared theme in `app/lib/msaTheme.ts`,
-  never add a nested `ConfigProvider theme`. Regenerate the complete frontend
-  with `pnpm build` after theme changes.
-- Route visible text through `useT()` and update both `app/lib/locales/en.json`
-  and `zh.json` plus the corresponding types. Keep SSR and browser language
-  selection consistent.
-- Confirm delete actions with `Popconfirm`; give icon-only buttons a translated
-  tooltip. Use `currentColor` in SVG assets.
-- If a mutation affects mounted views, notify consumers through
-  `app/lib/events.ts` instead of leaving stale panels. Follow existing workspace,
-  skill/MCP, URL and session-completion event patterns.
+Use the project's design tokens for colors, spacing and typography. Target Ant
+Design internals in co-located CSS with a component-specific selector rather
+than Tailwind arbitrary variants. Icon-only controls need translated labels or
+tooltips; destructive actions use `Popconfirm`.
 
-## Runtime checks
+Ant Design uses `zeroRuntime`. Change shared theme values in `app/lib/msaTheme.ts`
+and regenerate CSS with `pnpm build`; a nested `ConfigProvider theme` cannot
+supply runtime styles. Obtain message, modal and notification APIs from
+`App.useApp()` so they inherit the application theme.
 
-Use the full `pnpm build` command: CSS, SSR, client output and build provenance
-must agree. Both `MS_AGENT_API_BASE_URL` (proxy) and
-`MS_AGENT_FRONTEND_API_BASE_URL` (SSR) must target the same loopback API.
-Do not buffer or compress SSE. Keep one API worker while session/runtime state
-is held in process memory. A service failure must stop the whole launched stack.
+Use `useT()` for visible text, update both `app/lib/locales/en.json` and `zh.json`,
+and keep SSR and browser language selection consistent. After changing data
+shown elsewhere, update the appropriate state or emit the existing event in
+`app/lib/events.ts` so mounted views refresh.
 
-Run offline tests from `backend/` with `uv run --no-sync pytest`, and
-`pnpm typecheck` / `pnpm build` from `frontend/`. Validate actual CSS responses,
-port handling and shutdown after launcher changes. Real-model tests are opt-in;
-never use the user's real SDK home for automated checks.
+## Runtime and build behavior
+
+The frontend proxy and SSR requests must target the same backend:
+`MS_AGENT_API_BASE_URL` and `MS_AGENT_FRONTEND_API_BASE_URL`. SSE responses must
+remain unbuffered and uncompressed. Session/runtime state is held in process
+memory, so the application runs one API worker.
+
+A service failure must stop the launched stack. Shutdown must close SDK
+resources and file watchers before Python exits.
+
+`pnpm build` generates the CSS, client files, SSR output and build manifest as a
+unit. Package preparation validates that they match. When adding files needed
+at runtime, update `.dev_scripts/webui/resource-files.txt` as well.
+
+Backend tests run from `backend/` with `uv run pytest`; frontend checks run from
+`frontend/` with `pnpm typecheck` and `pnpm build`. For launcher changes, verify
+port handling, actual page/CSS responses and shutdown. Model integration tests
+are opt-in; ordinary backend tests do not require model credentials.

@@ -518,47 +518,30 @@ aggregator:
 
 ### WebUI
 
-The WebUI provides projects, sessions, streamed chat, models, skills, MCP, memory
-and workspace files. This checkout prepares the 1.7 WebUI delivery; older 1.6
-PyPI packages do not include it.
+MS-Agent WebUI is a browser workspace for working with agents on local projects.
+Chat with models, follow tool activity, manage skills and MCP tools, and browse
+or edit project files without leaving the interface.
 
-Use Python **3.12+**, Node **22.22.0+**, pnpm **10.17.1** and uv **0.5+**.
-From a checkout of this SDK revision:
+Requires **Python 3.12+**, **Node.js 22.22.0+** and **pnpm 10.17.1**. Install pnpm
+with `npm install --global pnpm@10.17.1`, then start the WebUI:
 
 ```bash
-python -m pip install -e .
+pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-The first run prepares dependencies and builds the frontend, including CSS.
-Subsequent starts reuse a matching build. Open the printed URL, normally
-**http://127.0.0.1:8000**, then configure a model in **Settings → Models**.
-Ctrl-C stops both services. The default mode uses the same SSR launcher as the
-standalone WebUI; `--production` is a compatibility alias.
-
-After a 1.7 RC is published, installation can use its prebuilt wheel:
+The browser opens at the URL printed in the terminal, usually
+**http://127.0.0.1:8000**. The first start installs frontend runtime dependencies.
+Add a provider and model in **Settings → Models**, then open a project and start
+a conversation. Press Ctrl-C to stop the service.
 
 ```bash
-python -m pip install 'ms-agent[webui]==1.7.0rc0'
-ms-agent ui
+ms-agent ui --port 8080    # Choose another port
+ms-agent ui --no-browser  # Do not open a browser
 ```
 
-The wheel includes WebUI source and prebuilt SSR/CSS. Its first start prepares
-production Node dependencies in a user cache. Keep the old port with
-`ms-agent ui --port 7860`; use `--no-browser` to open the URL manually.
-Data defaults to `~/.ms_agent`; use `MS_AGENT_HOME` for isolation.
-
-See the [WebUI guide](webui/README.md) for complete source/wheel/Docker setup,
-configuration, development, Windows instructions and troubleshooting.
-
-# Use another public frontend port
-ms-agent ui --port 8080
-
-# Keep the browser closed
-ms-agent ui --no-browser
-```
-
-See the [complete WebUI guide](webui/README.md) for prerequisites, configuration precedence, all launcher options, Windows notes, and troubleshooting. This minimal launcher intentionally does not provide a production SSR mode.
+For source installation, development, Docker and configuration, see the
+[WebUI guide](webui/README.md).
 
 <br>
 

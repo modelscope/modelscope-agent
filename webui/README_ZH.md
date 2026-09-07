@@ -1,156 +1,148 @@
 # MS-Agent WebUI
 
-WebUI 提供项目与会话、流式对话、模型配置、技能、MCP 工具、记忆和工作区文件管理，与 CLI/TUI 共用 SDK 和数据目录。[English](README.md)
+在浏览器里使用 MS-Agent，让智能体围绕你的项目完成资料检索、代码编写和文件处理。对话、工具调用和生成结果都在同一个工作台中，方便查看过程并继续追问。[English](README.md)
 
-本次代码用于准备 **1.7 发版**。以下 wheel 安装方式适用于本分支构建的包；旧版 1.6 包不包含这套 WebUI。1.7 包发布前，请使用当前源码或本地构建的 wheel。
+- **按项目开展工作**：打开本地文件夹，管理多个会话，浏览和编辑项目文件。
+- **看清任务进展**：流式查看回复、思考过程、工具调用和生成的文件。
+- **选择模型与工具**：配置模型服务，接入 MCP 工具，并为项目启用所需的技能。
+- **延续项目上下文**：保留会话记录，管理记忆，在后续对话中继续工作。
 
-## 从源码快速启动
+## 快速开始
 
-前置环境：Python **3.12+**、Node **22.22.0+**、pnpm **10.17.1**、uv **0.5+**。没有 pnpm 时可执行 `npm install --global pnpm@10.17.1`。
+### 1. 准备环境
 
-在 SDK 仓库根目录执行：
+| 工具 | 要求 | 用途 |
+| --- | --- | --- |
+| [Python](https://www.python.org/downloads/) | 3.12 或更高版本 | 运行 MS-Agent 和 WebUI 后端 |
+| [Node.js](https://nodejs.org/en/download) | 22.22.0 或更高版本 | 运行 WebUI 前端服务 |
+| pnpm | 10.17.1 | 安装前端依赖 |
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-ms-agent ui
-```
-
-首次运行会准备 `webui/backend/.venv`、安装锁定的前端依赖，并执行包含 Ant Design CSS 生成的 `pnpm build`；后续复用未变化的构建。页面、API 和 CSS 检查通过后会打印一个访问地址，通常为 **http://127.0.0.1:8000**。在 **设置 → 模型设置** 配置服务商与模型，再打开项目/会话进行对话。
-
-Ctrl-C 会关闭前后端。Windows 请使用 Python 3.12+ 的 `python`，通过 `.venv\Scripts\Activate.ps1` 激活环境，也可使用保留的 UTF-8 包装脚本：
-
-```powershell
-.\webui\scripts\start-webui.ps1 --no-browser
-```
-
-## 安装 wheel
-
-Python、Node、pnpm 要求相同。发布包携带前后端源码，以及预构建的 SSR、客户端资源和 CSS；用户无需再次构建前端，也不会运行源码项目的 uv 同步。
+安装 Node.js 后，在终端安装 pnpm：
 
 ```bash
-# 所选 1.7 RC 发布后：
-python -m pip install 'ms-agent[webui]==1.7.0rc0'
-ms-agent ui
+npm install --global pnpm@10.17.1
+```
 
-# 发布前，安装当前源码构建的 wheel：
-python -m pip install './dist/ms_agent-1.6.0-py3-none-any.whl[webui]'
+可以用 `python --version`、`node --version` 和 `pnpm --version` 检查环境。使用已有的 Python 环境即可，也可以按需创建虚拟环境。
+
+### 2. 安装并启动
+
+```bash
+pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-文件名和版本以 `dist/` 实际产物为准；正式改版前开发版本仍为 1.6.0。普通 `pip install ms-agent` 也下载相同的 WebUI 资源，`[webui]` 额外安装 Python 运行依赖；`[all]` 同样包含这些依赖。运行 WebUI 要求 Python 3.12+。
+`[webui]` 会安装界面所需的 Python 依赖。首次启动还会下载前端运行依赖，请保持网络连接；后续启动会复用它们。安装包已经包含构建好的页面和样式，无需手动构建前端。
 
-wheel 首次启动会在用户缓存安装**生产 Node 依赖**，后续复用，不向 site-packages 安装依赖。可通过 `MS_AGENT_WEBUI_CACHE` 指定可写缓存根目录，镜像也用它预先准备固定位置。默认位置为 macOS 的 `~/Library/Caches/ms-agent/webui`、Linux 的 `$XDG_CACHE_HOME/ms-agent/webui` 或 `~/.cache/ms-agent/webui`、Windows 的 `%LOCALAPPDATA%\ms-agent\webui`。缓存按 SDK 版本和资源内容区分；Node 版本、平台或锁文件变化时需重新准备 Node 依赖。
+浏览器会自动打开 WebUI，通常是 **http://127.0.0.1:8000**。如果端口被占用，会选择后续可用端口，以终端打印的地址为准。按 **Ctrl-C** 停止服务。
 
-## 参数与开发方式
+### 3. 开始对话
 
-`ms-agent ui` 调用与 `webui/backend/` 内 `uv run webui` 相同的 `app.launcher`。默认运行已构建的 SSR 应用，浏览器只访问一个端口，API 保持在本机回环地址。
+1. 打开 **设置 → 模型设置**，添加模型服务的 API Key、接口地址和模型。
+2. 新建或打开项目，按需选择工作目录、技能和 MCP 工具。
+3. 创建会话，选择模型，输入任务；需要时可附上文件或图片。
 
-| 参数 | 行为 |
+## 常用启动方式
+
+```bash
+# 指定访问端口
+ms-agent ui --port 8080
+
+# 只启动服务，不自动打开浏览器
+ms-agent ui --no-browser
+
+# 允许通过本机的其他网络地址访问
+ms-agent ui --host 0.0.0.0 --port 8000
+```
+
+应用没有内置登录。向其他用户开放服务时，需要通过反向代理或网络设置配置访问控制。
+
+| 参数 | 说明 |
 | --- | --- |
-| `--host HOST` | 公开监听地址，默认 `127.0.0.1` |
-| `--port PORT` | 固定公开端口；省略时从 8000 开始选择可用端口 |
-| `--backend-port PORT` | 固定内部 API 端口；省略时使用后续可用端口 |
+| `--host HOST` | 监听地址，默认 `127.0.0.1` |
+| `--port PORT` | 指定浏览器访问的端口；省略时从 8000 开始选择 |
+| `--backend-port PORT` | 指定内部 API 端口，通常无需设置 |
 | `--no-browser` | 不自动打开浏览器 |
-| `--skip-install` | 不下载或同步依赖；仍校验构建与 CSS |
-| `--production` | 默认 SSR 行为的兼容参数 |
-| `--reload` | 暂不支持，开发时使用下面的命令 |
-| `--prepare-only` | 准备依赖和资源后退出，供镜像构建等场景使用 |
-| `--startup-timeout SECONDS` | 启动超时，默认 120 秒 |
+| `--skip-install` | 跳过依赖安装，仍校验页面和样式；源码构建过期时仍会重新构建 |
+| `--prepare-only` | 准备依赖后退出，不启动服务 |
+| `--startup-timeout SECONDS` | 启动等待时间，默认 120 秒 |
+| `--production` | 兼容参数，默认已使用构建后的前端 |
+| `--reload` | 暂不支持，热更新请使用下方开发命令 |
 
-显式指定的端口必须空闲、位于 1–65535，且前后端不能相同。公开端口为 65535 时，内部端口自动从 8000 开始选择。旧公开默认端口为 7860，如需沿用，可执行 `ms-agent ui --port 7860`。启动失败或任一服务意外退出时，整体停止并返回失败。
+手动指定的端口必须空闲，且前端与内部 API 端口不能相同。任一服务异常退出时，启动器会停止另一服务并报告错误。
 
-需要前后端热更新时，分别开两个终端：
+## 配置与数据
+
+模型、工具和记忆通常可以直接在界面的设置中配置。也可通过环境变量提供配置，例如 `OPENAI_API_KEY`、`OPENAI_BASE_URL`，以及首次启动时的 `MS_AGENT_LLM_PROVIDER`、`MS_AGENT_LLM_MODEL` 默认值。
+
+项目配置、会话和托管技能默认保存在 `~/.ms_agent`；可以通过 `MS_AGENT_HOME` 指定其他目录。项目工作目录中的文件保存在原位置。前端依赖缓存与这些数据分开，通过 `MS_AGENT_WEBUI_CACHE` 可指定缓存位置。
+
+从 pip 安装时，WebUI 读取进程环境变量和已保存的 SDK 设置，不自动查找当前目录的 `.env`。从源码运行时，还会依次读取仓库根目录、`webui/`、`webui/backend/` 下的 `.env`，后者优先，已设置的进程环境变量优先级最高。可参考 [配置示例](backend/.env.example)。
+
+本地向量记忆需要额外安装 `fastembed`，首次使用时会下载嵌入模型。其他模型和搜索服务按各自配置使用，不必为普通对话安装本地嵌入模型。
+
+## 从源码运行与开发
+
+源码运行另需 [uv](https://docs.astral.sh/uv/getting-started/installation/) 0.5 或更高版本，可用 `pip install uv` 安装。
 
 ```bash
-# SDK 根目录，终端 1：
+git clone https://github.com/modelscope/ms-agent.git
+cd ms-agent
+pip install -e .
+ms-agent ui
+```
+
+首次启动会准备后端环境、安装前端依赖并执行完整构建，包括 CSS 生成。修改源码后，再次启动会检查构建是否需要更新。
+
+需要热更新时，在仓库根目录打开两个终端：
+
+```bash
+# 终端 1：后端
 cd webui/backend
 uv sync --locked
-uv run --no-sync dev
+uv run dev
+```
 
-# SDK 根目录，终端 2：
+```bash
+# 终端 2：前端
 cd webui/frontend
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-访问 **http://localhost:5173**，开发服务器会代理 8000 端口上的 API。运行构建后的应用时，在 `webui/frontend/` 执行 `pnpm build`，再到 `webui/backend/` 执行 `uv run --no-sync webui --no-open`。
+访问 **http://localhost:5173**。前端开发服务器默认连接本机 8000 端口的后端。
 
-`pnpm build` 会生成 CSS、SSR、客户端资源及 `build/webui-build.json`；不要直接运行 React Router CLI 来替代它，也不要混用新 CSS 与旧 SSR。源码模式下，即使传了 `--skip-install`，发现旧构建时仍会使用已有 pnpm/依赖重新构建；wheel 模式始终使用包内预构建前端。
+运行检查：在 `webui/backend/` 执行 `uv run pytest`；在 `webui/frontend/` 执行 `pnpm typecheck` 和 `pnpm build`。完整构建会同时生成 CSS、页面和服务端文件，请使用 `pnpm build`，不要只运行其中一个子步骤。
 
-## 配置与功能
+Windows 使用相同的安装和启动命令。源码运行时也可使用 PowerShell 脚本：
 
-默认数据目录是 **`~/.ms_agent`**，与 CLI/TUI 共享。通过 `MS_AGENT_HOME` 指定绝对路径，可隔离测试或部署数据。目录内保存设置、项目、会话及托管技能，升级前请备份。
+```powershell
+.\webui\scripts\start-webui.ps1 --no-browser
+```
 
-源码 dotenv 优先级为：进程环境 > `webui/backend/.env` > `webui/.env` > SDK 根 `.env`，支持的字段见[配置示例](backend/.env.example)。wheel 模式使用进程环境和 SDK 设置，不在 site-packages、缓存或当前工作目录附近自动寻找 `.env`。
+开发约定见 [AGENTS.md](AGENTS.md)，构建安装包的命令见 [构建工具说明](../.dev_scripts/webui/README.md)。
 
-- **模型**：在设置中配置服务商凭据和模型，对话时选择模型。兼容服务可通过 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 配置；`MS_AGENT_LLM_PROVIDER` / `MS_AGENT_LLM_MODEL` 支持首次初始化。
-- **技能与 MCP**：通过界面管理来源、作用域和启用状态；MCP 环境占位符从服务进程环境解析。
-- **记忆与搜索**：在设置中配置相关服务与凭据；可选的本地向量记忆需要 `fastembed>=0.8`，首次使用还需下载模型。
-- **文件**：项目可使用已有目录，工作区支持浏览、编辑和添加附件；流式对话使用当前项目和会话。
+## Docker 运行
 
-统一启动器会同时设置 `MS_AGENT_API_BASE_URL`（Node 代理）与 `MS_AGENT_FRONTEND_API_BASE_URL`（SSR）。手动运行 `pnpm start` 时，需把两者指向同一后端。
-
-`MS_AGENT_FRONTEND_HOSTED_MODE=1` 用于隐藏远程用户不适合操作的本地路径控件，不提供身份认证。应用没有内置登录，共享部署需要另行配置访问控制。
-
-## Docker 与发版准备
-
-镜像仓库继续为 `mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent`。所选镜像完成构建、验证并发布后：
+使用 Docker 时无需在宿主机安装 Python、Node.js 或 pnpm。将下面的 `TAG` 替换为要使用的已发布镜像标签：
 
 ```bash
 docker run --rm -p 9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
-  mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:1.7.0rc0
+  mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
 
-访问 http://127.0.0.1:9000。容器内公开端口为 8000，API 使用回环地址 8001；启动前已准备好依赖。替换容器时保留命名数据卷。新的 SDK 镜像流程通过实际构建与 ACR 推拉验证后，再接替旧独立 WebUI 的 Aone 流程。
+打开 **http://127.0.0.1:9000**。`ms-agent-data` 保存应用数据，替换容器时保留该数据卷；需要操作宿主机的项目文件时，另行挂载对应目录。更改访问端口只需调整 `9000:8000` 左侧的值。
 
-镜像沿用 Aone 的默认运行用户，便于复用已有的数据卷。
-更换对外端口时调整 `9000:8000` 的宿主机一侧，容器内保留 8000 以匹配健康检查。其他工作目录需显式挂载。
-
-[发版操作](../docs/RELEASING.md)列出了手动镜像验证、ACR 配置和统一的 RC/正式版流程。
-普通代码检查不构建或推送镜像；手动镜像验证默认不推送，镜像安装同一轮已验收的 wheel。
-
-在 SDK 根目录准备发布包，使用 Python 3.12 和上述前端工具链：
-
-```bash
-python scripts/prepare_webui.py
-python -m pip install build twine
-python -m build
-python -m twine check dist/*
-```
-
-wheel 和 sdist 包含同一组选定资源；从 sdist 重建 wheel 不需要 Node 或再次构建前端。资源缺失或过期时会拒绝打包，SDK editable 安装则不要求已有前端构建。只改文档或版本时，可用 `prepare_webui.py --skip-build` 刷新资源清单；它仍会检查前端是否有效。
-
-## 验证与同步
-
-```bash
-# webui/backend/；默认离线，真实模型测试需显式开启：
-uv run --no-sync pytest
-# webui/frontend/：
-pnpm typecheck
-pnpm build
-# SDK 根目录，使用已安装 WebUI 和测试依赖的 Python：
-python -m pytest tests/cli tests/ui tests/release
-```
-
-如需完整覆盖可选的向量记忆测试，先在 `webui/backend/` 执行 `uv sync --locked --extra local-embed`；否则相关测试会跳过。测试不会下载模型。
-
-[SOURCE.json](SOURCE.json) 记录独立仓库快照与 SDK 起点。通用应用/启动器修复先在独立 WebUI 完成；SDK 维护 CLI 准备、打包、Docker 和发版接线。嵌入后端使用当前 SDK worktree 的 editable path 依赖。
-
-独立 WebUI 联调时，`uv sync` 后执行 `uv pip install -e <SDK绝对路径>`，之后使用 `uv run --no-sync`，避免本地覆盖被还原。测试前确认 `ms_agent.__file__` 指向预期 worktree。
-
-开发规则见 [AGENTS.md](AGENTS.md)，共享技能位于 SDK 根 `.agents/skills/`；它们不作为 WebUI 运行资源安装。
+设置 `MS_AGENT_FRONTEND_HOSTED_MODE=1` 可隐藏不适合远程用户操作的本地路径控件；访问控制仍需单独配置。镜像构建与发布步骤见 [发版手册](../docs/RELEASING.md)。
 
 ## 常见问题
 
-| 现象 | 处理 |
+| 现象 | 处理方式 |
 | --- | --- |
-| Node/pnpm 缺失或版本不符 | 检查 `node --version`、在 `webui/frontend/` 中检查 `pnpm --version`，以及 PATH 命中的实际程序 |
-| wheel 安装后缺少 Python 依赖 | 使用启动器的 Python，安装同版本的 `[webui]` extra |
-| 构建或 CSS 缺失/过期 | 源码重新执行 `pnpm build`；wheel 重新安装匹配的包并准备缓存 |
-| 端口占用 | 关闭旧实例，或显式指定空闲的公开/API 端口 |
-| 模型或认证报错 | 检查设置中的服务商、模型和凭据，并查看后端日志 |
-| 缓存损坏 | 先停止对应版本，只移除报错中的该版本缓存后再启动；保留 `MS_AGENT_HOME` |
-| Windows 输出乱码 | 使用 PowerShell 包装脚本和 UTF-8 终端；完整 Windows 运行验收仍需 Windows 环境 |
+| 找不到 `ms-agent`、`node` 或 `pnpm` | 确认工具已安装，且当前终端可以访问相应命令；安装后可重新打开终端 |
+| Python 或 Node 版本不满足要求 | 使用上方列出的版本，确认终端中实际使用的解释器 |
+| 指定端口被占用 | 更换 `--port`，或省略它让启动器自动选择 |
+| 页面或样式缺失 | 源码运行时重新执行 `pnpm build`；pip 安装时重新安装当前包，按报错提示重新准备对应缓存 |
+| 模型连接或认证失败 | 检查模型设置中的 API Key、接口地址、模型名称及网络连接 |
+| 缺少 WebUI 的 Python 依赖 | 在启动命令使用的环境中执行 `pip install -U "ms-agent[webui]"` |

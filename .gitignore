@@ -187,7 +187,7 @@ webui/frontend/.react-router
 # file it asks for so a local 404-silencer never gets committed again.
 webui/frontend/public/.well-known/appspecific/com.chrome.devtools.json
 
-# Frontend CSS and dependency caches are generated from the committed snapshot.
+# Frontend CSS and dependency caches are generated during build and preparation.
 webui/frontend/public/antd/
 webui/frontend/public/assets/
 webui/frontend/.pnpm-store/

@@ -5,11 +5,7 @@ import { defineConfig, loadEnv } from 'vite'
 import svgr from 'vite-plugin-svgr'
 
 export default defineConfig(({ mode }) => {
-  // Read the BACKEND's dotenv file rather than keeping a frontend-only copy, so
-  // the whole app is configured from one place. `frontend/../backend` is correct
-  // in both layouts the backend supports:
-  //   standalone:  <repo>/backend        + <repo>/frontend
-  //   embedded:    <repo>/webui/backend  + <repo>/webui/frontend
+  // Read the adjacent backend's dotenv file for shared application settings.
   // The backend additionally reads a shared layer one level further up
   // (`<repo>/.env`, see `backend/app/core/settings.py`) which this does NOT look
   // at -- put anything the frontend needs in `backend/.env` itself, under an
