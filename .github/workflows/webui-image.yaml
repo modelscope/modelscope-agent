@@ -41,7 +41,7 @@ jobs:
         id: metadata
         run: |
           (cd release-inputs && sha256sum --check SHA256SUMS)
-          python scripts/check_webui_release.py --dist release-inputs --sdk-sha "$GITHUB_SHA"
+          python .dev_scripts/webui/check_webui_release.py --dist release-inputs --sdk-sha "$GITHUB_SHA"
           python - <<'PY'
           import json, os
           from pathlib import Path
@@ -70,7 +70,7 @@ jobs:
       - name: Check container and preserve this exact image
         run: |
           mkdir -p validated-image
-          python scripts/check_webui_image.py --inputs release-inputs --output validated-image/image.json --logs container-logs
+          python .dev_scripts/webui/check_webui_image.py --inputs release-inputs --output validated-image/image.json --logs container-logs
           docker save ms-agent-webui:validated | gzip -1 > validated-image/image.tar.gz
       - uses: actions/upload-artifact@v4
         with:
@@ -113,4 +113,4 @@ jobs:
           password: ${{ secrets.ACR_PASSWORD }}
       - name: Push and pull back the test tag
         run: |
-          python scripts/publish_webui_release.py acr --inputs release-inputs --image-record validated-image/image.json --image-tag "dev-${GITHUB_SHA:0:12}"
+          python .dev_scripts/webui/publish_webui_release.py acr --inputs release-inputs --image-record validated-image/image.json --image-tag "dev-${GITHUB_SHA:0:12}"

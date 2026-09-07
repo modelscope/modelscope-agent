@@ -5,12 +5,10 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
+import webui_packaging as packaging
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-import webui_packaging as packaging  # noqa: E402
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def main():

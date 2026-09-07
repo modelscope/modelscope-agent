@@ -11,11 +11,12 @@ recursive-include ms_agent/agent_hub/default_configs *
 recursive-include projects *
 
 # WebUI files are selected explicitly by build_py.get_source_files().
-include webui_packaging.py
-include scripts/prepare_webui.py
+include .dev_scripts/webui/webui_packaging.py
+include .dev_scripts/webui/resource-files.txt
+include .dev_scripts/webui/prepare_webui.py
+include .dev_scripts/webui/README.md
 include setup.cfg
 prune .agents
-prune .claude
 
 # Exclude development files
 global-exclude *.pyc

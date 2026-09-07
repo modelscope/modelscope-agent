@@ -6,15 +6,13 @@ import email
 import hashlib
 import json
 import re
-import sys
 import tarfile
 import tomllib
+import webui_packaging as packaging
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-import webui_packaging as packaging  # noqa: E402
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def check_tag(version, tag):
@@ -118,12 +116,10 @@ def check_artifacts(directory, version, dependencies, sdk_sha):
         raise ValueError(
             'Runtime dependency export includes a source/SDK install')
     inputs = wheels + archives + [runtime]
-    source = json.loads((ROOT / 'webui/SOURCE.json').read_text())
     info = {
         'format': 1,
         'version': version,
         'sdk_commit': sdk_sha,
-        'webui_commit': source['commit'],
         'files': {file.name: packaging.digest(file)
                   for file in inputs}
     }

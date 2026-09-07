@@ -4,11 +4,16 @@ from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.sdist import sdist as _sdist
 
+import importlib.util
 import os
 import shutil
 from pathlib import Path
 
-import webui_packaging
+_webui_spec = importlib.util.spec_from_file_location(
+    '_ms_agent_webui_build',
+    Path(__file__).resolve().parent / '.dev_scripts/webui/webui_packaging.py')
+webui_packaging = importlib.util.module_from_spec(_webui_spec)
+_webui_spec.loader.exec_module(webui_packaging)
 
 
 def readme():

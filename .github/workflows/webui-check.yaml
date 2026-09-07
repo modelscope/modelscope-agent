@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, 'release/**', 'feat/**', 'fix/**']
-    paths: ['ms_agent/**', 'webui/**', 'requirements/**', 'tests/cli/**', 'tests/ui/**', 'tests/release/**', 'scripts/*webui*.py', 'setup.py', 'setup.cfg', 'MANIFEST.in', 'webui_packaging.py', 'README*', '.github/workflows/webui-*.yaml', '.github/workflows/publish.yaml']
+    paths: ['ms_agent/**', 'webui/**', 'requirements/**', 'tests/cli/**', 'tests/ui/**', 'tests/release/**', '.dev_scripts/webui/**', 'setup.py', 'setup.cfg', 'MANIFEST.in', 'README*', '.github/workflows/webui-*.yaml', '.github/workflows/publish.yaml']
   pull_request:
-    paths: ['ms_agent/**', 'webui/**', 'requirements/**', 'tests/cli/**', 'tests/ui/**', 'tests/release/**', 'scripts/*webui*.py', 'setup.py', 'setup.cfg', 'MANIFEST.in', 'webui_packaging.py', 'README*', '.github/workflows/webui-*.yaml', '.github/workflows/publish.yaml']
+    paths: ['ms_agent/**', 'webui/**', 'requirements/**', 'tests/cli/**', 'tests/ui/**', 'tests/release/**', '.dev_scripts/webui/**', 'setup.py', 'setup.cfg', 'MANIFEST.in', 'README*', '.github/workflows/webui-*.yaml', '.github/workflows/publish.yaml']
 
 permissions:
   contents: read
@@ -40,7 +40,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           echo "MS_AGENT_HOME=$RUNNER_TEMP/ms-agent-check-home" >> "$GITHUB_ENV"
-          python scripts/check_webui_release.py --tag "$RELEASE_TAG"
+          python .dev_scripts/webui/check_webui_release.py --tag "$RELEASE_TAG"
       - name: Install backend test dependencies
         run: |
           uv sync --project webui/backend --locked --inexact --extra local-embed
@@ -56,7 +56,7 @@ jobs:
           cd "$RUNNER_TEMP/ms-agent-package-source"
           pnpm --dir webui/frontend install --frozen-lockfile
           pnpm --dir webui/frontend typecheck
-          python scripts/prepare_webui.py --sdk-sha "$GITHUB_SHA"
+          python .dev_scripts/webui/prepare_webui.py --sdk-sha "$GITHUB_SHA"
       - name: Build wheel and sdist with locked runtime requirements
         run: |
           mkdir -p "$GITHUB_WORKSPACE/release-inputs"
@@ -65,7 +65,7 @@ jobs:
           uv build --python 3.12 --out-dir "$GITHUB_WORKSPACE/release-inputs"
           cd "$GITHUB_WORKSPACE"
           uvx --from twine==6.2.0 twine check release-inputs/*.whl release-inputs/*.tar.gz
-          python scripts/check_webui_release.py --dist release-inputs --sdk-sha "$GITHUB_SHA"
+          python .dev_scripts/webui/check_webui_release.py --dist release-inputs --sdk-sha "$GITHUB_SHA"
       - name: Rebuild sdist without frontend tools
         run: |
           mkdir -p "$RUNNER_TEMP/no-frontend-tools"
@@ -81,7 +81,7 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/webui-wheel/bin/python" --no-deps release-inputs/*.whl
           uv pip check --python "$RUNNER_TEMP/webui-wheel/bin/python"
           cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/webui-wheel/bin/python" "$GITHUB_WORKSPACE/scripts/check_webui_install.py" --logs "$RUNNER_TEMP/webui-logs"
+          "$RUNNER_TEMP/webui-wheel/bin/python" "$GITHUB_WORKSPACE/.dev_scripts/webui/check_webui_install.py" --logs "$RUNNER_TEMP/webui-logs"
       - id: metadata
         name: Record package version
         run: |

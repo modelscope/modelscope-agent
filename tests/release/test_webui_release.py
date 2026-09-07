@@ -7,9 +7,53 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'scripts'))
+sys.path.insert(0, str(ROOT / '.dev_scripts/webui'))
 import check_webui_release as check  # noqa: E402
 import publish_webui_release as publish  # noqa: E402
+import webui_packaging as packaging  # noqa: E402
+
+
+def test_resource_selection_omits_undeclared_local_files(tmp_path, monkeypatch):
+    webui = tmp_path / 'webui'
+    for name in ('backend/app/main.py', 'backend/.env',
+                 '.claude/skills/local/SKILL.md', 'frontend/local-notes.md'):
+        file = webui / name
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text('local content')
+    inputs = tmp_path / 'resource-files.txt'
+    inputs.write_text('# Package inputs\nbackend/app/main.py\n')
+    monkeypatch.setattr(packaging, 'WEBUI', webui)
+    monkeypatch.setattr(packaging, 'RESOURCE_LIST', inputs)
+    assert packaging.resource_paths(include_build=False) == [
+        'backend/app/main.py'
+    ]
+
+
+@pytest.mark.parametrize('name', [
+    '../secret', '/tmp/secret', 'backend/../../secret',
+    'backend\\..\\..\\secret'
+])
+def test_resource_list_rejects_paths_outside_webui(tmp_path, monkeypatch, name):
+    inputs = tmp_path / 'resource-files.txt'
+    inputs.write_text(name + '\n')
+    monkeypatch.setattr(packaging, 'WEBUI', tmp_path / 'webui')
+    monkeypatch.setattr(packaging, 'RESOURCE_LIST', inputs)
+    with pytest.raises(RuntimeError, match='Invalid WebUI resource path'):
+        packaging.resource_paths(include_build=False)
+
+
+def test_resource_list_rejects_symlinks(tmp_path, monkeypatch):
+    webui = tmp_path / 'webui'
+    webui.mkdir()
+    private = tmp_path / 'private'
+    private.write_text('private content')
+    (webui / 'config').symlink_to(private)
+    inputs = tmp_path / 'resource-files.txt'
+    inputs.write_text('config\n')
+    monkeypatch.setattr(packaging, 'WEBUI', webui)
+    monkeypatch.setattr(packaging, 'RESOURCE_LIST', inputs)
+    with pytest.raises(RuntimeError, match='Invalid WebUI resource path'):
+        packaging.resource_paths(include_build=False)
 
 
 @pytest.mark.parametrize('version', ['1.7.0rc0', '1.7.0rc1', '1.7.0'])

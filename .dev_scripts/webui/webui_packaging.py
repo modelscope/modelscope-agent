@@ -6,9 +6,10 @@ import json
 import shutil
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]
 WEBUI = ROOT / 'webui'
 MANIFEST = 'RESOURCE-MANIFEST.json'
+RESOURCE_LIST = Path(__file__).with_name('resource-files.txt')
 
 
 def digest(file):
@@ -33,22 +34,12 @@ def frontend_validator():
 
 
 def resource_paths(include_build=True):
-    """Use the committed snapshot list, never an unrestricted directory copy."""
-    source = json.loads((WEBUI / 'SOURCE.json').read_text(encoding='utf-8'))
-    selected = {'SOURCE.json', 'README.md', 'README_ZH.md'}
-    for rel in source['source_files']:
-        if rel in {
-                'backend/pyproject.toml', 'backend/uv.lock',
-                'backend/.env.example'
-        }:
-            selected.add(rel)
-        elif rel.startswith(('backend/app/', 'frontend/')):
-            parts = Path(rel).parts
-            ignored = {'node_modules', '__pycache__', 'tests', 'build'}
-            if any(part.startswith('.') or part in ignored for part in parts):
-                continue
-            if not rel.endswith(('.pyc', '.pyo')):
-                selected.add(rel)
+    """Select declared package inputs without copying local working files."""
+    selected = {
+        line.strip()
+        for line in RESOURCE_LIST.read_text(encoding='utf-8').splitlines()
+        if line.strip() and not line.lstrip().startswith('#')
+    }
     build_manifest = WEBUI / 'frontend/build/webui-build.json'
     if include_build and build_manifest.is_file():
         build = json.loads(build_manifest.read_text(encoding='utf-8'))
@@ -58,6 +49,9 @@ def resource_paths(include_build=True):
             selected.add('frontend/' + rel)
         selected.add('frontend/build/webui-build.json')
     for rel in selected:
+        if (Path(rel).is_absolute() or '\\' in rel
+                or any(part in {'', '.', '..'} for part in rel.split('/'))):
+            raise RuntimeError('Invalid WebUI resource path: ' + rel)
         file = WEBUI / rel
         if file.is_symlink() or WEBUI.resolve() not in file.resolve().parents:
             raise RuntimeError('Invalid WebUI resource path: ' + rel)
@@ -72,7 +66,7 @@ def validate_frontend():
     allowed = set(resource_paths(include_build=False))
     unexpected = {'frontend/' + rel for rel in build['inputs']} - allowed
     if unexpected:
-        raise RuntimeError('Frontend inputs absent from SOURCE.json: '
+        raise RuntimeError('Frontend inputs absent from resource-files.txt: '
                            + ', '.join(sorted(unexpected)))
 
 
@@ -102,7 +96,7 @@ def validate_release():
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
         raise RuntimeError(
             'WebUI release resources are missing or stale. Run '
-            '`python scripts/prepare_webui.py` before building wheel/sdist. '
+            '`python .dev_scripts/webui/prepare_webui.py` before building wheel/sdist. '
             'Editable installs do not require a frontend build. Details: '
             + str(exc)) from exc
 

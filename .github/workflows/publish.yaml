@@ -41,7 +41,7 @@ jobs:
       - name: Check the original artifacts and tag
         run: |
           (cd release-inputs && sha256sum --check SHA256SUMS)
-          python scripts/check_webui_release.py --tag "$GITHUB_REF_NAME" --dist release-inputs --sdk-sha "$GITHUB_SHA"
+          python .dev_scripts/webui/check_webui_release.py --tag "$GITHUB_REF_NAME" --dist release-inputs --sdk-sha "$GITHUB_SHA"
           gzip -dc validated-image/image.tar.gz | docker load
           uv tool install twine==6.2.0
       - name: Check publishing credentials are configured
@@ -57,11 +57,11 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
       - name: Check ACR before publishing PyPI
-        run: python scripts/publish_webui_release.py check-acr --inputs release-inputs --image-record validated-image/image.json --image-tag "$IMAGE_TAG"
+        run: python .dev_scripts/webui/publish_webui_release.py check-acr --inputs release-inputs --image-record validated-image/image.json --image-tag "$IMAGE_TAG"
       - name: Publish the verified wheel and sdist
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: python scripts/publish_webui_release.py pypi --inputs release-inputs
+        run: python .dev_scripts/webui/publish_webui_release.py pypi --inputs release-inputs
       - name: Push and pull back the already tested image
-        run: python scripts/publish_webui_release.py acr --inputs release-inputs --image-record validated-image/image.json --image-tag "$IMAGE_TAG"
+        run: python .dev_scripts/webui/publish_webui_release.py acr --inputs release-inputs --image-record validated-image/image.json --image-tag "$IMAGE_TAG"
