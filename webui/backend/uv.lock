@@ -1727,6 +1727,8 @@ requires-dist = [
     { name = "google-search-results", marker = "extra == 'research'" },
     { name = "gradio", marker = "extra == 'all'", specifier = ">=5.0.0" },
     { name = "gradio", marker = "extra == 'research'", specifier = ">=5.0.0" },
+    { name = "httpx", marker = "extra == 'all'", specifier = ">=0.28.1" },
+    { name = "httpx", marker = "extra == 'webui'", specifier = ">=0.28.1" },
     { name = "ipykernel", marker = "extra == 'all'", specifier = ">=7.3.0" },
     { name = "ipykernel", marker = "extra == 'webui'", specifier = ">=7.3.0" },
     { name = "json5" },

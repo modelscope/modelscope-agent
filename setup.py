@@ -86,7 +86,7 @@ def parse_requirements(fname='requirements.txt', with_version=True):
         with open(fpath, 'r', encoding='utf-8') as f:
             for line in f.readlines():
                 line = line.strip()
-                if line.startswith('http'):
+                if line.startswith(('http://', 'https://')):
                     print('skip http requirements %s' % line)
                     continue
                 if line and not line.startswith('#') and not line.startswith(

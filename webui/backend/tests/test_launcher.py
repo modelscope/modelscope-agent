@@ -91,6 +91,18 @@ def test_build_manifest_matches_node_producer(built_frontend):
     assert validate_build(built_frontend) == "/assets/antd.test.css"
 
 
+def test_runtime_cache_marker_is_not_a_frontend_source(built_frontend):
+    marker = built_frontend / ".node-dependencies.json"
+    marker.write_text('{"production": true}')
+    assert validate_build(built_frontend) == "/assets/antd.test.css"
+    script = Path(launcher.FRONTEND_DIR) / "scripts/buildManifest.mjs"
+    subprocess.run([shutil.which("node"), str(script)], cwd=built_frontend, check=True)
+    manifest = json.loads((built_frontend / "build/webui-build.json").read_text())
+    assert marker.name not in manifest["inputs"]
+    marker.write_text('{"production": false}')
+    assert validate_build(built_frontend) == "/assets/antd.test.css"
+
+
 @pytest.mark.parametrize("change", ["added", "modified", "removed"])
 def test_changed_source_requires_rebuild(built_frontend, change):
     if change == "added":

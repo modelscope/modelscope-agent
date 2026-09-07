@@ -28,7 +28,9 @@ def source_files(frontend: Path) -> list[Path]:
     files.extend(
         file
         for file in frontend.iterdir()
-        if file.is_file() and re.search(r"\.(?:json|ya?ml|[cm]?js|ts)$", file.name)
+        if file.is_file()
+        and not file.name.startswith(".")
+        and re.search(r"\.(?:json|ya?ml|[cm]?js|ts)$", file.name)
     )
     return sorted(files)
 

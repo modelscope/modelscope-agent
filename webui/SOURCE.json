@@ -1,7 +1,7 @@
 {
   "repository": "ms-agent-webui",
   "branch": "fix/webui-launcher-compat",
-  "commit": "8b82591bc02a031ac8d12e37e21718ade1e24fc8",
+  "commit": "40fd5fbe2ea343ad85187630672cff054ed3e963",
   "master_base": "d3d53b18b554ee64ff7429e775b74cac2eddce0e",
   "sdk_base": "3be0f6d2f1bdbe3f26e2176458d6154fecb02702",
   "source_sdk_commit": "3be0f6d2f1bdbe3f26e2176458d6154fecb02702",

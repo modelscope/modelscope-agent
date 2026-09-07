@@ -27,7 +27,7 @@ for (const name of ['app', 'scripts', 'public']) {
   Object.assign(inputs, collect(path.join(root, name), ignored))
 }
 for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-  if (entry.isFile() && /\.(?:json|ya?ml|[cm]?js|ts)$/.test(entry.name)) {
+  if (entry.isFile() && !ignored(entry.name) && /\.(?:json|ya?ml|[cm]?js|ts)$/.test(entry.name)) {
     inputs[entry.name] = hash(path.join(root, entry.name))
   }
 }
