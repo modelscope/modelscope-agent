@@ -47,8 +47,13 @@ jobs:
       - name: Check optional embedding runtime
         run: webui/backend/.venv/bin/python -X faulthandler -c "import fastembed; print('Optional embedding runtime imported')"
       - name: Backend regression tests
+        id: backend-tests
         working-directory: webui/backend
         run: .venv/bin/python -X faulthandler -m pytest -q
+      - name: Diagnose native test shutdown failure
+        if: failure() && steps.backend-tests.outcome == 'failure'
+        working-directory: webui/backend
+        run: gdb --batch -ex run -ex 'thread apply all bt 12' --args .venv/bin/python -X faulthandler -m pytest -q
       - name: SDK and release regression tests
         run: webui/backend/.venv/bin/python -X faulthandler -m pytest tests/cli tests/ui tests/release -q
       - name: Frontend types, CSS and SSR build
