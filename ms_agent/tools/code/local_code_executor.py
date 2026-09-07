@@ -1,5 +1,4 @@
 import asyncio
-import asyncio.subprocess as ai_subprocess
 import inspect
 import io
 import json
@@ -12,8 +11,13 @@ from typing import Any, Dict, List, Optional, Set
 
 from ms_agent.llm.utils import Tool
 from ms_agent.tools.base import ToolBase
+from ms_agent.tools.code.shell_spawn import (
+    interactive_login_error,
+    isolated_subprocess_kwargs,
+)
 from ms_agent.utils import get_logger
 from ms_agent.utils.artifact_manager import ArtifactManager
+from ms_agent.utils.process_group import kill_process_group
 from ms_agent.utils.utils import install_package
 from ms_agent.utils.workspace_context import WorkspaceContext
 
@@ -84,6 +88,7 @@ _AGENT_FRIENDLY_ENV = {
     # anything invoking `less` directly would still sit waiting for a key.
     'LESS': '-FRX',
     'GIT_TERMINAL_PROMPT': '0',
+    'SSH_ASKPASS_REQUIRE': 'never',
     'GIT_MERGE_AUTOEDIT': 'no',
     'PIP_DISABLE_PIP_VERSION_CHECK': '1',
     'PIP_PROGRESS_BAR': 'off',
@@ -429,6 +434,8 @@ class LocalCodeExecutionTool(ToolBase):
                         env[key] = value
 
         if not self.tool_config or not hasattr(self.tool_config, field):
+            env.setdefault('GIT_TERMINAL_PROMPT', '0')
+            env.setdefault('SSH_ASKPASS_REQUIRE', 'never')
             return env
         env_cfg = getattr(self.tool_config, field)
         if isinstance(env_cfg, dict):
@@ -437,6 +444,8 @@ class LocalCodeExecutionTool(ToolBase):
             try:
                 items = env_cfg.items()
             except AttributeError:
+                env.setdefault('GIT_TERMINAL_PROMPT', '0')
+                env.setdefault('SSH_ASKPASS_REQUIRE', 'never')
                 return env
 
         for key, value in items:
@@ -449,6 +458,8 @@ class LocalCodeExecutionTool(ToolBase):
             paths = [str(path) for path in plugin_bins if path]
             if paths:
                 env['PATH'] = os.pathsep.join(paths + [env.get('PATH', '')])
+        env.setdefault('GIT_TERMINAL_PROMPT', '0')
+        env.setdefault('SSH_ASKPASS_REQUIRE', 'never')
         return env
 
     async def connect(self) -> None:
@@ -550,6 +561,11 @@ class LocalCodeExecutionTool(ToolBase):
                         'between calls: not the working directory, not '
                         'environment variables, and not an activated '
                         'virtualenv or conda environment.\n'
+                        '\n'
+                        'Commands never inherit the agent TTY: no password '
+                        'prompts, no login shells. For SSH use a remote '
+                        "command (ssh user@host 'uname -a') and key/ssh-agent "
+                        'auth.\n'
                         '\n'
                         'So do each of those in the SAME call as the work '
                         'that needs it, chained with && — for example '
@@ -804,116 +820,25 @@ class LocalCodeExecutionTool(ToolBase):
         exec_timeout = timeout or self._shell_timeout
         call_id = call_id or f'shell-{os.urandom(4).hex()}'
 
-        # Handed to the shell verbatim. ``create_subprocess_shell`` already runs
-        # it under ``/bin/sh -c`` (``cmd.exe`` on Windows), which understands
-        # every compound form on its own, so there is nothing to pre-wrap.
-        # Wrapping used to be conditional on the command CONTAINING a
-        # metacharacter, and the wrapper was a LOGIN shell: adding a `;` to a
-        # command re-ran the profile, which on macOS reorders PATH via
-        # path_helper, so `python3 -V` and `python3 -V ; true` resolved to
-        # different interpreters. Installing with one form and importing with
-        # the other is then a ModuleNotFoundError with no visible cause.
-        shell_cmd = command
-
-        if run_in_background:
-            if self._task_manager is None:
-                return json.dumps(
-                    {
-                        'success':
-                        False,
-                        'error':
-                        'run_in_background requires TaskManager (host must wire LLMAgent.task_manager).',
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                )
-            try:
-                process = await asyncio.create_subprocess_shell(
-                    shell_cmd,
-                    stdout=ai_subprocess.PIPE,
-                    stderr=ai_subprocess.PIPE,
-                    cwd=str(self._ws.root),
-                    env=self.shell_env,
-                )
-            except FileNotFoundError as exc:
-                return json.dumps(
-                    {
-                        'success': False,
-                        'error': f'Shell not available: {exc}'
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                )
-
-            task_id = self._task_manager.register(
-                task_type='shell',
-                tool_name='shell_executor',
-                description=command[:200],
-                proc=process,
-            )
-
-            async def _watcher() -> None:
-                try:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(), timeout=exec_timeout)
-                    stdout_text = _coerce_str(stdout).strip('\n')
-                    stderr_text = _coerce_str(stderr).strip('\n')
-                    success = process.returncode == 0
-                    payload = {
-                        'success': success,
-                        'output': stdout_text,
-                        'error': stderr_text or None,
-                        'return_code': process.returncode,
-                    }
-                    text = self._artifacts.pack_json_shell_result(
-                        tool_name='shell_executor',
-                        call_id=task_id,
-                        payload=payload,
-                    )
-                    await self._task_manager.complete(task_id, text)
-                except asyncio.TimeoutError:
-                    logger.warning(
-                        f'Shell command timed out after {exec_timeout} seconds (task {task_id})'
-                    )
-                    try:
-                        process.kill()
-                        await process.communicate()
-                    except Exception as exc:  # noqa: B902
-                        logger.error(
-                            f'Process cleanup failed: {exc}', exc_info=True)
-                    if self._task_manager:
-                        await self._task_manager.fail(
-                            task_id,
-                            f'Shell command timed out after {exec_timeout} seconds',
-                        )
-                except Exception as exc:  # noqa: B902
-                    logger.error(f'Watcher task failed: {exc}', exc_info=True)
-                    if self._task_manager:
-                        await self._task_manager.fail(task_id, str(exc))
-
-            t = asyncio.create_task(_watcher())
-            self._watcher_tasks.add(t)
-            t.add_done_callback(self._watcher_tasks.discard)
-
+        login_err = interactive_login_error(command)
+        if login_err:
             return json.dumps(
                 {
-                    'status': 'async_launched',
-                    'task_id': task_id,
-                    'tool_name': 'shell_executor',
-                    'call_id': call_id,
+                    'success': False,
+                    'error': login_err
                 },
                 ensure_ascii=False,
                 indent=2,
             )
 
+        # Handed to the shell verbatim. ``create_subprocess_shell`` already runs
+        # it under ``/bin/sh -c`` (``cmd.exe`` on Windows), which understands
+        # every compound form on its own, so there is nothing to pre-wrap.
+        # Wrapping used to be a LOGIN shell: adding a `;` re-ran the profile,
+        # which on macOS reorders PATH via path_helper.
+        shell_cmd = command
         try:
-            process = await asyncio.create_subprocess_shell(
-                shell_cmd,
-                stdout=ai_subprocess.PIPE,
-                stderr=ai_subprocess.PIPE,
-                cwd=str(self._ws.root),
-                env=self.shell_env,
-            )
+            process = await self._spawn_shell(shell_cmd)
         except FileNotFoundError as exc:
             return json.dumps(
                 {
@@ -924,34 +849,159 @@ class LocalCodeExecutionTool(ToolBase):
                 indent=2,
             )
 
+        if run_in_background:
+            return await self._launch_background(
+                process,
+                command=command,
+                call_id=call_id,
+                wait_timeout=exec_timeout,
+                auto=False,
+            )
+
         try:
+            # Finish slightly before the host ToolManager wait_for, so timeout
+            # can convert to a background task instead of being cancelled.
+            inner_wait = float(exec_timeout)
+            if self._task_manager is not None:
+                inner_wait = max(inner_wait - 0.5, 0.1)
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=exec_timeout)
+                process.communicate(), timeout=inner_wait)
+        except asyncio.CancelledError:
+            await self._reap(process)
+            raise
         except asyncio.TimeoutError:
             logger.warning(
-                f'Shell command timed out after {exec_timeout} seconds (call {call_id})'
+                f'Shell command still running after {exec_timeout}s (call {call_id})'
             )
-            process.kill()
-            try:
-                await process.communicate()
-            except Exception as exc:  # noqa: B902
-                logger.error(f'Process cleanup failed: {exc}', exc_info=True)
+            if self._task_manager is not None:
+                return await self._launch_background(
+                    process,
+                    command=command,
+                    call_id=call_id,
+                    wait_timeout=None,
+                    auto=True,
+                    waited_s=exec_timeout,
+                )
+            await self._reap(process)
             return json.dumps(
                 {
-                    'success':
-                    False,
-                    'error':
-                    f'Shell command timed out after {exec_timeout} seconds'
+                    'success': False,
+                    'error': (
+                        f'Shell command timed out after {exec_timeout} seconds'
+                    ),
                 },
                 ensure_ascii=False,
                 indent=2,
             )
 
+        return self._pack_shell_result(process, stdout, stderr, call_id)
+
+    async def _spawn_shell(self, shell_cmd: str):
+        return await asyncio.create_subprocess_shell(
+            shell_cmd,
+            cwd=str(self._ws.root),
+            env=self.shell_env,
+            **isolated_subprocess_kwargs(),
+        )
+
+    async def _reap(self, process) -> None:
+        kill_process_group(process)
+        try:
+            await process.communicate()
+        except Exception as exc:  # noqa: B902
+            logger.error(f'Process cleanup failed: {exc}', exc_info=True)
+
+    async def _launch_background(
+        self,
+        process,
+        *,
+        command: str,
+        call_id: str,
+        wait_timeout: Optional[float],
+        auto: bool,
+        waited_s: Optional[float] = None,
+    ) -> str:
+        if self._task_manager is None:
+            await self._reap(process)
+            return json.dumps(
+                {
+                    'success': False,
+                    'error': (
+                        'run_in_background requires TaskManager '
+                        '(host must wire LLMAgent.task_manager).'
+                    ),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        task_id = self._task_manager.register(
+            task_type='shell',
+            tool_name='shell_executor',
+            description=command[:200],
+            proc=process,
+        )
+        self._start_shell_watcher(
+            process, task_id, wait_timeout=wait_timeout)
+
+        payload: Dict[str, Any] = {
+            'status': 'async_launched',
+            'task_id': task_id,
+            'tool_name': 'shell_executor',
+            'call_id': call_id,
+        }
+        if auto:
+            payload['auto_backgrounded'] = True
+            payload['message'] = (
+                f'Command still running after {waited_s:.0f}s; '
+                'moved to background. Watch [Background task updates] '
+                'or call list_tasks.'
+            )
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    def _start_shell_watcher(
+        self,
+        process,
+        task_id: str,
+        *,
+        wait_timeout: Optional[float],
+    ) -> None:
+
+        async def _watcher() -> None:
+            try:
+                if wait_timeout is None:
+                    stdout, stderr = await process.communicate()
+                else:
+                    stdout, stderr = await asyncio.wait_for(
+                        process.communicate(), timeout=wait_timeout)
+                text = self._pack_shell_result(
+                    process, stdout, stderr, task_id)
+                await self._task_manager.complete(task_id, text)
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f'Shell command timed out after {wait_timeout} seconds (task {task_id})'
+                )
+                await self._reap(process)
+                if self._task_manager:
+                    await self._task_manager.fail(
+                        task_id,
+                        f'Shell command timed out after {wait_timeout} seconds',
+                    )
+            except Exception as exc:  # noqa: B902
+                logger.error(f'Watcher task failed: {exc}', exc_info=True)
+                await self._reap(process)
+                if self._task_manager:
+                    await self._task_manager.fail(task_id, str(exc))
+
+        t = asyncio.create_task(_watcher())
+        self._watcher_tasks.add(t)
+        t.add_done_callback(self._watcher_tasks.discard)
+
+    def _pack_shell_result(self, process, stdout, stderr, call_id: str) -> str:
         stdout_text = _coerce_str(stdout).strip('\n')
         stderr_text = _coerce_str(stderr).strip('\n')
-        success = process.returncode == 0
         payload = {
-            'success': success,
+            'success': process.returncode == 0,
             'output': stdout_text,
             'error': stderr_text or None,
             'return_code': process.returncode,

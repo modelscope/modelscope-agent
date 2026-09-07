@@ -307,6 +307,8 @@ class LLMAgent(Agent):
         # Optional injected PermissionHandler (TUI/WebUI/Server). When None,
         # _select_permission_handler() picks by mode + interactivity.
         self._permission_handler = kwargs.get('permission_handler', None)
+        self._permission_decision_provider = kwargs.get(
+            'permission_decision_provider', None)
 
         # Structured event sink — the UI-agnostic output seam (ms_agent.ui).
         # When set, the agent emits semantic AgentEvents (content / reasoning /
@@ -886,27 +888,33 @@ class LLMAgent(Agent):
           ``permission_handler`` kwarg) always wins — this is how the TUI /
           WebUI / Server supply their own confirmation UI.
         - ``interactive`` (alias ``restricted``) in an interactive terminal
-          session -> ``CLIPermissionHandler`` (the ``[y/s/a/e/n]`` prompt),
+          session -> ``CLIPermissionHandler`` (one-layer Yes / persist / No),
           so non-whitelisted tools actually ask the user.
         - Everything else (``auto`` / ``strict`` / non-interactive) ->
           ``AutoPermissionHandler`` (SafetyGuard still enforces the floor).
         """
-        if self._permission_handler is not None:
-            return self._permission_handler
+        explicit_handler = getattr(self, '_permission_handler', None)
+        if explicit_handler is not None:
+            return explicit_handler
         from ms_agent.permission import (AutoPermissionHandler,
                                          CLIPermissionHandler)
 
         # ``PermissionConfig.from_dict`` already normalizes ``restricted`` ->
-        # ``interactive``; accept both so a direct caller passing the raw alias
-        # still gets the interactive prompt (not a silent AutoPermissionHandler).
-        if mode in ('interactive', 'restricted') and self._interactive:
+        # ``interactive``. Interactive always uses the CLI prompt so a piped
+        # e2e session can answer; EOF denies. Delegate keeps the CLI prompt
+        # when this is an interactive session so uncertain can escalate.
+        if mode in ('interactive', 'restricted') and getattr(
+                self, '_interactive', False):
+            return CLIPermissionHandler()
+        if mode == 'delegate' and getattr(self, '_interactive', False):
             return CLIPermissionHandler()
         return AutoPermissionHandler()
 
     def _build_permission_objects(self):
         """Create SafetyGuard and PermissionEnforcer from config if configured."""
-        from ms_agent.permission import (PermissionConfig, PermissionEnforcer,
-                                         PermissionMemory, SafetyGuard)
+        from ms_agent.permission import (LlmDecisionProvider, PermissionConfig,
+                                         PermissionEnforcer, PermissionMemory,
+                                         SafetyGuard)
 
         raw = {}
         if hasattr(self.config, 'permission'):
@@ -918,6 +926,10 @@ class LLMAgent(Agent):
         workspace_root = str(resolve_workspace_root(self.config))
         perm_config = PermissionConfig.from_dict(
             raw, project_root=workspace_root)
+        if getattr(self, '_interactive', False):
+            from dataclasses import replace
+            perm_config = replace(
+                perm_config, human_approval_available=True)
 
         allowed_dirs = list(
             perm_config.safety.effective_allowed_directories(workspace_root))
@@ -931,14 +943,45 @@ class LLMAgent(Agent):
 
         handler = self._select_permission_handler(perm_config.mode)
         memory = PermissionMemory(project_path=workspace_root)
+        provider = self._permission_decision_provider
+        if (
+            provider is None
+            and perm_config.decision_provider == 'llm'
+            and self.llm is not None
+        ):
+            provider = LlmDecisionProvider(self.llm)
+        if (
+            perm_config.mode == 'delegate'
+            and perm_config.decision_provider == 'agent'
+            and provider is None
+        ):
+            raise ValueError(
+                'delegate mode with decision_provider=agent requires an '
+                'independent permission_decision_provider')
         enforcer = PermissionEnforcer(
-            config=perm_config, handler=handler, memory=memory)
+            config=perm_config,
+            handler=handler,
+            memory=memory,
+            provider=provider,
+        )
 
         return safety_guard, enforcer, perm_config
 
     def set_permission_handler(self, handler) -> None:
         """Inject a custom PermissionHandler (TUI/WebUI/Server) before run."""
         self._permission_handler = handler
+        tm = getattr(self, 'tool_manager', None)
+        enforcer = getattr(tm, '_permission_enforcer', None)
+        if enforcer is not None:
+            enforcer._handler = handler
+
+    def set_permission_decision_provider(self, provider) -> None:
+        """Inject an LLM/agent provider used by ``delegate`` mode."""
+        self._permission_decision_provider = provider
+        tm = getattr(self, 'tool_manager', None)
+        enforcer = getattr(tm, '_permission_enforcer', None)
+        if enforcer is not None:
+            enforcer._provider = provider
 
     def set_permission_mode(self, mode: str) -> str:
         """Change the permission mode at runtime; returns the normalized mode.
@@ -949,10 +992,15 @@ class LLMAgent(Agent):
         ``interactive`` (the canonical asking mode).
         """
         from dataclasses import replace
-        mode = {'restricted': 'interactive'}.get(mode, mode)
-        if mode not in ('auto', 'strict', 'interactive'):
+        mode = {
+            'restricted': 'interactive',
+            'delegated': 'delegate',
+        }.get(mode, mode)
+        if mode not in (
+                'auto', 'strict', 'interactive', 'delegate', 'full_access'):
             raise ValueError(f"Unknown permission mode '{mode}' "
-                             '(auto | restricted | strict | interactive)')
+                             '(auto | restricted | strict | interactive | '
+                             'delegate | full_access)')
         tm = self.tool_manager
         if tm is not None:
             tm._permission_mode = mode
@@ -961,7 +1009,20 @@ class LLMAgent(Agent):
                     tm._permission_config, mode=mode)
             enf = getattr(tm, '_permission_enforcer', None)
             if enf is not None and getattr(enf, '_config', None) is not None:
-                enf._config = replace(enf._config, mode=mode)
+                extra = {'mode': mode}
+                if mode == 'interactive':
+                    extra['human_approval_available'] = True
+                if mode == 'delegate' and not enf._config.decision_provider:
+                    extra['decision_provider'] = 'llm'
+                enf._config = replace(enf._config, **extra)
+                enf._handler = self._select_permission_handler(mode)
+                if mode == 'delegate' and getattr(enf, '_provider', None) is None:
+                    llm = getattr(self, 'llm', None)
+                    if llm is not None:
+                        from ms_agent.permission import LlmDecisionProvider
+                        provider = LlmDecisionProvider(llm)
+                        self._permission_decision_provider = provider
+                        enf._provider = provider
         return mode
 
     async def prepare_tools(self):
@@ -1356,7 +1417,7 @@ class LLMAgent(Agent):
             from ms_agent.command import (CommandRouter,
                                           register_builtin_commands)
 
-            router = CommandRouter()
+            router = CommandRouter(owner=self)
             register_builtin_commands(router)
             self._command_router = router
             self._register_plugin_commands()
@@ -2612,11 +2673,6 @@ class LLMAgent(Agent):
             await self.prepare_knowledge_search()
             self._init_session_log()
             self.runtime.tag = self.tag
-
-            self.task_manager = TaskManager()
-            for tool in self.tool_manager.extra_tools:
-                if hasattr(tool, 'set_task_manager'):
-                    tool.set_task_manager(self.task_manager)
 
             if messages is None:
                 configured = getattr(

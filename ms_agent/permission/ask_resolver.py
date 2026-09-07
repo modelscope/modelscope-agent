@@ -3,6 +3,7 @@
 auto mode:      per-category allow/deny (no interactive prompts)
 strict mode:    all ask → deny
 interactive:    ask unchanged (delegated to handler)
+delegate:       ask unchanged (delegated to provider/human escalation)
 """
 
 from __future__ import annotations
@@ -63,7 +64,7 @@ def resolve_ask(
             category=decision.category,
         )
 
-    if mode == 'interactive':
+    if mode in ('interactive', 'delegate'):
         return decision
 
     # auto mode — resolve by category

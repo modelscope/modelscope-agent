@@ -1,0 +1,45 @@
+llm:
+  service: dashscope
+  model: qwen3.7-plus
+  use_provider_router: true
+
+generation_config:
+  temperature: 0.1
+  stream: false
+  max_tokens: 1024
+  extra_body:
+    enable_thinking: false
+
+prompt:
+  system: |
+    You are a tool-using assistant. When the user asks you to run a command
+    or write a file, you MUST call the matching tool immediately. Do not
+    refuse harmless echo/write tasks. Do not explain before the tool call.
+    Prefer shell_executor for shell commands and write_file for files.
+    Never use python_executor when the user named a shell command.
+
+max_chat_round: 12
+
+interactive: true
+
+permission:
+  mode: interactive
+  decision_provider: llm
+  allow_network: false
+
+tools:
+  file_system:
+    mcp: false
+    include:
+      - write_file
+      - read_file
+      - edit_file
+  code_executor:
+    mcp: false
+    implementation: python_env
+    include:
+      - shell_executor
+      - python_executor
+
+callbacks:
+  - input_callback

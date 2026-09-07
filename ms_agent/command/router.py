@@ -7,13 +7,16 @@ Reference: nanobot/command/router.py (structure) + qwen-code (pre-parse + typed 
 """
 from __future__ import annotations
 
+from typing import Any
+
 from ms_agent.command.types import (CommandContext, CommandDef, CommandHandler,
                                     CommandResult)
 
 
 class CommandRouter:
 
-    def __init__(self) -> None:
+    def __init__(self, owner: Any = None) -> None:
+        self.owner = owner
         self._priority: dict[str, CommandHandler] = {}
         self._exact: dict[str, CommandHandler] = {}
         self._prefix: list[tuple[str, CommandHandler]] = []

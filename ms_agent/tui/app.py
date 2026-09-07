@@ -52,7 +52,11 @@ class TuiApp:
         emit_events: Optional[str] = None,
         mcp_server_file: Optional[str] = None,
     ) -> None:
+        from ms_agent.tui.tty import restore_cooked_tty
+        restore_cooked_tty()
+        self._quiet_logs()
         Env.load_dotenv_into_environ(env_file)
+        restore_cooked_tty()
         self.console = Console()
         self.theme = DEFAULT_THEME
         self.trust_remote_code = trust_remote_code
@@ -137,7 +141,9 @@ class TuiApp:
                 # Lets the menu hold the renderer's draws while it owns the
                 # terminal (a sibling tool finishing mid-menu must not print
                 # into it) — see RichEventSink.hold_output.
-                renderer=self.renderer))
+                renderer=self.renderer,
+                pause_live=self.renderer.pause_for_prompt,
+            ))
 
         # ('new', None) | ('resume', '<#|id>') | None, set by session commands.
         self._pending_switch: Optional[Tuple[str, Optional[str]]] = None
@@ -165,6 +171,12 @@ class TuiApp:
         # small per-task value would cut a long chat short. Raise it high — the
         # user (not a round cap) ends an interactive session.
         OmegaConf.update(config, 'max_chat_round', 1000, merge=True)
+        # Person is at this terminal: delegate uncertain escalates to the TUI
+        # menu. Short foreground wait so long shells auto-background.
+        OmegaConf.update(
+            config, 'permission.human_approval_available', True, merge=True)
+        if OmegaConf.select(config, 'tool_call_timeout') in (None, 0):
+            OmegaConf.update(config, 'tool_call_timeout', 15, merge=True)
         if permission_mode:
             OmegaConf.update(
                 config, 'permission.mode', permission_mode, merge=True)
@@ -208,22 +220,14 @@ class TuiApp:
             return CommandResult(type=CommandResultType.QUIT, content='')
 
         async def _permission(ctx):
-            arg = (ctx.args or '').strip().lower()
-            if arg not in ('auto', 'strict', 'restricted', 'interactive'):
-                return CommandResult(
-                    type=CommandResultType.MESSAGE,
-                    content=(f'permission mode: {self.state.perm}\n'
-                             'usage: /permission <auto|restricted|strict>'))
-            try:
-                mode = self.agent.set_permission_mode(arg)
-            except ValueError as e:
-                return CommandResult(
-                    type=CommandResultType.MESSAGE, content=str(e))
-            self.state.perm = mode
-            self.permission_mode = mode
-            return CommandResult(
-                type=CommandResultType.MESSAGE,
-                content=f'permission mode → {mode}')
+            from ms_agent.command.builtin.permission_cmds import cmd_permission
+            result = await cmd_permission(ctx)
+            tm = getattr(self.agent, 'tool_manager', None)
+            if tm is not None:
+                mode = str(getattr(tm, '_permission_mode', self.permission_mode))
+                self.permission_mode = mode
+                self.state.perm = mode
+            return result
 
         self.router.register(
             CommandDef(
@@ -374,7 +378,16 @@ class TuiApp:
         banner.add_column(vertical='middle')
         banner.add_row(logo, info_panel)
         self.console.print()
-        self.console.print(banner)
+        # Side-by-side needs ~ logo + panel. If the TTY is narrower (or still
+        # recovering from raw mode), wrapping interleaves the wordmark with the
+        # box — print stacked instead.
+        need = width + 52
+        if (self.console.width or 80) < need:
+            self.console.print(logo)
+            self.console.print()
+            self.console.print(info_panel)
+        else:
+            self.console.print(banner)
         self.console.print(
             '  [dim]/help  /sessions  /resume  /new  /quit[/]\n')
 
@@ -430,6 +443,8 @@ class TuiApp:
     # -- main loop (route A: one lifecycle per session) --
 
     async def _serve(self) -> None:
+        from ms_agent.tui.tty import restore_cooked_tty
+        restore_cooked_tty()
         self._banner()
         self._prune_empty_sessions(
         )  # clear leftover empties from prior launches
@@ -502,12 +517,15 @@ class TuiApp:
         self.console.print('[dim]bye[/]')
 
     def run(self) -> None:
+        from ms_agent.tui.tty import restore_cooked_tty
+        restore_cooked_tty()
         self._quiet_logs()
         try:
             asyncio.run(self._serve())
         except KeyboardInterrupt:
             self.console.print('\n[dim]bye[/]')
         finally:
+            restore_cooked_tty()
             if self._jsonl_sink is not None:
                 self._jsonl_sink.close()
 

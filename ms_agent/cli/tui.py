@@ -47,7 +47,15 @@ class TuiCMD(CLICommand):
             '--permission_mode',
             type=str,
             default='restricted',
-            choices=['auto', 'strict', 'restricted', 'interactive'],
+            choices=[
+                'auto',
+                'strict',
+                'restricted',
+                'interactive',
+                'delegate',
+                'delegated',
+                'full_access',
+            ],
             help='Permission mode for tool calls. Default `restricted` so '
             'non-whitelisted tools ask for confirmation.')
         parser.add_argument(

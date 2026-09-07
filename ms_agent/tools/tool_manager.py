@@ -723,7 +723,18 @@ class ToolManager:
                     }
                 if perm_out.updated_args is not None:
                     tool_args = perm_out.updated_args
+                    args_dict = dict(perm_out.updated_args)
                     tool_info['arguments'] = tool_args
+                    if self._safety_guard is not None:
+                        safety_decision = self._safety_guard.check(
+                            tool_name, args_dict)
+                        if safety_decision.action == 'deny':
+                            return {
+                                'result': (
+                                    'Blocked by safety policy after edit: '
+                                    f'{safety_decision.reason}'),
+                                'is_error': True,
+                            }
 
                 raw_args = dict(tool_args) if isinstance(tool_args,
                                                          dict) else {}

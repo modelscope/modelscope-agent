@@ -99,6 +99,7 @@ tools:
       - shell_executor
       - python_executor
       - notebook_executor
+  task_control: {}
 
 help: |
   A commonly use config, try whatever you want!
