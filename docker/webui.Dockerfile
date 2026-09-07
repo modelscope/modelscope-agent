@@ -45,14 +45,12 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     MS_AGENT_WEBUI_CACHE=/opt/ms-agent-webui-cache
 COPY --from=dependencies /opt/venv /opt/venv
 COPY release.json /opt/ms-agent-release/release.json
-RUN useradd --create-home --uid 1000 --shell /bin/bash msagent \
-    && mkdir -p /data /opt/ms-agent-webui-cache \
-    && chown msagent:msagent /data /opt/ms-agent-webui-cache
-USER 1000:1000
-WORKDIR /home/msagent
+# Preserve Aone's runtime user so existing data volumes keep working.
+RUN mkdir -p /data /opt/ms-agent-webui-cache
+WORKDIR /app
 # This uses the installed wheel and the final runtime's Node version. No source
 # checkout or frontend compilation is performed inside the image.
-RUN --mount=type=cache,target=/home/msagent/.local/share/pnpm/store,uid=1000,gid=1000 \
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     ms-agent ui --prepare-only --no-browser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \

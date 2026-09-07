@@ -53,7 +53,10 @@ jobs:
       - name: Diagnose native test shutdown failure
         if: failure() && steps.backend-tests.outcome == 'failure'
         working-directory: webui/backend
-        run: gdb --batch -ex run -ex 'thread apply all bt 12' --args .venv/bin/python -X faulthandler -m pytest -q
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gdb
+          gdb --batch -ex 'set print thread-events off' -ex run -ex 'bt 30' --args .venv/bin/python -X faulthandler -m pytest -q
       - name: SDK and release regression tests
         run: webui/backend/.venv/bin/python -X faulthandler -m pytest tests/cli tests/ui tests/release -q
       - name: Frontend types, CSS and SSR build

@@ -154,10 +154,10 @@ Open http://127.0.0.1:9000. The container uses port 8000, keeps the API on loopb
 8001, and has its dependencies prepared before startup. Keep the named volume
 when replacing a container. The new SDK image flow must pass actual build and
 ACR push/pull validation before it replaces the existing standalone Aone flow.
-The image runs as UID 1000. The named volume above is initialized for that user;
-existing bind mounts must be writable by UID 1000. Change the host mapping
-(`9000:8000`) to select a different public port while retaining the container's
-health-check port. Mount extra workspace directories explicitly when needed.
+The image retains Aone's default runtime user for existing data volumes. Change
+the host mapping (`9000:8000`) to select a different public port while retaining
+the container's health-check port. Mount extra workspace directories explicitly
+when needed.
 
 The [release guide](../docs/RELEASING.md) describes the manual image check, ACR
 setup and the shared RC/stable tag workflow. Normal code checks do not build or
