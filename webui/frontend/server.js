@@ -56,7 +56,15 @@ const SERVER_BUILD = new URL('./build/server/index.js', import.meta.url)
 const API_TARGET = new URL(
   process.env.MS_AGENT_API_BASE_URL || 'http://127.0.0.1:8000'
 )
-const PORT = Number(process.env.PORT || 3000)
+const API_PORT = Number(API_TARGET.port || 80)
+// Derived from the API's port rather than fixed, so the pair reads as a pair:
+// an API on 8000 puts the app on 8001, and re-aiming the proxy moves the app
+// with it. A hardcoded 3000 had no relation to the port it proxies to, which
+// made it one more number to be told about. Only a bare `pnpm start` reaches
+// this — the launcher probes for free ports and the container pins them, and
+// both pass PORT explicitly. Note those two invert the pairing on purpose: the
+// port they publish is the app's, so the API sits at app + 1 there.
+const PORT = Number(process.env.PORT || API_PORT + 1)
 const HOST = process.env.HOST || '127.0.0.1'
 
 // nginx's `client_max_body_size 50m`, which vanished with it. Fixed, as it was
@@ -146,7 +154,7 @@ function proxyApi(req, res) {
     {
       agent,
       host: API_TARGET.hostname,
-      port: API_TARGET.port || 80,
+      port: API_PORT,
       method: req.method,
       // originalUrl: `app.use('/api', ...)` strips the mount path from req.url,
       // and the backend needs the whole thing including the query string.

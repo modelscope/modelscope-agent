@@ -1,8 +1,8 @@
 {
   "repository": "ms-agent-webui",
   "branch": "fix/webui-launcher-compat",
-  "commit": "40fd5fbe2ea343ad85187630672cff054ed3e963",
-  "master_base": "d3d53b18b554ee64ff7429e775b74cac2eddce0e",
+  "commit": "fff230abe2034a677a4bcaa8b0a354c61e67ae21",
+  "master_base": "5ab91a819089f94dc01a3dbdbbac84974c1a54ca",
   "sdk_base": "3be0f6d2f1bdbe3f26e2176458d6154fecb02702",
   "source_sdk_commit": "3be0f6d2f1bdbe3f26e2176458d6154fecb02702",
   "synced_on": "2026-09-07",
@@ -327,6 +327,7 @@
     "frontend/app/lib/lastAppRoute.ts",
     "frontend/app/lib/locales/en.json",
     "frontend/app/lib/locales/zh.json",
+    "frontend/app/lib/mcpHealth.ts",
     "frontend/app/lib/modelChanged.ts",
     "frontend/app/lib/msaTheme.ts",
     "frontend/app/lib/pageTitle.ts",

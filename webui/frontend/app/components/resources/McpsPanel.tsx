@@ -5,7 +5,8 @@ import { CardSkeletonGrid } from '~/components/common/CardSkeletonGrid'
 import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
-import type { Mcp, McpHealth, Scope } from '~/lib/types'
+import { useMcpHealth } from '~/lib/mcpHealth'
+import type { Mcp, Scope } from '~/lib/types'
 import { McpCard } from './McpCard'
 import { McpCustomModal } from './McpCustomModal'
 import { McpJsonModal } from './McpJsonModal'
@@ -41,24 +42,21 @@ export function McpsPanel({
   const importing = importingProp ?? importingInternal
   const setImporting = onImportingChange ?? setImportingInternal
 
-  // Reachability, by mcp id. Fetched alongside the list so a stale endpoint is
+  // Reachability, by mcp id. Resolved alongside the list so a stale endpoint is
   // visible without the user having to test each card by hand — that manual
   // probe is still there, it just is not the only way to find out any more.
-  // Stale-while-revalidate: known verdicts stay on screen during a sweep
-  // (adding one server must not send every card spinning); only cards with no
-  // verdict yet show the spinner, gated by `sweeping`.
-  const [health, setHealth] = useState<Record<string, McpHealth>>({})
-  const [sweeping, setSweeping] = useState(true)
-  const refreshHealth = () => {
-    setSweeping(true)
-    return api
-      .listMcpHealth()
-      .then((rows) =>
-        setHealth(Object.fromEntries(rows.map((h) => [h.id, h])))
-      )
-      .catch(() => {})
-      .finally(() => setSweeping(false))
-  }
+  // Shared with the project tab and the composer pill through `useMcpHealth`,
+  // which serves the last sweep from memory: coming back to this page used to
+  // re-probe every server (seconds, with all the cards spinning) even though
+  // the answer was already known. Stale-while-revalidate is part of that
+  // contract — known verdicts stay on screen while a sweep re-runs, so only
+  // cards with no verdict yet spin, gated by `sweeping`.
+  const {
+    rows: health,
+    sweeping,
+    refresh: refreshHealth,
+    put: putHealth
+  } = useMcpHealth()
 
   // A JUST-ADDED stdio server gets one deep check (real spawn+initialize):
   // the sweep's existence-only probe would light it green while the package
@@ -70,7 +68,7 @@ export function McpsPanel({
     setDeepChecking((prev) => new Set(prev).add(id))
     api
       .checkMcpHealth(id)
-      .then((result) => setHealth((prev) => ({ ...prev, [id]: result })))
+      .then(putHealth)
       .catch(() => {})
       .finally(() =>
         setDeepChecking((prev) => {
@@ -84,14 +82,17 @@ export function McpsPanel({
   // `[]` on failure, never left at `null`: `null` is this list's "still
   // loading" and would hold the skeleton up forever (health already settles
   // that way just below the list request).
-  const refresh = () =>
+  // `fresh` = a mutation just changed which servers exist or are enabled, so
+  // the cached sweep describes the wrong set and has to be re-run. A plain
+  // mount (or a scope switch) is happy with the cached one.
+  const refresh = (fresh = false) =>
     api
       .listMcps(activeScope)
       .then((rows) => {
         setItems(rows)
         const known = knownIdsRef.current
         knownIdsRef.current = new Set(rows.map((r) => r.id))
-        void refreshHealth()
+        void refreshHealth(fresh)
         if (known)
           rows
             .filter(
@@ -149,12 +150,12 @@ export function McpsPanel({
                     }
                     onToggle={async (v) => {
                       await api.updateMcp(m.id, { enabled: v })
-                      refresh()
+                      refresh(true)
                     }}
                     onReconnect={async () => {
                       try {
                         const result = await api.checkMcpHealth(m.id)
-                        setHealth((prev) => ({ ...prev, [m.id]: result }))
+                        putHealth(result)
                         if (result.healthy) {
                           message.success(`${m.name}: ${t.resources.statusOk}`)
                         } else {
@@ -167,7 +168,7 @@ export function McpsPanel({
                     onEdit={() => setEditingMcp(m)}
                     onRemove={async () => {
                       await api.deleteMcp(m.id)
-                      refresh()
+                      refresh(true)
                     }}
                   />
                 ))}
@@ -192,7 +193,7 @@ export function McpsPanel({
         scope={activeScope}
         scopeBadge={scopeBadge}
         items={items ?? []}
-        onSaved={refresh}
+        onSaved={() => refresh(true)}
         onClose={() => onViaJsonChange?.(false)}
       />
 
@@ -208,7 +209,7 @@ export function McpsPanel({
         onSaved={() => {
           setImporting(null)
           setEditingMcp(null)
-          refresh()
+          refresh(true)
         }}
       />
     </div>

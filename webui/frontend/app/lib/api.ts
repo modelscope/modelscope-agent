@@ -55,11 +55,22 @@ export interface ApiEnvelope<T = unknown> {
 export class ApiError extends Error {
   status: number
   code: number
-  constructor(message: string, status: number, code: number) {
+  /** HTTP reason phrase (`Bad Gateway`), the only human-readable text a failure
+   * from IN FRONT of our backend carries. Best-effort: HTTP/2 dropped reason
+   * phrases, so behind an h2 gateway browsers report it as ''. Never rely on it
+   * being there. */
+  statusText: string
+  constructor(
+    message: string,
+    status: number,
+    code: number,
+    statusText = ''
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.statusText = statusText
   }
 }
 
@@ -181,7 +192,12 @@ async function json<T>(
     const failure = readFailure(body)
     if (!res.ok || failure) {
       const message = failure?.message ?? ''
-      const err = new ApiError(message, res.status, failure?.code ?? res.status)
+      const err = new ApiError(
+        message,
+        res.status,
+        failure?.code ?? res.status,
+        res.statusText
+      )
       if (!suppresses(opts, res.status)) reportError?.(message, err)
       throw err
     }
@@ -324,8 +340,11 @@ export const api = {
     json<void>(`/api/mcps/${pid(id)}`, { method: 'DELETE' }),
   checkMcpHealth: (id: string) =>
     json<McpHealth>(`/api/mcps/${pid(id)}/health`),
-  /** Reachability of every ENABLED server, across scopes. Cached server-side
-   *  (60 s), so calling it on mount does not re-pay a dead server's timeout. */
+  /** Reachability of every ENABLED server, across scopes. Cached server-side,
+   *  but only 60 s for a reachable server and 10 s for a dead one (a pinned
+   *  failure withholds its tools from a whole conversation), so a miss costs
+   *  the full probe — go through `lib/mcpHealth`, which shares one sweep across
+   *  every surface, rather than calling this per mount. */
   listMcpHealth: () => json<McpHealth[]>('/api/mcps/health'),
 
   // Skills

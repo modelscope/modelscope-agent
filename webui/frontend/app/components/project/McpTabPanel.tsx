@@ -8,7 +8,8 @@ import { MsaButton } from '~/components/common/MsaButton'
 import { api } from '~/lib/api'
 import { dispatchMcpSkillChanged } from '~/lib/events'
 import { useT } from '~/lib/i18n'
-import type { Mcp, McpHealth, Project, Scope } from '~/lib/types'
+import { useMcpHealth } from '~/lib/mcpHealth'
+import type { Mcp, Project, Scope } from '~/lib/types'
 import { McpCard } from '~/components/resources/McpCard'
 import { McpCustomModal } from '~/components/resources/McpCustomModal'
 import { McpJsonModal } from '~/components/resources/McpJsonModal'
@@ -48,28 +49,24 @@ export function McpTabPanel({ project }: Props) {
 
   const PAGE_SIZE = 10
 
-  // Reachability, same contract as McpsPanel: stale-while-revalidate (known
-  // verdicts stay during a sweep) plus one DEEP check for a just-added stdio
-  // server, whose existence-only sweep verdict would lie green.
-  const [health, setHealth] = useState<Record<string, McpHealth>>({})
-  const [sweeping, setSweeping] = useState(true)
-  const refreshHealth = () => {
-    setSweeping(true)
-    return api
-      .listMcpHealth()
-      .then((rows) =>
-        setHealth(Object.fromEntries(rows.map((h) => [h.id, h])))
-      )
-      .catch(() => {})
-      .finally(() => setSweeping(false))
-  }
+  // Reachability, same contract as McpsPanel: the verdicts come from the shared
+  // `useMcpHealth` cache (this tab and the composer pill mount together, and
+  // used to sweep once each), stale-while-revalidate so known verdicts stay
+  // during a sweep, plus one DEEP check for a just-added stdio server, whose
+  // existence-only sweep verdict would lie green.
+  const {
+    rows: health,
+    sweeping,
+    refresh: refreshHealth,
+    put: putHealth
+  } = useMcpHealth()
   const [deepChecking, setDeepChecking] = useState<Set<string>>(new Set())
   const knownIdsRef = useRef<Set<string> | null>(null)
   const deepCheck = (id: string) => {
     setDeepChecking((prev) => new Set(prev).add(id))
     api
       .checkMcpHealth(id)
-      .then((result) => setHealth((prev) => ({ ...prev, [id]: result })))
+      .then(putHealth)
       .catch(() => {})
       .finally(() =>
         setDeepChecking((prev) => {
@@ -80,14 +77,16 @@ export function McpTabPanel({ project }: Props) {
       )
   }
 
-  const refresh = () =>
+  // `fresh` = a mutation just changed the server set, so the cached sweep is
+  // about the wrong one; a plain mount or scope switch reuses it.
+  const refresh = (fresh = false) =>
     api
       .listMcps(activeScope)
       .then((rows) => {
         setItems(rows)
         const known = knownIdsRef.current
         knownIdsRef.current = new Set(rows.map((r) => r.id))
-        void refreshHealth()
+        void refreshHealth(fresh)
         if (known)
           rows
             .filter(
@@ -98,7 +97,7 @@ export function McpTabPanel({ project }: Props) {
       .catch(() => setItems([]))
 
   const refreshAndNotify = () => {
-    refresh()
+    refresh(true)
     dispatchMcpSkillChanged()
   }
   useEffect(() => {
@@ -190,7 +189,7 @@ export function McpTabPanel({ project }: Props) {
                     onReconnect={async () => {
                       try {
                         const result = await api.checkMcpHealth(m.id)
-                        setHealth((prev) => ({ ...prev, [m.id]: result }))
+                        putHealth(result)
                         if (result.healthy) {
                           message.success(`${m.name}: ${t.resources.statusOk}`)
                         } else {

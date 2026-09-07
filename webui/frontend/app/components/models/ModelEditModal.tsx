@@ -1,5 +1,5 @@
 import { App, AutoComplete, Form, Input, Modal, Select, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '~/components/common/CodeEditor'
 import { MsaSwitch } from '~/components/common/MsaSwitch'
 import { api } from '~/lib/api'
@@ -22,6 +22,63 @@ function draftParams(defaults: GenerationDefaults | null): string {
     null,
     2
   )
+}
+
+/** A bare id, or a header with the ids that share its prefix. */
+type ModelOption =
+  | { value: string }
+  | {
+      label: string
+      options: { value: string; label: string; title: string }[]
+    }
+
+/**
+ * Bucket discovered ids by their `owner/` prefix.
+ *
+ * That prefix is the only grouping a /models response carries in practice:
+ * `_parse_ids` keeps nothing but the id, and `owned_by` — the field that looks
+ * like it should be the group — is a constant on most providers. Grouping is
+ * what makes a provider's few hundred ids scannable instead of a wall of
+ * near-identical strings; the leaf label drops the prefix because the header
+ * above it already says that, while the option's *value* stays the whole id, so
+ * that is still what lands in the field when one is picked.
+ *
+ * Prefixless ids are emitted ungrouped and FIRST, ahead of every header: put
+ * last they would sit under the final header and read as members of it. A
+ * degenerate id (`/x`, `x/`) counts as prefixless too, rather than producing an
+ * empty header or a blank row.
+ */
+function groupModelOptions(ids: string[]): ModelOption[] {
+  const ungrouped: { value: string }[] = []
+  // Insertion-ordered, so groups appear in the order the ids arrived — the
+  // backend already returns them sorted, and re-sorting here would silently
+  // give the list a different order than the flat one it replaces.
+  const groups = new Map<
+    string,
+    { value: string; label: string; title: string }[]
+  >()
+
+  for (const id of ids) {
+    const cut = id.indexOf('/')
+    const owner = cut > 0 ? id.slice(0, cut) : ''
+    const rest = cut > 0 ? id.slice(cut + 1) : ''
+    if (!owner || !rest) {
+      ungrouped.push({ value: id })
+      continue
+    }
+    // `title` spelled out because antd would otherwise derive it from the label:
+    // hovering a row should still reveal the exact id it will insert, which is
+    // the one thing the shortened label no longer shows.
+    const leaf = { value: id, label: rest, title: id }
+    const bucket = groups.get(owner)
+    if (bucket) bucket.push(leaf)
+    else groups.set(owner, [leaf])
+  }
+
+  return [
+    ...ungrouped,
+    ...[...groups].map(([label, options]) => ({ label, options }))
+  ]
 }
 
 interface Props {
@@ -70,6 +127,13 @@ export function ModelEditModal({
   const [providerId, setProviderId] = useState('')
 
   const isEdit = !!model
+
+  // Keyed on the fetched ids, so typing in the field (which re-renders the whole
+  // Form) does not rebuild the option tree and force rc-select to re-flatten it.
+  const groupedOptions = useMemo(
+    () => groupModelOptions(modelOptions),
+    [modelOptions]
+  )
 
   useEffect(() => {
     if (!open) return
@@ -245,13 +309,20 @@ export function ModelEditModal({
             <Input disabled />
           ) : (
             <AutoComplete
-              options={modelOptions.map((id) => ({ value: id }))}
+              options={groupedOptions}
               showSearch={{
-                filterOption: (input, option) =>
-                  (option?.value ?? '')
-                    .toString()
-                    .toLowerCase()
-                    .includes(input.toLowerCase())
+                filterOption: (input, option) => {
+                  // Group headers are offered to this filter too, ahead of their
+                  // children (see rc-select's useFilterOptions). A header has no
+                  // id to match on, and answering `true` would blanket-admit its
+                  // whole group, so decline and let the leaves below decide —
+                  // rc-select then drops any header left with no children.
+                  if (!option || !('value' in option)) return false
+                  // Matched against the full id, so a query still reaches a
+                  // model through its prefix even though the row no longer
+                  // shows one.
+                  return option.value.toLowerCase().includes(input.toLowerCase())
+                }
               }}
               notFoundContent={
                 loadingModels ? t.modelsAdmin.modelsLoading : null

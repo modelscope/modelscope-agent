@@ -216,8 +216,27 @@ function ApiErrorBridge() {
   const { t } = useT()
   useEffect(() => {
     registerApiErrorReporter((msg: string, err: ApiError) => {
-      const text =
-        msg || (err.status === 0 ? t.errors.network : t.errors.requestFailed)
+      // No message means the failure was not reported by our backend at all —
+      // something in FRONT of it answered (a proxy/gateway 502, an upstream
+      // 504) with a body carrying no envelope. Naming the number keeps a burst
+      // of such toasts distinguishable and reportable instead of an
+      // indistinguishable wall of "Request failed".
+      // `code`, not `status`: the two are equal for a transport failure, but a
+      // rejection the body declares itself (readFailure) can arrive with a 2xx
+      // status, and only `code` then holds the real one.
+      // The reason phrase is appended when there is one, since it is the only
+      // words such a failure carries — absent over HTTP/2, hence the bare-code
+      // fallback. It pairs with `status` ONLY: for the 200-OK-with-code-400 case
+      // above, "400 OK" would describe neither half truthfully.
+      const detail =
+        err.code === err.status && err.statusText
+          ? `${err.status} ${err.statusText}`
+          : String(err.code)
+      const text = msg
+        ? msg
+        : err.status === 0
+          ? t.errors.network
+          : `${t.errors.requestFailed}: ${detail}`
       message.error(text)
     })
     return () => registerApiErrorReporter(null)

@@ -1,10 +1,9 @@
 import { Popover, Tooltip } from 'antd'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { api } from '~/lib/api'
-import { useOnMcpSkillChanged } from '~/lib/events'
 import { useT } from '~/lib/i18n'
-import type { Mcp, McpHealth, Project } from '~/lib/types'
+import { useMcpHealth } from '~/lib/mcpHealth'
+import type { Mcp, Project } from '~/lib/types'
 import { PillButton } from './PillButton'
 import McpSelectIcon from '~/assets/icons/mcp-select.svg?react'
 import SpinnerIcon from '~/assets/icons/generating.svg?react'
@@ -35,30 +34,16 @@ export function McpSelector({ items, project }: McpSelectorProps) {
   // Resolved on mount rather than when the popover opens: the whole value here
   // is being told WITHOUT having to ask, and a signal you only see after
   // clicking is one you never see. Non-blocking (the pill renders the plain
-  // count until it lands) and cached server-side, so the repeat cost is nil.
-  const [health, setHealth] = useState<Record<string, McpHealth> | null>(null)
-  const refreshHealth = useCallback(() => {
-    // Stale-while-revalidate: keep the known verdicts on screen while the
-    // sweep re-runs (a config change must not blank every row's status);
-    // `null` only ever means "first sweep still out".
-    api
-      .listMcpHealth()
-      .then((rows) => setHealth(Object.fromEntries(rows.map((h) => [h.id, h]))))
-      .catch(() => setHealth((prev) => prev ?? {}))
-  }, [])
-  useEffect(() => {
-    refreshHealth()
-  }, [refreshHealth])
-  // The enabled list already refreshes on config changes (Composer re-fetches
-  // on this event); without re-probing alongside it, a server enabled a
-  // minute ago kept whatever verdict the mount-time sweep gave it.
-  useOnMcpSkillChanged(refreshHealth)
+  // count until it lands), and it reads the sweep shared with the MCP pages
+  // (`useMcpHealth`) — this pill mounts on every chat page, so sweeping per
+  // mount re-probed every server just for walking between conversations.
+  // The shared cache also re-sweeps on `msa:mcp-skill-changed`, which the
+  // enabled list already refreshes on: without that, a server enabled a minute
+  // ago kept whatever verdict the mount-time sweep gave it.
+  const { rows: health, sweeping } = useMcpHealth()
 
   const deadCount = useMemo(
-    () =>
-      health === null
-        ? 0
-        : enabledItems.filter((m) => health[m.id]?.healthy === false).length,
+    () => enabledItems.filter((m) => health[m.id]?.healthy === false).length,
     [enabledItems, health]
   )
   const liveCount = enabledItems.length - deadCount
@@ -84,7 +69,7 @@ export function McpSelector({ items, project }: McpSelectorProps) {
         {/* The sweep is in flight: connecting/installing is a real phase for
             a cold stdio server, and without a signal the list reads as "all
             fine" right up until rows get struck through. */}
-        {health === null && enabledItems.length ? (
+        {sweeping && enabledItems.length ? (
           <Tooltip title={t.resources.probing}>
             <SpinnerIcon className="h-3 w-3 shrink-0 animate-spin text-msa-text-3" />
           </Tooltip>
@@ -99,7 +84,7 @@ export function McpSelector({ items, project }: McpSelectorProps) {
         <>
           <div className="max-h-[280px] overflow-y-auto p-[6px]">
             {enabledItems.map((it) => {
-              const dead = health?.[it.id]?.healthy === false
+              const dead = health[it.id]?.healthy === false
               return (
                 <div
                   key={it.id}
@@ -115,7 +100,7 @@ export function McpSelector({ items, project }: McpSelectorProps) {
                   {/* The reason, on hover — the row already says "unavailable"
                       by being struck through. */}
                   {dead ? (
-                    <Tooltip title={health?.[it.id]?.error || ''}>
+                    <Tooltip title={health[it.id]?.error || ''}>
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-msa-deco-red" />
                     </Tooltip>
                   ) : null}
