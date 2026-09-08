@@ -11,6 +11,18 @@ from pathlib import Path
 from app.core.settings import settings
 
 
+_PROVIDER_BRAND_NAME_MIGRATIONS = {
+    "kimi": (("Moonshot Kimi",), "Kimi (Moonshot AI)"),
+    "dashscope": (
+        (
+            "Alibaba DashScope",
+            "Alibaba Cloud Model Studio (DashScope)",
+        ),
+        "Alibaba (DashScope)",
+    ),
+}
+
+
 def bootstrap() -> None:
     from app.backends.ms_agent.common import apply_home_env, home, pm
 
@@ -19,11 +31,139 @@ def bootstrap() -> None:
     apply_home_env()
     _export_env()
     pm()  # ProjectManager.__init__ ensures ~/.ms_agent/projects + default project
+    _ensure_prompt_files(home())
     _seed_llm_settings(home())
     _seed_tools_settings(home())
+    _migrate_provider_brand_names(home())
     # Normalize the model link so the chat dropdown lists the active model and
     # default_model is a full "provider/model" (see model_link).
     model_link.ensure_link()
+    _migrate_vision_default(home())
+    _export_fastembed_cache()
+
+
+def _ensure_prompt_files(home_dir: str) -> None:
+    """Materialize the editable global prompt files during WebUI startup.
+
+    The SDK owns the lifecycle rules: an existing file is preserved, a
+    pristine built-in may be upgraded, and a file deliberately deleted after
+    being seeded stays deleted. Starting the WebUI eagerly invokes that same
+    logic so users can discover and manage the files before opening
+    Personalization or sending the first chat message.
+    """
+    from ms_agent.prompting.workspace_files import ensure_home_files
+
+    ensure_home_files(Path(home_dir))
+
+
+def _migrate_provider_brand_names(home_dir: str) -> None:
+    """Upgrade historical built-in display names exactly once.
+
+    Built-in provider entries also carry credentials, endpoints and model
+    catalogs, so the WebUI merges them over the SDK registry. Older homes saved
+    the then-default display names in those entries; without a migration they
+    permanently mask later brand-copy corrections in the registry. Only the
+    exact historical defaults are rewritten. Arbitrary user names and every
+    sibling field remain untouched.
+    """
+    import logging
+
+    from app.backends.ms_agent import sidecar
+
+    log = logging.getLogger("app.ms_agent.bootstrap")
+    migration_key = "provider_brand_names_v2"
+    try:
+        flags = sidecar.get("flags", migration_key) or {}
+        if flags.get("migrated"):
+            return
+
+        path = Path(home_dir) / "settings.json"
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            providers = data.get("providers")
+            changed = False
+            if isinstance(providers, dict):
+                for provider_id, names in (
+                    _PROVIDER_BRAND_NAME_MIGRATIONS.items()
+                ):
+                    legacy_names, canonical_name = names
+                    entry = providers.get(provider_id)
+                    if (
+                        isinstance(entry, dict)
+                        and entry.get("name") in legacy_names
+                    ):
+                        entry["name"] = canonical_name
+                        changed = True
+            if changed:
+                tmp = path.with_suffix(".json.tmp")
+                tmp.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                os.replace(tmp, path)
+
+        sidecar.merge("flags", migration_key, {"migrated": True})
+    except Exception:  # a migration must never block boot
+        log.warning("provider brand-name migration skipped", exc_info=True)
+
+
+def _export_fastembed_cache() -> None:
+    """Pin FASTEMBED_CACHE_PATH before anything can construct a TextEmbedding.
+
+    mem0 builds its embedder deep inside the agent process with no cache_dir
+    argument; only this env var reaches it. Exporting at boot makes every
+    consumer — our probes, mem0, fastembed's own fallback download — resolve
+    one shared, persistent cache (instead of fastembed's default in a TEMP
+    dir), which is also where the ModelScope warm-up lays files out.
+    """
+    try:
+        from app.backends.ms_agent.embed_warmup import fastembed_cache_dir
+
+        fastembed_cache_dir()
+    except Exception:  # cache pinning must never block boot
+        import logging
+
+        logging.getLogger("app.ms_agent.bootstrap").debug(
+            "fastembed cache pinning failed", exc_info=True)
+
+
+def _migrate_vision_default(home_dir: str) -> None:
+    """Materialize the old implicit "unset" into an explicit ``false``. Once.
+
+    "Image understanding" used to be a tri-state whose middle value fell through
+    to the provider's declared ``vision`` capability — and because nearly every
+    provider declares it, *unset meant images were sent*. The switch is now a
+    plain two-state control that defaults to off, so leaving those models unset
+    would silently flip behaviour under existing users with no record of why.
+
+    Writing the value down instead makes the change visible and inspectable: the
+    model form shows exactly what the runtime will do, and a user who wants
+    images back ticks one box. Guarded by a marker so it never re-runs and can
+    never overwrite a later choice.
+    """
+    import logging
+
+    from app.backends.ms_agent import sidecar
+
+    log = logging.getLogger("app.ms_agent.bootstrap")
+    try:
+        flags = sidecar.get("flags", "vision_two_state") or {}
+        if flags.get("migrated"):
+            return
+        models = sidecar.section("models") or {}
+        touched = [
+            mid for mid, meta in models.items()
+            if isinstance(meta, dict) and meta.get("supports_vision") is None
+        ]
+        for mid in touched:
+            sidecar.merge("models", mid, {"supports_vision": False})
+        sidecar.merge("flags", "vision_two_state", {"migrated": True})
+        if touched:
+            log.info(
+                "image understanding is now a two-state switch; %d model(s) "
+                "that were previously unset are recorded as off", len(touched))
+    except Exception:  # a migration must never block boot
+        log.warning("vision two-state migration skipped", exc_info=True)
 
 
 def _export_env() -> None:
@@ -94,8 +234,14 @@ _DEFAULT_TOOLS: dict = {
         "implementation": "python_env",
         "include": ["shell_executor"],
     },
-    # web_search needs exa-py + EXA_API_KEY; present but off by default.
-    "web_search": {"mcp": False, "engine": "exa", "enabled": False},
+    # Web search is ON by default, and Tavily is the default engine because it
+    # is the only web-wide one that WORKS with no credentials: the SDK falls
+    # back to Tavily's keyless tier (tavily/search.py KEYLESS_HEADER) when no
+    # key is configured, so a fresh install can search immediately instead of
+    # silently having no engine until someone visits Settings -> Search. The
+    # keyless quota is a small sliding hourly bucket; adding a key lifts it, and
+    # a configured key always takes precedence.
+    "web_search": {"mcp": False, "engine": "tavily", "enabled": True},
 }
 
 # task_control has no WebUI rendering component yet; strip it from any home that

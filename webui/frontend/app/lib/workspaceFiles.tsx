@@ -77,6 +77,40 @@ export function useWorkspaceFileSet(): Set<string> | null {
   return useContext(WorkspaceFileSetContext)
 }
 
+/**
+ * Authoritative per-path deleted state from the session's artifact ledger
+ * (backend `list_artifacts`, which runs a real `os.stat` against the exact
+ * root each write was recorded under).
+ *
+ * The workspace file SET above is only a fuzzy, curated view: it hides
+ * framework internals, can lag a beat behind the disk, and its relative paths
+ * need not line up with a turn's recorded `changed_files` (nesting, differing
+ * roots). A bare `!fileSet.has(path)` membership test therefore mis-flags live
+ * files as deleted. When a path is present in this ledger map, trust it over
+ * the set heuristic. `null` = no ledger available (fall back to the set).
+ */
+const ArtifactDeletedContext = createContext<Map<string, boolean> | null>(null)
+
+export function ArtifactDeletedProvider({
+  value,
+  children
+}: {
+  value: Map<string, boolean> | null
+  children: React.ReactNode
+}) {
+  return (
+    <ArtifactDeletedContext.Provider value={value}>
+      {children}
+    </ArtifactDeletedContext.Provider>
+  )
+}
+
+/** The authoritative artifact-ledger deleted map (path → deleted), or null
+ * when no ledger is in scope. */
+export function useArtifactDeletedMap(): Map<string, boolean> | null {
+  return useContext(ArtifactDeletedContext)
+}
+
 /** Whether `path` currently exists in the workspace. Falls back to
  * `serverBaked` (the history-replay flag) while the live set is unknown. */
 export function useFileExists(path: string, serverBaked: boolean): boolean {

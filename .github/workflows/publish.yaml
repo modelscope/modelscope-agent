@@ -2,28 +2,55 @@ name: release
 
 on:
   push:
-    tags:
-      - 'v**'
+    tags: ['v**']
+
+permissions:
+  contents: read
+  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-publish
-  cancel-in-progress: true
+  group: sdk-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-n-publish:
+  build:
+    if: github.repository == 'modelscope/ms-agent'
+    uses: ./.github/workflows/webui-image.yaml
+
+  publish-pypi:
+    needs: build
     runs-on: ubuntu-22.04
-    #if: startsWith(github.event.ref, 'refs/tags')
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
         with:
-          python-version: '3.10'
-      - name: Install wheel
-        run: pip install wheel && pip install -r requirements.txt
-      - name: Build MS-Agent
-        run: python setup.py sdist bdist_wheel
-      - name: Publish package to PyPI
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.12.8'
+      - uses: actions/download-artifact@v4
+        with:
+          name: webui-release-inputs
+          path: release-inputs
+      - name: Check the original packages and release tag
         run: |
-          pip install twine
-          twine upload dist/* --skip-existing -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
+          (cd release-inputs && sha256sum --check SHA256SUMS)
+          python .dev_scripts/webui/check_webui_release.py --tag "$GITHUB_REF_NAME" --dist release-inputs --sdk-sha "$GITHUB_SHA"
+          uv tool install twine==6.2.0
+      - name: Publish the verified wheel and sdist
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          test -n "$TWINE_PASSWORD" || { echo 'Configure PYPI_API_TOKEN before publishing'; exit 1; }
+          python .dev_scripts/webui/publish_webui_release.py pypi --inputs release-inputs
+
+  publish-image:
+    needs: [build, publish-pypi]
+    uses: ./.github/workflows/webui-image-runner.yaml
+    with:
+      operation: publish
+      image_tag: ${{ needs.build.outputs.version }}

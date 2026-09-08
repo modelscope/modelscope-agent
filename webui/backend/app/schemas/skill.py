@@ -11,6 +11,11 @@ class Skill(BaseModel):
     enabled: bool = True
     scope: str
     created_at: datetime
+    # managed: copied into ms-agent's skills tree; legacy-path: an older
+    # skills.json reference; standard: discovered from .agents/skills; content:
+    # old sidecar-only row.  The UI uses this to describe deletion accurately.
+    origin: str = "content"
+    removable: bool = True
 
 
 class SkillCreate(BaseModel):
@@ -19,6 +24,18 @@ class SkillCreate(BaseModel):
     content: str = ""
     enabled: bool = True
     scope: str
+    # Bundle imports only. False (default) rejects a name that already exists in
+    # the scope; True replaces that skill's directory. Importing used to silently
+    # write a second `<name>-2` directory, which the registry then shadowed — the
+    # caller saw success while nothing changed and a stray copy accumulated on
+    # disk. Callers must now choose explicitly.
+    overwrite: bool = False
+
+
+class SkillPathImport(BaseModel):
+    path: str = Field(min_length=1)
+    scope: str
+    overwrite: bool = False
 
 
 class SkillUpdate(BaseModel):

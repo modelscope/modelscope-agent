@@ -86,7 +86,7 @@ MS-Agent is a lightweight framework designed to empower agents with autonomous e
   - Examples: [FinResearchExamples](https://www.modelscope.cn/models/ms-agent/fin_research_examples)
 
 * 🚀 Nov 07, 2025: Release MS-Agent v1.4.0, which includes the following updates:
-  - 🔥 We present [**MS-Agent Skills**](projects/agent_skills/README.md), an **Implementation** of [Anthropic-Agent-Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) Protocol.
+  - 🔥 We present [**MS-Agent Skills**](docs/en/Components/AgentSkills.md), an **Implementation** of [Anthropic-Agent-Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) Protocol.
   - 🔥 Add [Docs](https://ms-agent-en.readthedocs.io/en) and [中文文档](https://ms-agent.readthedocs.io/zh-cn)
   - 🔥 Support Sandbox Framework [ms-enclave](https://github.com/modelscope/ms-enclave)
 
@@ -518,44 +518,30 @@ aggregator:
 
 ### WebUI
 
-MS-Agent provides a local agent workspace built with a React Router frontend and a FastAPI backend. Chat responses are streamed with Server-Sent Events (SSE).
+MS-Agent WebUI is a browser workspace for working with agents on local projects.
+Chat with models, follow tool activity, manage skills and MCP tools, and browse
+or edit project files without leaving the interface.
 
-#### Quick Start
-
-The current launcher is intended for a source checkout. Install these tools first:
-
-- [uv](https://docs.astral.sh/uv/)
-- Node.js 22.22.0 or newer
-- pnpm 10.x (`corepack prepare pnpm@10.17.1 --activate`)
-
-From the repository root, install MS-Agent in editable mode and start the WebUI:
+Requires **Python 3.12+**, **Node.js 22.22.0+** and **pnpm 10.17.1**. Install pnpm
+with `npm install --global pnpm@10.17.1`, then start the WebUI:
 
 ```bash
-pip install -e .
+pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-On the first run, the launcher creates the backend environment and installs the locked frontend dependencies. Later starts verify those local dependencies. The browser opens at <http://127.0.0.1:7860>.
-
-Configure a model in **Settings → Models** before starting a real chat. Environment-variable bootstrap and manual development instructions are available in the [WebUI guide](webui/README.md).
-
-**Windows tip:** If the console shows garbled text, use the UTF-8 PowerShell helper:
-
-```powershell
-.\webui\scripts\start-webui.ps1
-```
-
-**Examples:**
+The browser opens at the URL printed in the terminal, usually
+**http://127.0.0.1:8000**. The first start installs frontend runtime dependencies.
+Add a provider and model in **Settings → Models**, then open a project and start
+a conversation. Press Ctrl-C to stop the service.
 
 ```bash
-# Use another public frontend port
-ms-agent ui --port 8080
-
-# Keep the browser closed
-ms-agent ui --no-browser
+ms-agent ui --port 8080    # Choose another port
+ms-agent ui --no-browser  # Do not open a browser
 ```
 
-See the [complete WebUI guide](webui/README.md) for prerequisites, configuration precedence, all launcher options, Windows notes, and troubleshooting. This minimal launcher intentionally does not provide a production SSR mode.
+For source installation, development, Docker and configuration, see the
+[WebUI guide](webui/README.md).
 
 <br>
 
@@ -597,7 +583,7 @@ OPENAI_API_KEY=xxx-xxx T2I_API_KEY=ms-xxx-xxx MANIM_TEST_API_KEY=xxx-xxx ms-agen
 
 #### References
 
-- [Complete Documentation](./docs/zh/Projects/video-generation)
+- [Complete Documentation](docs/en/Projects/VideoGeneration.md)
 
 
 <br>

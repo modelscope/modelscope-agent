@@ -2,9 +2,18 @@
 # !/usr/bin/env python
 from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py as _build_py
+from setuptools.command.sdist import sdist as _sdist
 
+import importlib.util
 import os
 import shutil
+from pathlib import Path
+
+_webui_spec = importlib.util.spec_from_file_location(
+    '_ms_agent_webui_build',
+    Path(__file__).resolve().parent / '.dev_scripts/webui/webui_packaging.py')
+webui_packaging = importlib.util.module_from_spec(_webui_spec)
+_webui_spec.loader.exec_module(webui_packaging)
 
 
 def readme():
@@ -82,7 +91,7 @@ def parse_requirements(fname='requirements.txt', with_version=True):
         with open(fpath, 'r', encoding='utf-8') as f:
             for line in f.readlines():
                 line = line.strip()
-                if line.startswith('http'):
+                if line.startswith(('http://', 'https://')):
                     print('skip http requirements %s' % line)
                     continue
                 if line and not line.startswith('#') and not line.startswith(
@@ -123,6 +132,10 @@ def parse_requirements(fname='requirements.txt', with_version=True):
 class build_py(_build_py):
 
     def run(self):
+        if getattr(self, 'editable_mode', False):
+            super().run()
+            return
+        webui_packaging.validate_release()
         super().run()
 
         # Copy the repository root's `projects/` into the build directory's `ms_agent/projects/`
@@ -136,11 +149,32 @@ class build_py(_build_py):
 
             shutil.copytree(src, dst)
 
+        webui_packaging.copy_resources(Path(self.build_lib) / 'ms_agent/webui')
 
-# The SSR WebUI is intentionally source-checkout-only. ``ms-agent ui``
-# synchronizes its independent Python and Node lockfiles at runtime; building
-# the framework package must not invoke a JavaScript package manager or copy an
-# obsolete static ``dist`` tree.
+    def get_source_files(self):
+        files = super().get_source_files()
+        files.extend('webui/' + rel
+                     for rel in webui_packaging.resource_paths()
+                     if (webui_packaging.WEBUI / rel).is_file())
+        if (webui_packaging.WEBUI / webui_packaging.MANIFEST).is_file():
+            files.append('webui/' + webui_packaging.MANIFEST)
+        return files
+
+    def get_outputs(self, include_bytecode=1):
+        files = super().get_outputs(include_bytecode=include_bytecode)
+        if not getattr(self, 'editable_mode', False):
+            files.extend(
+                str(Path(self.build_lib) / 'ms_agent/webui' / rel)
+                for rel in webui_packaging.resource_paths()
+                + [webui_packaging.MANIFEST])
+        return files
+
+
+class sdist(_sdist):
+
+    def run(self):
+        webui_packaging.validate_release()
+        super().run()
 
 
 if __name__ == '__main__':
@@ -161,12 +195,14 @@ if __name__ == '__main__':
         'requirements/retrieval.txt')
     extra_requires['cinema'], _ = parse_requirements('requirements/cinema.txt')
     extra_requires['docs'], _ = parse_requirements('requirements/docs.txt')
+    extra_requires['webui'], _ = parse_requirements('requirements/webui.txt')
 
     # ``all`` aggregates every *runtime* extra so that `pip install ms-agent[all]`
     # yields a fully-featured install. ``docs`` is build-only and intentionally
     # excluded. De-duplicated for a clean, deterministic dependency set.
     all_requires = list(install_requires)
-    for _group in ('research', 'code', 'acp', 'a2a', 'retrieval', 'cinema'):
+    for _group in ('research', 'code', 'acp', 'a2a', 'retrieval', 'cinema',
+                   'webui'):
         all_requires.extend(extra_requires[_group])
     extra_requires['all'] = sorted(set(all_requires))
 
@@ -183,7 +219,10 @@ if __name__ == '__main__':
         url='https://github.com/modelscope/ms-agent',
         packages=find_packages(exclude=('configs', 'demo')),
         include_package_data=True,
-        cmdclass={'build_py': build_py},
+        cmdclass={
+            'build_py': build_py,
+            'sdist': sdist
+        },
         package_data={
             'ms_agent': [
                 'projects/**/*',
@@ -191,6 +230,7 @@ if __name__ == '__main__':
                 # get_defaults() returns {} and cross-framework convert
                 # silently degrades to a raw file copy.
                 'agent_hub/default_configs/**/*',
+                'webui/**/*',
             ],
             '': ['*.h', '*.cpp', '*.cu'],
         },

@@ -1,8 +1,9 @@
 import { App, Button, Input, Modal, Segmented } from 'antd'
 import { useEffect, useRef, useState } from 'react'
-import { api } from '~/lib/api'
+import { api, ApiError } from '~/lib/api'
 import { collectDroppedEntries } from '~/lib/dropFiles'
 import type { DroppedFile } from '~/lib/dropFiles'
+import { useHosted } from '~/lib/hosted'
 import { useT } from '~/lib/i18n'
 import type { Scope, Skill } from '~/lib/types'
 import UploadIcon from '~/assets/icons/upload.svg?react'
@@ -22,13 +23,10 @@ type LocalPick = {
   files: DroppedFile[]
 }
 
-// The two sources are mutually exclusive and behave differently server-side:
-// uploading COPIES the files into the scope's skills tree (kind 'bundle'),
-// while a path REFERENCES a directory the backend can already read (kind
-// 'source', registered via add_source). Making the choice an explicit mode is
-// what keeps `submit` from silently dropping one of them — the old code took
-// the path whenever it was non-empty, discarding any picked files without a
-// word.
+// Both modes end as owned copies in the scope's skills tree. Upload sends the
+// browser-selected bytes; path import asks the backend to discover and copy
+// every Skill under a directory it can read. Making the choice explicit keeps
+// `submit` from silently discarding one input when both have values.
 type ImportMode = 'upload' | 'path'
 
 interface Props {
@@ -40,13 +38,9 @@ interface Props {
 
 const BUNDLE_FORMAT = 'webui.skill.bundle.v1'
 
-function sourceName(path: string): string {
-  const normalized = path.trim().replace(/\/+$/, '')
-  return normalized.split('/').filter(Boolean).pop() || normalized || 'skill'
-}
-
 function relativePath(file: File): string {
-  const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath
+  const rel = (file as File & { webkitRelativePath?: string })
+    .webkitRelativePath
   return rel || file.name
 }
 
@@ -60,6 +54,33 @@ async function bundleContent(files: DroppedFile[]): Promise<string> {
   return JSON.stringify({ format: BUNDLE_FORMAT, files: payloadFiles })
 }
 
+// A best-effort match of the server's collision rule, used ONLY to pre-warn with
+// the "exists" tag. It deliberately does NOT replicate the server's directory
+// naming (control chars, Windows reserveds, length caps): duplicating those
+// rules is what let the two sides drift apart before, flagging conflicts the
+// server allowed and missing ones it rejected. The real guard is the 409 the
+// import returns — see `submit`.
+function nameKey(value: string): string {
+  return value.trim().replace(/\s+/g, '-').toLowerCase()
+}
+
+/** The name the backend will use for this pick: SKILL.md's frontmatter `name`
+ * when present, else the folder name. Read client-side because the file
+ * contents are already being read for the bundle anyway. */
+async function resolveSkillName(pick: LocalPick): Promise<string> {
+  const md = pick.files.find(({ path }) => path.split('/').pop() === 'SKILL.md')
+  if (!md) return pick.name
+  try {
+    const text = await md.file.text()
+    // Only the leading frontmatter block counts, same as the SDK's parser.
+    const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
+    const name = fm && /^name:\s*(.+)$/m.exec(fm[1])?.[1]
+    return name ? name.trim().replace(/^['"]|['"]$/g, '') : pick.name
+  } catch {
+    return pick.name
+  }
+}
+
 export function SkillsFromLocalModal({
   open,
   scope,
@@ -67,13 +88,24 @@ export function SkillsFromLocalModal({
   onImported
 }: Props) {
   const { t } = useT()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
+  // Hosted: 'path' would ask the server to copy a directory on its own disk,
+  // which the user cannot browse and did not put there — so upload is the only
+  // mode offered. `mode` still exists (both branches below are unchanged); it
+  // simply stays on its 'upload' default because nothing can switch it.
+  const hosted = useHosted()
   const [mode, setMode] = useState<ImportMode>('upload')
   const [picks, setPicks] = useState<LocalPick[]>([])
   const [localPath, setLocalPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [dragging, setDragging] = useState(false)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
+  // Names already taken in the target scope. Loaded per open (and per scope)
+  // because the list changes as skills are imported/removed elsewhere.
+  const [takenNames, setTakenNames] = useState<Set<string>>(new Set())
+  // Resolved SKILL.md name per pick uid — async (it reads the file), so the row
+  // renders from this map rather than recomputing during render.
+  const [pickNames, setPickNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!open) return
@@ -81,7 +113,12 @@ export function SkillsFromLocalModal({
     setPicks([])
     setLocalPath('')
     setDragging(false)
-  }, [open])
+    setPickNames({})
+    api
+      .listSkills(scope)
+      .then((rows) => setTakenNames(new Set(rows.map((s) => nameKey(s.name)))))
+      .catch(() => setTakenNames(new Set()))
+  }, [open, scope])
 
   // Only the active mode's input counts, so "Import" can state up front whether
   // there is anything to import instead of quietly closing on an empty submit.
@@ -100,36 +137,125 @@ export function SkillsFromLocalModal({
     }
   }
 
+  /** Import the given picks. Returns the picks the server refused as name
+   * conflicts (409) instead of throwing on them, so the caller can offer to
+   * replace exactly those. */
+  const importPicks = async (
+    batch: LocalPick[],
+    overwrite: boolean
+  ): Promise<{ last: Skill | null; conflicted: LocalPick[] }> => {
+    let last: Skill | null = null
+    const conflicted: LocalPick[] = []
+    for (const pick of batch) {
+      try {
+        last = await api.createSkill(
+          {
+            name: pick.name,
+            kind: 'bundle',
+            content: await bundleContent(pick.files),
+            enabled: true,
+            scope,
+            overwrite
+          },
+          // Handled here as a question, not an error: `silent` keeps the global
+          // toast from firing behind the confirm dialog.
+          { silent: [409] }
+        )
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409) {
+          conflicted.push(pick)
+          continue
+        }
+        throw err
+      }
+    }
+    return { last, conflicted }
+  }
+
+  /** Ask before replacing, then retry only the picks that collided. */
+  const confirmOverwrite = (batch: LocalPick[]) => {
+    const names = batch.map((p) => pickNames[p.uid] ?? p.name).join('\u3001')
+    modal.confirm({
+      title: t.skillImport.duplicateTitle,
+      content: t.skillImport.duplicateContent.replace('{names}', names),
+      okText: t.skillImport.duplicateOk,
+      okButtonProps: { danger: true },
+      cancelText: t.resources.cancel,
+      onOk: async () => {
+        setSubmitting(true)
+        try {
+          const { last } = await importPicks(batch, true)
+          if (last) onImported(last)
+        } catch {
+          // Non-409 failures surface via the global toast (root ApiErrorBridge).
+        } finally {
+          setSubmitting(false)
+        }
+      }
+    })
+  }
+
+  const confirmPathOverwrite = () => {
+    modal.confirm({
+      title: t.skillImport.duplicateTitle,
+      content: t.skillImport.pathDuplicateContent,
+      okText: t.skillImport.duplicateOk,
+      okButtonProps: { danger: true },
+      cancelText: t.resources.cancel,
+      onOk: async () => {
+        setSubmitting(true)
+        try {
+          const rows = await api.importSkillsFromPath({
+            path: localPath.trim(),
+            scope,
+            overwrite: true
+          })
+          const last = rows.at(-1)
+          if (last) onImported(last)
+        } catch {
+          // API errors surface via the global toast.
+        } finally {
+          setSubmitting(false)
+        }
+      }
+    })
+  }
+
+  /** The server is the authority on collisions: it answers 409 and this reacts,
+   * rather than deciding from a client-side copy of its naming rules. The
+   * "exists" tag is only a pre-warning — it reads listed skill NAMES, while the
+   * server also knows about skills registered from nested/external sources, so
+   * the two can legitimately disagree. Replacement is a staged swap server-side:
+   * the existing skill survives untouched if the new bundle fails to load. */
   const submit = async () => {
     if (!ready) return
-
     setSubmitting(true)
     try {
       if (mode === 'path') {
-        onImported(
-          await api.createSkill({
-            name: sourceName(localPath.trim()),
-            kind: 'source',
-            content: localPath.trim(),
-            enabled: true,
-            scope
-          })
-        )
+        try {
+          const rows = await api.importSkillsFromPath(
+            { path: localPath.trim(), scope, overwrite: false },
+            { silent: [409] }
+          )
+          const last = rows.at(-1)
+          if (last) onImported(last)
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) {
+            confirmPathOverwrite()
+            return
+          }
+          throw err
+        }
         return
       }
       // ONE SKILL PER FOLDER. Merging the picks into a single bundle (what this
       // did before) produced one skill named after the first folder, carrying
       // every folder's files — the backend picks the first SKILL.md it finds and
       // re-roots everything on that directory, so the rest arrived mangled.
-      let last: Skill | null = null
-      for (const pick of picks) {
-        last = await api.createSkill({
-          name: pick.name,
-          kind: 'bundle',
-          content: await bundleContent(pick.files),
-          enabled: true,
-          scope
-        })
+      const { last, conflicted } = await importPicks(picks, false)
+      if (conflicted.length > 0) {
+        confirmOverwrite(conflicted)
+        return
       }
       if (last) onImported(last)
     } catch {
@@ -141,14 +267,17 @@ export function SkillsFromLocalModal({
 
   const addFolder = (name: string, files: DroppedFile[]) => {
     if (files.length === 0) return
-    setPicks((prev) => [
-      ...prev,
-      {
-        uid: `${name}-${Date.now()}-${files.length}`,
-        name,
-        files
-      }
-    ])
+    const pick: LocalPick = {
+      uid: `${name}-${Date.now()}-${files.length}`,
+      name,
+      files
+    }
+    setPicks((prev) => [...prev, pick])
+    // Resolve the real skill name in the background; the row shows the folder
+    // name until it lands, and the "exists" check re-runs when it does.
+    resolveSkillName(pick).then((resolved) =>
+      setPickNames((prev) => ({ ...prev, [pick.uid]: resolved }))
+    )
   }
 
   const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -199,15 +328,20 @@ export function SkillsFromLocalModal({
       destroyOnHidden
       width={560}
     >
-      <Segmented<ImportMode>
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: 'upload', label: t.skillImport.localModeUpload },
-          { value: 'path', label: t.skillImport.localModePath }
-        ]}
-        className="mb-2"
-      />
+      {/* Dropped entirely when hosted rather than reduced to its single
+          remaining option: a one-choice switch reads as a control that is
+          broken, not as one mode being unavailable. */}
+      {!hosted && (
+        <Segmented<ImportMode>
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'upload', label: t.skillImport.localModeUpload },
+            { value: 'path', label: t.skillImport.localModePath }
+          ]}
+          className="mb-2"
+        />
+      )}
       <p className="mb-3 text-xs text-msa-text-3">
         {mode === 'upload'
           ? t.skillImport.localUploadHint
@@ -271,6 +405,14 @@ export function SkillsFromLocalModal({
                   <span className="flex-1 truncate text-msa-text-1">
                     {pick.name}
                   </span>
+                  {/* Warns BEFORE the click that this name is taken — the import
+                      would otherwise appear to succeed while the new copy stays
+                      hidden behind the existing skill. */}
+                  {takenNames.has(nameKey(pickNames[pick.uid] ?? pick.name)) && (
+                    <span className="shrink-0 rounded bg-msa-fill-2 px-1.5 py-0.5 text-[10px] font-normal text-msa-deco-yellow">
+                      {t.skillImport.duplicateTag}
+                    </span>
+                  )}
                   <span className="shrink-0 text-msa-text-3">
                     {`${pick.files.length} ${t.skillImport.localFolderFiles}`}
                   </span>

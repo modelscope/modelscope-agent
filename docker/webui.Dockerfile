@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1
+# Context: only the verified wheel/sdist, dependency export and release.json.
+FROM node:22-bookworm-slim AS node
+
+FROM python:3.12-slim-bookworm AS base
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+# Keep bookworm security updates; releases preserve and reuse the built image.
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl git libstdc++6 tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && npm install --global pnpm@10.17.1 \
+    && npm cache clean --force \
+    && pip install --no-cache-dir uv==0.12.8
+
+FROM base AS dependencies
+WORKDIR /tmp/release
+COPY runtime-requirements.txt ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv /opt/venv \
+    && uv pip install --python /opt/venv/bin/python --require-hashes --no-deps -r runtime-requirements.txt
+COPY *.whl ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --python /opt/venv/bin/python --no-deps ./*.whl \
+    && uv pip check --python /opt/venv/bin/python
+
+FROM base AS runtime
+ARG SDK_VERSION
+ARG SDK_SHA
+ARG WHEEL_SHA256
+LABEL org.opencontainers.image.title="MS-Agent WebUI" \
+      org.opencontainers.image.source="https://github.com/modelscope/ms-agent" \
+      org.opencontainers.image.version="${SDK_VERSION}" \
+      org.opencontainers.image.revision="${SDK_SHA}" \
+      com.modelscope.ms-agent.wheel-sha256="${WHEEL_SHA256}"
+ENV PATH="/opt/venv/bin:${PATH}" \
+    NODE_ENV=production \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUTF8=1 \
+    MS_AGENT_HOME=/data \
+    MS_AGENT_WEBUI_CACHE=/opt/ms-agent-webui-cache
+COPY --from=dependencies /opt/venv /opt/venv
+COPY release.json /opt/ms-agent-release/release.json
+# Create the persistent data directory and the preloaded WebUI dependency cache.
+RUN mkdir -p /data /opt/ms-agent-webui-cache
+WORKDIR /app
+# This uses the installed wheel and the final runtime's Node version. No source
+# checkout or frontend compilation is performed inside the image.
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    ms-agent ui --prepare-only --no-browser
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD ["curl", "--noproxy", "*", "--fail", "--silent", "http://127.0.0.1:8000/api/health"]
+ENTRYPOINT ["tini", "--", "ms-agent", "ui"]
+CMD ["--host", "0.0.0.0", "--port", "8000", "--backend-port", "8001", "--no-browser", "--skip-install"]

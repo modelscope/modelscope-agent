@@ -23,6 +23,7 @@ export default [
     index('routes/settings/index.tsx'),
     route('models', 'routes/settings/models.tsx'),
     route('mcp-skills', 'routes/settings/mcp-skills.tsx'),
+    route('search', 'routes/settings/search.tsx'),
     route('personalization', 'routes/settings/personalization.tsx'),
     route('appearance', 'routes/settings/appearance.tsx')
   ]),

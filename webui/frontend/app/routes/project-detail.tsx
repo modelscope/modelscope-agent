@@ -17,10 +17,15 @@ export function meta({ loaderData, matches }: Route.MetaArgs) {
 
 export async function loader({ params }: Route.LoaderArgs) {
   const projectId = params.projectId as string
+  // Both calls go through `orThrow`. A raw ApiError does not survive the SSR
+  // boundary: React Router serializes it to the client as a plain Error, so the
+  // error page rendered the real status on the server and "Error" after
+  // hydration — a text mismatch that threw the whole tree away. A thrown
+  // Response carries its status across intact.
   const [project, sessions] = await Promise.all([
     // An unknown id must surface as a 404 page, not "unexpected error".
     orThrow(api.getProject(projectId)),
-    api.listSessions(projectId)
+    orThrow(api.listSessions(projectId))
   ])
   return { project, sessions }
 }

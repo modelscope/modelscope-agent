@@ -81,7 +81,7 @@ MS-Agent是一个轻量级框架，旨在为智能体提供自主探索能力。
   - 报告样例: [FinResearchExamples](https://www.modelscope.cn/models/ms-agent/fin_research_examples)
 
 * 🚀 2025.11.07：发布MS-Agent v1.4.0，包含以下更新：
-  - 🔥 新增 [**MS-Agent Skills**](projects/agent_skills/README.md), 基于 [**Anthropic-Agent-Skills**](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) 协议实现.
+  - 🔥 新增 [**MS-Agent Skills**](docs/zh/Components/agent-skills.md), 基于 [**Anthropic-Agent-Skills**](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) 协议实现.
   - 🔥 新增 [中文文档](https://ms-agent.readthedocs.io/zh-cn)和[英文文档](https://ms-agent-en.readthedocs.io/en)
   - 🔥 支持沙箱框架 [ms-enclave](https://github.com/modelscope/ms-enclave)
 
@@ -551,7 +551,7 @@ OPENAI_API_KEY=xxx-xxx T2I_API_KEY=ms-xxx-xxx MANIM_TEST_API_KEY=xxx-xxx ms-agen
 
 #### 3) 参考文档
 
-- [完整文档](./docs/zh/Projects/video-generation)
+- [完整文档](docs/zh/Projects/video-generation.md)
 
 <br>
 
@@ -559,44 +559,23 @@ OPENAI_API_KEY=xxx-xxx T2I_API_KEY=ms-xxx-xxx MANIM_TEST_API_KEY=xxx-xxx ms-agen
 
 ### WebUI
 
-MS-Agent 提供了一个本地智能体工作台，由 React Router 前端和 FastAPI 后端组成，对话通过 Server-Sent Events（SSE）实时返回。
+MS-Agent WebUI 是面向本地项目的智能体工作台。你可以在浏览器中与模型对话、查看工具执行过程、配置技能和 MCP 工具，并直接浏览或编辑项目文件。
 
-#### 快速开始
-
-当前启动器面向源码仓库使用。请先安装：
-
-- [uv](https://docs.astral.sh/uv/)
-- Node.js 22.22.0 或更高版本
-- pnpm 10.x（执行 `corepack prepare pnpm@10.17.1 --activate`）
-
-在仓库根目录以 editable 模式安装 MS-Agent，然后启动 WebUI：
+需要 **Python 3.12+**、**Node.js 22.22.0+** 和 **pnpm 10.17.1**。先用 `npm install --global pnpm@10.17.1` 安装 pnpm，再启动 WebUI：
 
 ```bash
-pip install -e .
+pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-第一次运行时，启动器会创建后端环境并安装前端锁定依赖；后续启动会校验这些本地依赖。浏览器默认打开 <http://127.0.0.1:7860>。
-
-进行真实对话前，请先在 **设置 → 模型设置** 中配置模型。环境变量初始化和手动开发方式见 [WebUI 完整指南](webui/README_ZH.md)。
-
-**Windows 提示：** 若控制台出现乱码，建议使用 UTF-8 PowerShell 启动脚本：
-
-```powershell
-.\webui\scripts\start-webui.ps1
-```
-
-**示例**
+浏览器会打开终端显示的地址，通常是 **http://127.0.0.1:8000**。首次启动会安装前端运行依赖。在 **设置 → 模型设置** 添加服务商和模型后，即可打开项目、创建会话并开始使用。按 Ctrl-C 停止服务。
 
 ```bash
-# 修改公开前端端口
-ms-agent ui --port 8080
-
-# 不自动打开浏览器
-ms-agent ui --no-browser
+ms-agent ui --port 8080    # 指定访问端口
+ms-agent ui --no-browser  # 不自动打开浏览器
 ```
 
-依赖、配置优先级、完整参数、Windows 注意事项和排障方式请阅读 [WebUI 完整指南](webui/README_ZH.md)。这个最简启动器有意不提供生产环境 SSR 模式。
+源码安装、开发、Docker 和配置说明见 [WebUI 完整指南](webui/README_ZH.md)。
 
 ---
 

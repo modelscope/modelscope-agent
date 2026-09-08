@@ -2,7 +2,9 @@ import { Button, Popconfirm, Select, Tooltip } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { AddProviderModal } from '~/components/models/AddProviderModal'
 import { ModelEditModal } from '~/components/models/ModelEditModal'
+import { ProviderTags } from '~/components/models/ProviderTags'
 import { EmptyState } from '~/components/common/EmptyState'
+import { KeyStatusTag } from '~/components/common/KeyStatus'
 import { DeferredSkeleton } from '~/components/common/DeferredSkeleton'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
@@ -42,13 +44,23 @@ export default function ModelsSettings() {
       api.listProviders(),
       api.listModels(),
       api.getAgentSettings()
-    ]).then(([ps, ms, s]) => {
-      setProviders(ps)
-      setModels(ms)
-      setSettings(s)
-      // Default-select the first provider when nothing is selected.
-      setActiveProviderId((prev) => prev ?? ps[0]?.id ?? null)
-    })
+    ])
+      .then(([ps, ms, s]) => {
+        setProviders(ps)
+        setModels(ms)
+        setSettings(s)
+        // Default-select the first provider when nothing is selected.
+        setActiveProviderId((prev) => prev ?? ps[0]?.id ?? null)
+      })
+      // `null` gates the skeletons on this page, so a failure has to settle the
+      // lists to `[]` or they stay skeletons for good. `Promise.all` means any
+      // one of the three failing takes the other two down with it — the page
+      // then reads as empty rather than broken, which the toast has to explain.
+      // `settings` stays `null`: every read of it is optional-chained.
+      .catch(() => {
+        setProviders([])
+        setModels([])
+      })
 
   useEffect(() => {
     refresh()
@@ -128,6 +140,21 @@ export default function ModelsSettings() {
                 label: p.name,
                 disabled: !p.enabled
               }))}
+              // The closed box shows the name alone; the tags (built-in pill,
+              // key glyph) ride the dropdown OPTIONS, where the user is choosing
+              // and the "is this ready to use" signal actually helps. Looked up
+              // by id because the option only carries value + label. The name
+              // span does NOT grow (no flex-1) so the tags hug the text; it only
+              // shrinks + truncates when the name is too long to fit.
+              optionRender={(option) => {
+                const p = (providers ?? []).find((x) => x.id === option.value)
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 truncate">{option.label}</span>
+                    {p && <ProviderTags provider={p} />}
+                  </div>
+                )
+              }}
               className="w-full"
               placeholder="—"
             />
@@ -164,9 +191,25 @@ export default function ModelsSettings() {
             (with "add provider" still available below) and one in the detail
             pane — never a lone full-area empty state. */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-msa-line-1 md:flex-row">
-          {/* Left: providers list */}
-          <aside className="flex max-h-[240px] w-full shrink-0 flex-col border-b border-msa-line-1 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
-            <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+          {/* Left: providers list.
+              Stacked below `md`, where the shell is capped to the viewport and
+              every pixel this pane takes is one the models list below it loses.
+              192px leaves the rows a ~2.5-row window (44px each): the half row
+              peeking at the bottom is what says "scrolls", and picking a provider
+              is a short list you visit once, while picking a model is the reason
+              you came. Uncapped from `md` up, where the two panes sit side by side
+              and the height is no longer shared. */}
+          <aside className="flex max-h-[192px] w-full shrink-0 flex-col border-b border-msa-line-1 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
+            {/* stable both-edges: the styled scrollbar reserves a gutter on the
+                right only, which would leave the selected-row highlight with a
+                wider gap on the right than the left. Mirroring the gutter on
+                both edges keeps the row insets symmetric. Horizontal padding is
+                dropped from p-3 to px-1 to offset the ~8px gutter, so the total
+                inset stays ~12px — the same as the original p-3. */}
+            <div
+              className="flex flex-1 flex-col gap-1 overflow-y-auto px-1 py-3"
+              style={{ scrollbarGutter: 'stable both-edges' }}
+            >
               {providers === null ? (
                 <DeferredSkeleton rows={8} className="px-1 py-2" />
               ) : providers.length === 0 ? (
@@ -180,6 +223,10 @@ export default function ModelsSettings() {
                   <button
                     key={p.id}
                     type="button"
+                    // Long display names truncate visually; the tooltip surfaces
+                    // the full text on hover so a clipped label never becomes a
+                    // guess. Same pattern as the ModelSelector row.
+                    title={p.name}
                     onClick={() => setActiveProviderId(p.id)}
                     className={`flex w-full cursor-pointer items-center gap-2 rounded-[10px] border-0 px-3.5 py-3 text-left text-sm font-medium transition-all ${
                       activeProviderId === p.id
@@ -187,12 +234,8 @@ export default function ModelsSettings() {
                         : 'bg-transparent text-msa-text-1 hover:bg-msa-fill-2'
                     }`}
                   >
-                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                    {p.kind === 'builtin' && (
-                      <span className="shrink-0 rounded bg-msa-purple-6/8 px-2 py-0.5 text-xs text-msa-purple-6">
-                        {t.modelsAdmin.builtinBadge}
-                      </span>
-                    )}
+                    <span className="min-w-0 truncate">{p.name}</span>
+                    <ProviderTags provider={p} />
                   </button>
                 ))
               )}
@@ -206,8 +249,11 @@ export default function ModelsSettings() {
             </div>
           </aside>
 
-          {/* Right: provider detail + models */}
-          <div className="min-w-0 flex-1 overflow-y-auto px-7 py-6">
+          {/* Right: provider detail + models.
+              Tighter gutters below `md`: at phone widths `px-7` cost 56px of a
+              ~340px pane, which pushed the Base URL and protocol lines into two
+              rows each and shrank the models list by roughly a card and a half. */}
+          <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 md:px-7 md:py-6">
             {activeProvider ? (
               <ProviderDetail
                 provider={activeProvider}
@@ -292,12 +338,19 @@ function ProviderDetail({
   onDeleteModel: (m: Model) => void
 }) {
   const { t } = useT()
+  // Masked, not plaintext: its emptiness is all the API reveals about the key.
+  const hasKey = !!provider.api_key_masked
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
       {/* Provider header */}
       <div className="mb-3 flex items-center gap-3">
-        <div className="min-w-0 flex-1 truncate text-lg font-semibold text-msa-text-1">
+        <div
+          className="min-w-0 flex-1 truncate text-lg font-semibold text-msa-text-1"
+          // Same tooltip pattern as the left rail: a truncated title without a
+          // tooltip forces users to click into edit to read the full name.
+          title={provider.name}
+        >
           {provider.name}
         </div>
         <Button
@@ -335,6 +388,18 @@ function ProviderDetail({
             ? t.modelsAdmin.protocolOpenAI
             : t.modelsAdmin.protocolAnthropic}
         </div>
+        {/* The stored key is never sent back to the client, so without this the
+            only way to tell whether one is on file was to open the edit modal.
+            Same tag and wording as that modal's field label — it reports the
+            same fact, so it should not read as a second, different signal. */}
+        <div className="flex items-center gap-1 text-[13px] leading-5 text-msa-text-3">
+          {t.modelsAdmin.apiKey}：
+          <KeyStatusTag set={hasKey}>
+            {hasKey
+              ? t.modelsAdmin.apiKeyConfigured
+              : t.modelsAdmin.apiKeyMissing}
+          </KeyStatusTag>
+        </div>
       </div>
 
       {/* Models section */}
@@ -352,10 +417,18 @@ function ProviderDetail({
               className="flex items-center gap-3 rounded-[10px] bg-msa-fill-1 px-4 py-3.5"
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium leading-5 text-msa-text-1">
+                <div
+                  className="truncate text-sm font-medium leading-5 text-msa-text-1"
+                  // Both lines can be long: display_name up to 160 chars, the
+                  // model id itself often longer than the row can hold.
+                  title={m.display_name || m.name}
+                >
                   {m.display_name || m.name}
                 </div>
-                <div className="mt-0.5 truncate text-xs leading-[18px] text-msa-text-3">
+                <div
+                  className="mt-0.5 truncate text-xs leading-[18px] text-msa-text-3"
+                  title={m.name}
+                >
                   {m.name}
                 </div>
               </div>

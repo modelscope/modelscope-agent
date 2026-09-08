@@ -12,6 +12,7 @@ import os
 import re
 import time
 from collections.abc import AsyncIterator
+from mimetypes import guess_type
 
 from app.backends.ms_agent.common import (
     _is_cheap_title,
@@ -64,30 +65,130 @@ def _content_parts(msg) -> tuple[str, list[str]]:
     return text, ids
 
 
-def _compose_prompt(msg) -> str:
-    """Build the prompt enqueued to the agent for one user turn.
+# Image media types every provider on our roster accepts once GIF is
+# transcoded (the SDK does that). Decided on the SERVER from the real file name,
+# never from the client's `type` field: that arrives over HTTP and history
+# replay carries only paths anyway.
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
-    When the user attached files, append a plainly-delimited block listing each
-    file's workspace-relative path (``user_files/<name>``). The agent's file
-    tools are scoped to the project workspace, so these paths resolve to the
-    real uploaded bytes on disk. The block is part of the enqueued prompt, so it
-    persists into the SessionLog user message — that record is the durable
-    session↔files mapping (and replays as text in history).
+
+def _image_media_type(path: str) -> str | None:
+    """``image/*`` for a path we can send as an image, else None."""
+    ext = os.path.splitext(path)[1].lower()
+    if ext not in _IMAGE_EXTS:
+        return None
+    ctype = guess_type(path)[0] or ""
+    if ctype.startswith("image/"):
+        return ctype
+    return "image/jpeg" if ext in (".jpg", ".jpeg") else f"image/{ext[1:]}"
+
+
+def _remember_session_model(session_id: str) -> None:
+    """Record the active model on the session. Best-effort."""
+    model_id = _active_model_id()
+    if not model_id:
+        return
+    try:
+        sidecar.merge("sessions", session_id, {"model_id": model_id})
+    except Exception:  # noqa: BLE001 — bookkeeping must not fail a turn
+        logger.debug("session model persist failed", exc_info=True)
+
+
+def _active_model_id() -> str:
+    """Encoded id of the model this turn is running on.
+
+    Carried on a degraded-image notice so the UI can offer "try again" without
+    the user having to work out which model it is about. Best-effort: a notice
+    without it is still readable, and failing to read the settings file must
+    never break a chat stream.
+    """
+    try:
+        from app.backends.ms_agent.mapping import encode_model_id
+        from app.backends.ms_agent.model_link import active_model
+
+        provider, model = active_model()
+        return encode_model_id(provider, model) if provider and model else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _compose_turn(msg) -> tuple[str, list[dict]]:
+    """``(prompt, attachments)`` for one user turn.
+
+    Images and ordinary files diverge here, because only one of them the model
+    can actually perceive:
+
+    * **images** become ``attachments`` — image references the SDK expands into
+      provider-native image blocks at the wire. Each gets an ``Image N: <file>``
+      label, which is what lets a follow-up say "the second image" (and is
+      Anthropic's own documented recommendation for multi-image turns);
+    * **ordinary files** keep the previous behaviour exactly: a path listed in
+      the prompt for the file tools to read.
+
+    Both kinds still appear in the ``[Attached files]`` text block. That block is
+    the durable session↔files mapping history replay reconstructs cards from, so
+    dropping images out of it would make them vanish from reloaded history.
+
+    **What this function must NOT say.** It runs when the request arrives, before
+    anything has decided whether the images will actually be sent — the switch,
+    the endpoint and the encoder are all downstream of here. It used to append
+
+        (Image 1: a.png are shown to you directly above as images
+         — no need to read those with file tools.)
+
+    and that sentence was written verbatim into the session log, so it outlived
+    every model switch and every toggle. A turn whose images never left the
+    building still carried a permanent claim that they had, plus an instruction
+    not to reach for the file tools either. Measured consequence: asked to "read
+    it with a tool", the model refused, citing an ability it had been told it did
+    not need. The claim about visibility now comes from the layer that knows —
+    the transport, per request, per image — and nothing durable asserts it.
+
+    Attachment order is the order the composer sent, which is the order the chips
+    appear in.
     """
     if msg is None:
-        return ""
+        return "", []
     text, _ = _content_parts(msg)
     files = getattr(msg, "files", None) or []
     if not files:
-        return text
-    lines = [
-        "[Attached files] (paths are relative to the project workspace root; "
-        "use the file tools to read them):"
-    ]
+        return text, []
+
+    attachments: list[dict] = []
+    lines: list[str] = []
     for f in files:
+        # A ``- <path>`` line must stay EXACTLY that: `_split_attached` reads
+        # these back on replay by taking everything after "- ", so an inline
+        # annotation would become part of the path — and a filename may legally
+        # contain " (" ("screenshot (1).png"), so there is no safe way to trim
+        # one off again. Per-image notes therefore go on their own trailing
+        # line, which the parser ignores.
         lines.append(f"- {f.path}")
-    block = "\n".join(lines)
-    return f"{text}\n\n{block}" if text else block
+        media_type = _image_media_type(f.path)
+        if media_type:
+            attachments.append({
+                "type": "image",
+                "path": f.path,
+                "media_type": media_type,
+                # Advisory only: the transport renumbers across the whole
+                # request, because per-turn numbering gave two different
+                # pictures the same name in a two-turn conversation.
+                "label": f"{f.name or os.path.basename(f.path)}",
+            })
+
+    # Neutral: it lists what is attached and says nothing about what any of it
+    # will look like to the model. "use the file tools to read them" was part of
+    # the same over-claim — true for a PDF, a dead end for an image whose
+    # contents cannot enter the conversation at all.
+    header = "[Attached files] (paths are relative to the project workspace root):"
+    block = "\n".join([header, *lines])
+    prompt = f"{text}\n\n{block}" if text else block
+    return prompt, attachments
+
+
+def _compose_prompt(msg) -> str:
+    """Prompt text only. Kept for callers/tests that do not need attachments."""
+    return _compose_turn(msg)[0]
 
 
 def _touch_session(project, session_id: str) -> None:
@@ -139,16 +240,32 @@ def _turn_frame(rt) -> dict:
     it is the same clock for the original stream and for a later re-attach — a
     client that joins (or reloads) mid-turn learns the real elapsed time
     instead of restarting its counter from zero.
+
+    It also carries the turn's own user message (`meta.user`) while one is
+    known. A viewer that joins mid-turn cannot get that row from history: the
+    SDK appends it only when the driver picks the prompt up. See
+    SessionRuntime.turn_user.
     """
     origin = getattr(rt, "turn_started_at", None)
     elapsed = int((time.monotonic() - origin) * 1000) if origin else 0
-    return _delta(ChatChunk(type="turn", meta={"elapsed_ms": elapsed}))
+    meta: dict = {"elapsed_ms": elapsed}
+    user = getattr(rt, "turn_user", None)
+    if user:
+        meta["user"] = user
+    return _delta(ChatChunk(type="turn", meta=meta))
 
 
 # Re-send the turn age at most this often (seconds) while frames flow, so the
 # client's ticking counter is re-based against the server clock (second-level
 # drift correction) without flooding the stream.
 _TURN_SYNC_INTERVAL = 5.0
+
+# How long `attach` waits for an accepted turn's runtime to become observable
+# (cold build: resolve MCP, spawn servers, build the agent — measured at ~6s,
+# and a queued turn also waits out the one before it). Past it the viewer falls
+# back to history instead of holding an SSE open indefinitely.
+_ATTACH_START_WAIT_S = 90.0
+_ATTACH_POLL_S = 0.05
 
 
 # Plan (todo) status -> frontend task status (agentProvider.ts TaskStatus).
@@ -357,10 +474,11 @@ def _inline_auth_meta(meta: dict, tool: str, args: dict) -> dict:
 class _TurnMapper:
     """Assemble the frontend's ordered-parts view-model (agentProvider.ts) from
     the SDK's flat semantic event stream. Stateful per turn: streams reasoning as
-    incremental `thought` frames (a final frame carries meta.duration to close the
-    block). Tool calls emit standalone `step` frames in stream order; a todo plan
-    (plan_updated) emits `task` frames rendered as a plain plan list — steps are
-    no longer nested under tasks."""
+    incremental `thought` frames carrying the id of the block they belong to
+    (`meta.block`) and how old it is (`meta.elapsed_ms`); a final frame adds
+    `meta.duration` to close that block. Tool calls emit standalone `step` frames
+    in stream order; a todo plan (plan_updated) emits `task` frames rendered as a
+    plain plan list — steps are no longer nested under tasks."""
 
     def __init__(self, session_id: str = "", resolved_permissions: list[dict] | None = None) -> None:
         self._session_id = session_id
@@ -368,6 +486,14 @@ class _TurnMapper:
         # {tool_name, arguments, state}. Consumed in order (FIFO per tool_name).
         self._resolved_perms: list[dict] = list(resolved_permissions or [])
         self._reason_start: float | None = None
+        # Reasoning blocks are identified like tool calls are by call_id: every
+        # `thought` frame carries its block, so the frontend never has to guess
+        # from "whatever part sits at the tail".
+        self._reason_seq = 0
+        self._reason_block: int | None = None
+        # When this block's age was last stamped (at most once a second — every
+        # delta would add bytes to thousands of frames).
+        self._reason_synced: float | None = None
         # call_id -> (name, args, group). A tool step is deferred to
         # tool_call_completed (where ok/error is known), but the args + round
         # group live on tool_call_started.
@@ -378,6 +504,11 @@ class _TurnMapper:
         # empty" marks the array's first element — no boundary inference
         # (content/reasoning heuristics) needed.
         self._group_seq = 0
+        # Per-image outcome for this turn, in the order the transport reported
+        # it. Persisted alongside the turn so a reloaded conversation can still
+        # show which pictures the model actually received — the one fact the
+        # user needs to tell a configuration problem from a hallucination.
+        self._deliveries: list[dict] = []
         # True once a todo_write / todo_render_md completed this turn: the
         # session plan files changed, so the loop's changed-files summary
         # includes the reserved "plan.md" marker (todo steps themselves emit
@@ -392,6 +523,22 @@ class _TurnMapper:
         # canonical plan.md todo_write maintains is preferred (see _plan_md_path).
         self.latest_plan_md_report: str | None = None
 
+    #: Events that prove reasoning is over: the open block is closed (with its
+    #: real elapsed time) BEFORE their frames go out, so a close always sits
+    #: right after its own deltas even though the SDK reports `reasoning_ended`
+    #: only once the whole response has drained. `image_delivered` is absent on
+    #: purpose — it lands mid-reasoning and would cut one thought in two.
+    _SEALS_THOUGHT = frozenset({
+        "content_delta",
+        "plan_updated",
+        "tool_call_composing",
+        "tool_call_started",
+        "tool_call_completed",
+        "permission_request",
+        "permission_resolved",
+        "error",
+    })
+
     def map(self, payload: dict) -> list[ChatChunk]:
         """Translate one AgentEvent dict into zero or more ChatChunks."""
         t = payload.get("type")
@@ -400,22 +547,77 @@ class _TurnMapper:
         # ORIGINAL events, not the replay instants.
         ts = payload.get("_ts")
         now = ts if isinstance(ts, (int, float)) else time.monotonic()
+        chunks = self._map(payload, t, now)
+        if t in self._SEALS_THOUGHT:
+            return self._close_thought(now) + chunks
+        return chunks
+
+    def _map(self, payload: dict, t: str | None, now: float) -> list[ChatChunk]:
         if t == "content_delta":
             return [ChatChunk(type="text", content=payload.get("text", ""))]
         if t == "reasoning_started":
-            self._reason_start = now
-            return []
+            # A block can still be open: a retried request (the SDK retries
+            # `step`) starts a new one without the abandoned one ever ending.
+            closed = self._close_thought(now)
+            self._open_thought(now)
+            return closed
         if t == "reasoning_delta":
-            # Stream reasoning incrementally; the frontend appends to the open
-            # thought block. Start the clock lazily if we missed the start event.
+            # Stream reasoning incrementally; the frontend appends to the block
+            # named by `meta.block`. Start the clock lazily if we never saw the
+            # start event.
             if self._reason_start is None:
-                self._reason_start = now
+                self._open_thought(now)
             text = payload.get("text", "")
-            return [ChatChunk(type="thought", content=text)] if text else []
+            return [
+                ChatChunk(type="thought", content=text,
+                          meta=self._thought_meta(now))
+            ] if text else []
         if t == "reasoning_ended":
             return self._close_thought(now)
         if t == "plan_updated":
             return self._tasks(payload.get("entries", []))
+        if t == "tool_call_composing":
+            # The model is still WRITING the call; nothing runs yet. Emitted so
+            # the turn does not go visually silent while a large tool call is
+            # transmitted — every byte of a written file travels inside the
+            # arguments, which made a five-file round look frozen for over a
+            # minute. Rendered as a placeholder card that `tool_call_started`
+            # then replaces.
+            return [ChatChunk(type="step", meta={
+                "kind": "tool_composing",
+                "status": "composing",
+                "tool": payload.get("name", "") or "",
+                "index": int(payload.get("index") or 0),
+                "arguments_len": int(payload.get("arguments_len") or 0),
+            })]
+        if t == "image_delivered":
+            # What actually happened to one attached image on this request.
+            # Until this existed the fact was knowable only inside the transport
+            # and was reported to the user only by the model, in prose it made
+            # up — so "I can't see the image" could mean the switch was off, the
+            # endpoint had refused, or the model was confabulating, and nothing
+            # distinguished them. `reason` is a machine code; the sentence is
+            # the frontend's, so it stays accurate and stays ours.
+            state = str(payload.get("state") or "")
+            reason = str(payload.get("reason") or "")
+            self._deliveries.append({
+                "index": int(payload.get("index") or 0),
+                "path": str(payload.get("path") or ""),
+                "filename": str(payload.get("filename") or ""),
+                "state": state,
+                "reason": reason,
+            })
+            return [ChatChunk(type="step", meta={
+                "kind": "image_delivery",
+                "state": state,
+                "reason": reason,
+                "index": int(payload.get("index") or 0),
+                "path": str(payload.get("path") or ""),
+                "filename": str(payload.get("filename") or ""),
+                # Which model this is about, so the notice can offer to retry or
+                # switch without the user having to work it out.
+                "model": _active_model_id() if state == "degraded" else "",
+            })]
         if t == "tool_call_started":
             # Stash name+args+group by call_id — the completed event lacks
             # arguments. The SDK flushes one round's WHOLE tool_calls array as
@@ -540,6 +742,7 @@ class _TurnMapper:
         # Check if this permission was already resolved (attach replay). Prefer
         # an exact call_id match, else fall back to tool_name FIFO (old buffers).
         state = "pending"
+        reason = ""
         idx = next(
             (i for i, r in enumerate(self._resolved_perms)
              if call_id and str(r.get("call_id") or "") == call_id),
@@ -552,7 +755,11 @@ class _TurnMapper:
                 None,
             )
         if idx is not None:
-            state = self._resolved_perms.pop(idx).get("state", "pending")
+            rec = self._resolved_perms.pop(idx)
+            state = rec.get("state", "pending")
+            # Carried over too, so a replayed card still says the ask EXPIRED
+            # rather than reporting a refusal the user never made.
+            reason = str(rec.get("reason") or "")
         # The ask belongs to its tool's round — share that group id so the
         # auth card renders inside the same nested accordion.
         pend = self._pending.get(call_id)
@@ -569,6 +776,8 @@ class _TurnMapper:
             "group": group,
             "source": _tool_source(tool),
         }
+        if reason:
+            meta["reason"] = reason
         return [ChatChunk(type="step", meta=_inline_auth_meta(meta, tool, args))]
 
     def _permission_resolved_step(self, payload: dict) -> list[ChatChunk]:
@@ -581,6 +790,9 @@ class _TurnMapper:
         Deliberately carries no ``request_id``: the decision is final, so the card
         must render its rejected state rather than live buttons. Shares the ask's
         ``call_id`` and ``group`` so the frontend replaces that card in place.
+
+        ``reason`` (``"timeout"``) distinguishes the two: an expired ask says so,
+        since "rejected" on its own reads as a decision somebody took.
         """
         tool = str(payload.get("tool_name") or "")
         call_id = str(payload.get("call_id") or "")
@@ -601,6 +813,9 @@ class _TurnMapper:
             "group": group,
             "source": _tool_source(tool),
         }
+        reason = str(payload.get("reason") or "")
+        if reason:
+            meta["reason"] = reason
         return [ChatChunk(type="step", meta=_inline_auth_meta(meta, tool, args))]
 
     def flush(self) -> list[ChatChunk]:
@@ -622,15 +837,40 @@ class _TurnMapper:
         self._pending.clear()
         return chunks
 
+    def _open_thought(self, start: float) -> None:
+        """Begin a reasoning block: new id, new clock."""
+        self._reason_seq += 1
+        self._reason_block = self._reason_seq
+        self._reason_start = start
+        self._reason_synced = None
+
+    def _thought_meta(self, now: float) -> dict:
+        """Which block this delta belongs to, plus (≤ once a second) its age, so
+        a client that joins or reloads mid-block keeps counting from the server's
+        clock instead of from zero — same trick as `_turn_frame`, one level down."""
+        meta: dict = {"block": self._reason_block}
+        start = self._reason_start
+        if start is not None and (self._reason_synced is None
+                                  or now - self._reason_synced >= 1.0):
+            self._reason_synced = now
+            meta["elapsed_ms"] = max(0, int((now - start) * 1000))
+        return meta
+
     def _close_thought(self, end: float) -> list[ChatChunk]:
-        """Emit a zero-width `thought` frame carrying the elapsed duration, which
-        finalizes the current thought block on the frontend. No-op if no reasoning
-        was in flight."""
+        """Emit a zero-width `thought` frame carrying the block's elapsed time,
+        which finalizes it on the frontend. No-op when no reasoning is in flight,
+        so it is safe to call ahead of every non-reasoning frame."""
         start, self._reason_start = self._reason_start, None
+        block, self._reason_block = self._reason_block, None
+        self._reason_synced = None
         if start is None:
             return []
-        return [ChatChunk(type="thought", content="",
-                          meta={"duration": max(0, round(end - start))})]
+        elapsed = max(0.0, end - start)
+        return [ChatChunk(type="thought", content="", meta={
+            "block": block,
+            "duration": round(elapsed),
+            "elapsed_ms": int(elapsed * 1000),
+        })]
 
     def _tasks(self, entries: list) -> list[ChatChunk]:
         # Re-send the whole plan on every update, one `task` chunk per row with
@@ -780,6 +1020,29 @@ async def _drain_abandoned_turn(rt, pos: int, session_id: str) -> None:
             payload, pos = await rt.sink.next_event(pos)
             if payload.get("type") in (TURN_END, DRIVER_DONE, DRIVER_ERROR):
                 break
+        # Nothing on screen will ever announce this answer: the spinner vanishes
+        # with the turn and the row goes back to looking untouched, so the user
+        # has no way to learn it is ready. Flag it for the sidebar dot until the
+        # session is opened. DRIVER_ERROR counts as well — a turn that died
+        # unattended is precisely what must not be swallowed silently.
+        #
+        # This is the ONLY turn-end path that flags: the live stream reaching
+        # TURN_END means someone watched it, and the explicit-stop path
+        # (_seal_interrupted_turn) means the user ended it themselves. Hence the
+        # flag lives here rather than inside _persist_loop_end_from_log, which
+        # both of those share. `watchers` catches the remaining case — the user
+        # left, then re-attached (POST /api/chat/attach) and saw it finish.
+        #
+        # FIRST, before the loop-end persist below: the flag has to be in place
+        # by the time the session stops counting as running, because the frontend
+        # only refreshes its lists when the running set CHANGES. A presence poll
+        # landing after `is_running` went false but before this write would paint
+        # the row idle-and-read, and the next poll — seeing no change — would not
+        # revalidate, so the dot would never appear at all. `is_running` also
+        # tracks the driver task, which can finish a beat before this coroutine
+        # is scheduled, so the window is real; this keeps it to one write.
+        if session_id and rt.watchers <= 0:
+            sidecar.merge("sessions", session_id, {"unread": True})
         # No live viewer will write the loop_end marker for this turn, so do it
         # here: duration from the shared runtime turn origin, changed files
         # derived from the session log (scoped to this turn).
@@ -907,8 +1170,25 @@ async def _acquire_live_runtime(project, session):
         except asyncio.TimeoutError:
             await registry.close(session.id)  # drop the wedged runtime; rebuild next loop
             continue
-        if not rt.run_task.done():
+        # Re-validate AFTER the wait: this request may have queued behind a turn
+        # that was still running when a config change (or a memory rebuild)
+        # superseded the runtime. `registry.get` cannot rebuild a busy runtime,
+        # so a request that got here before the turn ended would otherwise run
+        # on the stale agent — with the old config, or with a memory instance
+        # that has since been retired.
+        # "Replaced" means ANOTHER object took this session's slot. An absent
+        # mapping is not that (a runtime handed out by something other than the
+        # registry, e.g. in tests) and must not spin this loop forever.
+        mapped = registry.peek_exact(session.id)
+        replaced = mapped is not None and mapped is not rt
+        flagged = bool(getattr(rt, "needs_rebuild", False))
+        if not rt.run_task.done() and not flagged and not replaced:
             return rt
+        if flagged and not replaced:
+            # Retire it while we still hold the turn lock: releasing first would
+            # let another queued request take the lock and keep the stale
+            # runtime alive (registry.get refuses to rebuild a busy one).
+            await registry.close(session.id)
         rt.turn_lock.release()
 
 
@@ -950,13 +1230,37 @@ def _sync_runtime_skills(rt, project) -> None:
     skill_runtime = getattr(agent, "_skill_runtime", None) if agent else None
     if skill_runtime is None:
         return  # driver not through prepare_skills yet — it reads fresh config
-    try:
-        from ms_agent.tui.managed_config import merge_skills_into_config
+    from ms_agent.tui.managed_config import merge_skills_into_config
 
+    try:
         merge_skills_into_config(agent.config, home(), project.path)
-        skill_runtime.sync_with_config(agent.config.skills)
     except Exception:
-        logger.debug("turn-boundary skill sync failed", exc_info=True)
+        logger.debug("turn-boundary skill config merge failed", exc_info=True)
+        return
+    try:
+        from app.backends.ms_agent.skill_index import skill_index
+
+        snapshot = skill_index.runtime_snapshot(
+            project.id,
+            project.path,
+            agent.config.skills,
+        )
+        previous = getattr(agent, "_webui_skill_sync_token", None)
+        force = not snapshot.trusted or previous != snapshot.token
+        skill_runtime.sync_with_config(agent.config.skills, force=force)
+        agent._webui_skill_sync_token = snapshot.token
+    except Exception:
+        # The tracker/index is an optimization, never a correctness
+        # dependency.  Any unexpected failure restores the pre-optimization
+        # full reconciliation for this turn.
+        logger.warning(
+            "tracked skill sync failed; using legacy full reconciliation",
+            exc_info=True,
+        )
+        try:
+            skill_runtime.sync_with_config(agent.config.skills)
+        except Exception:
+            logger.debug("turn-boundary skill sync failed", exc_info=True)
 
 
 def _strip_skill_token(text: str, skill) -> str:
@@ -1067,12 +1371,178 @@ async def _apply_title(project, session_id: str, text: str) -> dict | None:
     return {"title": title, "category": category}
 
 
+async def _start_turn(project, session, user_msg, prompt: str,
+                      attachments: list[dict] | None):
+    """Acquire the turn lock, then get this turn onto the runtime's queue.
+
+    Lives outside the stream so it can run under `asyncio.shield`. On a cold
+    session this phase takes SECONDS (resolve MCP, build the agent, plus any
+    wait on a previous turn's lock), and a client leaving inside that window
+    used to take the turn with it: the cancel killed the generator before the
+    enqueue, so the user's own message never reached the queue — nothing ran,
+    nothing persisted, and no `done` ever arrived to clear the row's spinner.
+    Everything here is either idempotent bookkeeping or the enqueue itself, so
+    running it to completion for a client that has already gone is safe; the
+    turn simply becomes an unwatched one, which the drain already handles.
+
+    Skills are synced and slash invocations expanded with the lock already held:
+    the driver is idle between turns, so the in-place catalog resync cannot race
+    a running generation, and the expansion sees mid-session skill changes (this
+    pre-sync ordering is why a newly added skill is invocable in the same
+    session).
+
+    Returns `(rt, enqueued, intro, sent)`. `enqueued` False means no turn was
+    started and the lock is already back — `intro` then carries a non-turn reply
+    for the caller to stream in its place. `sent` is the prompt AS ENQUEUED
+    (slash expansion and the skill notice rewrite it in here), which the caller
+    needs to seal a failed turn: the typed text would persist the wrong user row.
+    """
+    rt = None
+    marker: dict | None = None
+    started = False
+    # Declare the turn running from HERE rather than from the enqueue. Acquiring
+    # the runtime below takes seconds on a cold session and only ends by taking
+    # `turn_lock`, so that whole stretch used to read as idle to presence,
+    # `session.running` and attach — a client that navigated away and back
+    # inside it rejoined nothing and rendered the session as finished. See
+    # RuntimeRegistry.mark_starting.
+    registry.mark_starting(session.id, project.id)
+    try:
+        rt = await _acquire_live_runtime(project, session)
+        # The lock is ours, so the previous turn's question is history now and
+        # this turn's is not known until the enqueue below. Anything reading
+        # `turn_user` in between must see nothing rather than the last turn's.
+        rt.turn_user = None
+        _sync_runtime_skills(rt, project)
+
+        # Skill-update notice (tail-only sync): compare the freshly-synced
+        # catalog against what this session was last told (skill_surface.json)
+        # and, on drift, prefix this turn's prompt with a <system-reminder>
+        # carrying the full current list. The sidecar is committed only after
+        # the turn is actually enqueued — an intro-only reply or a failed
+        # enqueue re-fires the notice next turn instead of losing it.
+        notice: str | None = None
+        commit_notice = None
+        catalog0 = _catalog_for(rt)
+        if catalog0 is not None:
+            try:
+                from app.backends.ms_agent.skill_notice import pending_notice
+
+                notice, commit_notice = pending_notice(catalog0, project, session)
+            except Exception:
+                logger.debug("skill notice check failed", exc_info=True)
+        user_typed = prompt  # pre-expansion text, for the display marker
+
+        # Slash-skill invocation, two tiers (Route A doesn't route commands,
+        # so it happens here): the composer's structured `skills` ids first,
+        # else a scan for a whitespace-delimited /token anywhere in the text.
+        # Any invocation — with or without args — runs the enriched skill
+        # prompt as the turn (a bare /skill submits the skill body so the
+        # model reads it and acts); a display-only marker keeps the user's
+        # ORIGINAL text for history replay. The "message" branch below stays
+        # as a fallback for other CommandResult kinds.
+        skill_ids = _content_parts(user_msg)[1]
+        if skill_ids or "/" in prompt:
+            expanded = _expand_skill_request(rt, prompt, skill_ids)
+            if expanded is not None:
+                kind, content, marker = expanded
+                if kind == "message":
+                    return rt, False, content, ""
+                prompt = content  # "submit": run the enriched skill prompt as the turn
+
+        if notice:
+            # Prepend AFTER expansion so token stripping never sees the
+            # notice. The model reads the notice; the UI shows the typed text
+            # via the display marker (same mechanism as slash expansion).
+            prompt = notice + "\n\n" + prompt
+            if marker is None:
+                marker = {"original_text": user_typed, "skill_ids": []}
+
+        if marker is not None and isinstance(
+            getattr(user_msg, "content", None), list
+        ):
+            # Persist the configuration-style segments AS SENT (skill id +
+            # display name + text) so history replays exactly what the user
+            # saw in the composer (pills with readable names, not raw ids).
+            marker["segments"] = [s.model_dump() for s in user_msg.content]
+        elif marker is None and isinstance(
+            getattr(user_msg, "content", None), list
+        ) and any(s.type == "skill" for s in user_msg.content):
+            # Skill pills were sent but nothing expanded (e.g. the skill was
+            # deleted): still persist a display marker so the echo keeps the
+            # pills instead of silently dropping them.
+            marker = {
+                "original_text": user_typed,
+                "skill_ids": [],
+                "segments": [s.model_dump() for s in user_msg.content],
+            }
+
+        rt.sink.new_turn()  # this turn owns the event buffer from here
+        await rt.enqueue(prompt, marker=marker, attachments=attachments)
+        # The turn's user message, for viewers that join before the SDK appends
+        # it to the session log (see SessionRuntime.turn_user). The pre-expansion
+        # text, and the composer's segments when there were any — i.e. exactly
+        # what history will show once the row lands, so a viewer that renders
+        # this one and then re-reads history sees no change.
+        rt.turn_user = {
+            "content": (marker or {}).get("original_text") or user_typed,
+            "segments": (marker or {}).get("segments") or None,
+        }
+        # Turn wall-clock origin on the runtime, so whoever observes the turn's
+        # end (the live stream OR the background drain) records the same
+        # loop_end duration regardless of when the client left.
+        rt.turn_started_at = time.monotonic()
+        # Wall-clock twin of the origin, for comparisons against file mtimes
+        # (e.g. "was plan.json written during THIS turn" in sessions.read_plan).
+        rt.turn_started_wall = time.time()
+        started = True
+        if notice and commit_notice is not None:
+            commit_notice()  # the model has now been told — persist the surface
+        return rt, True, "", prompt
+    finally:
+        # Running-state goes back to `turn_lock`, which a started turn is already
+        # holding — seamless for anything polling it. A turn that never started
+        # leaves nothing behind, which is what readers should see.
+        registry.clear_starting(session.id)
+        # The lock is handed to whoever will see the turn end (the live stream's
+        # finally, or the drain). Released here only when no turn was started:
+        # an intro-only reply, or a failure anywhere above.
+        if not started and rt is not None and rt.turn_lock.locked():
+            rt.turn_lock.release()
+
+
+async def _adopt_unwatched_turn(prep: "asyncio.Future", session_id: str) -> None:
+    """The client left while a shielded `_start_turn` was still in flight.
+
+    Wait for it to land, then put the turn through the same background drain a
+    mid-turn leave goes through. Without this the turn would run to completion
+    with nobody at the turn boundary: the lock would stay held (blocking the
+    session's next message until the idle sweeper) and the row would never get
+    its unread dot.
+    """
+    try:
+        rt, enqueued, _, _ = await prep
+    except Exception:
+        logger.debug("shielded turn start failed after client left", exc_info=True)
+        return
+    if enqueued:
+        # Cursor 0: `sink.new_turn()` reset the buffer immediately before the
+        # enqueue, so this turn's events start there — and no live stream read
+        # any of them, so none can be skipped.
+        await _drain_abandoned_turn(rt, 0, session_id)
+
+
 async def stream(req: ChatRequest) -> AsyncIterator[dict]:
     project, session = _resolve_or_create(req)
     session_id = session.id
 
+    # Remember which model this conversation is being held with, so reopening
+    # it later selects the same one instead of inheriting whatever was picked
+    # elsewhere in the meantime.
+    _remember_session_model(session_id)
+
     user_msg = req.message
-    prompt = _compose_prompt(user_msg)
+    prompt, attachments = _compose_turn(user_msg)
     # A bare skill pick (pill only, no text) is a valid submission — the skill
     # expansion below submits the skill body as the turn. Only truly empty
     # input returns.
@@ -1120,105 +1590,34 @@ async def stream(req: ChatRequest) -> AsyncIterator[dict]:
         meta={"session_id": session_id, "project_id": project.id},
     ))
 
-    # Acquire the turn lock FIRST, then sync skills and expand slash
-    # invocations against the freshly-synced catalog. With the lock held the
-    # driver is idle between turns, so the in-place catalog resync cannot race
-    # a running generation, and the expansion sees mid-session skill changes
-    # (the pre-sync ordering is why a newly added skill is now invocable in
-    # the same session). `started` guards the lock across the pre-enqueue
-    # yields: an intro-only reply or a client disconnect must release it.
-    rt = await _acquire_live_runtime(project, session)
-    marker: dict | None = None
-    started = False
+    # Getting this turn onto the queue is shielded from the client's
+    # connection — see `_start_turn`. "Leaving a conversation lets its turn
+    # finish" is the contract `_drain_abandoned_turn` documents, but it used to
+    # take effect only once the enqueue had landed; everything before that was
+    # a hole where navigating away dropped the turn outright.
+    prep = asyncio.ensure_future(
+        _start_turn(project, session, user_msg, prompt, attachments)
+    )
     try:
-        _sync_runtime_skills(rt, project)
+        rt, enqueued, intro, sent = await asyncio.shield(prep)
+    except asyncio.CancelledError:
+        # This stream dies here; the enqueue behind the shield does not. Hand
+        # whatever it starts to the background drain — with no one left to reach
+        # the turn boundary, nothing else would release the lock or flag the row.
+        asyncio.create_task(_adopt_unwatched_turn(prep, session_id))
+        raise
+    if not enqueued:
+        # A command that only prints: no turn was started, lock already back.
+        if intro:
+            yield _delta(ChatChunk(type="text", content=intro))
+        done = ChatChunk(
+            type="done",
+            meta={"session_id": session_id, "project_id": project.id},
+        )
+        yield {"data": done.model_dump_json()}
+        return
+    completed = False
 
-        # Skill-update notice (tail-only sync): compare the freshly-synced
-        # catalog against what this session was last told (skill_surface.json)
-        # and, on drift, prefix this turn's prompt with a <system-reminder>
-        # carrying the full current list. The sidecar is committed only after
-        # the turn is actually enqueued — an intro-only reply or a failed
-        # enqueue re-fires the notice next turn instead of losing it.
-        notice: str | None = None
-        commit_notice = None
-        catalog0 = _catalog_for(rt)
-        if catalog0 is not None:
-            try:
-                from app.backends.ms_agent.skill_notice import pending_notice
-
-                notice, commit_notice = pending_notice(catalog0, project, session)
-            except Exception:
-                logger.debug("skill notice check failed", exc_info=True)
-        user_typed = prompt  # pre-expansion text, for the display marker
-
-        # Slash-skill invocation, two tiers (Route A doesn't route commands,
-        # so it happens here): the composer's structured `skills` ids first,
-        # else a scan for a whitespace-delimited /token anywhere in the text.
-        # Any invocation — with or without args — runs the enriched skill
-        # prompt as the turn (a bare /skill submits the skill body so the
-        # model reads it and acts); a display-only marker keeps the user's
-        # ORIGINAL text for history replay. The "message" branch below stays
-        # as a fallback for other CommandResult kinds.
-        skill_ids = _content_parts(user_msg)[1]
-        if skill_ids or "/" in prompt:
-            expanded = _expand_skill_request(rt, prompt, skill_ids)
-            if expanded is not None:
-                kind, content, marker = expanded
-                if kind == "message":
-                    if content:
-                        yield _delta(ChatChunk(type="text", content=content))
-                    done = ChatChunk(
-                        type="done",
-                        meta={"session_id": session_id, "project_id": project.id},
-                    )
-                    yield {"data": done.model_dump_json()}
-                    return
-                prompt = content  # "submit": run the enriched skill prompt as the turn
-
-        if notice:
-            # Prepend AFTER expansion so token stripping never sees the
-            # notice. The model reads the notice; the UI shows the typed text
-            # via the display marker (same mechanism as slash expansion).
-            prompt = notice + "\n\n" + prompt
-            if marker is None:
-                marker = {"original_text": user_typed, "skill_ids": []}
-
-        if marker is not None and isinstance(
-            getattr(user_msg, "content", None), list
-        ):
-            # Persist the configuration-style segments AS SENT (skill id +
-            # display name + text) so history replays exactly what the user
-            # saw in the composer (pills with readable names, not raw ids).
-            marker["segments"] = [s.model_dump() for s in user_msg.content]
-        elif marker is None and isinstance(
-            getattr(user_msg, "content", None), list
-        ) and any(s.type == "skill" for s in user_msg.content):
-            # Skill pills were sent but nothing expanded (e.g. the skill was
-            # deleted): still persist a display marker so the echo keeps the
-            # pills instead of silently dropping them.
-            marker = {
-                "original_text": user_typed,
-                "skill_ids": [],
-                "segments": [s.model_dump() for s in user_msg.content],
-            }
-
-        completed = False
-        rt.sink.new_turn()  # this turn owns the event buffer from here
-        await rt.enqueue(prompt, marker=marker)
-        # Turn wall-clock origin on the runtime, so whoever observes the turn's
-        # end (this live stream OR the background drain) records the same
-        # loop_end duration regardless of when the client left.
-        rt.turn_started_at = time.monotonic()
-        # Wall-clock twin of the origin, for comparisons against file mtimes
-        # (e.g. "was plan.json written during THIS turn" in sessions.read_plan).
-        rt.turn_started_wall = time.time()
-        rt.watchers += 1  # a live SSE consumer is streaming this turn
-        started = True
-        if notice and commit_notice is not None:
-            commit_notice()  # the model has now been told — persist the surface
-    finally:
-        if not started and rt.turn_lock.locked():
-            rt.turn_lock.release()
     usage = None
     error_sent = False
     mapper = _TurnMapper(session_id)
@@ -1323,6 +1722,7 @@ async def stream(req: ChatRequest) -> AsyncIterator[dict]:
             return {}
         return {"title": res["title"], "category": res["category"]} if res else {}
 
+    rt.watchers += 1  # a live SSE consumer is streaming this turn
     try:
         # Turn age first: the client bases its "processing Ns" counter on the
         # server clock from frame one (and re-bases on the periodic re-send).
@@ -1353,6 +1753,18 @@ async def stream(req: ChatRequest) -> AsyncIterator[dict]:
                 return
             if t == DRIVER_ERROR:
                 completed = True
+                # Flush the mapper first: a turn that ENDS ON AN ERROR (rate
+                # limit, insufficient balance, dropped upstream) may still have
+                # reasoning / pending tool calls in flight. This emits the
+                # close-thought frame (carrying elapsed duration) plus
+                # interrupted-tool cards. A manual Stop is closed client-side, but
+                # an error turn has no such path — without this flush the
+                # frontend's "thinking Ns" counter never gets its terminating
+                # duration and ticks forever after the turn has failed.
+                flushed = mapper.flush()
+                _collect_changed(flushed)
+                for chunk in flushed:
+                    yield _delta(chunk)
                 if not error_sent:
                     yield _delta(ChatChunk(type="error", meta={
                         "message": payload.get("message", ""),
@@ -1363,7 +1775,7 @@ async def stream(req: ChatRequest) -> AsyncIterator[dict]:
                 # this same failing round instead of reading the new prompt
                 # (the SDK seals too, but only once the round loop was reached).
                 _seal_errored_turn(
-                    rt, session_id, prompt,
+                    rt, session_id, sent,
                     message=payload.get("message", ""))
                 _persist_loop_end()
                 done = ChatChunk(
@@ -1413,8 +1825,22 @@ async def attach(session_id: str) -> AsyncIterator[dict]:
     as POST /api/chat, so the frontend renders it identically. When no turn is
     in flight, emits just a `done` frame (the viewer falls back to history).
     """
+    # A turn can be ACCEPTED before its runtime is observable — a cold build, or
+    # a wait on the previous turn's lock. Concluding "nothing to replay" inside
+    # that window is the very bug it causes: the viewer renders an idle session
+    # for a turn that is about to stream, and its one-shot attach latch then
+    # keeps it from ever rejoining. Wait for the buffer instead — bounded, and
+    # only for as long as the registry still calls the turn starting.
+    waited = 0.0
+    while (registry.is_starting(session_id)
+           and not registry.is_generating(session_id)
+           and waited < _ATTACH_START_WAIT_S):
+        await asyncio.sleep(_ATTACH_POLL_S)
+        waited += _ATTACH_POLL_S
     rt = registry.peek(session_id)
-    if rt is None or not registry.is_running(session_id):
+    # `is_generating`, not `is_running`: past this point we consume the event
+    # buffer, which only a turn already on the driver fills.
+    if rt is None or not registry.is_generating(session_id):
         done = ChatChunk(type="done", meta={"session_id": session_id})
         yield {"data": done.model_dump_json()}
         return
@@ -1439,11 +1865,12 @@ async def attach(session_id: str) -> AsyncIterator[dict]:
         ]
         if perm_events:
             handler = getattr(rt, 'permission_handler', None)
-            pending_ids = {
-                rid
-                for rid, fut in (getattr(handler, '_pending', None) or {}).items()
-                if not fut.done()
-            }
+            # Through the handler's API, not its pending map: this block is
+            # inside a try, so depending on that map's shape fails SILENTLY —
+            # every card would replay as decided and a live one would render
+            # with dead buttons.
+            awaiting = getattr(handler, 'awaiting_request_ids', None)
+            pending_ids = set(awaiting()) if awaiting else set()
             records: list[dict] = []
             try:
                 found = find_session(session_id)

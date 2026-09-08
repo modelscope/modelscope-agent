@@ -17,7 +17,7 @@ import type { Project } from '~/lib/types'
 import type { AgentMessage } from '~/lib/agentProvider'
 import type { ChatFileRef, MessageSegment } from '~/lib/agentProvider'
 import type { SessionPlan, Artifact } from '~/lib/types'
-import WorkspaceIcon from '~/assets/icons/workspace.svg?react'
+import CollectionIcon from '~/assets/icons/collection.svg?react'
 
 interface Props {
   /** Fixed project context. `null` = homepage new chat (project picker shown). */
@@ -440,7 +440,7 @@ export function ChatView({
             {!railOpen && (
               <Button
                 shape="round"
-                icon={<WorkspaceIcon className="h-4 w-4" />}
+                icon={<CollectionIcon className="h-5 w-5" />}
                 onClick={toggleRail}
                 className="absolute right-3 top-3 z-10 !rounded-full !border-msa-line-1 !bg-msa-bg-1 !text-msa-text-1 hover:!bg-msa-fill-2"
                 classNames={{

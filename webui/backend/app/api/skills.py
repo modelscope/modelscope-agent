@@ -6,6 +6,7 @@ from app.schemas.skill import (
     SkillCreate,
     SkillFile,
     SkillFileContent,
+    SkillPathImport,
     SkillUpdate,
 )
 
@@ -25,6 +26,14 @@ def create_skill(body: SkillCreate) -> Skill:
     from app.backends.ms_agent import skills
 
     return skills.create_skill(body)
+
+
+@router.post("/import-path", status_code=201)
+def import_skills_from_path(body: SkillPathImport) -> list[Skill]:
+    """Copy every Skill found below a server-readable local directory."""
+    from app.backends.ms_agent import skills
+
+    return skills.import_skills_from_path(body)
 
 
 @router.get("/{skill_id}")

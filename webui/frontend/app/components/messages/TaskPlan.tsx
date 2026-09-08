@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useT } from '~/lib/i18n'
 import type { AgentTask } from '~/lib/agentProvider'
+import { useCollapseTransition } from './useCollapseTransition'
 import TodoIcon from '~/assets/icons/todo.svg?react'
 import TaskDoneIcon from '~/assets/icons/task-done.svg?react'
 import TaskRunningIcon from '~/assets/icons/task-running.svg?react'
@@ -54,6 +55,7 @@ export function TaskPlan({
 }) {
   const { t } = useT()
   const [expanded, setExpanded] = useState(isLast ?? false)
+  const { animating, onTransitionEnd } = useCollapseTransition(expanded)
 
   useEffect(() => {
     if (!isLast) setExpanded(false)
@@ -72,7 +74,7 @@ export function TaskPlan({
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-3 py-2 text-left outline-none"
       >
-        <TodoIcon className="h-4 w-4 shrink-0 text-msa-text-2" />
+        <TodoIcon className="h-5 w-5 shrink-0 text-msa-text-2" />
         <span className="text-sm font-medium text-msa-text-1">
           {t.chat.todoTasks}
         </span>
@@ -88,8 +90,11 @@ export function TaskPlan({
 
       {/* Body: timeline list with a dashed spine between status circles */}
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        className={`grid duration-200 ease-in-out ${
+          animating ? 'transition-[grid-template-rows]' : ''
+        }`}
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           <div className="px-3 pb-3 pt-1">

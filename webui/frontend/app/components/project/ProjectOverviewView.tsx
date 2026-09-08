@@ -3,7 +3,6 @@ import './ProjectOverviewView.css'
 import {
   App,
   Button,
-  ConfigProvider,
   Drawer,
   Dropdown,
   Popconfirm,
@@ -11,22 +10,28 @@ import {
   Space,
   Table,
   Tabs,
-  Tooltip
+  Tooltip,
+  Typography
 } from 'antd'
 import type { MenuProps } from 'antd'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useRevalidator, useSearchParams } from 'react-router'
 import { Composer } from '~/components/common/Composer'
 import { IconButton } from '~/components/common/IconButton'
-import { MsaButton } from '~/components/common/MsaButton'
 import { McpTabPanel } from '~/components/project/McpTabPanel'
 import { SkillTabPanel } from '~/components/project/SkillTabPanel'
 import { ProjectWidgetRail } from '~/components/project/ProjectWidgetRail'
 import { api } from '~/lib/api'
 import { dispatchWorkspaceChanged, useOnWorkspaceChanged } from '~/lib/events'
 import type { ChatFileRef, MessageSegment } from '~/lib/agentProvider'
-import { downloadWorkspaceAll, downloadWorkspacePath } from '~/lib/download'
-import { EmptyState } from '~/components/common/EmptyState'
+import {
+  DownloadEmptyError,
+  downloadErrorText,
+  downloadWorkspaceAll,
+  downloadWorkspacePath,
+  hasDownloadableFiles
+} from '~/lib/download'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { SessionRightRail } from '~/components/session/SessionRightRail'
 import { RailDrawer } from '~/components/common/RailDrawer'
 import { DeferredSkeleton } from '~/components/common/DeferredSkeleton'
@@ -64,6 +69,7 @@ export function ProjectOverviewView({
 }: Props) {
   const { t } = useT()
   const navigate = useNavigate()
+  const revalidator = useRevalidator()
   const [searchParams, setSearchParams] = useSearchParams()
   const VALID_TABS = ['recent', 'workspace', 'mcps', 'skills'] as const
   const tabFromUrl = searchParams.get('tab') ?? 'recent'
@@ -92,6 +98,12 @@ export function ProjectOverviewView({
       project_id: project.id,
       preview: text
     })
+    // Refresh the sidebar's session list BEFORE leaving: the app layout no
+    // longer revalidates on a route change (see its `shouldRevalidate`), so
+    // without this the session just created would be missing from the list
+    // until the next explicit refresh. Awaited so the navigation below cannot
+    // interrupt it.
+    await revalidator.revalidate()
     // Carry the composer's FULL submission across the navigation. `segments` is
     // the ordered text+skill-pill layout: dropping it here downgraded a
     // "/skill …" first message to plain text, so the skill never ran for a
@@ -120,16 +132,65 @@ export function ProjectOverviewView({
     setWorkspaceDrawer(true)
   }
 
+  // Creating one goes through the same rail, for the same reason: naming happens
+  // inline in its tree, so this page has one way of making files rather than a
+  // dialog of its own that behaves differently.
+  const [createEntryReq, setCreateEntryReq] = useState<{
+    dir: string
+    kind: 'file' | 'folder'
+    nonce: number
+  } | null>(null)
+  const startWorkspaceEntry = (dir: string, kind: 'file' | 'folder') => {
+    // The table browses with a trailing slash ('docs/'); the tree keys its
+    // folders without one.
+    const clean = dir.replace(/\/+$/, '')
+    setCreateEntryReq((prev) => ({
+      dir: clean,
+      kind,
+      nonce: (prev?.nonce ?? 0) + 1
+    }))
+    setWorkspaceDrawer(true)
+  }
+
+  // Both requests are one-shot orders, spent by the drawer they opened. The rail
+  // is destroyed on close and replays whatever request it mounts with, so a
+  // leftover here would hijack the NEXT open — closing a naming row without
+  // naming anything, then clicking a file to preview it, re-opened that row.
+  //
+  // Destroying it also destroys any unsaved editor buffer inside it, so the rail
+  // gets the first word on every close (its own button, the mask, Esc) and can put
+  // up its own prompt instead.
+  const railCloseGuard = useRef<(() => boolean) | null>(null)
+  const closeWorkspaceDrawer = () => {
+    if (railCloseGuard.current?.()) return
+    setWorkspaceDrawer(false)
+    setOpenFileReq(null)
+    setCreateEntryReq(null)
+  }
+
   return (
     <div className="flex h-full min-h-0 rounded-[16px] bg-msa-fill-0 px-4 py-4 md:px-9 md:py-6">
       {/* Main content */}
-      <section className="min-h-0 min-w-0 flex-5 flex-shrink-0">
+      <section className="min-h-0 min-w-0 flex-5 shrink-0">
         <div className="w-full flex flex-col h-full">
-          {/* Project title with edit icon */}
-          <div className="flex items-center gap-2 mb-[12px]">
-            <h1 className="text-xl font-bold text-msa-text-1 my-0">
+          {/* Project title with edit icon.
+              The left padding below `md` is clearance for the layout's floating
+              sidebar toggle (`absolute left-3 top-3`, 40px — see layouts/app.tsx),
+              which overlays this row and was covering the title's first
+              character on every project: "渲染验证-Demo" read "染验证-Demo". This is
+              the only page that puts content in that corner; from `md` up the
+              toggle is gone and the title sits at the shell's own gutter. */}
+          <div className="flex items-center gap-2 mb-[12px] pl-9 md:pl-0">
+            <Typography.Title
+              level={1}
+              className="my-0 text-xl font-bold text-msa-text-1"
+              ellipsis={{
+                rows: 1,
+                tooltip: project.name
+              }}
+            >
               {project.name}
-            </h1>
+            </Typography.Title>
             {onEditProject && (
               <IconButton
                 icon={<EditIcon className="h-4 w-4" />}
@@ -161,92 +222,81 @@ export function ProjectOverviewView({
           />
 
           {/* Tabs: Recent / Workspace / MCPs / Skills */}
-          <ConfigProvider
-            theme={{
-              components: {
-                Tabs: {
-                  itemSelectedColor: 'var(--msa-text-1)',
-                  itemHoverColor: 'var(--msa-text-1)',
-                  itemActiveColor: 'var(--msa-text-1)'
-                }
-              }
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            indicator={{ size: 8, align: 'center' }}
+            className={`h-0 flex-1 pov-tabs-scroll-content`}
+            classNames={{
+              indicator: 'bg-msa-text-1 h-[2px]',
+              header: 'before:hidden',
+              body: 'h-full'
             }}
-          >
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              indicator={{ size: 8, align: 'center' }}
-              className={`h-0 flex-1 pov-tabs-scroll-content`}
-              classNames={{
-                indicator: 'bg-msa-text-1 h-[2px]',
-                header: 'before:hidden',
-                body: 'h-full'
-              }}
-              items={[
-                {
-                  key: 'recent',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'recent' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'recent' && (
-                        <RecentChatsIcon className="h-4 w-4" />
-                      )}
-                      {t.projectDetail.tabRecent}
-                    </span>
-                  ),
-                  children: (
-                    <RecentChats projectId={project.id} sessions={sessions} />
-                  )
-                },
-                {
-                  key: 'workspace',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'workspace' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'workspace' && (
-                        <WorkspaceIcon className="h-4 w-4" />
-                      )}
-                      {t.projectDetail.tabWorkspace}
-                    </span>
-                  ),
-                  children: (
-                    <WorkspacePanel
-                      project={project}
-                      onOpenFile={openWorkspaceFile}
-                    />
-                  )
-                },
-                {
-                  key: 'mcps',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'mcps' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'mcps' && <McpIcon className="h-4 w-4" />}
-                      {t.projectDetail.tabMcps}
-                    </span>
-                  ),
-                  children: <McpTabPanel project={project} />
-                },
-                {
-                  key: 'skills',
-                  label: (
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${activeTab === 'skills' ? 'font-semibold' : ''}`}
-                    >
-                      {activeTab === 'skills' && (
-                        <SkillIcon className="h-4 w-4" />
-                      )}
-                      {t.projectDetail.tabSkills}
-                    </span>
-                  ),
-                  children: <SkillTabPanel project={project} />
-                }
-              ]}
-            />
-          </ConfigProvider>
+            items={[
+              {
+                key: 'recent',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'recent' ? 'font-semibold' : ''}`}
+                  >
+                    {activeTab === 'recent' && (
+                      <RecentChatsIcon className="h-4 w-4" />
+                    )}
+                    {t.projectDetail.tabRecent}
+                  </span>
+                ),
+                children: (
+                  <RecentChats projectId={project.id} sessions={sessions} />
+                )
+              },
+              {
+                key: 'workspace',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'workspace' ? 'font-semibold' : ''} `}
+                  >
+                    {activeTab === 'workspace' && (
+                      <WorkspaceIcon className="h-4 w-4" />
+                    )}
+                    {t.projectDetail.tabWorkspace}
+                  </span>
+                ),
+                children: (
+                  <WorkspacePanel
+                    project={project}
+                    onOpenFile={openWorkspaceFile}
+                    onNewEntry={startWorkspaceEntry}
+                  />
+                )
+              },
+              {
+                key: 'mcps',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'mcps' ? 'font-semibold' : ''}`}
+                  >
+                    {activeTab === 'mcps' && <McpIcon className="h-4 w-4" />}
+                    {t.projectDetail.tabMcps}
+                  </span>
+                ),
+                children: <McpTabPanel project={project} />
+              },
+              {
+                key: 'skills',
+                label: (
+                  <span
+                    className={`flex items-center gap-1.5 ${activeTab === 'skills' ? 'font-semibold' : ''}`}
+                  >
+                    {activeTab === 'skills' && (
+                      <SkillIcon className="h-4 w-4" />
+                    )}
+                    {t.projectDetail.tabSkills}
+                  </span>
+                ),
+                children: <SkillTabPanel project={project} />
+              }
+            ]}
+          />
         </div>
       </section>
 
@@ -274,7 +324,7 @@ export function ProjectOverviewView({
           gets more room. */}
       <RailDrawer
         open={workspaceDrawer}
-        onClose={() => setWorkspaceDrawer(false)}
+        onClose={closeWorkspaceDrawer}
         size="min(1100px, 94vw)"
         destroyOnHidden
       >
@@ -282,7 +332,9 @@ export function ProjectOverviewView({
           project={project}
           active={workspaceDrawer}
           openFile={openFileReq ?? undefined}
-          onClose={() => setWorkspaceDrawer(false)}
+          createEntry={createEntryReq ?? undefined}
+          closeGuard={railCloseGuard}
+          onClose={closeWorkspaceDrawer}
         />
       </RailDrawer>
     </div>
@@ -343,13 +395,11 @@ function RecentChats({
         size="lg"
         description={`${t.projectDetail.recentEmpty}${t.projectDetail.recentEmptyHint}`}
         action={
-          <MsaButton
-            variant="primary"
-            className="!rounded-full !px-6 !py-2 !h-auto"
+          <EmptyStateAction
             onClick={() => navigate(`/projects/${projectId}/new`)}
           >
             {t.projectDetail.startChat}
-          </MsaButton>
+          </EmptyStateAction>
         }
       />
     )
@@ -396,11 +446,14 @@ function RecentChats({
 
 function WorkspacePanel({
   project,
-  onOpenFile
+  onOpenFile,
+  onNewEntry
 }: {
   project: Project
   /** Preview a file in the workspace rail drawer. */
   onOpenFile: (path: string) => void
+  /** Create an entry in `dir` — opens the same rail, which names it inline. */
+  onNewEntry: (dir: string, kind: 'file' | 'folder') => void
 }) {
   // Drives the add-file caret flip (antd Dropdown owns the panel).
   const [addMenuOpen, setAddMenuOpen] = useState(false)
@@ -457,6 +510,12 @@ function WorkspacePanel({
   // Zip the whole workspace and download it as `<project>.zip`.
   const handleDownloadAll = async () => {
     if (!files || files.length === 0) return
+    // A listing of only (empty) folders has no bytes to zip, and the button
+    // stays enabled for it — say so instead of letting the click do nothing.
+    if (!hasDownloadableFiles(files)) {
+      message.warning(t.workspace.downloadEmpty)
+      return
+    }
     setDownloadingAll(true)
     try {
       await downloadWorkspaceAll(
@@ -464,24 +523,47 @@ function WorkspacePanel({
         files,
         `${project.name || 'workspace'}.zip`
       )
-    } catch {
-      message.error(t.workspace.downloadFailed)
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
     } finally {
       setDownloadingAll(false)
     }
   }
 
-  // Download a row: a file streams directly, a folder is zipped automatically.
+  // Download a row: a file fetches its bytes, a folder is zipped automatically.
   const handleDownload = async (path: string) => {
     try {
       await downloadWorkspacePath(project.id, path, files ?? [])
-    } catch {
-      message.error(t.workspace.downloadFailed)
+    } catch (err) {
+      // An empty folder didn't fail, it just has nothing in it — same notice the
+      // download-all button gives, so the two agree on that situation.
+      if (err instanceof DownloadEmptyError) {
+        message.warning(t.workspace.downloadEmpty)
+        return
+      }
+      message.error(downloadErrorText(t, err))
     }
   }
 
   const addMenu: MenuProps = {
     items: [
+      // First, before the uploads: creating an empty entry is the one that needs
+      // nothing from the user's disk. Both land in the folder currently being
+      // browsed — the same place the uploads below them go. The name is typed in
+      // the rail's tree, which these open, so a file is made the same way here
+      // as it is there.
+      {
+        key: 'new-file',
+        label: t.workspace.newFile,
+        onClick: () => onNewEntry(currentPath, 'file')
+      },
+      {
+        key: 'new-folder',
+        label: t.workspace.newFolder,
+        onClick: () => onNewEntry(currentPath, 'folder')
+      },
+      // Made here vs. taken from the user's disk: two different errands.
+      { type: 'divider' },
       {
         key: 'upload-file',
         label: t.workspace.uploadFile,
@@ -643,7 +725,7 @@ function WorkspacePanel({
               </Tooltip>
               <Dropdown
                 menu={addMenu}
-                trigger={['click']}
+                trigger={['hover']}
                 onOpenChange={setAddMenuOpen}
               >
                 <Button size="small" type="text">
@@ -836,7 +918,7 @@ function WorkspacePanel({
               </Tooltip>
               <Dropdown
                 menu={addMenu}
-                trigger={['click']}
+                trigger={['hover']}
                 onOpenChange={setAddMenuOpen}
               >
                 <Button size="small" type="text">

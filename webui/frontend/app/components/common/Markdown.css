@@ -25,3 +25,50 @@
   padding: 2px 10px !important;
   font-size: 0.9em !important;
 }
+
+/* ---- Code-block copy action -----------------------------------------------
+ * antd paints a Typography copy button with the PRIMARY colour (purple here),
+ * which stood out against every other copy affordance in the app. Restore the
+ * neutral treatment the assistant bubble's copy button uses — msa-text-3, and
+ * msa-text-1 on hover. Reached via CSS because `.ant-typography-copy` is an
+ * antd internal node with no `classNames` slot; the copied state's green is set
+ * inline on the check icon (Tailwind `!` wins over this rule). */
+.msa-md-copy .ant-typography-copy {
+  color: var(--msa-text-3);
+}
+
+.msa-md-copy .ant-typography-copy:hover {
+  color: var(--msa-text-1);
+}
+
+/* ---- Mermaid toolbar ------------------------------------------------------
+ * x paints this band with its own palette (a light lavender that reads as a
+ * different product against every other panel, and stays light in dark mode).
+ * Put it on the project's fill/line tokens so it matches the code-block header
+ * right above it.
+ *
+ * Reached via CSS rather than `styles.header` because the band needs a bottom
+ * border and the nested antd Segmented needs toning down too — neither is a
+ * single inline value. The class comes from `classNames.header` on our Mermaid
+ * wrapper (see Markdown.tsx), so no antd-internal prefix is hardcoded here. */
+.msa-mermaid-header {
+  background: var(--msa-fill-1);
+  border-bottom: 1px solid var(--msa-line-1);
+}
+
+/* The Segmented inside the toolbar comes with its own surface, which stacked a
+ * second panel colour on top of the band. Let the band show through and keep
+ * only the selected pill filled. */
+.msa-mermaid-header .ant-segmented {
+  background: transparent;
+}
+
+/* "Reset" is a text Button, not an Actions item, so it misses the neutral icon
+ * colour the others get. */
+.msa-mermaid-header .ant-btn {
+  color: var(--msa-text-3);
+}
+
+.msa-mermaid-header .ant-btn:hover {
+  color: var(--msa-text-1);
+}

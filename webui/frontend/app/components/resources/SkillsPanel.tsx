@@ -2,7 +2,7 @@ import { Button, Drawer, Form, Input, Pagination } from 'antd'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { CardSkeletonGrid } from '~/components/common/CardSkeletonGrid'
-import { EmptyState } from '~/components/common/EmptyState'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { MsaSwitch } from '~/components/common/MsaSwitch'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
@@ -39,7 +39,14 @@ export function SkillsPanel({
   const importing = importingProp ?? importingInternal
   const setImporting = onImportingChange ?? setImportingInternal
 
-  const refresh = () => api.listSkills(activeScope).then(setItems)
+  // `[]` on failure, never left at `null`: `null` is this list's "still
+  // loading" and would hold the skeleton up forever. The toast `api.ts` raises
+  // is the only word the user gets, so at least the panel has to settle.
+  const refresh = () =>
+    api
+      .listSkills(activeScope)
+      .then(setItems)
+      .catch(() => setItems([]))
   useEffect(() => {
     setItems(null)
     setPage(1)
@@ -52,7 +59,15 @@ export function SkillsPanel({
         {items === null ? (
           <CardSkeletonGrid />
         ) : items.length === 0 ? (
-          <EmptyState size="lg" description={t.resources.skillEmpty} />
+          <EmptyState
+            size="lg"
+            description={`${t.resources.skillEmpty}${t.resources.skillEmptyHint}`}
+            action={
+              <EmptyStateAction onClick={() => setImporting('local')}>
+                {t.resources.addNow}
+              </EmptyStateAction>
+            }
+          />
         ) : (
           <>
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -67,10 +82,14 @@ export function SkillsPanel({
                       refresh()
                     }}
                     onView={() => setDetailSkill(s)}
-                    onRemove={async () => {
-                      await api.deleteSkill(s.id)
-                      refresh()
-                    }}
+                    onRemove={
+                      s.removable
+                        ? async () => {
+                            await api.deleteSkill(s.id)
+                            refresh()
+                          }
+                        : undefined
+                    }
                   />
                 ))}
             </div>
@@ -179,7 +198,7 @@ function SkillEditDrawer({
         </Button>
       }
     >
-      <Form form={form} layout="vertical" requiredMark={false}>
+      <Form form={form} layout="vertical">
         <Form.Item
           label={t.resources.name}
           name="name"

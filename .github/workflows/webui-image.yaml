@@ -1,0 +1,51 @@
+name: WebUI image
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        value: ${{ jobs.package.outputs.version }}
+  workflow_dispatch:
+    inputs:
+      push_dev:
+        description: 'Publish the matching development wheel to OSS and image to ACR'
+        type: boolean
+        required: true
+        default: false
+      dev_base_version:
+        description: 'Development base X.Y.Z; blank uses the SDK version without rc suffix'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: webui-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    uses: ./.github/workflows/webui-check.yaml
+    with:
+      development_build: ${{ github.event_name == 'workflow_dispatch' }}
+      dev_base_version: ${{ inputs.dev_base_version || '' }}
+
+  image:
+    needs: package
+    uses: ./.github/workflows/webui-image-runner.yaml
+    with:
+      operation: build
+      image_tag: ${{ (github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.push_dev)) && needs.package.outputs.version || '' }}
+      development_version: ${{ github.event_name == 'workflow_dispatch' && needs.package.outputs.version || '' }}
+
+  push-dev:
+    if: github.event_name == 'workflow_dispatch' && inputs.push_dev
+    needs: [package, image]
+    uses: ./.github/workflows/webui-image-runner.yaml
+    with:
+      operation: publish
+      image_tag: ${{ needs.package.outputs.version }}
+      development_version: ${{ needs.package.outputs.version }}
+      publish_wheel: true

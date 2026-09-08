@@ -39,10 +39,8 @@ def test_app_wires_the_env_chain_for_its_layout():
     The two tests above hand-build ``Settings(_env_file=...)``, so they stay
     green even if ``app/core/settings.py`` reverses the tuple or drops a
     layer. This asserts the actual module-level chain for whichever layout
-    this checkout is in: the standalone repository (``<repo>/backend``) reads
-    repo + backend, and the same file embedded in the ms-agent repository
-    (``<repo>/webui/backend``) inserts the webui level and anchors the
-    repository root one directory higher.
+    this checkout uses. A backend directly under the root reads root + backend;
+    under ``webui/``, it includes root + webui + backend in that order.
     """
     import app.core.settings as s
 
@@ -56,7 +54,7 @@ def test_app_wires_the_env_chain_for_its_layout():
             backend_dir.parent / ".env",
             backend_dir / ".env",
         )
-    else:  # standalone checkout
+    else:  # backend directly under the root
         expected = (
             backend_dir.parent / ".env",
             backend_dir / ".env",

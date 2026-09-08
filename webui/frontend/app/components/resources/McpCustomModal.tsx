@@ -5,6 +5,7 @@ import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
 import type { Mcp, McpTransport, Scope } from '~/lib/types'
 import { fromMcpServers, toMcpServers } from './mcpJson'
+import { ScopeBadge } from './ScopeBadge'
 
 interface Props {
   open: boolean
@@ -133,11 +134,7 @@ export function McpCustomModal({
           <span>
             {isEdit ? t.mcpImport.editTitle : t.mcpImport.customTitle}
           </span>
-          {scopeBadge && (
-            <span className="rounded bg-msa-fill-purple px-1.5 py-0.5 text-[10px] text-msa-text-brand1">
-              {scopeBadge}
-            </span>
-          )}
+          <ScopeBadge>{scopeBadge}</ScopeBadge>
         </div>
       }
       okText={isEdit ? t.resources.save : t.mcpImport.customConfirm}

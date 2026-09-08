@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useT } from '~/lib/i18n'
+import { useCollapseTransition } from './useCollapseTransition'
 import TaskIcon from '~/assets/icons/task.svg?react'
 import ArrowDownIcon from '~/assets/icons/arrow-down.svg?react'
 
@@ -43,6 +44,7 @@ export function TurnProcess({
 }) {
   const { t } = useT()
   const [expanded, setExpanded] = useState(false)
+  const { animating, onTransitionEnd } = useCollapseTransition(expanded)
 
   // Live elapsed seconds, ticked once a second while the turn is in flight.
   // FLOOR (not round) so the number matches wall-clock reading and formatDuration
@@ -111,9 +113,12 @@ export function TurnProcess({
         />
       </div>
       <div
-        className={`grid transition-all duration-200 ease-out ${
+        className={`grid duration-200 ease-out ${
+          animating ? 'transition-all' : ''
+        } ${
           expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           {/* Expanded process history gets its own bordered card (design). */}

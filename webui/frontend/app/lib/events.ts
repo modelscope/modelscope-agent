@@ -125,3 +125,22 @@ export function useOnSessionStarted(callback: (sessionId: string) => void) {
     return () => window.removeEventListener('msa:session-started', handler)
   }, [callback])
 }
+
+// ─── Project settings changed ───────────────────────────────
+
+/** Dispatch after saving a project's editable settings (instructions, memory
+ * model config, name…). Widgets that cache this data re-fetch when they hear it
+ * instead of requiring a full page reload. */
+export function dispatchProjectSettingsChanged() {
+  if (typeof window !== 'undefined')
+    window.dispatchEvent(new Event('msa:project-settings-changed'))
+}
+
+export function useOnProjectSettingsChanged(callback: () => void) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.addEventListener('msa:project-settings-changed', callback)
+    return () =>
+      window.removeEventListener('msa:project-settings-changed', callback)
+  }, [callback])
+}

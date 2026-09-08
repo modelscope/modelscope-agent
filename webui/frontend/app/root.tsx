@@ -17,15 +17,32 @@ import './app.css'
 import { NProgressHandler } from '~/components/common/NProgressHandler'
 import { ErrorState } from '~/components/common/ErrorState'
 import { ApiError, registerApiErrorReporter } from '~/lib/api'
+import { getAntdCssHref } from '~/lib/antdStyle.server'
 import { getDesignTokenStyleContent } from '~/lib/designTokens'
+import { SERVER_HOSTED_MODE } from '~/lib/env'
 import { LANG_COOKIE, dictFor, type Lang, LangProvider, useT } from '~/lib/i18n'
 import { getMsaAntdTheme, msaModalProps } from '~/lib/msaTheme'
-import { THEME_COOKIE, type Theme, ThemeProvider, useTheme } from '~/lib/theme'
+import {
+  SCHEME_COOKIE,
+  THEME_COOKIE,
+  type Theme,
+  type ThemePref,
+  ThemeProvider,
+  useTheme
+} from '~/lib/theme'
 import { MsaButton } from './components/common/MsaButton'
 
 interface RootData {
-  initialTheme: Theme
+  initialPref: ThemePref
+  initialSystemTheme: Theme
   initialLang: Lang
+  /** Hashed filename of the baked antd stylesheet, `null` when it is missing. */
+  antdCssHref: string | null
+  /** `MS_AGENT_FRONTEND_HOSTED_MODE=1`: this instance runs on a machine the user
+   * has no view of, so controls that ask them to name a path on it are hidden.
+   * Lives on ROOT because the controls sit under different layouts — see
+   * `useHosted`. */
+  hosted: boolean
 }
 
 function readCookie(cookie: string, name: string) {
@@ -49,8 +66,16 @@ function langFromAcceptLanguage(header: string): Lang | null {
 export async function loader({ request }: { request: Request }) {
   const cookie = request.headers.get('Cookie') || ''
   const themeRaw = readCookie(cookie, THEME_COOKIE)
+  const schemeRaw = readCookie(cookie, SCHEME_COOKIE)
   const langRaw = readCookie(cookie, LANG_COOKIE)
-  const initialTheme: Theme = themeRaw === 'dark' ? 'dark' : 'light'
+  // Default to following the OS. The server can't read `prefers-color-scheme`,
+  // so the browser mirrors it into SCHEME_COOKIE and we resolve from that;
+  // absent (first ever visit) it falls back to light.
+  const initialPref: ThemePref =
+    themeRaw === 'dark' || themeRaw === 'light' || themeRaw === 'system'
+      ? themeRaw
+      : 'system'
+  const initialSystemTheme: Theme = schemeRaw === 'dark' ? 'dark' : 'light'
   // Explicit choice (cookie) wins; a first visit falls back to the browser's
   // preferred language, then to English.
   const initialLang: Lang =
@@ -58,7 +83,18 @@ export async function loader({ request }: { request: Request }) {
       ? langRaw
       : (langFromAcceptLanguage(request.headers.get('Accept-Language') || '') ??
         'en')
-  return { initialTheme, initialLang } satisfies RootData
+  return {
+    initialPref,
+    initialSystemTheme,
+    initialLang,
+    // Sent through the loader because the constant is `false` in the browser (the
+    // client build has no `process.env`); this is what makes the value available
+    // to components, via `useHosted()`. Declared in `lib/env.ts`.
+    hosted: SERVER_HOSTED_MODE,
+    // antd runs with `zeroRuntime` (see msaTheme.ts), so no component CSS is
+    // ever emitted at render time — the pre-baked file is it.
+    antdCssHref: getAntdCssHref()
+  } satisfies RootData
 }
 
 /** Universal title fallback: any route without its own `meta` (e.g. a
@@ -70,8 +106,11 @@ export function meta({ loaderData }: { loaderData?: RootData }) {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData('root') as RootData | undefined
-  const initialTheme: Theme = data?.initialTheme ?? 'light'
+  const initialPref: ThemePref = data?.initialPref ?? 'system'
+  const initialSystemTheme: Theme = data?.initialSystemTheme ?? 'light'
   const initialLang: Lang = data?.initialLang ?? 'en'
+  const initialTheme: Theme =
+    initialPref === 'system' ? initialSystemTheme : initialPref
 
   return (
     <html
@@ -85,15 +124,60 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* No hardcoded <title> here: it would win over the per-route titles
             rendered by <Meta /> (the browser keeps the FIRST one). */}
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+        {/* THE cascade layer order for the whole app. Declared BOTH here and at
+            the top of app.css, character for character — keep the two in sync.
+
+            A layer ranks where its name is first seen, so the copy the browser
+            parses first fixes the order and the other is a harmless repeat.
+            Two copies because neither position is dependable alone: app.css
+            cannot be the only one (Vite/React Router decide where its
+            <link>/<style> lands and move it on hydration — critical.css is
+            dropped and app.css is re-injected at the *end* of <head>, i.e.
+            possibly after the baked antd sheet), and this one cannot either — it
+            is React-owned, and when React re-mounts this Layout (the error
+            boundary taking over after a client-side render error) it removes and
+            re-appends these nodes, landing them AFTER app.css. That inversion
+            let `antd` out-rank `utilities` and stripped every antd component on
+            the error page back to its default chrome.
+
+            Any layer name missing from this list gets appended *after*
+            `utilities` the first time it is seen, i.e. it silently wins over
+            Tailwind. `properties` is Tailwind's own `--tw-*` fallback shim and
+            must stay first (lowest); `antd`/`antdx` come from the baked sheet
+            below and must sit under `utilities` so utilities keep overriding
+            antd without `!important`. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html:
+              '@layer properties, theme, base, antd, antdx, components, utilities;'
+          }}
+        />
+
         <style
           dangerouslySetInnerHTML={{ __html: getDesignTokenStyleContent() }}
         />
         <Meta />
         <Links />
+        {/* Baked antd/x stylesheet (zeroRuntime — see scripts/genAntdCss.tsx).
+            It carries no order statement of its own, only `@layer antd{…}` /
+            `@layer antdx{…}` blocks, so it is position-independent: the statement
+            above has already fixed where those two layers rank. Which is what
+            makes sitting last here fine — and it matches the shape antd documents
+            for SSR (the order statement loads before the layers are used), at no
+            download cost, since the preload scanner finds every <head> link in
+            one pass.
+            Absent only when the bake is missing — the loader logs that loudly. */}
+        {data?.antdCssHref ? (
+          <link rel="stylesheet" href={data.antdCssHref} />
+        ) : null}
       </head>
       <body className="h-full overflow-x-hidden">
         <LangProvider initialLang={initialLang}>
-          <ThemeProvider initialTheme={initialTheme}>
+          <ThemeProvider
+            initialPref={initialPref}
+            initialSystemTheme={initialSystemTheme}
+          >
             <ThemedRoot>{children}</ThemedRoot>
           </ThemeProvider>
         </LangProvider>
@@ -132,8 +216,27 @@ function ApiErrorBridge() {
   const { t } = useT()
   useEffect(() => {
     registerApiErrorReporter((msg: string, err: ApiError) => {
-      const text =
-        msg || (err.status === 0 ? t.errors.network : t.errors.requestFailed)
+      // No message means the failure was not reported by our backend at all —
+      // something in FRONT of it answered (a proxy/gateway 502, an upstream
+      // 504) with a body carrying no envelope. Naming the number keeps a burst
+      // of such toasts distinguishable and reportable instead of an
+      // indistinguishable wall of "Request failed".
+      // `code`, not `status`: the two are equal for a transport failure, but a
+      // rejection the body declares itself (readFailure) can arrive with a 2xx
+      // status, and only `code` then holds the real one.
+      // The reason phrase is appended when there is one, since it is the only
+      // words such a failure carries — absent over HTTP/2, hence the bare-code
+      // fallback. It pairs with `status` ONLY: for the 200-OK-with-code-400 case
+      // above, "400 OK" would describe neither half truthfully.
+      const detail =
+        err.code === err.status && err.statusText
+          ? `${err.status} ${err.statusText}`
+          : String(err.code)
+      const text = msg
+        ? msg
+        : err.status === 0
+          ? t.errors.network
+          : `${t.errors.requestFailed}: ${detail}`
       message.error(text)
     })
     return () => registerApiErrorReporter(null)

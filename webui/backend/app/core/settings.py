@@ -7,15 +7,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # app/core/settings.py -> backend/ ; anchor .env to the file, not the CWD, so it
 # loads identically from the server, a script, or a test regardless of cwd.
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
-# This backend runs in two directory layouts and must resolve its dotenv chain
-# without adaptation in either one:
-#   standalone checkout:   <repo>/backend            -> repo/.env, backend/.env
-#   embedded in ms-agent:  <repo>/webui/backend      -> repo/.env, webui/.env,
-#                                                       backend/.env
-# The embedded layout inserts one directory level, so the repository root --
-# where shared provider credentials live -- sits one level higher. Detect it by
-# the parent directory's name; walking further up unconditionally would read a
-# stray .env from OUTSIDE the checkout in the standalone layout.
+# Under webui/, include the SDK root's shared .env before the WebUI and backend
+# files. Otherwise, restrict discovery to the backend and its parent directory.
+# This avoids reading an unrelated .env higher in the filesystem.
 _IS_EMBEDDED = _BACKEND_DIR.parent.name == "webui"
 _ENV_FILES = (
     (
@@ -26,6 +20,11 @@ _ENV_FILES = (
         _BACKEND_DIR.parent / ".env",
         _BACKEND_DIR / ".env",
     ))
+
+# Installed resources live in a versioned cache, outside a source checkout.
+# Never discover credentials in site-packages or arbitrary cache parents.
+if os.environ.get("MS_AGENT_WEBUI_INSTALLED") == "1":
+    _ENV_FILES = ()
 
 # Publish all supported .env files into os.environ (never overriding real
 # exports). Later, more specific files win while merging: repository defaults
@@ -59,7 +58,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
 
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    ms_agent_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     anthropic_api_key: str = ""
     openai_api_key: str = ""
@@ -76,10 +75,15 @@ class Settings(BaseSettings):
     ms_agent_llm_model: str = ""
     # Optional third-party key passed through to the SDK env (e.g. web-search MCP).
     exa_api_key: str = ""
+    # Where the LOCAL embedding model (fastembed ONNX) is downloaded from on
+    # first use: "modelscope" (default — reachable without a HuggingFace
+    # proxy) or "huggingface" (fastembed's own source, the pre-existing
+    # behaviour). An already-downloaded model is always reused as-is.
+    ms_agent_embed_model_source: str = "modelscope"
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        return [o.strip() for o in self.ms_agent_cors_origins.split(",") if o.strip()]
 
 
 settings = Settings()

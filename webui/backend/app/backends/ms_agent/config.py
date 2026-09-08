@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
+from typing import Any
 
 from app.backends.ms_agent.common import home
 
@@ -72,6 +74,9 @@ class MemoryConfigError(RuntimeError):
     - ``embed_unavailable``: no usable embeddings endpoint (provider serves
       none / credentials missing) and no local fallback;
     - ``local_missing``: local mode chosen but fastembed is not installed;
+    - ``local_model_unavailable``: fastembed is installed but the model itself
+      cannot be loaded — on first use it is downloaded (~220 MB), so this is
+      normally a network/proxy problem rather than a configuration one;
     - ``embedder_mismatch``: the store was built with a different embedding
       model — searching across a model swap silently degrades recall, so we
       refuse and offer a rebuild instead.
@@ -130,11 +135,30 @@ def _project_memory_models(project) -> dict:
     prefill) — it is deliberately never read here, so changing a global
     default cannot ripple through existing stores (which are pinned to their
     embedder by identity anyway). Absent (legacy project) = follow defaults.
+
+    One value is filled in rather than read: a project saved WITHOUT an
+    embedding provider ("follow the conversation provider", the option the UI
+    no longer offers) adopts the provider its store was actually built with.
+    Otherwise the embedder would track a global setting — switching models
+    while chatting in another project would silently invalidate this one's
+    store and ask the user to re-embed for no reason.
     """
     from app.backends.ms_agent import sidecar
 
     meta = sidecar.get("projects", getattr(project, "id", None) or "", {}) or {}
-    return meta.get("memory_models") or {}
+    cfg = dict(meta.get("memory_models") or {})
+    if (getattr(project, "path", None)
+            and cfg.get("embed_mode", "provider") != "local"
+            and not cfg.get("embed_provider_id")):
+        stored = _load_embedder_identity(project) or {}
+        pinned = stored.get("provider")
+        if pinned and pinned != "local":
+            cfg["embed_provider_id"] = pinned
+            cfg.setdefault("embed_model", stored.get("model"))
+        elif pinned == "local":
+            cfg["embed_mode"] = "local"
+            cfg.setdefault("embed_model", stored.get("model"))
+    return cfg
 
 
 def _resolve_embedder(settings: dict, mem_cfg: dict) -> dict:
@@ -143,9 +167,16 @@ def _resolve_embedder(settings: dict, mem_cfg: dict) -> dict:
     1. explicit local mode -> the local model (error if not installed);
     2. explicit provider -> exactly that provider (error if it cannot embed —
        the user pinned it, switching behind their back is the old bug);
-    3. default -> the CONVERSATION provider if it is known to embed, else the
-       local model, else a clear error. ``fallback_reason`` records a taken
-       fallback so the UI can say why.
+    3. no provider pinned -> the CONVERSATION provider if it is known to embed,
+       else the local model, else a clear error. ``fallback_reason`` records a
+       taken fallback so the UI can say why.
+
+    Case 3 only ever decides the FIRST build: the choice is recorded in the
+    store's identity file, and ``_project_memory_models`` pins the project to it
+    from then on. The UI no longer offers "follow the conversation provider" —
+    the conversation provider is a global setting, so following it meant that
+    switching models while chatting in one project invalidated another
+    project's store.
     """
     providers = settings.get("providers") or {}
     mode = mem_cfg.get("embed_mode") or "provider"
@@ -214,17 +245,52 @@ def _load_embedder_identity(project) -> dict | None:
         return None
 
 
-def _store_embedder_identity(project, identity: dict) -> None:
+def _stage_embedder_identity(project, identity: dict):
+    """Write the identity to a temp file NEXT TO its target and return the path.
+
+    Split from the commit so a rebuild can prove it is able to record the new
+    identity *before* it moves any store: promoting the temp file afterwards is
+    a rename within one directory, which is atomic and cannot half-succeed.
+    Raises :class:`OSError` — the caller must not swallow it, because a store
+    that speaks model B under an identity file that still says model A reads as
+    a mismatch forever and disables the project's memory.
+    """
     import json
+    import os
+    import tempfile
 
     path = _embedder_identity_path(project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".embedder.",
+                               suffix=".tmp")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(identity, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(identity, ensure_ascii=False, indent=2) + "\n")
+    except BaseException:
+        os.unlink(tmp)
+        raise
+    return Path(tmp)
+
+
+def _commit_embedder_identity(project, staged) -> None:
+    """Promote a staged identity into place (atomic rename)."""
+    import os
+
+    os.replace(str(staged), str(_embedder_identity_path(project)))
+
+
+def _store_embedder_identity(project, identity: dict) -> None:
+    """Record the identity now, best-effort (first build of a store).
+
+    Best-effort is fine here and only here: there is no store yet to be
+    mislabelled, and the next build simply records it again.
+    """
+    try:
+        _commit_embedder_identity(project,
+                                  _stage_embedder_identity(project, identity))
     except OSError as e:  # bookkeeping must never break memory itself
-        logger.warning("embedder identity write failed for %s: %s", path, e)
+        logger.warning("embedder identity write failed for %s: %s",
+                       _embedder_identity_path(project), e)
 
 
 def _probe_embed_dimension(desc: dict) -> tuple[int, bool]:
@@ -244,7 +310,14 @@ def _probe_embed_dimension(desc: dict) -> tuple[int, bool]:
         for m in TextEmbedding.list_supported_models():
             if m.get("model") == desc["model"] and m.get("dim"):
                 return int(m["dim"]), False
-        # Unknown to the table — load the model once and measure.
+        # Unknown to the table — load the model once and measure. Loading may
+        # download; give the ModelScope path its chance first (no-op when the
+        # cache is already warm or the source is switched off).
+        from app.backends.ms_agent import embed_warmup
+        from app.core.settings import settings as app_settings
+
+        embed_warmup.warm_local_memory_models(desc["model"],
+                                          app_settings.ms_agent_embed_model_source)
         return int(TextEmbedding(model_name=desc["model"]).embedding_size), False
 
     from openai import OpenAI
@@ -379,6 +452,59 @@ def _mem0_llm(settings: dict, mem_cfg: dict | None = None) -> dict | None:
     return None
 
 
+def ensure_embedder_usable(desc: dict) -> None:
+    """Materialize the embedder so an unusable one fails HERE.
+
+    Only the local mode needs it: fastembed downloads its ONNX model on first
+    use (~220 MB), and until that finishes nothing can be embedded. The
+    dimension probe alone does not catch this — it answers from fastembed's
+    static model table without touching the model — so a rebuild used to sail
+    past this point, retire the project's runtimes, and only then die inside
+    the re-embedding step with a bare ``[Errno 60] Operation timed out``.
+
+    BLOCKING (loads/downloads a model): call it from a thread.
+    """
+    if desc.get("mode") != "local":
+        return
+    from fastembed import TextEmbedding
+
+    from app.backends.ms_agent import embed_warmup
+    from app.core.settings import settings as app_settings
+
+    # Fetch the model from ModelScope first (the default): fastembed's own
+    # download source is HuggingFace-only, which is unreachable on many of the
+    # networks this runs on. A warm cache short-circuits fastembed's downloader
+    # entirely; a failed warm-up falls through to it unchanged.
+    embed_warmup.warm_local_memory_models(desc["model"],
+                                      app_settings.ms_agent_embed_model_source)
+    try:
+        TextEmbedding(model_name=desc["model"])
+    except Exception as exc:
+        raise MemoryConfigError(
+            "local_model_unavailable",
+            f"the local embedding model ({desc['model']}) could not be "
+            f"loaded: {exc}. It is downloaded on first use (~120–220 MB) — "
+            f"check the network to modelscope.cn (or huggingface.co, the "
+            f"fallback source) and try again",
+        )
+
+
+def _new_embedder_identity(desc: dict) -> dict:
+    """A fresh identity for ``desc``, dimension measured. Touches no disk: the
+    caller decides when it becomes the store's recorded identity — a rebuild
+    may only record it once the new vectors are actually in place."""
+    import time as _time
+
+    dims, pass_dims = _probe_embed_dimension(desc)
+    return {
+        "provider": desc.get("provider") or "local",
+        "model": desc["model"],
+        "dimension": dims,
+        "pass_dimensions": pass_dims,
+        "created_at": _time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+
+
 def _resolve_embedder_identity(project, desc: dict) -> dict:
     """The store's embedder identity: recorded once, then enforced.
 
@@ -389,8 +515,6 @@ def _resolve_embedder_identity(project, desc: dict) -> dict:
     recall garbage). A store predating the identity file adopts the current
     embedder with a warning: its vectors cannot be attributed after the fact.
     """
-    import time as _time
-
     from ms_agent.project.paths import memory_dir
 
     current = {"provider": desc.get("provider") or "local", "model": desc["model"]}
@@ -408,13 +532,7 @@ def _resolve_embedder_identity(project, desc: dict) -> dict:
             )
         return stored
 
-    dims, pass_dims = _probe_embed_dimension(desc)
-    identity = {
-        **current,
-        "dimension": dims,
-        "pass_dimensions": pass_dims,
-        "created_at": _time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-    }
+    identity = _new_embedder_identity(desc)
     if (memory_dir(project.path) / "qdrant").exists():
         identity["adopted_existing_store"] = True
         logger.warning(
@@ -438,15 +556,37 @@ def _mem0_options(project) -> dict:
     Raises :class:`MemoryConfigError` when vector memory cannot be built as
     configured — callers decide whether that surfaces (API) or degrades
     (agent build)."""
-    from ms_agent.project.paths import memory_dir
-
     settings = _read_settings()
     mem_cfg = _project_memory_models(project)
     desc = _resolve_embedder(settings, mem_cfg)
     identity = _resolve_embedder_identity(project, desc)
+    return _mem0_options_for(project, settings, mem_cfg, desc, identity)
+
+
+def _mem0_options_for(project, settings: dict, mem_cfg: dict, desc: dict,
+                      identity: dict, *,
+                      qdrant_path: str | None = None) -> dict:
+    """Assemble mem0 options for an already-resolved embedder + identity.
+
+    Split out for the rebuild path, which must NOT go through
+    ``_resolve_embedder_identity`` (its whole job is to refuse a changed
+    embedder) and which writes into a temporary store before swapping it in —
+    hence ``qdrant_path``.
+    """
+    from ms_agent.project.paths import memory_dir
+
     dims = int(identity["dimension"])
 
     if desc["mode"] == "local":
+        # mem0 constructs its own TextEmbedding later, out of our hands — make
+        # sure the model is already in the shared cache by then. No-op when
+        # warm; covers a legacy local-mode project whose store was configured
+        # before this machine ever ran ensure_embedder_usable.
+        from app.backends.ms_agent import embed_warmup
+        from app.core.settings import settings as app_settings
+
+        embed_warmup.warm_local_memory_models(desc["model"],
+                                          app_settings.ms_agent_embed_model_source)
         embedder = {
             "provider": "fastembed",
             "config": {"model": desc["model"], "embedding_dims": dims},
@@ -468,12 +608,18 @@ def _mem0_options(project) -> dict:
         "vector_store": {
             "provider": "qdrant",
             "config": {
-                "path": str(memory_dir(project.path) / "qdrant"),
+                "path": qdrant_path or str(memory_dir(project.path) / "qdrant"),
                 "on_disk": True,
                 "collection_name": "webui_memory",
                 "embedding_model_dims": dims,
             },
         },
+        # mem0 defaults this to ~/.mem0/history.db — one global SQLite holding
+        # every project's RAW conversation messages (it feeds them back as
+        # extraction context) plus its memory event log. For a per-project
+        # product that is the wrong scope: it outlives the project it came from
+        # and sits outside the directory that is supposed to hold its data.
+        "history_db_path": str(memory_dir(project.path) / "history.db"),
     }
     llm = _mem0_llm(settings, mem_cfg)
     if llm is not None:
@@ -587,25 +733,38 @@ def _apply_webui_permission(config, project_mode: str | None = None):
     return config
 
 
-def thinking_default(protocol: str, provider: str, model: str = "") -> bool:
-    """Whether ``extra_body.enable_thinking`` is ON by DEFAULT for this
-    provider/model/protocol, before any user override. Single source of truth:
-    used by build shaping (``_apply_model_compatibility``) and surfaced to the
-    model-settings UI (``mapping.builtin_provider_to_schema``) so the effective
-    default is visible in the generation-params JSON.
-
-    Thinking defaults on for the Anthropic protocol (where the flag maps to the
-    Messages API ``thinking`` param), for Qwen models, and for DashScope /
-    ModelScope; other OpenAI-compatible providers default it off (they stream
-    ``reasoning_content`` natively or reject the flag)."""
-    protocol = (protocol or "").lower()
+def provider_base_url(provider: str) -> str:
+    """The endpoint we will actually call for ``provider`` (user override first,
+    then the built-in spec's default). The thinking dialect is decided by the
+    host, so this — not the provider id — is what the SDK needs."""
     provider = (provider or "").lower()
-    model = (model or "").lower()
-    return (
-        protocol == "anthropic"
-        or "qwen" in model
-        or provider in {"dashscope", "modelscope"}
-    )
+    entry = (_read_settings().get("providers") or {}).get(provider) or {}
+    return entry.get("base_url") or _openai_compat_base_url(provider) or ""
+
+
+def thinking_plan(
+    protocol: str,
+    provider: str,
+    effort: Any = "auto",
+    existing: dict | None = None,
+) -> dict:
+    """What the SDK will send for ``effort`` on this provider's endpoint.
+
+    A thin pass-through to ``ms_agent.llm.thinking.plan`` so the settings UI and
+    the runtime can never drift: the same function decides both. ``existing`` is
+    the rest of the user's generation params, which the plan yields to — without
+    it the dialog would advertise a ``reasoning_effort`` that the request path
+    then drops (DashScope rejects it alongside a hand-written
+    ``thinking_budget``). The WebUI holds NO policy of its own about thinking —
+    it used to, as a per-provider boolean, and that boolean is exactly what
+    silenced thinking on ModelScope and Zhipu by writing an explicit ``false``
+    where it meant "no opinion"."""
+    from ms_agent.llm.thinking import plan
+
+    return plan(effort,
+                base_url=provider_base_url(provider),
+                protocol=(protocol or "").lower(),
+                existing=existing)
 
 
 def _apply_model_compatibility(config):
@@ -614,10 +773,20 @@ def _apply_model_compatibility(config):
 
     from omegaconf import OmegaConf
 
-    provider = str(OmegaConf.select(config, "llm.service", default="") or "").lower()
-    model = str(OmegaConf.select(config, "llm.model", default="") or "").lower()
+    service = str(OmegaConf.select(config, "llm.service", default="") or "")
+    model_id = str(OmegaConf.select(config, "llm.model", default="") or "")
+    # Case-folded copies for the vendor quirk matching further down ONLY. The
+    # sidecar lookup below has to use both ids verbatim: its keys are the provider
+    # id as created and the model id as the provider spells it, so folding them
+    # made `webui_params` come back empty for anything carrying capitals — a very
+    # ordinary model id like `Qwen/Qwen3-32B`. That empty dict then reads as "the
+    # user configured no temperature / no thinking", and the two blocks below
+    # delete the values `_apply_webui_generation_params` had just merged in from
+    # exactly those settings.
+    provider = service.lower()
+    model = model_id.lower()
     temperature_enabled = False
-    webui_params = _webui_generation_params(provider, model)
+    webui_params = _webui_generation_params(service, model_id)
     try:
         with open(os.path.join(home(), "settings.json"), encoding="utf-8") as fh:
             temperature_enabled = bool(
@@ -646,29 +815,28 @@ def _apply_model_compatibility(config):
     ):
         OmegaConf.update(config, "generation_config.temperature", 1.0, merge=True)
 
-    # enable_thinking is a Qwen/DashScope-style extra_body flag. DeepSeek and
-    # other OpenAI-compatible providers either stream reasoning_content directly
-    # or do not support the flag; default it off for them so we don't send an
-    # unsupported extra — UNLESS the user explicitly configured thinking params
-    # for this provider/model (per-provider thinking control via the WebUI model
-    # settings: provider default_generation_params / model advanced_params, which
-    # flow into generation_config via _apply_webui_generation_params).
-    # On the Anthropic protocol, enable_thinking IS the switch that turns on the
-    # provider's thinking mode (mapped to the Messages API `thinking` param), so
-    # keep it — the transport now replays thinking blocks through tool calls.
-    protocol = str(
-        OmegaConf.select(config, "llm.protocol", default="") or "").lower()
+    # Thinking: the WebUI decides nothing. The SDK resolves the canonical
+    # `reasoning_effort` knob against the endpoint at request time
+    # (ms_agent/llm/thinking.py), which is the only place that knows the
+    # base_url and therefore the dialect.
+    #
+    # All we have to do is get out of its way: the SDK's base agent.yaml seeds
+    # generation_config.extra_body.enable_thinking = false, and a hand-written
+    # wire value deliberately outranks the knob, so leaving that seed in place
+    # would pin thinking OFF everywhere. Dropping it is an active step, not an
+    # omission. A value the USER configured (provider default_generation_params
+    # / model advanced_params, merged in by _apply_webui_generation_params) is
+    # left exactly as it is — that is the escape hatch working as intended.
     extra_body = webui_params.get("extra_body")
-    thinking_user_set = isinstance(extra_body, dict) and (
-        "enable_thinking" in extra_body or "thinking_budget" in extra_body
+    thinking_user_set = isinstance(extra_body, dict) and any(
+        key in extra_body
+        for key in ("enable_thinking", "thinking_budget", "thinking")
     )
-    if not thinking_user_set and not thinking_default(protocol, provider, model):
-        OmegaConf.update(
-            config,
-            "generation_config.extra_body.enable_thinking",
-            False,
-            merge=True,
-        )
+    if not thinking_user_set:
+        extra = OmegaConf.select(
+            config, "generation_config.extra_body", default=None)
+        if extra is not None and "enable_thinking" in extra:
+            del extra["enable_thinking"]
     return config
 
 
@@ -711,6 +879,22 @@ def _webui_generation_params(provider: str, model: str) -> dict:
     return params
 
 
+def _webui_supports_vision(provider: str, model: str) -> bool | None:
+    """The model's "image understanding" switch, or None when never set.
+
+    Tri-state is load-bearing: None means the SDK decides (provider capability,
+    then learning from a refusal), which is why this cannot collapse to a bool.
+    """
+    if not provider or not model:
+        return None
+    from app.backends.ms_agent import sidecar
+    from app.backends.ms_agent.mapping import encode_model_id
+
+    meta = sidecar.get("models", encode_model_id(provider, model)) or {}
+    value = meta.get("supports_vision")
+    return None if value is None else bool(value)
+
+
 def _apply_webui_generation_params(config):
     """Apply generation params configured from the WebUI model settings page."""
     from omegaconf import OmegaConf
@@ -719,6 +903,13 @@ def _apply_webui_generation_params(config):
     model = str(OmegaConf.select(config, "llm.model", default="") or "")
     for key, value in _webui_generation_params(provider, model).items():
         OmegaConf.update(config, f"generation_config.{key}", value, merge=True)
+    # Not a generation param — it decides whether image attachments are put on
+    # the wire at all, so it lands on `llm` where the SDK's resolver reads it.
+    # Only written when the user has actually set it, so "unset" stays unset.
+    supports_vision = _webui_supports_vision(provider, model)
+    if supports_vision is not None:
+        OmegaConf.update(
+            config, "llm.supports_vision", supports_vision, merge=True)
     return config
 
 
@@ -843,7 +1034,10 @@ def build_agent(project, session, *, event_sink, input_source, mcp_config=None,
         "generation_config.stream": True,
         "generation_config.stream_output": True,
         "generation_config.show_reasoning": True,
-        "generation_config.extra_body.enable_thinking": True,
+        # No enable_thinking here on purpose: _apply_model_compatibility below
+        # is the single place that decides it (on / off / say nothing), and a
+        # hardcoded True here would be an unconditional default it then has to
+        # undo.
         "session_log.enabled": True,
         "output_dir": project.path,
         "max_chat_round": 1000,
@@ -868,6 +1062,17 @@ def build_agent(project, session, *, event_sink, input_source, mcp_config=None,
 
     # Bridge managed skill sources into the runtime (reused SDK/TUI helper).
     cfg = merge_skills_into_config(cfg, h, project.path)
+    skill_sync_token = None
+    try:
+        from app.backends.ms_agent.skill_index import skill_index
+
+        skill_sync_token = skill_index.runtime_snapshot(
+            project.id,
+            project.path,
+            getattr(cfg, "skills", None),
+        ).token
+    except Exception:
+        logger.debug("skill change tracker baseline failed", exc_info=True)
 
     # MCP: use the SDK's standard mcp_config path (enabled servers only) — far
     # more robust to invalid servers than injecting an MCPRuntime (whose remote
@@ -886,6 +1091,10 @@ def build_agent(project, session, *, event_sink, input_source, mcp_config=None,
         mcp_config=mcp_config or {},
         load_cache=resume,
     )
+    if skill_sync_token is not None:
+        # The watcher baseline predates the SDK's full catalog load.  Any
+        # subsequent resource event changes the token before the first turn.
+        agent._webui_skill_sync_token = skill_sync_token
     # The runtime passes a WebPermissionHandler (ask -> SSE authorization card
     # -> POST /api/chat/permission resolve, deny on timeout). Direct callers
     # (tests/scripts) get auto-allow so restricted mode can't hang them on a

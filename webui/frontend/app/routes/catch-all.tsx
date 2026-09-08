@@ -2,8 +2,9 @@ import { redirect } from 'react-router'
 
 /**
  * Catch-all fallback — any URL that matches no route lands on the home page.
- * The app deliberately has no redirect-only routes for valid destinations;
- * this is purely the unmatched-URL (404) fallback.
+ * This is purely the unmatched-URL (404) fallback; the one redirect-only route
+ * for a valid destination (`/settings` → models) redirects from its loader the
+ * same way, so no redirect is left to a `<Navigate>` element.
  */
 export function loader() {
   return redirect('/')

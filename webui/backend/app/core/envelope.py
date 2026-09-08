@@ -76,27 +76,98 @@ class EnvelopeRoute(APIRoute):
 async def _http_exception_handler(
         request: Request, exc: StarletteHTTPException) -> JSONResponse:
     detail = exc.detail
-    message = detail if isinstance(detail, str) else "request failed"
+    message = detail if isinstance(detail, str) else "The request could not be processed."
     return error_response(exc.status_code, message, data=None)
+
+
+def _field_label(loc: tuple[Any, ...]) -> str:
+    """Turn a pydantic error location into a readable field name.
+
+    Drops the request-part prefixes (``body``/``query``/``path``) and list
+    indices, then title-cases the last snake_case segment: ``("body",
+    "display_name")`` -> ``"Display name"``.
+    """
+    parts = [
+        p for p in loc
+        if p not in ("body", "query", "path") and not isinstance(p, int)
+    ]
+    if not parts:
+        return "Value"
+    words = str(parts[-1]).replace("_", " ").strip()
+    return (words[:1].upper() + words[1:]) if words else "Value"
+
+
+def _friendly_validation_message(err: dict[str, Any]) -> str:
+    """Map a raw pydantic error into a business-facing English sentence.
+
+    Pydantic's own ``msg`` (e.g. "String should have at most 80 characters")
+    reads like a developer/library message. We rephrase it around the field and
+    the constraint so it makes sense to an end user.
+    """
+    etype = err.get("type", "")
+    ctx = err.get("ctx") or {}
+    field = _field_label(tuple(err.get("loc", ())))
+    if etype == "missing":
+        return f"{field} is required."
+    if etype == "string_too_short":
+        n = ctx.get("min_length")
+        return (f"{field} must be at least {n} characters."
+                if n is not None else f"{field} is too short.")
+    if etype == "string_too_long":
+        n = ctx.get("max_length")
+        return (f"{field} must be at most {n} characters."
+                if n is not None else f"{field} is too long.")
+    if etype == "too_short":
+        n = ctx.get("min_length")
+        return (f"{field} needs at least {n} items."
+                if n is not None else f"{field} has too few items.")
+    if etype == "too_long":
+        n = ctx.get("max_length")
+        return (f"{field} allows at most {n} items."
+                if n is not None else f"{field} has too many items.")
+    if etype == "string_pattern_mismatch":
+        return f"{field} has an invalid format."
+    if etype == "greater_than":
+        return f"{field} must be greater than {ctx.get('gt')}."
+    if etype == "greater_than_equal":
+        return f"{field} must be at least {ctx.get('ge')}."
+    if etype == "less_than":
+        return f"{field} must be less than {ctx.get('lt')}."
+    if etype == "less_than_equal":
+        return f"{field} must be at most {ctx.get('le')}."
+    if etype in ("int_parsing", "int_type", "float_parsing", "float_type",
+                 "decimal_parsing"):
+        return f"{field} must be a number."
+    if etype in ("bool_parsing", "bool_type"):
+        return f"{field} must be true or false."
+    if etype == "string_type":
+        return f"{field} must be text."
+    if etype == "json_invalid":
+        return "The request body is not valid JSON."
+    if etype == "value_error":
+        # Custom validator messages are already business-facing; pydantic just
+        # prefixes them with "Value error, ".
+        msg = str(err.get("msg", ""))
+        cleaned = msg[len("Value error, "):] if msg.startswith(
+            "Value error, ") else msg
+        return cleaned or f"{field} is invalid."
+    return f"{field} is invalid."
 
 
 async def _validation_exception_handler(
         request: Request, exc: RequestValidationError) -> JSONResponse:
     errors = exc.errors()
-    message = "validation error"
+    message = "Please check your input and try again."
     if errors:
-        first = errors[0]
-        loc = ".".join(
-            str(p) for p in first.get("loc", []) if p not in ("body", "query"))
-        msg = first.get("msg", "validation error")
-        message = f"{loc}: {msg}" if loc else msg
+        message = _friendly_validation_message(errors[0])
     # Keep the raw error list in `data` for debugging / field-level UIs.
     return error_response(422, message, data=errors)
 
 
 async def _unhandled_exception_handler(
         request: Request, exc: Exception) -> JSONResponse:
-    return error_response(500, "internal server error", data=None)
+    return error_response(
+        500, "Something went wrong on our side. Please try again.", data=None)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
