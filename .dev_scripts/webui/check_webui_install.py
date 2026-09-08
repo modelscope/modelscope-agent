@@ -2,6 +2,7 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
 """Run with a fresh wheel environment's Python, outside the SDK checkout."""
 import argparse
+import importlib
 import json
 import os
 import signal
@@ -112,6 +113,11 @@ def main():
     parser.add_argument('--logs', type=Path, required=True)
     args = parser.parse_args()
     args.logs.mkdir(parents=True, exist_ok=True)
+    # The image shares these locked dependencies with the full SDK CLI.
+    importlib.import_module('ms_agent.agent_hub')
+    # Default tool initialization must not download packages during first chat.
+    for module in ('bs4', 'lxml', 'pyarrow', 'seaborn', 'sklearn'):
+        importlib.import_module(module)
     from ms_agent.cli.ui_resources import file_digest, find_webui
 
     bundled, installed = find_webui()

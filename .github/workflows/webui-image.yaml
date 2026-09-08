@@ -8,13 +8,18 @@ on:
   workflow_dispatch:
     inputs:
       push_dev:
-        description: 'Push the validated image to ACR as dev-<SDK SHA> (requires ACR secrets and network access)'
+        description: 'Publish the matching development wheel to OSS and image to ACR'
         type: boolean
         required: true
         default: false
+      dev_base_version:
+        description: 'Development base X.Y.Z; blank uses the SDK version without rc suffix'
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: webui-image-${{ github.ref }}
@@ -23,94 +28,24 @@ concurrency:
 jobs:
   package:
     uses: ./.github/workflows/webui-check.yaml
+    with:
+      development_build: ${{ github.event_name == 'workflow_dispatch' }}
+      dev_base_version: ${{ inputs.dev_base_version || '' }}
 
-  build:
+  image:
     needs: package
-    runs-on: ubuntu-22.04
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/download-artifact@v4
-        with:
-          name: webui-release-inputs
-          path: release-inputs
-      - name: Verify build inputs
-        id: metadata
-        run: |
-          (cd release-inputs && sha256sum --check SHA256SUMS)
-          python .dev_scripts/webui/check_webui_release.py --dist release-inputs --sdk-sha "$GITHUB_SHA"
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          release = json.loads(Path('release-inputs/release.json').read_text())
-          wheel_sha = next(value for name, value in release['files'].items() if name.endswith('.whl'))
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('wheel_sha=' + wheel_sha + '\n')
-          PY
-      - uses: docker/setup-buildx-action@v3
-      - name: Build the application image without pushing
-        uses: docker/build-push-action@v6
-        with:
-          context: release-inputs
-          file: docker/webui.Dockerfile
-          platforms: linux/amd64
-          load: true
-          push: false
-          provenance: false
-          tags: ms-agent-webui:validated
-          build-args: |
-            SDK_VERSION=${{ needs.package.outputs.version }}
-            SDK_SHA=${{ github.sha }}
-            WHEEL_SHA256=${{ steps.metadata.outputs.wheel_sha }}
-          cache-from: type=gha,scope=webui-image
-          cache-to: type=gha,mode=max,scope=webui-image
-      - name: Check container and preserve this exact image
-        run: |
-          mkdir -p validated-image
-          python .dev_scripts/webui/check_webui_image.py --inputs release-inputs --output validated-image/image.json --logs container-logs
-          docker save ms-agent-webui:validated | gzip -1 > validated-image/image.tar.gz
-      - uses: actions/upload-artifact@v4
-        with:
-          name: webui-validated-image
-          path: validated-image/
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 30
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: webui-container-logs
-          path: container-logs/
-          if-no-files-found: ignore
+    uses: ./.github/workflows/webui-image-runner.yaml
+    with:
+      operation: build
+      image_tag: ${{ (github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.push_dev)) && needs.package.outputs.version || '' }}
+      development_version: ${{ github.event_name == 'workflow_dispatch' && needs.package.outputs.version || '' }}
 
   push-dev:
     if: github.event_name == 'workflow_dispatch' && inputs.push_dev
-    needs: [package, build]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/download-artifact@v4
-        with:
-          name: webui-release-inputs
-          path: release-inputs
-      - uses: actions/download-artifact@v4
-        with:
-          name: webui-validated-image
-          path: validated-image
-      - name: Load the tested image
-        run: gzip -dc validated-image/image.tar.gz | docker load
-      - uses: docker/login-action@v3
-        with:
-          registry: mshub-registry.cn-zhangjiakou.cr.aliyuncs.com
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      - name: Push and pull back the test tag
-        run: |
-          python .dev_scripts/webui/publish_webui_release.py acr --inputs release-inputs --image-record validated-image/image.json --image-tag "dev-${GITHUB_SHA:0:12}"
+    needs: [package, image]
+    uses: ./.github/workflows/webui-image-runner.yaml
+    with:
+      operation: publish
+      image_tag: ${{ needs.package.outputs.version }}
+      development_version: ${{ needs.package.outputs.version }}
+      publish_wheel: true

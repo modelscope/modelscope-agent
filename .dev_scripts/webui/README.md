@@ -45,8 +45,11 @@ package contents are controlled separately by the build rules.
 | `check_webui_release.py` | Check version, tag and dependencies; validate wheel/sdist and write release checksums |
 | `check_webui_install.py` | Exercise an installed wheel outside the checkout, including pages, CSS, streaming, cache reuse and shutdown |
 | `check_webui_image.py` | Exercise a built Docker image and record its identity |
+| `release_artifacts.py` | Find original workflow artifacts and save/restore the exact tested image |
 | `webui_smoke.py` | Shared HTTP checks used by package and image validation |
 | `publish_webui_release.py` | Publish already validated artifacts and reject conflicting existing versions |
+| `development_version.py` | Assign a development version in an isolated package source without changing the working checkout |
+| `oss_distribution.py` | Deliver a verified development wheel and record its matching published image using runner-local settings |
 
 The installed-package check needs the Python interpreter from a fresh wheel
 environment. Run it from outside the checkout, passing its absolute script path
@@ -55,3 +58,62 @@ and volumes and removes them when finished. Neither check calls a real model.
 
 For exact automated commands, see the [package workflow](../../.github/workflows/webui-check.yaml)
 and [image workflow](../../.github/workflows/webui-image.yaml).
+
+## Workflow responsibilities
+
+- `webui-check.yaml` runs package and application checks on GitHub-hosted runners.
+- `webui-image.yaml` is the manual image entry point and the release build dependency.
+- `webui-image-runner.yaml` runs image work on the dedicated `ms-agent-image` runner.
+- `publish.yaml` publishes PyPI on a GitHub-hosted runner after image validation,
+  then asks the image runner to restore and publish the tested image.
+
+Manual package and image runs use `X.Y.Z.devN`, where `N` is the GitHub run ID.
+The optional `dev_base_version` input selects `X.Y.Z`; leaving it blank uses the
+SDK version without its RC suffix. Retries keep the original run ID and artifacts.
+The version is applied to the package source copy and its backend lock entry,
+so the wheel metadata and installed SDK report the same version.
+
+In the image workflow, `push_dev=false` builds and checks the package and image.
+Selecting `push_dev=true` also delivers the wheel and publishes the matching image
+under the same development version. Release tags keep the existing release/RC
+flow, and the PyPI publisher rejects development versions.
+
+Business delivery uses an installed `ossutil` and the encrypted `ms-agent` profile
+in runner-local `credentials.ini`, with a `destination.json` containing the target
+`uri`. Set `MS_AGENT_OSS_ROOT` to this directory. Keep both files
+private and outside the checkout. Upload only the verified wheel as public-read;
+delivery manifests remain private and the workflow does not change Bucket ACLs.
+Large wheels use resumable parallel upload to a private staging object, followed
+by a server-side copy that rejects overwriting an existing final object. The
+temporary object is then removed. Credentials need object upload, download, ACL,
+multipart upload and staging-object deletion permissions within the target prefix.
+
+The delivery helper checks uploaded bytes and anonymous downloads before recording
+success. A versioned delivery manifest and `channels/dev/latest.json` are written
+after the matching image is published. Older retries cannot replace a newer latest
+record. Download URLs are recorded in the runner-local `deliveries/` directory;
+they are not printed in workflow logs or included in workflow artifacts.
+
+`release_artifacts.py` saves images by immutable image ID, checks the archive
+checksum before loading, and finds the original artifacts when a job is retried.
+`publish_webui_release.py` skips already published identical files/images and
+rejects conflicting content. Retrying failed jobs reuses the workflow artifacts;
+do not delete them or rebuild a version already published to PyPI.
+
+The image jobs receive no PyPI token. Their registry credentials come from a
+runner-local Docker configuration, selected by `MS_AGENT_ACR_AUTH_FILE`.
+Each registry operation makes a temporary, registry-scoped copy and
+removes it afterward. PR checks do not run on the image runner.
+
+Set these paths in repository Actions variables or the runner service environment:
+
+| Variable | Required for | Value |
+| --- | --- | --- |
+| `MS_AGENT_ACR_AUTH_FILE` | ACR checks and image publication | Absolute path to a readable Docker credential file |
+| `MS_AGENT_OSS_ROOT` | Business wheel delivery | Absolute path to the private OSS configuration directory |
+
+Repository variables take precedence over the runner environment. There are no
+default paths; a missing setting stops the relevant job before building or
+publishing. Build-only runs do not require publication credentials. When running
+the OSS helper directly, `--config-root` can explicitly override `MS_AGENT_OSS_ROOT`.
+Keep credential contents and download addresses out of repository variables.

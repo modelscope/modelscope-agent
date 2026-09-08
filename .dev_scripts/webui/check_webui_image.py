@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--inputs', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--logs', type=Path, required=True)
+    parser.add_argument('--resource-label', default='')
     args = parser.parse_args()
     args.logs.mkdir(parents=True, exist_ok=True)
     release = json.loads((args.inputs / 'release.json').read_text())
@@ -32,11 +33,13 @@ def main():
     assert labels['com.modelscope.ms-agent.wheel-sha256'] == wheel_sha
     name = 'ms-agent-smoke-' + uuid.uuid4().hex[:12]
     volume = name + '-data'
-    docker('volume', 'create', volume)
+    label_args = ['--label', args.resource_label] if args.resource_label else []
+    docker('volume', 'create', *label_args, volume)
     state = None
     try:
         for scenario in ('normal', 'restart', 'backend', 'frontend'):
-            docker('run', '--detach', '--name', name, '--publish',
+            docker('run', *label_args, '--cpus', '2', '--memory', '4g',
+                   '--detach', '--name', name, '--publish',
                    '127.0.0.1::8000', '--mount',
                    'type=volume,source=' + volume + ',target=/data',
                    args.image)
@@ -47,6 +50,8 @@ def main():
                 installed = json.loads(
                     docker(
                         'exec', name, 'python', '-c',
+                        'import ms_agent.agent_hub; '
+                        'import bs4, lxml, pyarrow, seaborn, sklearn; '
                         'from ms_agent.cli.ui_resources import find_webui; '
                         'p, installed = find_webui(); assert installed; '
                         'print((p / "RESOURCE-MANIFEST.json").read_text())'))

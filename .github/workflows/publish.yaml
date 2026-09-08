@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: sdk-release-${{ github.ref }}
@@ -13,17 +14,17 @@ concurrency:
 
 jobs:
   build:
+    if: github.repository == 'modelscope/ms-agent'
     uses: ./.github/workflows/webui-image.yaml
 
-  publish:
-    if: github.repository == 'modelscope/ms-agent'
+  publish-pypi:
     needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 25
-    env:
-      IMAGE_TAG: ${{ needs.build.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -34,34 +35,22 @@ jobs:
         with:
           name: webui-release-inputs
           path: release-inputs
-      - uses: actions/download-artifact@v4
-        with:
-          name: webui-validated-image
-          path: validated-image
-      - name: Check the original artifacts and tag
+      - name: Check the original packages and release tag
         run: |
           (cd release-inputs && sha256sum --check SHA256SUMS)
           python .dev_scripts/webui/check_webui_release.py --tag "$GITHUB_REF_NAME" --dist release-inputs --sdk-sha "$GITHUB_SHA"
-          gzip -dc validated-image/image.tar.gz | docker load
           uv tool install twine==6.2.0
-      - name: Check publishing credentials are configured
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-          ACR_USER: ${{ secrets.ACR_USERNAME }}
-          ACR_PASS: ${{ secrets.ACR_PASSWORD }}
-        run: |
-          test -n "$PYPI_TOKEN" && test -n "$ACR_USER" && test -n "$ACR_PASS" || { echo 'Configure PYPI_API_TOKEN, ACR_USERNAME and ACR_PASSWORD before publishing'; exit 1; }
-      - uses: docker/login-action@v3
-        with:
-          registry: mshub-registry.cn-zhangjiakou.cr.aliyuncs.com
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      - name: Check ACR before publishing PyPI
-        run: python .dev_scripts/webui/publish_webui_release.py check-acr --inputs release-inputs --image-record validated-image/image.json --image-tag "$IMAGE_TAG"
       - name: Publish the verified wheel and sdist
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: python .dev_scripts/webui/publish_webui_release.py pypi --inputs release-inputs
-      - name: Push and pull back the already tested image
-        run: python .dev_scripts/webui/publish_webui_release.py acr --inputs release-inputs --image-record validated-image/image.json --image-tag "$IMAGE_TAG"
+        run: |
+          test -n "$TWINE_PASSWORD" || { echo 'Configure PYPI_API_TOKEN before publishing'; exit 1; }
+          python .dev_scripts/webui/publish_webui_release.py pypi --inputs release-inputs
+
+  publish-image:
+    needs: [build, publish-pypi]
+    uses: ./.github/workflows/webui-image-runner.yaml
+    with:
+      operation: publish
+      image_tag: ${{ needs.build.outputs.version }}

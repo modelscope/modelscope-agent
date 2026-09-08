@@ -11,11 +11,16 @@ import tomllib
 import webui_packaging as packaging
 import zipfile
 from pathlib import Path
+from development_version import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def check_tag(version, tag):
+    if DEVELOPMENT.fullmatch(version):
+        if tag:
+            raise ValueError('Development packages must not use release tags')
+        return
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:rc\d+)?', version):
         raise ValueError('Expected X.Y.Z or X.Y.ZrcN, got ' + version)
     if tag and tag != 'v' + version:
@@ -136,8 +141,14 @@ def main():
     parser.add_argument('--tag')
     parser.add_argument('--dist', type=Path)
     parser.add_argument('--sdk-sha')
+    parser.add_argument('--package-version', default='',
+                        help='Expected development version built from this source')
     args = parser.parse_args()
     version, dependencies = check_source(args.tag)
+    if args.package_version:
+        if args.tag or not DEVELOPMENT.fullmatch(args.package_version):
+            parser.error('--package-version is only for untagged development packages')
+        version = args.package_version
     if args.dist:
         if not args.sdk_sha or not re.fullmatch(r'[0-9a-f]{40}', args.sdk_sha):
             parser.error('--dist requires a full --sdk-sha')
