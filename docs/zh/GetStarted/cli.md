@@ -91,7 +91,7 @@ ms-agent tui --config path/to/agent.yaml
 
 ## ui — Web UI 服务
 
-启动 WebUI 并在浏览器中打开。pip 安装包包含构建好的页面和样式，首次启动会在用户缓存中安装前端运行依赖；源码运行时还会按需构建前端。
+启动 WebUI 并在浏览器中打开。PyPI 发布的安装包包含构建好的页面和样式，首次启动会在用户缓存中安装前端运行依赖；从 Git 或源码安装时还会按需构建前端。
 
 ```shell
 ms-agent ui

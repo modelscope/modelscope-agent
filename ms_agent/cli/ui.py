@@ -119,13 +119,22 @@ class UICMD(CLICommand):
                     _run_setup(command, frontend,
                                'Node dependency installation')
 
+                def build_frontend(frontend):
+                    pnpm = _require_executable('pnpm')
+                    _check_tool_versions({'node': node, 'pnpm': pnpm}, frontend)
+                    print(
+                        '[setup] Building WebUI (including generated CSS)...',
+                        flush=True)
+                    _run_setup([pnpm, 'build'], frontend, 'frontend build')
+
                 if installed:
                     webui = prepare_installed(
                         webui,
                         common,
                         node_version,
                         skip_install=self.args.skip_install,
-                        install_node=install_node)
+                        install_node=install_node,
+                        build_frontend=build_frontend)
                     python = Path(sys.executable)
                 else:
                     backend = webui / 'backend'
@@ -156,16 +165,7 @@ class UICMD(CLICommand):
                     try:
                         common.validate_build(webui / 'frontend')
                     except common.BuildError:
-                        pnpm = _require_executable('pnpm')
-                        _check_tool_versions({
-                            'node': node,
-                            'pnpm': pnpm
-                        }, webui / 'frontend')
-                        print(
-                            '[setup] Building WebUI (including generated CSS)...',
-                            flush=True)
-                        _run_setup([pnpm, 'build'], webui / 'frontend',
-                                   'frontend build')
+                        build_frontend(webui / 'frontend')
                         common.validate_build(webui / 'frontend')
                 if self.args.prepare_only:
                     print(f'WebUI prepared: {webui}', flush=True)

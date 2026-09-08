@@ -21,8 +21,12 @@ SDK commit with `--sdk-sha`.
 
 The wheel includes WebUI source and prebuilt frontend output. The sdist contains
 the same resources and this build helper, so rebuilding a wheel from the sdist
-does not need Node.js or pnpm. Editable SDK installation does not need a frontend
-build; `ms-agent ui` prepares it when first started.
+does not need Node.js or pnpm. SDK installation from an unprepared source tree
+or Git URL also works without frontend tools: its wheel carries WebUI source,
+and `ms-agent ui` builds the frontend in a writable cache on first use.
+Editable SDK installation builds in the checkout when first started.
+Published packages must pass the release checker, which requires prebuilt
+resources. An existing but invalid release manifest is always an error.
 
 ## Package inputs
 

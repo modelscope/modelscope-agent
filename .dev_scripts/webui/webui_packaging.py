@@ -78,6 +78,7 @@ def write_manifest(sdk_commit):
         'format': 1,
         'sdk_version': version(),
         'sdk_commit': sdk_commit,
+        'prebuilt': True,
         'files': {rel: digest(WEBUI / rel)
                   for rel in resource_paths()},
     }
@@ -91,7 +92,7 @@ def validate_release():
         validate_frontend()
         data = json.loads((WEBUI / MANIFEST).read_text(encoding='utf-8'))
         actual = {rel: digest(WEBUI / rel) for rel in resource_paths()}
-        if data.get('format') != 1 or data.get(
+        if data.get('prebuilt', True) is not True or data.get('format') != 1 or data.get(
                 'sdk_version') != version() or data.get('files') != actual:
             raise RuntimeError(
                 'WebUI release inputs changed after preparation')
@@ -104,11 +105,28 @@ def validate_release():
 
 
 def copy_resources(destination):
-    validate_release()
+    # A Git dependency is built before any frontend preparation. Preserve the
+    # source so SDK-only installs need no Node toolchain; the UI can build it on
+    # first use. An existing release manifest must still validate in full.
+    prebuilt = (WEBUI / MANIFEST).is_file()
+    if prebuilt:
+        validate_release()
+        manifest = json.loads((WEBUI / MANIFEST).read_text(encoding='utf-8'))
+    else:
+        manifest = {
+            'format': 1,
+            'sdk_version': version(),
+            'sdk_commit': None,
+            'prebuilt': False,
+            'files': {rel: digest(WEBUI / rel)
+                      for rel in resource_paths(include_build=False)},
+        }
     destination = Path(destination)
     if destination.exists():
         shutil.rmtree(destination)
-    for rel in resource_paths() + [MANIFEST]:
+    for rel in manifest['files']:
         target = destination / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(WEBUI / rel, target)
+    (destination / MANIFEST).write_text(
+        json.dumps(manifest, indent=2) + '\n', encoding='utf-8')

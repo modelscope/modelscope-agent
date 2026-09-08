@@ -94,7 +94,7 @@ ms-agent tui --config path/to/agent.yaml
 
 ## ui — Web UI Server
 
-Start the WebUI and open it in a browser. Pip installations include prebuilt
+Start the WebUI and open it in a browser. Packages published on PyPI include prebuilt
 pages and styles; the first start installs frontend runtime dependencies in a
 user cache. Source installations also prepare and rebuild the frontend when needed.
 

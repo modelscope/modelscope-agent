@@ -49,4 +49,4 @@ pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-安装包已包含构建好的页面和样式，首次启动会安装前端运行依赖。源码运行另需 uv 0.5+，用于准备后端环境。完整安装与配置步骤见 [WebUI 使用指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。
+PyPI 安装包已包含构建好的页面和样式，首次启动会安装前端运行依赖。直接从 Git 或尚未构建的源码安装时，首次启动还会自动构建前端。可编辑安装后运行另需 uv 0.5+，用于准备后端环境。完整安装与配置步骤见 [WebUI 使用指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。

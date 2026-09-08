@@ -48,7 +48,8 @@ pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-The package includes prebuilt pages and styles. The first start installs frontend
-runtime dependencies; source installations also need uv 0.5+ to prepare the
-backend environment. See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md)
+The PyPI package includes prebuilt pages and styles. The first start installs
+frontend runtime dependencies. Installing directly from Git or unprepared source
+also builds the frontend on first use. Running from an editable checkout requires
+uv 0.5+ to prepare the backend environment. See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md)
 for setup and configuration.

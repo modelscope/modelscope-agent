@@ -116,6 +116,25 @@ jobs:
               --base-version "$DEV_BASE_VERSION" --source "$RUNNER_TEMP/ms-agent-package-source" --apply
           fi
           cd "$RUNNER_TEMP/ms-agent-package-source"
+          # Git dependencies must install without a Node toolchain, including
+          # when another application supplies its own WebUI frontend.
+          mkdir -p "$RUNNER_TEMP/source-build-tools"
+          for tool in node pnpm; do
+            printf '#!/bin/sh\necho Unexpected frontend tool during SDK installation >&2\nexit 99\n' > "$RUNNER_TEMP/source-build-tools/$tool"
+            chmod +x "$RUNNER_TEMP/source-build-tools/$tool"
+          done
+          PATH="$RUNNER_TEMP/source-build-tools:$PATH" uv build --wheel --python 3.12 --out-dir "$RUNNER_TEMP/source-sdk-wheel"
+          python - <<'PY'
+          import json, os, zipfile
+          from pathlib import Path
+          wheel = next((Path(os.environ['RUNNER_TEMP']) / 'source-sdk-wheel').glob('*.whl'))
+          with zipfile.ZipFile(wheel) as archive:
+              manifest = json.loads(archive.read('ms_agent/webui/RESOURCE-MANIFEST.json'))
+              assert manifest['prebuilt'] is False
+              assert 'frontend/server.js' in manifest['files']
+          PY
+          # Avoid carrying the source-only wheel's build output into the release.
+          rm -rf build ms_agent.egg-info
           pnpm --dir webui/frontend install --frozen-lockfile
           pnpm --dir webui/frontend typecheck
           python .dev_scripts/webui/prepare_webui.py --sdk-sha "$GITHUB_SHA"
