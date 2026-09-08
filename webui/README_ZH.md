@@ -142,7 +142,7 @@ Windows 使用相同的安装和启动命令。源码运行时也可使用 Power
 ```bash
 docker run --rm -p 127.0.0.1:9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
-  mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
+  modelscope-registry.us-west-1.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
 
 打开 **http://127.0.0.1:9000**。`ms-agent-data` 保存应用数据，替换容器时保留该数据卷；需要操作宿主机的项目文件时，另行挂载对应目录。更改访问端口只需调整 `9000:8000` 左侧的值。

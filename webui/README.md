@@ -190,7 +190,7 @@ the published image tag you want to use:
 ```bash
 docker run --rm -p 127.0.0.1:9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
-  mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
+  modelscope-registry.us-west-1.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
 
 Open **http://127.0.0.1:9000**. The `ms-agent-data` volume stores application data;

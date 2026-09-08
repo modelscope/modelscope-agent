@@ -87,6 +87,11 @@ in runner-local `credentials.ini`, with a `destination.json` containing the targ
 `uri`. Set `MS_AGENT_OSS_ROOT` to this directory. Keep both files
 private and outside the checkout. Upload only the verified wheel as public-read;
 delivery manifests remain private and the workflow does not change Bucket ACLs.
+To use OSS transfer acceleration, enable it for the bucket and set `endpoint`
+in the runner-local `destination.json` to `https://oss-accelerate.aliyuncs.com`.
+Keep the signing region set to the bucket's region. Uploads and authenticated
+verification downloads use this endpoint; published download URLs keep their
+regional domain. Acceleration traffic is billed separately by OSS.
 Large wheels use resumable parallel upload to a private staging object, followed
 by a server-side copy that rejects overwriting an existing final object. The
 temporary object is then removed. Credentials need object upload, download, ACL,

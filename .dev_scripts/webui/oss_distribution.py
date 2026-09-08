@@ -63,13 +63,20 @@ class OssStore:
         self.region = profile['region']
         if not re.fullmatch(r'[a-z][a-z0-9]*(?:-[a-z0-9]+)+', self.region):
             raise ValueError('Invalid OSS region configuration')
-        uri = urllib.parse.urlsplit(json.loads(destination.read_text())['uri'])
+        target = json.loads(destination.read_text())
+        uri = urllib.parse.urlsplit(target['uri'])
         if (uri.scheme != 'oss' or uri.query or uri.fragment
                 or not re.fullmatch(r'[a-z0-9][a-z0-9-]{1,61}[a-z0-9]', uri.netloc)
                 or not uri.path.strip('/') or any(p in ('.', '..') for p in uri.path.split('/'))):
             raise ValueError('Invalid OSS destination configuration')
         self.bucket = uri.netloc
         self.prefix = uri.path.strip('/') + '/'
+        regional_endpoint = f'https://oss-{self.region}.aliyuncs.com'
+        self.endpoint = target.get('endpoint', regional_endpoint)
+        if self.endpoint not in (
+                regional_endpoint, 'https://oss-accelerate.aliyuncs.com',
+                'https://oss-accelerate-overseas.aliyuncs.com'):
+            raise ValueError('OSS endpoint must be the regional or transfer acceleration HTTPS endpoint')
         self.binary = self.root / 'bin/ossutil'
         self.state = self.root / 'deliveries'
         self.state.mkdir(mode=0o700, exist_ok=True)
@@ -89,7 +96,7 @@ class OssStore:
     def _run(self, operation, arguments):
         command = [str(self.binary), *arguments, '--config-file', str(self.config),
                    '--profile', 'ms-agent', '--region', self.region,
-                   '--endpoint', f'https://oss-{self.region}.aliyuncs.com',
+                   '--endpoint', self.endpoint,
                    '--ignore-env-var', '--loglevel', 'off', '--retry-times', '2',
                    '--read-timeout', '60']
         # Large wheels cross regions; metadata requests should still fail promptly.
