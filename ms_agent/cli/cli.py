@@ -38,12 +38,21 @@ def run_cmd():
     PluginCMD.define_args(subparsers)
 
     # unknown args will be handled in config.py
-    args, _ = parser.parse_known_args()
+    args, unknown = parser.parse_known_args()
 
     if not hasattr(args, 'func'):
         parser.print_help()
         exit(1)
     cmd = args.func(args)
+    # ``agent`` subcommands take no positional args and never consume the
+    # ad-hoc ``--key value`` overrides that Config.parse_args extracts, so a
+    # leftover argument is always a user mistake (e.g. a bare path that would
+    # silently fall back to the framework default workspace on upload).
+    if unknown and isinstance(cmd, AgentCMD):
+        parser.error(
+            f'unrecognized arguments: {" ".join(unknown)} '
+            '(`ms-agent agent` takes no positional arguments; '
+            'use --local-dir to specify a local directory)')
     cmd.execute()
 
 
