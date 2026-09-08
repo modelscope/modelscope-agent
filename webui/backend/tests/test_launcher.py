@@ -65,6 +65,16 @@ def test_public_url(host, expected):
     assert launcher.public_url(host, 8000) == expected
 
 
+def _record_build_manifest(cwd):
+    """Run the real producer of build/webui-build.json, so the Python validator is
+    always checked against the script `pnpm build` actually uses. It is TypeScript,
+    so it goes through the frontend's own tsx; both paths are absolute because the
+    manifest is recorded with `cwd` set to the frontend being described."""
+    tsx = Path(launcher.FRONTEND_DIR) / "node_modules/.bin/tsx"
+    script = Path(launcher.FRONTEND_DIR) / "scripts/buildManifest.ts"
+    subprocess.run([str(tsx), str(script)], cwd=cwd, check=True)
+
+
 @pytest.fixture
 def built_frontend(tmp_path):
     frontend = tmp_path / "frontend"
@@ -82,8 +92,7 @@ def built_frontend(tmp_path):
         target = frontend / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
-    script = Path(launcher.FRONTEND_DIR) / "scripts/buildManifest.mjs"
-    subprocess.run([shutil.which("node"), str(script)], cwd=frontend, check=True)
+    _record_build_manifest(frontend)
     return frontend
 
 
@@ -95,8 +104,7 @@ def test_runtime_cache_marker_is_not_a_frontend_source(built_frontend):
     marker = built_frontend / ".node-dependencies.json"
     marker.write_text('{"production": true}')
     assert validate_build(built_frontend) == "/assets/antd.test.css"
-    script = Path(launcher.FRONTEND_DIR) / "scripts/buildManifest.mjs"
-    subprocess.run([shutil.which("node"), str(script)], cwd=built_frontend, check=True)
+    _record_build_manifest(built_frontend)
     manifest = json.loads((built_frontend / "build/webui-build.json").read_text())
     assert marker.name not in manifest["inputs"]
     marker.write_text('{"production": false}')

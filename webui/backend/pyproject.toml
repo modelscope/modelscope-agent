@@ -3,16 +3,22 @@ name = "ms-agent-webui-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    # Include the default code executor libraries so the first chat needs no pip install.
     "anthropic>=0.117.0",
+    "beautifulsoup4",
     "exa-py>=2.16.0",
     "fastapi>=0.139.0",
     "httpx>=0.28.1",
     "ipykernel>=7.3.0",
     "jupyter-client>=8.9.1",
     "loguru>=0.7.3",
+    "lxml",
     "mem0ai>=2.0.12",
     "ms-agent",
+    "pyarrow",
     "pydantic-settings>=2.14.2",
+    "scikit-learn",
+    "seaborn",
     # httpx refuses to CONSTRUCT a client — any client, even for a host covered
     # by NO_PROXY — when ALL_PROXY names a socks5:// endpoint and this is
     # missing, so a developer behind the usual local proxy gets an ImportError

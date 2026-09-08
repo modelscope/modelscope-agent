@@ -30,8 +30,16 @@ npm install --global pnpm@10.17.1
 ```
 
 Check your environment with `python --version`, `node --version` and
-`pnpm --version`. You can use an existing Python environment or create a virtual
-environment if preferred.
+`pnpm --version`. If you do not already have a Python environment, create one:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+On Windows PowerShell, activate it with `.\.venv\Scripts\Activate.ps1` instead.
+An existing virtual or Conda environment also works. Run the following `pip`
+and `ms-agent` commands in that environment.
 
 ### 2. Install and start
 
@@ -55,6 +63,18 @@ printed in the terminal. Press **Ctrl-C** to stop the service.
 2. Create or open a project, choosing a workspace, skills and MCP tools as needed.
 3. Create a session, choose a model and enter your task. Attach files or images
    when relevant.
+
+## Edit project files
+
+Open a project's workspace to create files or folders, rename entries in place,
+and edit text files. Changes stay in the editor when switching between files;
+press **Cmd/Ctrl+S** to save the open file, or choose **Save all and close**
+when closing the workspace editor. Save before leaving the page
+or refreshing the browser: these unsaved buffers are not stored on disk.
+
+If another editor or the agent changes a file, the workspace detects it when
+rechecking the open file. With unsaved edits, review the warning before choosing
+to reload from disk or overwrite with your version. Reloading discards your draft.
 
 ## Startup options
 
@@ -106,7 +126,9 @@ in that order. Later files take precedence; process environment variables win
 over all files. See the [configuration example](backend/.env.example).
 
 Local vector memory needs the optional `fastembed` package and downloads an
-embedding model on first use. Other model and search services use their own
+embedding model on first use. For a pip installation, run `pip install fastembed`
+in the active environment. For a source checkout, run
+`uv sync --locked --extra local-embed` in `webui/backend/`. Other model and search services use their own
 settings; ordinary chat does not require a local embedding model.
 
 ## Run from source and develop
@@ -144,7 +166,8 @@ pnpm dev
 Open **http://localhost:5173**. The frontend development server connects to the
 API on local port 8000 by default.
 
-Run `uv run pytest` in `webui/backend/`, and `pnpm typecheck` and `pnpm build` in
+Install frontend dependencies before running backend tests; launcher tests use
+the frontend’s `tsx` tool. Run `uv run pytest` in `webui/backend/`, and `pnpm typecheck` and `pnpm build` in
 `webui/frontend/`. Use the full `pnpm build` command to generate matching CSS,
 client files and server output.
 
@@ -164,7 +187,7 @@ Docker does not require Python, Node.js or pnpm on the host. Replace `TAG` with
 the published image tag you want to use:
 
 ```bash
-docker run --rm -p 9000:8000 \
+docker run --rm -p 127.0.0.1:9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
   mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
@@ -183,6 +206,6 @@ for remote users; access control still needs to be configured separately.
 | `ms-agent`, `node` or `pnpm` is not found | Confirm installation and command availability in the current terminal; reopen the terminal after installation if needed |
 | Python or Node version is unsupported | Check the requirements above and which interpreter the terminal uses |
 | An explicit port is occupied | Choose another `--port`, or omit it for automatic selection |
-| Pages or styles are missing | For source installs, run `pnpm build`; for pip installs, reinstall the package and follow the error message to prepare its cache again |
+| Pages or styles are missing | For source installs, run `pnpm build` in `webui/frontend/`; for pip installs, reinstall the package and follow the error message to prepare its cache again |
 | Model connection or authentication fails | Check the provider's API key, endpoint, model name and network access |
 | WebUI Python dependencies are missing | Run `pip install -U "ms-agent[webui]"` in the environment used to start the app |

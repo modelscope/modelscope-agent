@@ -12,6 +12,7 @@ import {
 import { collectDroppedFiles } from '~/lib/dropFiles'
 import type { DroppedFile } from '~/lib/dropFiles'
 import { useT } from '~/lib/i18n'
+import { InlineNameInput } from './InlineNameInput'
 import './FolderTree.css'
 
 // File type icons, inlined (`?react`) so the neutral ones can follow
@@ -76,6 +77,10 @@ function iconFor(title: string, isDir: boolean): ReactNode {
   return <Icon aria-hidden className="h-[14px] w-[14px] text-msa-icon-neutral" />
 }
 
+// Key of the inline "new entry" row. Not a path, so it can never collide with a
+// real node's `file:`/`dir:` key.
+const DRAFT_KEY = 'draft:new'
+
 // Node keys are `file:<path>` / `dir:<path>` (built by the caller).
 function parseKey(key: string): { isDir: boolean; path: string } {
   const isDir = key.startsWith('dir:')
@@ -93,6 +98,10 @@ const parentDir = (p: string) => {
 export interface FolderTreeActions {
   onNewFile: (dir: string) => void
   onNewFolder: (dir: string) => void
+  /** Pick files from the OS and upload them into `dir` ('' = workspace root). */
+  onUploadFiles: (dir: string) => void
+  /** Same, for a whole folder picked from the OS. */
+  onUploadFolder: (dir: string) => void
   /** Commit an inline rename: give `path` the new base name `newName`. */
   onRename: (path: string, newName: string) => void
   onDelete: (path: string, isDir: boolean) => void
@@ -117,12 +126,26 @@ interface FolderTreeProps {
   treeData: TreeDataNode[]
   /** Currently selected file key */
   selectedKey: string
+  /**
+   * File keys (`file:<path>`) holding unsaved edits, marked with a dot before the
+   * name. An editor that keeps a buffer the user has not written yet has to say
+   * which rows those are — otherwise the only hint is whichever file happens to
+   * be open.
+   */
+  dirtyKeys?: string[]
   /** Callback when a leaf node is selected */
   onSelect: (key: string) => void
   /** Case-insensitive filter: non-matching files are hidden, matches highlighted. */
   filter?: string
   /** File-management callbacks; when omitted the tree is read-only. */
   actions?: FolderTreeActions
+  /** An entry being created: an empty name input shown as the last row of `dir`
+   *  ('' = workspace root), editor-style. null = nothing being created. */
+  draft?: { dir: string; kind: 'file' | 'folder' } | null
+  /** The name typed into the draft row (trimmed, never empty — an empty commit
+   *  cancels instead). */
+  onDraftCommit?: (name: string) => void
+  onDraftCancel?: () => void
   /** Container className */
   className?: string
   /** Expand every folder when the tree (re)loads. Default FALSE (repo-wide
@@ -183,61 +206,31 @@ function Highlight({ text, q }: { text: string; q: string }) {
   )
 }
 
-// Inline rename editor rendered in place of a node's name. Autofocuses and
-// pre-selects the base name (excluding the extension). Enter/blur commits,
-// Escape cancels; a `done` guard prevents Escape's blur from also committing.
-function RenameInput({
-  initial,
-  onCommit,
-  onCancel
-}: {
-  initial: string
-  onCommit: (value: string) => void
-  onCancel: () => void
-}) {
-  const [value, setValue] = useState(initial)
-  const ref = useRef<HTMLInputElement>(null)
-  const done = useRef(false)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.focus()
-    const dot = initial.lastIndexOf('.')
-    if (dot > 0) el.setSelectionRange(0, dot)
-    else el.select()
-  }, [initial])
-  const commit = () => {
-    if (done.current) return
-    done.current = true
-    onCommit(value)
-  }
-  const cancel = () => {
-    if (done.current) return
-    done.current = true
-    onCancel()
-  }
-  return (
-    <input
-      ref={ref}
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        e.stopPropagation()
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          commit()
-        } else if (e.key === 'Escape') {
-          e.preventDefault()
-          cancel()
-        }
-      }}
-      onBlur={commit}
-      className="mr-2 min-w-0 flex-1 rounded border border-msa-line-2 bg-msa-bg-1 px-1 text-sm text-msa-text-1 outline-none"
-    />
-  )
+// Add the draft row as the last child of the folder `segments` spells out (an
+// empty list = the root level). Only the ancestor chain is copied, so untouched
+// subtrees keep their identity and antd doesn't re-render every row.
+function insertDraft(
+  nodes: TreeDataNode[],
+  segments: string[],
+  prefix: string,
+  draft: TreeDataNode
+): TreeDataNode[] {
+  if (segments.length === 0) return [...nodes, draft]
+  const path = prefix ? `${prefix}/${segments[0]}` : segments[0]
+  const key = `dir:${path}`
+  let found = false
+  const out = nodes.map((n) => {
+    if (String(n.key) !== key) return n
+    found = true
+    return {
+      ...n,
+      children: insertDraft(n.children ?? [], segments.slice(1), path, draft)
+    }
+  })
+  // The folder isn't in the tree we're showing (a filter pruned it, say): put
+  // the row at the level we reached rather than dropping it silently, which
+  // would look like the New-file click did nothing.
+  return found ? out : [...nodes, draft]
 }
 
 /**
@@ -248,9 +241,13 @@ function RenameInput({
 export function FolderTree({
   treeData,
   selectedKey,
+  dirtyKeys,
   onSelect,
   filter = '',
   actions,
+  draft = null,
+  onDraftCommit,
+  onDraftCancel,
   className,
   defaultExpandAll = false
 }: FolderTreeProps) {
@@ -366,6 +363,21 @@ export function FolderTree({
         label: t.workspace.newFolder,
         onClick: () => actions.onNewFolder(path)
       })
+      // The uploads target THIS folder, which is the only way to aim them at one
+      // — the Add-file menu at the bottom of the rail always lands at the root.
+      // Divided off because they are a different errand: made here vs. taken
+      // from the user's disk.
+      items.push({ type: 'divider' })
+      items.push({
+        key: 'uploadFile',
+        label: t.workspace.uploadFile,
+        onClick: () => actions.onUploadFiles(path)
+      })
+      items.push({
+        key: 'uploadFolder',
+        label: t.workspace.uploadFolder,
+        onClick: () => actions.onUploadFolder(path)
+      })
       items.push({ type: 'divider' })
     } else {
       items.push({
@@ -438,7 +450,7 @@ export function FolderTree({
         const titleEl = renaming ? (
           <span className="flex w-full items-center gap-2">
             {iconFor(title, isDir)}
-            <RenameInput
+            <InlineNameInput
               initial={title}
               onCommit={(v) => {
                 setRenamingKey(null)
@@ -460,6 +472,12 @@ export function FolderTree({
             {...fileDragProps(uploadDir, key)}
           >
             {iconFor(title, isDir)}
+            {/* Before the name, not after it: pinned to the right edge the dot sits
+                on the row's border and reads as row furniture rather than as
+                something about this file. */}
+            {dirtyKeys?.includes(key) && (
+              <span className="-mr-1 shrink-0 text-msa-text-3">•</span>
+            )}
             <span className="min-w-0 flex-1 truncate">
               <Highlight text={title} q={q} />
             </span>
@@ -499,7 +517,52 @@ export function FolderTree({
       })
     return decorate(data)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, selectedKeys, dropDir, q, actions, renamingKey])
+  }, [data, selectedKeys, dropDir, q, actions, renamingKey, dirtyKeys])
+
+  // The row being named. Built outside `decorate` because it is not an entry
+  // yet: it takes no context menu, no drag handlers and no selection highlight,
+  // and it must not be selectable — a click in it belongs to the input.
+  const dataWithDraft = useMemo(() => {
+    if (!draft) return styledData
+    const node: TreeDataNode = {
+      key: DRAFT_KEY,
+      isLeaf: true,
+      selectable: false,
+      className: 'rounded-lg',
+      title: (
+        <span className="flex w-full items-center gap-2">
+          {iconFor('', draft.kind === 'folder')}
+          <InlineNameInput
+            initial=""
+            onCommit={(v) => {
+              const name = v.trim()
+              // Committing nothing isn't an error to report, it's a change of
+              // mind — same outcome as Escape.
+              if (name) onDraftCommit?.(name)
+              else onDraftCancel?.()
+            }}
+            onCancel={() => onDraftCancel?.()}
+          />
+        </span>
+      )
+    }
+    return insertDraft(
+      styledData,
+      draft.dir ? draft.dir.split('/') : [],
+      '',
+      node
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [styledData, draft?.dir, draft?.kind, onDraftCommit, onDraftCancel])
+
+  // Reveal the folder the draft row sits in, which is typically collapsed (the
+  // usual case: New file on a folder that has never been opened).
+  useEffect(() => {
+    if (!draft?.dir) return
+    const parts = draft.dir.split('/')
+    const ancestors = parts.map((_, i) => `dir:${parts.slice(0, i + 1).join('/')}`)
+    setExpandedKeys((prev) => [...new Set([...prev, ...ancestors])])
+  }, [draft?.dir])
 
   // Flat list of currently visible node keys in display order (a folder's
   // children only count when it's expanded), so Shift-range selection matches
@@ -629,7 +692,7 @@ export function FolderTree({
     else actions.onMoveMany(moves)
   }
 
-  return q && styledData.length === 0 ? (
+  return q && styledData.length === 0 && !draft ? (
     <div className="px-3 py-6 text-center text-xs text-msa-text-3">
       {t.workspace.noSearchResults}
     </div>
@@ -663,7 +726,7 @@ export function FolderTree({
         blockNode
         draggable={actions ? { icon: false } : false}
         selectedKeys={selectedKeys}
-        treeData={styledData}
+        treeData={dataWithDraft}
         expandedKeys={expandedKeys}
         autoExpandParent={autoExpandParent}
         onExpand={(keys) => {

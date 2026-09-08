@@ -18,7 +18,7 @@ MS-Agent也是魔搭官网的[mcp-playground](https://modelscope.cn/mcp/playgrou
 
 ## 安装
 
-MS-Agent的安装请参考[安装文档](installation)。
+MS-Agent的安装请参考[安装文档](installation.md)。
 
 ## 使用样例
 

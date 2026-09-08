@@ -191,8 +191,15 @@ export default function ModelsSettings() {
             (with "add provider" still available below) and one in the detail
             pane — never a lone full-area empty state. */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-msa-line-1 md:flex-row">
-          {/* Left: providers list */}
-          <aside className="flex max-h-[240px] w-full shrink-0 flex-col border-b border-msa-line-1 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
+          {/* Left: providers list.
+              Stacked below `md`, where the shell is capped to the viewport and
+              every pixel this pane takes is one the models list below it loses.
+              192px leaves the rows a ~2.5-row window (44px each): the half row
+              peeking at the bottom is what says "scrolls", and picking a provider
+              is a short list you visit once, while picking a model is the reason
+              you came. Uncapped from `md` up, where the two panes sit side by side
+              and the height is no longer shared. */}
+          <aside className="flex max-h-[192px] w-full shrink-0 flex-col border-b border-msa-line-1 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
             {/* stable both-edges: the styled scrollbar reserves a gutter on the
                 right only, which would leave the selected-row highlight with a
                 wider gap on the right than the left. Mirroring the gutter on
@@ -242,8 +249,11 @@ export default function ModelsSettings() {
             </div>
           </aside>
 
-          {/* Right: provider detail + models */}
-          <div className="min-w-0 flex-1 overflow-y-auto px-7 py-6">
+          {/* Right: provider detail + models.
+              Tighter gutters below `md`: at phone widths `px-7` cost 56px of a
+              ~340px pane, which pushed the Base URL and protocol lines into two
+              rows each and shrank the models list by roughly a card and a half. */}
+          <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 md:px-7 md:py-6">
             {activeProvider ? (
               <ProviderDetail
                 provider={activeProvider}

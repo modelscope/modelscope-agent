@@ -91,8 +91,15 @@ function UserFileCard({
       </div>
     )
   }
+  // The wrappers below are the flex items of the attachment row, so the card's
+  // `min-w-0` has to be repeated here — otherwise the shrink stops at this layer
+  // and the card still overflows the bubble.
   if (deleted || !onOpenFile) {
-    return <div className={deleted ? 'cursor-not-allowed' : ''}>{card}</div>
+    return (
+      <div className={`min-w-0 ${deleted ? 'cursor-not-allowed' : ''}`}>
+        {card}
+      </div>
+    )
   }
   return (
     <div
@@ -106,7 +113,7 @@ function UserFileCard({
           onOpenFile(f.path)
         }
       }}
-      className="group/filecard cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-msa-line-2"
+      className="group/filecard min-w-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-msa-line-2"
     >
       {card}
     </div>

@@ -95,7 +95,7 @@ ms-agent tui --config path/to/agent.yaml
 
 ```shell
 ms-agent ui
-ms-agent ui --port 7860 --no-browser
+ms-agent ui --port 8080 --no-browser
 ```
 
 | 参数 | 行为 | 默认值 |
@@ -110,9 +110,9 @@ ms-agent ui --port 7860 --no-browser
 | `--prepare-only` | 准备资源/依赖后退出 | `false` |
 | `--startup-timeout` | 启动超时秒数 | `120` |
 
-WebUI 要求 Python 3.12+、Node >=22.22.0、pnpm 10.17.1；源码安装另需 uv >=0.5。端口范围为 1–65535；公开端口为 65535 时，内部端口从 8000 开始自动选择。任一服务失败会停止整体。默认共享 `~/.ms_agent` 数据，通过 `MS_AGENT_HOME` 可隔离；旧默认端口 7860 可用 `--port 7860` 保留。
+WebUI 需要 Python 3.12+、Node.js 22.22.0+ 和 pnpm 10.17.1；源码运行另需 uv 0.5+。端口必须空闲，前端与内部 API 不能使用同一端口。任一服务异常退出时，启动器会停止另一服务。配置与会话默认保存在 `~/.ms_agent`，可通过 `MS_AGENT_HOME` 指定其他目录。
 
-安装、配置、wheel 缓存、Windows 和热更新开发说明见 [WebUI 完整指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。
+安装、配置、Windows 和热更新开发说明见 [WebUI 完整指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。
 
 ---
 

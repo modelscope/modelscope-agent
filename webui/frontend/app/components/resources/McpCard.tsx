@@ -56,7 +56,18 @@ export function McpCard({
   return (
     <div
       className="flex cursor-pointer flex-col gap-2 rounded-xl bg-msa-fill-2 p-4 transition-colors hover:bg-msa-fill-4"
-      onClick={() => onToggle(!mcp.enabled)}
+      /* Only a click that actually landed inside the card toggles the server.
+         antd renders tooltips and menus into a portal on `document.body`, yet
+         React keeps bubbling their events up THIS component tree — so reading
+         the failure reason in a tooltip and clicking it (to select the URL, say)
+         used to flip the server off. One containment check covers every popup
+         the card owns, present and future; a `stopPropagation` per popup only
+         ever covers the node it is attached to, and misses the tooltip's own
+         padding and arrow. */
+      onClick={(e) => {
+        if (!e.currentTarget.contains(e.target as Node)) return
+        onToggle(!mcp.enabled)
+      }}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5">
@@ -75,14 +86,7 @@ export function McpCard({
             <Tooltip title={healthError || t.resources.statusError}>
               <span
                 aria-label={t.resources.statusError}
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-msa-deco-red"
-              />
-            </Tooltip>
-          ) : mcp.enabled && healthy === true ? (
-            <Tooltip title={t.resources.statusOk}>
-              <span
-                aria-label={t.resources.statusOk}
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-msa-deco-green"
+                className="h-1.5 w-1.5 rounded-full bg-msa-deco-red"
               />
             </Tooltip>
           ) : null}

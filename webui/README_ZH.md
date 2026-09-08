@@ -23,7 +23,14 @@
 npm install --global pnpm@10.17.1
 ```
 
-可以用 `python --version`、`node --version` 和 `pnpm --version` 检查环境。使用已有的 Python 环境即可，也可以按需创建虚拟环境。
+用 `python --version`、`node --version` 和 `pnpm --version` 检查环境。如果没有单独的 Python 环境，可以新建一个：
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Windows PowerShell 使用 `.\.venv\Scripts\Activate.ps1` 激活环境。已有虚拟环境或 Conda 环境的用户可以直接使用。后续的 `pip` 和 `ms-agent` 命令都在该环境中运行。
 
 ### 2. 安装并启动
 
@@ -41,6 +48,12 @@ ms-agent ui
 1. 打开 **设置 → 模型设置**，添加模型服务的 API Key、接口地址和模型。
 2. 新建或打开项目，按需选择工作目录、技能和 MCP 工具。
 3. 创建会话，选择模型，输入任务；需要时可附上文件或图片。
+
+## 编辑项目文件
+
+打开项目的工作区，可以新建文件或文件夹、直接重命名，并编辑文本文件。切换文件时，尚未保存的编辑会暂存在当前页面；按 **Cmd/Ctrl+S** 保存当前文件，或在关闭工作区编辑器时选择 **全部保存并关闭**。离开页面或刷新浏览器前请先保存，这些草稿不会自动持久化。
+
+其他编辑器或智能体修改文件后，工作区会在重新检查当前文件时发现变化。如果你也有未保存的编辑，请先查看提示，再选择从磁盘重新加载或用当前版本覆盖。重新加载会放弃当前草稿。
 
 ## 常用启动方式
 
@@ -79,7 +92,7 @@ ms-agent ui --host 0.0.0.0 --port 8000
 
 从 pip 安装时，WebUI 读取进程环境变量和已保存的 SDK 设置，不自动查找当前目录的 `.env`。从源码运行时，还会依次读取仓库根目录、`webui/`、`webui/backend/` 下的 `.env`，后者优先，已设置的进程环境变量优先级最高。可参考 [配置示例](backend/.env.example)。
 
-本地向量记忆需要额外安装 `fastembed`，首次使用时会下载嵌入模型。其他模型和搜索服务按各自配置使用，不必为普通对话安装本地嵌入模型。
+本地向量记忆需要额外安装 `fastembed`，首次使用时会下载嵌入模型。pip 安装的用户在当前环境执行 `pip install fastembed`；源码运行的用户在 `webui/backend/` 执行 `uv sync --locked --extra local-embed`。其他模型和搜索服务按各自配置使用，不必为普通对话安装本地嵌入模型。
 
 ## 从源码运行与开发
 
@@ -112,7 +125,7 @@ pnpm dev
 
 访问 **http://localhost:5173**。前端开发服务器默认连接本机 8000 端口的后端。
 
-运行检查：在 `webui/backend/` 执行 `uv run pytest`；在 `webui/frontend/` 执行 `pnpm typecheck` 和 `pnpm build`。完整构建会同时生成 CSS、页面和服务端文件，请使用 `pnpm build`，不要只运行其中一个子步骤。
+运行后端测试前需先安装前端依赖，启动测试会使用其中的 `tsx` 执行构建清单脚本。运行检查：在 `webui/backend/` 执行 `uv run pytest`；在 `webui/frontend/` 执行 `pnpm typecheck` 和 `pnpm build`。完整构建会同时生成 CSS、页面和服务端文件，请使用 `pnpm build`，不要只运行其中一个子步骤。
 
 Windows 使用相同的安装和启动命令。源码运行时也可使用 PowerShell 脚本：
 
@@ -127,7 +140,7 @@ Windows 使用相同的安装和启动命令。源码运行时也可使用 Power
 使用 Docker 时无需在宿主机安装 Python、Node.js 或 pnpm。将下面的 `TAG` 替换为要使用的已发布镜像标签：
 
 ```bash
-docker run --rm -p 9000:8000 \
+docker run --rm -p 127.0.0.1:9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
   mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
@@ -143,6 +156,6 @@ docker run --rm -p 9000:8000 \
 | 找不到 `ms-agent`、`node` 或 `pnpm` | 确认工具已安装，且当前终端可以访问相应命令；安装后可重新打开终端 |
 | Python 或 Node 版本不满足要求 | 使用上方列出的版本，确认终端中实际使用的解释器 |
 | 指定端口被占用 | 更换 `--port`，或省略它让启动器自动选择 |
-| 页面或样式缺失 | 源码运行时重新执行 `pnpm build`；pip 安装时重新安装当前包，按报错提示重新准备对应缓存 |
+| 页面或样式缺失 | 源码运行时在 `webui/frontend/` 执行 `pnpm build`；pip 安装时重新安装当前包，按报错提示重新准备对应缓存 |
 | 模型连接或认证失败 | 检查模型设置中的 API Key、接口地址、模型名称及网络连接 |
 | 缺少 WebUI 的 Python 依赖 | 在启动命令使用的环境中执行 `pip install -U "ms-agent[webui]"` |

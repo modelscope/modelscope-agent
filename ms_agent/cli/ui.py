@@ -229,7 +229,7 @@ def _require_executable(name: str) -> str:
     install_hints = {
         'uv': 'Install uv from https://docs.astral.sh/uv/.',
         'node': 'Install Node.js 22.22.0 or newer from https://nodejs.org/.',
-        'pnpm': 'Install pnpm 10 (for example: corepack enable).',
+        'pnpm': 'Install it with npm install --global pnpm@10.17.1.',
     }
     raise UIError(f'Required command "{name}" was not found. '
                   f'{install_hints.get(name, "Install it and retry.")}')
@@ -275,10 +275,8 @@ def _check_tool_versions(tools: Dict[str, str],
             raise UIError(
                 f'pnpm 10.x is required by this WebUI (found {actual} at '
                 f'{tools["pnpm"]}). Install it with '
-                f'"npm install --global --prefix \\"$CONDA_PREFIX\\" '
-                f'pnpm@10.17.1" (or "corepack prepare pnpm@10.17.1 --activate" '
-                f'on Node < 25, where corepack is still bundled), then verify '
-                f'with "command -v pnpm".')
+                f'"npm install --global pnpm@10.17.1", then check '
+                f'"pnpm --version" in the frontend directory.')
 
 
 def _read_semantic_version(executable: str,

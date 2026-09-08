@@ -300,10 +300,25 @@ function DocCard({
 }) {
   const ext = getFileExt(name)
 
+  // `min-w-0` and the breakpoint on the floor are what keep this card inside a
+  // phone. The name is `truncate` (so `white-space: nowrap`), which makes the
+  // card's min-content width the *whole* filename — a 40-char one measures
+  // 413px — and as a flex item with the default `min-width: auto` it refused to
+  // shrink. Both rows it lives in overflowed: the message bubble's row is
+  // `justify-end`, so the card ran off the LEFT edge (163px of a long filename
+  // simply gone, and even a short name overhung by 50px), while the composer's
+  // row pushed it off the right.
+  //
+  // The 300px floor is dropped only below `sm`, where the bubble row is ~250px
+  // and no card can honour it; a phone gets a card that fits and an ellipsis.
+  // From `sm` up the row is always well past 300px, so the floor — and the
+  // uniform look it exists for — is untouched. Note a *percentage* floor
+  // (`min(300px, 100%)`) does NOT work here: percentages count as zero during
+  // intrinsic sizing, so it collapsed short cards to 142px at every width.
   return (
-    <div className="group relative">
+    <div className="group relative min-w-0">
       {removable && <RemoveButton onClick={onRemove} />}
-      <div className="flex min-w-[300px] items-center gap-3 rounded-xl border border-msa-line-2 bg-msa-fill-0 px-3 py-2.5 transition-colors group-hover/filecard:bg-msa-fill-4">
+      <div className="flex min-w-0 items-center gap-3 rounded-xl border border-msa-line-2 bg-msa-fill-0 px-3 py-2.5 transition-colors group-hover/filecard:bg-msa-fill-4 sm:min-w-[300px]">
         <FileTypeIcon name={name} className="h-9 w-9 shrink-0" />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm text-msa-text-1">{name}</span>

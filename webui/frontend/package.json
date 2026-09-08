@@ -11,7 +11,7 @@
     "gen:antd-css": "tsx scripts/genAntdCss.tsx",
     "check:frames": "tsx scripts/checkThoughtFrames.ts",
     "dev": "pnpm gen:antd-css && react-router dev",
-    "build": "pnpm gen:antd-css && react-router build && node scripts/buildManifest.mjs",
+    "build": "pnpm gen:antd-css && react-router build && tsx scripts/buildManifest.ts",
     "start": "node ./server.js",
     "typecheck": "react-router typegen && node --stack-size=16000 ./node_modules/typescript/lib/tsc.js --noEmit"
   },

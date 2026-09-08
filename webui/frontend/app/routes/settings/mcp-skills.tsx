@@ -42,10 +42,15 @@ export default function SettingsMcpSkills() {
       <>
         {/* Both open something on top of the list now (a dialog each), so neither
             has to know about the other: no disabled state, no active highlight. */}
-        <MsaButton variant="tonal" onClick={() => setViaJson(true)}>
+        <MsaButton
+          key="via-json"
+          variant="tonal"
+          onClick={() => setViaJson(true)}
+        >
           {t.resources.viaJson}
         </MsaButton>
         <MsaButton
+          key="add-mcp"
           variant="primary"
           icon={<AddIcon className="h-4 w-4" />}
           onClick={() => setMcpImporting('custom')}
@@ -56,6 +61,7 @@ export default function SettingsMcpSkills() {
     ) : (
       <MsaButton
         variant="primary"
+        key="add-skill"
         icon={<AddIcon className="h-4 w-4" />}
         onClick={() => setSkillImporting('local')}
       >

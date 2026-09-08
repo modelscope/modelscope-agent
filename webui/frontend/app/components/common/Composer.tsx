@@ -1185,13 +1185,28 @@ export function Composer({
                       {/* Left: pills. Collapsed behind a toggle on <md, inline on
                           >=md. Visibility is CSS-driven (md: classes) so the first
                           paint is correct with no SSR/hydration flash. When expanded
-                          on small screens the group floats above the row. */}
+                          on small screens the group floats above the row.
+
+                          That float is pinned to the row's own width (`inset-x-0`)
+                          and scrolls sideways as ONE line. It used to be a wrapping
+                          block of shrink-to-fit width, and since it is anchored at
+                          `bottom-0` every extra row grew upwards — at 390px a
+                          session's five pills took three rows and poked 25px out
+                          through the composer's top border (45px / four rows at
+                          320px), which read as a stray grey slab floating over the
+                          transcript. One line can never do that, whatever the pill
+                          count or label length.
+
+                          `flex-wrap` is declared per branch instead of on the base:
+                          it and `flex-nowrap` are the same utility group, so keeping
+                          both here would let stylesheet order — not this class
+                          list — decide the winner. */}
                       <div
                         ref={pillsRef}
-                        className={`flex flex-wrap items-center gap-2.5 ${
+                        className={`flex items-center gap-2.5 ${
                           pillsExpanded
-                            ? 'absolute left-0 bottom-0 z-10 bg-msa-bg-1 pt-3 md:static md:bg-transparent md:pt-0'
-                            : ''
+                            ? 'absolute inset-x-0 bottom-0 z-10 flex-nowrap overflow-x-auto bg-msa-bg-1 pt-3 md:static md:flex-wrap md:overflow-x-visible md:bg-transparent md:pt-0'
+                            : 'flex-wrap'
                         }`}
                       >
                         {/* Toggle button: shown only on <md while collapsed */}
@@ -1203,10 +1218,19 @@ export function Composer({
                           />
                         )}
 
-                        {/* Pills: hidden on <md unless expanded; always inline on >=md */}
+                        {/* Pills: hidden on <md unless expanded; always inline on >=md.
+                            `w-max` + `shrink-0` are what make the strip above
+                            scrollable rather than squashed: PillButton carries
+                            `min-w-0`, so inside a nowrap line the pills would
+                            otherwise all compress to a few unreadable characters
+                            instead of overflowing. Sizing this row to its content
+                            leaves the line exactly full, so each pill keeps the
+                            width its own `max-w` cap gives it. */}
                         <div
-                          className={`flex flex-wrap items-center gap-2.5 ${
-                            pillsExpanded ? '' : 'hidden md:flex'
+                          className={`flex items-center gap-2.5 ${
+                            pillsExpanded
+                              ? 'w-max shrink-0 flex-nowrap md:w-auto md:flex-wrap'
+                              : 'hidden flex-wrap md:flex'
                           }`}
                         >
                           {/* Model pill */}

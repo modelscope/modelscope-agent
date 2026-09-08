@@ -100,7 +100,7 @@ user cache. Source installations also prepare and rebuild the frontend when need
 
 ```shell
 ms-agent ui
-ms-agent ui --port 7860 --no-browser
+ms-agent ui --port 8080 --no-browser
 ```
 
 | Argument | Behavior | Default |
@@ -115,14 +115,14 @@ ms-agent ui --port 7860 --no-browser
 | `--prepare-only` | Prepare resources/dependencies and exit | `false` |
 | `--startup-timeout` | Startup deadline in seconds | `120` |
 
-The WebUI requires Python 3.12+, Node >=22.22.0 and pnpm 10.17.1; source setup also
-uses uv >=0.5. Ports must be in 1–65535; automatic API selection wraps to 8000
-when the public port is 65535. A failed service stops the whole stack. Data
-shares `~/.ms_agent` unless `MS_AGENT_HOME` is set. The previous default public
-port 7860 remains available through `--port 7860`.
+The WebUI requires Python 3.12+, Node.js 22.22.0+ and pnpm 10.17.1; source setup
+also uses uv 0.5+. Explicit ports must be available, and the public and internal
+API ports must differ. If either service exits unexpectedly, the launcher stops
+the other service. Settings and sessions use `~/.ms_agent` by default; set
+`MS_AGENT_HOME` to choose another directory.
 
 See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md)
-for installation, configuration, wheel caches, Windows and hot-reload development.
+for installation, configuration, Windows and hot-reload development.
 
 ---
 

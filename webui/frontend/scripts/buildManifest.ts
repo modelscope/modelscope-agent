@@ -3,13 +3,17 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
+/** Repo-relative POSIX path -> sha256 of the file's bytes. */
+type FileHashes = Record<string, string>
+
 const root = process.cwd()
-const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
-const ignored = (rel) => rel.split('/').some((part) => part.startsWith('.')) ||
+const hash = (file: string): string =>
+  createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+const ignored = (rel: string): boolean => rel.split('/').some((part) => part.startsWith('.')) ||
   rel.startsWith('public/antd/') || rel.startsWith('public/assets/')
 
-function collect(dir, skip = () => false) {
-  const files = {}
+function collect(dir: string, skip: (rel: string) => boolean = () => false): FileHashes {
+  const files: FileHashes = {}
   if (!fs.existsSync(dir)) return files
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name)
@@ -22,7 +26,7 @@ function collect(dir, skip = () => false) {
   return files
 }
 
-const inputs = {}
+const inputs: FileHashes = {}
 for (const name of ['app', 'scripts', 'public']) {
   Object.assign(inputs, collect(path.join(root, name), ignored))
 }
@@ -32,7 +36,9 @@ for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
   }
 }
 const outputs = collect(path.join(root, 'build'), (rel) => rel === 'build/webui-build.json')
-const manifest = JSON.parse(fs.readFileSync('build/client/antd/manifest.json', 'utf8'))
+const manifest = JSON.parse(
+  fs.readFileSync('build/client/antd/manifest.json', 'utf8')
+) as { href?: string }
 if (!manifest.href?.startsWith('/assets/') || !fs.existsSync(`build/client${manifest.href}`)) {
   throw new Error('The generated Ant Design CSS is missing from build/client')
 }
