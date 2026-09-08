@@ -186,6 +186,7 @@ def test_raw_oss_errors_and_subprocess_arguments_are_not_exposed(tmp_path, monke
     store = object.__new__(delivery.OssStore)
     store.binary, store.config, store.state = Path('/ossutil'), Path('/private/config'), tmp_path
     store.region = 'cn-beijing'
+    store.endpoint = 'https://oss-cn-beijing.aliyuncs.com'
     raw = 'StatusCode: 403 ErrorCode: AccessDenied URL=https://private-location.invalid/ AK=private-value'
     monkeypatch.setattr(subprocess, 'run', lambda *a, **k: subprocess.CompletedProcess(a, 1, '', raw))
     with pytest.raises(delivery.OssError) as error:
@@ -200,6 +201,7 @@ def test_transient_transport_retry_allows_time_for_large_wheel(tmp_path, monkeyp
     store = object.__new__(delivery.OssStore)
     store.binary, store.config, store.state = Path('/ossutil'), Path('/private/config'), tmp_path
     store.region = 'cn-beijing'
+    store.endpoint = 'https://oss-cn-beijing.aliyuncs.com'
     calls = []
     def run(command, **kwargs):
         calls.append(kwargs['timeout'])
@@ -370,3 +372,44 @@ def test_runner_configuration_is_required_only_for_publication(tmp_path):
                REPOSITORY_ACR_AUTH_FILE=str(override), REPOSITORY_OSS_ROOT=str(tmp_path)).returncode == 0
     assert f'ACR_AUTH_FILE={override}\n' in output.read_text()
     assert f'MS_AGENT_OSS_ROOT={tmp_path}\n' in output.read_text()
+
+
+@pytest.mark.parametrize('endpoint', [None, 'https://oss-accelerate.aliyuncs.com',
+                                    'https://oss-accelerate-overseas.aliyuncs.com'])
+def test_transfer_endpoint_preserves_region_and_public_download_url(tmp_path, monkeypatch, endpoint):
+    config = tmp_path / 'credentials.ini'
+    config.write_text('[profile ms-agent]\nmode=AK\nencryptCredential=true\nregion=cn-beijing\n')
+    config.chmod(0o600)
+    destination = tmp_path / 'destination.json'
+    values = {'uri': 'oss://example-bucket/packages/'}
+    if endpoint:
+        values['endpoint'] = endpoint
+    destination.write_text(json.dumps(values))
+    destination.chmod(0o600)
+    store = delivery.OssStore(tmp_path)
+    commands = []
+    def run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, '{}', '')
+    monkeypatch.setattr(subprocess, 'run', run)
+    store._run('upload', ['cp', 'wheel.whl', 'oss://example-bucket/packages/wheel.whl'])
+    command = commands[0]
+    assert command[command.index('--endpoint') + 1] == (endpoint or 'https://oss-cn-beijing.aliyuncs.com')
+    assert command[command.index('--region') + 1] == 'cn-beijing'
+    assert store.url('wheel.whl') == 'https://example-bucket.oss-cn-beijing.aliyuncs.com/packages/wheel.whl'
+
+
+@pytest.mark.parametrize('endpoint', ['http://oss-accelerate.aliyuncs.com',
+                                    'https://example-bucket.oss-accelerate.aliyuncs.com',
+                                    'https://untrusted.invalid',
+                                    'https://oss-us-west-1.aliyuncs.com',
+                                    'https://oss-accelerate.aliyuncs.com/path'])
+def test_transfer_endpoint_rejects_credential_redirection(tmp_path, endpoint):
+    config = tmp_path / 'credentials.ini'
+    config.write_text('[profile ms-agent]\nmode=AK\nencryptCredential=true\nregion=cn-beijing\n')
+    config.chmod(0o600)
+    destination = tmp_path / 'destination.json'
+    destination.write_text(json.dumps({'uri': 'oss://example-bucket/packages/', 'endpoint': endpoint}))
+    destination.chmod(0o600)
+    with pytest.raises(ValueError, match='endpoint'):
+        delivery.OssStore(tmp_path)

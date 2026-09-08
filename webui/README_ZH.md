@@ -39,7 +39,7 @@ pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-`[webui]` 会安装界面所需的 Python 依赖。首次启动还会下载前端运行依赖，请保持网络连接；后续启动会复用它们。安装包已经包含构建好的页面和样式，无需手动构建前端。
+`[webui]` 会安装界面所需的 Python 依赖。首次启动还会下载前端运行依赖，请保持网络连接；后续启动会复用它们。PyPI 发布的安装包已包含构建好的页面和样式。如果直接从 Git 或尚未构建的源码安装 SDK，首次启动还会在缓存目录中自动构建前端，后续启动复用已验证的构建结果。
 
 浏览器会自动打开 WebUI，通常是 **http://127.0.0.1:8000**。如果端口被占用，会选择后续可用端口，以终端打印的地址为准。按 **Ctrl-C** 停止服务。
 
@@ -142,7 +142,7 @@ Windows 使用相同的安装和启动命令。源码运行时也可使用 Power
 ```bash
 docker run --rm -p 127.0.0.1:9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
-  mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
+  modelscope-registry.us-west-1.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
 
 打开 **http://127.0.0.1:9000**。`ms-agent-data` 保存应用数据，替换容器时保留该数据卷；需要操作宿主机的项目文件时，另行挂载对应目录。更改访问端口只需调整 `9000:8000` 左侧的值。

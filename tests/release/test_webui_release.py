@@ -5,6 +5,7 @@ import json
 import pytest
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,6 +51,45 @@ def test_resource_selection_omits_local_config_and_caches(webui_tree):
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text('local content')
     assert packaging.resource_paths(include_build=False) == before
+
+
+def test_unprepared_source_package_keeps_ui_without_build_tools(webui_tree, tmp_path):
+    for rel in packaging.resource_paths(include_build=False):
+        file = webui_tree / rel
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text('source')
+    stale = webui_tree / 'frontend/build/server/index.js'
+    stale.parent.mkdir(parents=True)
+    stale.write_text('unverified output')
+    destination = tmp_path / 'wheel/ms_agent/webui'
+    packaging.copy_resources(destination)
+    manifest = json.loads((destination / packaging.MANIFEST).read_text())
+    assert manifest['prebuilt'] is False
+    assert manifest['sdk_version'] == packaging.version()
+    assert (destination / 'backend/pyproject.toml').is_file()
+    assert not (destination / 'frontend/build').exists()
+    for rel, digest in manifest['files'].items():
+        assert packaging.digest(destination / rel) == digest
+
+
+def test_existing_invalid_release_manifest_cannot_fall_back_to_source(webui_tree, tmp_path):
+    (webui_tree / packaging.MANIFEST).write_text('{}')
+    with pytest.raises(RuntimeError, match='missing or stale'):
+        packaging.copy_resources(tmp_path / 'wheel')
+    assert not (tmp_path / 'wheel').exists()
+
+
+@pytest.mark.parametrize('prebuilt', [False, True])
+def test_publishing_requires_actual_frontend_outputs(tmp_path, prebuilt):
+    with zipfile.ZipFile(tmp_path / 'ms_agent-1.7.0-py3-none-any.whl', 'w') as wheel:
+        wheel.writestr('ms_agent-1.7.0.dist-info/METADATA', 'Version: 1.7.0\n')
+        wheel.writestr('ms_agent/webui/RESOURCE-MANIFEST.json', json.dumps({
+            'prebuilt': prebuilt,
+            'files': {'frontend/server.js': 'source-hash'},
+        }))
+    (tmp_path / 'ms_agent-1.7.0.tar.gz').touch()
+    with pytest.raises(ValueError, match='require prebuilt WebUI resources'):
+        check.check_artifacts(tmp_path, '1.7.0', set(), 'a' * 40)
 
 
 @pytest.mark.parametrize('name', [

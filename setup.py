@@ -135,7 +135,8 @@ class build_py(_build_py):
         if getattr(self, 'editable_mode', False):
             super().run()
             return
-        webui_packaging.validate_release()
+        if (webui_packaging.WEBUI / webui_packaging.MANIFEST).is_file():
+            webui_packaging.validate_release()
         super().run()
 
         # Copy the repository root's `projects/` into the build directory's `ms_agent/projects/`
@@ -154,7 +155,9 @@ class build_py(_build_py):
     def get_source_files(self):
         files = super().get_source_files()
         files.extend('webui/' + rel
-                     for rel in webui_packaging.resource_paths()
+                     for rel in webui_packaging.resource_paths(
+                         include_build=(webui_packaging.WEBUI /
+                                        webui_packaging.MANIFEST).is_file())
                      if (webui_packaging.WEBUI / rel).is_file())
         if (webui_packaging.WEBUI / webui_packaging.MANIFEST).is_file():
             files.append('webui/' + webui_packaging.MANIFEST)
@@ -165,7 +168,9 @@ class build_py(_build_py):
         if not getattr(self, 'editable_mode', False):
             files.extend(
                 str(Path(self.build_lib) / 'ms_agent/webui' / rel)
-                for rel in webui_packaging.resource_paths()
+                for rel in webui_packaging.resource_paths(
+                    include_build=(webui_packaging.WEBUI /
+                                   webui_packaging.MANIFEST).is_file())
                 + [webui_packaging.MANIFEST])
         return files
 
@@ -173,7 +178,8 @@ class build_py(_build_py):
 class sdist(_sdist):
 
     def run(self):
-        webui_packaging.validate_release()
+        if (webui_packaging.WEBUI / webui_packaging.MANIFEST).is_file():
+            webui_packaging.validate_release()
         super().run()
 
 

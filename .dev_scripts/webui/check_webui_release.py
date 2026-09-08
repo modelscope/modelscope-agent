@@ -94,6 +94,9 @@ def check_artifacts(directory, version, dependencies, sdk_sha):
                              + str(sorted(declared ^ dependencies)))
         prefix = 'ms_agent/webui/'
         manifest = json.loads(wheel.read(prefix + 'RESOURCE-MANIFEST.json'))
+        if (manifest.get('prebuilt', True) is not True
+                or 'frontend/build/webui-build.json' not in manifest['files']):
+            raise ValueError('Published packages require prebuilt WebUI resources')
         if manifest['sdk_version'] != version or manifest[
                 'sdk_commit'] != sdk_sha:
             raise ValueError(

@@ -128,7 +128,7 @@ def materialize(bundled, manifest, destination):
             shutil.rmtree(temporary)
 
 
-def node_stamp(frontend, node_version):
+def node_stamp(frontend, node_version, *, production=True):
     return {
         'node':
         list(node_version),
@@ -141,7 +141,7 @@ def node_stamp(frontend, node_version):
         'package_manager':
         json.loads((frontend / 'package.json').read_text())['packageManager'],
         'production':
-        True,
+        production,
     }
 
 
@@ -165,7 +165,7 @@ def check_backend_dependencies():
 
 
 def prepare_installed(bundled, common, node_version, *, skip_install,
-                      install_node):
+                      install_node, build_frontend=None):
     from ms_agent.version import __version__
 
     manifest_file = bundled / 'RESOURCE-MANIFEST.json'
@@ -180,9 +180,13 @@ def prepare_installed(bundled, common, node_version, *, skip_install,
     with preparation_lock(root, name):
         materialize(bundled, manifest, destination)
         frontend = destination / 'frontend'
-        common.validate_build(frontend)
+        prebuilt = manifest.get('prebuilt', True)
+        if not isinstance(prebuilt, bool):
+            raise UIError('Invalid WebUI build mode; reinstall ms-agent')
+        if prebuilt:
+            common.validate_build(frontend)
         marker = frontend / '.node-dependencies.json'
-        expected = node_stamp(frontend, node_version)
+        expected = node_stamp(frontend, node_version, production=prebuilt)
         try:
             ready = json.loads(marker.read_text()) == expected and (
                 frontend / 'node_modules').is_dir()
@@ -191,9 +195,21 @@ def prepare_installed(bundled, common, node_version, *, skip_install,
         if not ready:
             if skip_install:
                 raise UIError(
-                    'Production Node dependencies need preparation. Run once without --skip-install.'
+                    'WebUI Node dependencies need preparation. Run once without --skip-install.'
                 )
             marker.unlink(missing_ok=True)
-            install_node(frontend, production=True)
+            install_node(frontend, production=prebuilt)
             marker.write_text(json.dumps(expected, sort_keys=True) + '\n')
+        if not prebuilt:
+            try:
+                common.validate_build(frontend)
+            except common.BuildError:
+                if skip_install:
+                    raise UIError(
+                        'WebUI sources need a frontend build. Run once without --skip-install.'
+                    ) from None
+                if build_frontend is None:
+                    raise UIError('No WebUI frontend builder is available')
+                build_frontend(frontend)
+                common.validate_build(frontend)
     return destination

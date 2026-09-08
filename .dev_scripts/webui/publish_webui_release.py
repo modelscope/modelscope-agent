@@ -14,7 +14,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-REGISTRY_IMAGE = 'mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent'
+REGISTRY_IMAGE = 'modelscope-registry.us-west-1.cr.aliyuncs.com/modelscope-repo/ms-agent'
 
 
 def load_inputs(directory):

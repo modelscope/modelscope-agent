@@ -110,3 +110,55 @@ def test_missing_backend_dependencies_names_matching_extra(monkeypatch):
     monkeypatch.setattr(resources.importlib.util, 'find_spec', lambda _: None)
     with pytest.raises(resources.UIError, match=r'ms-agent\[webui\]=='):
         resources.check_backend_dependencies()
+
+
+def test_source_wheel_builds_in_cache_once_and_recovers_failed_build(bundle, tmp_path, monkeypatch):
+    root, manifest = bundle
+    manifest['prebuilt'] = False
+    (root / 'RESOURCE-MANIFEST.json').write_text(json.dumps(manifest))
+    monkeypatch.setenv('MS_AGENT_WEBUI_CACHE', str(tmp_path / 'runtime'))
+    monkeypatch.setattr(resources, 'check_backend_dependencies', lambda: None)
+    class BuildError(RuntimeError):
+        pass
+    def validate(frontend):
+        if not (frontend / 'build/ready').is_file():
+            raise BuildError('missing build')
+    common = SimpleNamespace(validate_build=validate, BuildError=BuildError)
+    installs, builds = [], []
+    def install(frontend, production):
+        assert production is False
+        installs.append(frontend)
+        (frontend / 'node_modules').mkdir()
+    def build(frontend):
+        builds.append(frontend)
+        if len(builds) == 1:
+            raise BuildError('interrupted build')
+        (frontend / 'build').mkdir()
+        (frontend / 'build/ready').write_text('validated')
+    def prepare(skip=False):
+        return resources.prepare_installed(root, common, (22, 23, 2),
+                                           skip_install=skip, install_node=install, build_frontend=build)
+    with pytest.raises(resources.UIError, match='need preparation'):
+        prepare(skip=True)
+    with pytest.raises(BuildError, match='interrupted'):
+        prepare()
+    with pytest.raises(resources.UIError, match='need a frontend build'):
+        prepare(skip=True)
+    prepared = prepare()
+    assert prepare(skip=True) == prepared
+    assert len(installs) == 1 and len(builds) == 2
+    assert not (root / 'frontend/build').exists()
+    assert not (root / 'frontend/node_modules').exists()
+
+
+def test_invalid_prebuilt_wheel_is_not_silently_rebuilt(bundle, tmp_path, monkeypatch):
+    root, _ = bundle
+    monkeypatch.setenv('MS_AGENT_WEBUI_CACHE', str(tmp_path / 'runtime'))
+    monkeypatch.setattr(resources, 'check_backend_dependencies', lambda: None)
+    def fail(frontend):
+        raise RuntimeError('corrupt release build')
+    common = SimpleNamespace(validate_build=fail)
+    with pytest.raises(RuntimeError, match='corrupt release'):
+        resources.prepare_installed(root, common, (22, 23, 2), skip_install=False,
+                                    install_node=lambda *a, **kw: pytest.fail('must not install'),
+                                    build_frontend=lambda *a: pytest.fail('must not rebuild'))

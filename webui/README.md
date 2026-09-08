@@ -50,8 +50,9 @@ ms-agent ui
 
 The `[webui]` extra installs the Python dependencies for the interface. The first
 start also downloads frontend runtime dependencies; later starts reuse them.
-Pages and styles are already built in the package, so no frontend build is
-needed for a pip installation.
+Packages published on PyPI include built pages and styles. If you install the
+SDK directly from Git or an unprepared source tree, the first start also builds
+the frontend in your cache; later starts reuse the validated build.
 
 The browser opens automatically, usually at **http://127.0.0.1:8000**. If the
 port is occupied, the launcher selects another available port; use the URL
@@ -189,7 +190,7 @@ the published image tag you want to use:
 ```bash
 docker run --rm -p 127.0.0.1:9000:8000 \
   -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
-  mshub-registry.cn-zhangjiakou.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
+  modelscope-registry.us-west-1.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
 
 Open **http://127.0.0.1:9000**. The `ms-agent-data` volume stores application data;
