@@ -114,6 +114,26 @@ class TestConfigMergeCases:
         resolved = resolver.resolve_mcp()
         assert 'filesystem' not in resolved.mcp_servers
 
+    def test_builtin_task_control_does_not_drop_other_mcp_servers(self, tmp_roots):
+        """Default yaml's task_control builtin coexists with a real MCP server."""
+        global_root, project_root = tmp_roots
+        mgr = MCPConfigManager(global_root, project_root)
+        mgr.add('fetch', {'command': 'npx', 'args': ['-y', 'mcp-fetch']},
+                scope='global')
+        agent_cfg = OmegaConf.create({
+            'tools': {
+                'task_control': {'mcp': False},
+                'file_system': {'mcp': False},
+                'fetch': {'mcp': True, 'command': 'uvx', 'args': ['mcp-fetch']},
+            },
+        })
+        resolver = ConfigResolver(
+            global_root, project_root, agent_config=agent_cfg)
+        resolved = resolver.resolve_mcp()
+        assert 'task_control' not in resolved.mcp_servers
+        assert 'file_system' not in resolved.mcp_servers
+        assert resolved.mcp_servers['fetch']['command'] == 'uvx'
+
     def test_merge_enabled_inheritance(self):
         base = {'command': 'A', 'enabled': False}
         override = {'command': 'B'}

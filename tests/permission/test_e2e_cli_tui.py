@@ -24,6 +24,7 @@ _ENV_CANDIDATES = [
 ]
 _MARKER = 'permission-e2e-ok'
 _SECOND = 'permission-e2e-2'
+_THIRD = 'permission-e2e-3'
 
 
 def _load_e2e_env() -> Path:
@@ -92,6 +93,20 @@ class _Proc:
             self._drain(min(0.5, remaining))
         raise AssertionError(
             f'timed out waiting for {needle!r}\n--- transcript ---\n{self.buf}'
+        )
+
+    def wait_for_new(self, needle: str, start: int, timeout: float = 120.0) -> str:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if needle in self.buf[start:]:
+                return self.buf
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            self._drain(min(0.5, remaining))
+        raise AssertionError(
+            f'timed out waiting for new {needle!r} after offset {start}\n'
+            f'--- new output ---\n{self.buf[start:]}'
         )
 
     def send(self, line: str) -> None:
@@ -164,6 +179,16 @@ def _memory_path(work: Path) -> Path:
     return work / '.ms_agent' / 'permission_memory.json'
 
 
+def _first_rule_id(transcript: str) -> str | None:
+    for line in transcript.splitlines():
+        stripped = line.strip().lstrip('│').strip()
+        if '[project/' in stripped or '[global/' in stripped:
+            token = stripped.split()[0]
+            if token and all(c in '0123456789abcdef' for c in token.lower()):
+                return token
+    return None
+
+
 def _assert_one_layer(transcript: str) -> None:
     assert 'Always allow' not in transcript
     assert 'Pattern [' not in transcript
@@ -216,22 +241,77 @@ def test_e2e_tui_prefix_edit_and_list_delete(tmp_path):
         sess.send('/permission list')
         sess.wait_for('permission-e2e*', timeout=30)
         listed = sess.buf
-        rule_id = None
-        for line in listed.splitlines():
-            stripped = line.strip().lstrip('│').strip()
-            if '[project/' in stripped or '[global/' in stripped:
-                token = stripped.split()[0]
-                if all(c in '0123456789abcdef' for c in token.lower()):
-                    rule_id = token
-                    break
+        rule_id = _first_rule_id(listed)
         assert rule_id, listed
         sess.send(f'/permission delete {rule_id}')
         sess.wait_for('Deleted', timeout=30)
+        after_del = len(sess.buf)
+        sess.send(
+            'Use shell_executor only. Run exactly: '
+            f'echo {_MARKER}. Do not use python.')
+        sess.wait_for_new('choice:', after_del, timeout=180)
+        sess.send('3')
+        sess.send('/quit')
+    finally:
+        sess.close()
+
+
+def test_e2e_tui_allow_once_edit_and_full_access(tmp_path):
+    sess = _spawn(tmp_path, tui=True)
+    try:
+        sess.wait_for('>>>', timeout=90)
+        sess.send(
+            'Use shell_executor only. Run exactly: '
+            f'echo {_MARKER}. Do not use python.')
+        sess.wait_for("don't ask again", timeout=180)
+        _assert_one_layer(sess.buf)
+        sess.send('1')
+        sess.wait_for(_MARKER, timeout=60)
+        sess.wait_for('>>>', timeout=60)
+
+        before = len(sess.buf)
+        sess.send(
+            f'Use shell_executor only. Run exactly: echo {_SECOND}.')
+        sess.wait_for_new('choice:', before, timeout=180)
+        sess.send('2')
+        sess.wait_for_new(_SECOND, before, timeout=60)
+        sess.wait_for_new('>>>', before, timeout=60)
+
+        sess.send('/permission')
+        sess.wait_for('permission mode: interactive', timeout=30)
+        sess.send('/permission list')
+        sess.wait_for('echo *', timeout=30)
+        rule_id = _first_rule_id(sess.buf)
+        assert rule_id, sess.buf
+        sess.send(
+            f'/permission edit {rule_id} '
+            'code_executor---shell_executor:echo tui-e2e*')
+        sess.wait_for('Updated', timeout=30)
+        sess.wait_for('tui-e2e*', timeout=10)
+
+        sess.send('/permission full_access')
+        sess.wait_for('permission mode → full_access', timeout=30)
+        before = len(sess.buf)
+        sess.send(
+            f'Use shell_executor only. Run exactly: echo {_THIRD}.')
+        sess.wait_for_new(_THIRD, before, timeout=180)
+        assert 'choice:' not in sess.buf[before:]
+        sess.send('/quit')
+    finally:
+        sess.close()
+
+
+def test_e2e_tui_deny_then_quit(tmp_path):
+    sess = _spawn(tmp_path, tui=True)
+    try:
+        sess.wait_for('>>>', timeout=90)
         sess.send(
             'Use shell_executor only. Run exactly: '
             f'echo {_MARKER}. Do not use python.')
         sess.wait_for('choice:', timeout=180)
+        _assert_one_layer(sess.buf)
         sess.send('3')
+        sess.wait_for('>>>', timeout=90)
         sess.send('/quit')
     finally:
         sess.close()
