@@ -142,7 +142,7 @@ def main():
                     docker(
                         'exec', name, 'python', '-c',
                         'import ms_agent.agent_hub; '
-                        'import bs4, lxml, pyarrow, seaborn, sklearn; '
+                        'import bs4, lxml; '
                         'from ms_agent.cli.ui_resources import find_webui; '
                         'p, installed = find_webui(); assert installed; '
                         'print((p / "RESOURCE-MANIFEST.json").read_text())'))
