@@ -1,6 +1,7 @@
 import { App, Form, Input, Modal, Select, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { CodeEditor } from '~/components/common/CodeEditor'
+import { KeyResetButton, KeyStatusTag } from '~/components/common/KeyStatus'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
 import type { Protocol, Provider } from '~/lib/types'
@@ -27,11 +28,24 @@ export function AddProviderModal({ open, provider, onClose, onSaved }: Props) {
   const [form] = Form.useForm<FormValues>()
   const [advancedJson, setAdvancedJson] = useState('{}')
   const [submitting, setSubmitting] = useState(false)
+  // The reset button was used: the stored key should be dropped on the next
+  // Save. Purely local, like every other field in this form — so Cancel really
+  // does undo it, and the tag/placeholder can preview the result meanwhile.
+  const [keyCleared, setKeyCleared] = useState(false)
 
   const isEdit = !!provider
+  // Built-in providers ship with a fixed endpoint and wire protocol; only the
+  // display name and credential are the user's to change. Base URL and protocol
+  // are locked (like the id), so editing one can't repoint it at a different API.
+  const isBuiltin = provider?.kind === 'builtin'
+  // A stored credential exists AND is not pending removal. Drives the tag and
+  // the placeholder — derived from `api_key_masked` being non-empty, which is
+  // the only signal the API gives; the mask's VALUE is never rendered.
+  const hasKey = isEdit && !!provider?.api_key_masked && !keyCleared
 
   useEffect(() => {
     if (!open) return
+    setKeyCleared(false)
     if (provider) {
       form.setFieldsValue({
         id: provider.id,
@@ -55,6 +69,14 @@ export function AddProviderModal({ open, provider, onClose, onSaved }: Props) {
     }
   }, [open, provider, form])
 
+  // Nothing is written here: this only stages the removal and drops whatever
+  // was typed, so the field and the tag agree on "no key". `submit` turns that
+  // into the api_key='' the API reads as "clear it".
+  const resetKey = () => {
+    form.setFieldsValue({ api_key: '' })
+    setKeyCleared(true)
+  }
+
   const submit = async () => {
     const v = await form.validateFields()
     let advanced: Record<string, unknown> = {}
@@ -72,13 +94,19 @@ export function AddProviderModal({ open, provider, onClose, onSaved }: Props) {
     try {
       let saved: Provider
       if (provider) {
-        // Edit: PATCH the provider. Blank api_key keeps the existing key.
+        // Edit: PATCH the provider. A blank api_key keeps the existing key —
+        // unless the reset staged its removal, where '' is the API's explicit
+        // "clear it" signal. Omitting the field entirely can't express that.
         saved = await api.updateProvider(provider.id, {
           name: v.name,
           base_url: v.base_url,
           protocol: v.protocol,
           default_generation_params: advanced,
-          ...(v.api_key ? { api_key: v.api_key } : {})
+          ...(v.api_key
+            ? { api_key: v.api_key }
+            : keyCleared
+              ? { api_key: '' }
+              : {})
         })
       } else {
         saved = await api.createProvider({
@@ -119,82 +147,117 @@ export function AddProviderModal({ open, provider, onClose, onSaved }: Props) {
       destroyOnHidden
       width={520}
     >
-      {/* messageVariables on each required item: the labels are JSX nodes (text +
-          red asterisk, since requiredMark is off), which antd can't interpolate
-          into its built-in validate messages — it would fall back to the raw
-          field path. Feeding it the label TEXT keeps antd's own wording. */}
-      <Form form={form} layout="vertical" requiredMark={false}>
+      <Form form={form} layout="vertical">
         <Form.Item
-          label={
-            <span>
-              {t.modelsAdmin.providerName}{' '}
-              <span className="text-rose-500">*</span>
-            </span>
-          }
+          label={t.modelsAdmin.providerId}
           name="id"
-          messageVariables={{ label: t.modelsAdmin.providerName }}
           rules={[
-            // Two SEPARATE rules on purpose: one rule object carrying both
-            // `required` and `pattern` would report the pattern's message for an
-            // empty field too, since a message belongs to the rule, not the check.
+            // One rule per constraint: a single rule with both `required` and
+            // `pattern` would tag the pattern message onto an empty field too
+            // (rule-level message, not check-level). And splitting the character
+            // set from the length so the error names the ACTUAL violation — a
+            // combined regex would tell users their 40-char valid id uses
+            // forbidden characters when the real issue is length.
             { required: true },
             {
-              pattern: /^[a-z0-9][a-z0-9_-]{0,40}$/,
-              // The only custom message here: antd's built-in pattern wording
-              // prints the raw regex at the user.
-              message: t.modelsAdmin.providerIdHint
-            }
+              pattern: /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
+              message: t.modelsAdmin.providerIdChars
+            },
+            { max: 64, message: t.modelsAdmin.providerIdTooLong }
           ]}
           extra={
-            <span className="text-[11px] text-slate-400">
-              {t.modelsAdmin.providerIdHint}
-            </span>
+            // Same treatment as the model id hint: antd's extra slot already
+            // paints the description colour, only the size is overridden.
+            // Worth spelling out that this is the permanent key rather than a
+            // label — it explains both why it cannot be edited later and why a
+            // blank display name still shows something.
+            <span className="text-[11px]">{t.modelsAdmin.providerIdHint}</span>
           }
         >
           <Input placeholder="e.g. openai-compat" disabled={isEdit} />
         </Form.Item>
         <Form.Item
-          label={
-            <span>
-              {t.modelsAdmin.displayName}{' '}
-              <span className="text-rose-500">*</span>
-            </span>
-          }
+          label={t.modelsAdmin.displayName}
           name="name"
-          messageVariables={{ label: t.modelsAdmin.displayName }}
-          rules={[{ required: true, max: 80 }]}
+          // Optional: the backend falls back to the id (or, for a built-in, its
+          // registry display name), so an empty one still renders a sane label.
+          rules={[{ max: 80 }]}
         >
           <Input placeholder={t.modelsAdmin.displayNamePlaceholder} />
         </Form.Item>
-        <Form.Item label={t.modelsAdmin.defaultBaseUrl} name="base_url">
-          <Input placeholder={t.modelsAdmin.defaultBaseUrlPlaceholder} />
+        <Form.Item
+          label={t.modelsAdmin.defaultBaseUrl}
+          name="base_url"
+          rules={[{ required: true, type: 'url' }]}
+        >
+          <Input
+            placeholder={t.modelsAdmin.defaultBaseUrlPlaceholder}
+            disabled={isBuiltin}
+          />
         </Form.Item>
         <Form.Item
-          label={
-            <span>
-              {t.modelsAdmin.protocol} <span className="text-rose-500">*</span>
-            </span>
-          }
+          label={t.modelsAdmin.protocol}
           name="protocol"
-          messageVariables={{ label: t.modelsAdmin.protocol }}
           rules={[{ required: true }]}
         >
           <Select
+            disabled={isBuiltin}
             options={[
               { value: 'openai', label: t.modelsAdmin.protocolOpenAI },
               { value: 'anthropic', label: t.modelsAdmin.protocolAnthropic }
             ]}
           />
         </Form.Item>
-        <Form.Item label={t.modelsAdmin.apiKey} name="api_key">
+        <Form.Item
+          label={
+            <span className="inline-flex items-center gap-2">
+              {t.modelsAdmin.apiKey}
+              {/* Whether a credential is already stored. Only meaningful when
+                  editing — a provider being created has no prior state. */}
+              {isEdit && (
+                <KeyStatusTag set={hasKey}>
+                  {hasKey
+                    ? t.modelsAdmin.apiKeyConfigured
+                    : t.modelsAdmin.apiKeyMissing}
+                </KeyStatusTag>
+              )}
+            </span>
+          }
+          name="api_key"
+        >
           <Input.Password
             placeholder={
-              isEdit && provider?.api_key_masked
+              hasKey
                 ? t.modelsAdmin.leaveBlankApiKey
                 : t.modelsAdmin.apiKeyPlaceholder
             }
+            suffix={
+              /* Only when there is a stored key to remove. Same placement as the
+                 search settings page: the reset acts on this one value, so it
+                 sits in the field's suffix next to the visibility toggle. It
+                 disappears once staged, since there is nothing left to clear. */
+              hasKey ? (
+                <KeyResetButton
+                  confirmTitle={t.modelsAdmin.apiKeyResetConfirm.replace(
+                    '{name}',
+                    provider!.name
+                  )}
+                  confirmDesc={t.modelsAdmin.apiKeyResetConfirmDesc}
+                  okText={t.modelsAdmin.apiKeyReset}
+                  tooltip={t.modelsAdmin.apiKeyResetTip}
+                  onConfirm={resetKey}
+                />
+              ) : null
+            }
           />
         </Form.Item>
+        {/* Same wording as the search settings page. The masked value the API
+            returns is deliberately NOT echoed — showing which key is stored is
+            not worth putting a credential fragment on screen; the tag above
+            already answers "is one set?". */}
+        <div className="-mt-4 mb-4 text-xs text-msa-text-3">
+          {t.modelsAdmin.apiKeyNote}
+        </div>
         <Form.Item label={t.modelsAdmin.advancedJson}>
           <div className="overflow-hidden rounded-md border border-msa-line-1">
             <CodeEditor

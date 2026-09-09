@@ -37,3 +37,19 @@ MS-Agent runs using LLM API, so only a CPU environment is required.
 | Environment | Requirements |
 |-------------|--------------|
 | python      | \>=3.11      |
+
+## WebUI
+
+The WebUI requires Python 3.12+, Node.js 22.22.0+ and pnpm 10.17.1:
+
+```shell
+npm install --global pnpm@10.17.1
+pip install -U "ms-agent[webui]"
+ms-agent ui
+```
+
+The PyPI package includes prebuilt pages and styles. The first start installs
+frontend runtime dependencies. Installing directly from Git or unprepared source
+also builds the frontend on first use. Running from an editable checkout requires
+uv 0.5+ to prepare the backend environment. See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md)
+for setup and configuration.

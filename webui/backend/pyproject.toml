@@ -3,18 +3,32 @@ name = "ms-agent-webui-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    # Include the default code executor libraries so the first chat needs no pip install.
     "anthropic>=0.117.0",
+    "beautifulsoup4",
     "exa-py>=2.16.0",
     "fastapi>=0.139.0",
     "httpx>=0.28.1",
     "ipykernel>=7.3.0",
     "jupyter-client>=8.9.1",
     "loguru>=0.7.3",
+    "lxml",
     "mem0ai>=2.0.12",
     "ms-agent",
+    "pyarrow",
     "pydantic-settings>=2.14.2",
+    "scikit-learn",
+    "seaborn",
+    # httpx refuses to CONSTRUCT a client — any client, even for a host covered
+    # by NO_PROXY — when ALL_PROXY names a socks5:// endpoint and this is
+    # missing, so a developer behind the usual local proxy gets an ImportError
+    # instead of a working backend. 12 KB, pure Python, no dependencies.
+    "socksio>=1.0.0",
     "sse-starlette>=3.4.5",
     "uvicorn[standard]>=0.50.2",
+    # Direct dependency: the skill change tracker uses its public API.  Do not
+    # rely on uvicorn's optional transitive dependency remaining installed.
+    "watchfiles>=1.2.0",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +40,7 @@ local-embed = ["fastembed>=0.8"]
 [project.scripts]
 dev = "app.main:dev"
 serve = "app.main:serve"
+webui = "app.launcher:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -44,25 +59,15 @@ testpaths = ["tests"]
 required-version = ">=0.5.0"
 
 [[tool.uv.index]]
-# 国内构建机与 CI 直连 pypi.org 极不稳定：uv sync 曾在 pillow/matplotlib/
-# modelscope 这几个几 MB 的 wheel 上反复重下八九分钟，最终 30s 超时构建失败
-# （2026-08-05，run 58179298）。锁文件会把这里的地址记进每个包的 registry，
-# 所以换源必须重新 uv lock 才生效——只设环境变量对 --frozen 无效。
-# apt 与 uv 自身的安装早已固定在同一面镜像上（见 Dockerfile）。
+# Package registry URLs are recorded in uv.lock. After changing the index,
+# regenerate the lockfile with `uv lock`; --frozen keeps the existing URLs.
 name = "aliyun"
 url = "https://mirrors.aliyun.com/pypi/simple/"
 default = true
 
 [tool.uv.sources]
-# ADAPTED FROM ms-agent-webui (upstream of this snapshot): there the SDK is a
-# git pin; here the backend lives INSIDE the ms-agent checkout it runs against,
-# so it must build from the containing tree. Editable keeps the two in step —
-# otherwise `ms-agent ui` would silently serve a stale SDK after framework code
-# changed right next to it.
-#
-# This block plus `uv.lock` are the only permanent differences from the source
-# repo; every other file under webui/ is a byte-exact copy. Do not "fix" the
-# rest here — it will be overwritten by the next snapshot (see docs/MIGRATION.md).
+# Use the SDK in this checkout. Installed packages use the active Python
+# environment instead of synchronizing a source environment with uv.
 ms-agent = { path = "../..", editable = true }
 
 [dependency-groups]

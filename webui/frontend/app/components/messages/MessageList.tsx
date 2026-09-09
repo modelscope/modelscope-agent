@@ -4,6 +4,7 @@ import { CheckOutlined } from '@ant-design/icons'
 import {
   type ComponentRef,
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -72,11 +73,20 @@ function CopyReplyButton({ text }: { text: string }) {
  * message — e.g. the moment the user starts typing in the composer. */
 export interface MessageListHandle {
   scrollToBottom: () => void
+  /** Bring one message to the top of the viewport, by its item key (the message
+   * navigator's jump). */
+  scrollToKey: (key: string) => void
+  /** Bubble.List's built-in scroll box, for hosts that need to READ the reading
+   * position (the navigator's active tick). Null until the list commits it. */
+  getScrollBox: () => HTMLElement | null
 }
 
 interface BubbleContent {
   message: AgentMessage
   streaming: boolean
+  /** Item key, echoed into the bubble's DOM so the message navigator can find
+   * this turn when it tracks the reading position. */
+  id: string
 }
 
 /**
@@ -101,6 +111,21 @@ export const MessageList = forwardRef<
   const listRef = useRef<ComponentRef<typeof Bubble.List>>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
 
+  // `key` is Bubble.List's own item lookup: it resolves the bubble's DOM node
+  // internally and scrollIntoViews it, which keeps the column-reverse viewport's
+  // negative-scrollTop arithmetic inside the component instead of spreading a
+  // hand-rolled offset calculation into the navigator.
+  const scrollToKey = useCallback((key: string) => {
+    if (!listRef.current?.scrollBoxNativeElement) return
+    listRef.current.scrollTo({ key, block: 'start', behavior: 'smooth' })
+  }, [])
+
+  // Stable identity: the navigator holds this in an effect dependency.
+  const getScrollBox = useCallback(
+    () => listRef.current?.scrollBoxNativeElement ?? null,
+    []
+  )
+
   useImperativeHandle(
     ref,
     () => ({
@@ -110,9 +135,11 @@ export const MessageList = forwardRef<
         // throws ("Cannot destructure property 'scrollHeight'…").
         if (!listRef.current?.scrollBoxNativeElement) return
         listRef.current.scrollTo({ top: 'bottom' })
-      }
+      },
+      scrollToKey,
+      getScrollBox
     }),
-    []
+    [scrollToKey, getScrollBox]
   )
 
   // Watch Bubble.List's built-in scroll-box. It uses a column-reverse viewport,
@@ -157,7 +184,8 @@ export const MessageList = forwardRef<
       role: message.role,
       content: {
         message,
-        streaming: inFlight
+        streaming: inFlight,
+        id
       } satisfies BubbleContent,
       // Show the built-in loading indicator for the in-flight assistant bubble
       // until it has actual body. `updating` (not just `loading`) is included
@@ -199,12 +227,23 @@ export const MessageList = forwardRef<
           user: {
             placement: 'end',
             contentRender: (content: BubbleContent) => (
-              <UserBubble message={content.message} onOpenFile={onOpenFile} />
-            )
+              <UserBubble
+                id={content.id}
+                message={content.message}
+                onOpenFile={onOpenFile}
+              />
+            ),
+            classNames: {
+              root: 'px-0'
+            }
           },
           assistant: {
             placement: 'start',
             variant: 'borderless',
+            classNames: {
+              body: 'w-full',
+              root: 'px-0'
+            },
             contentRender: (content: BubbleContent) => (
               <AssistantMessage
                 message={content.message}

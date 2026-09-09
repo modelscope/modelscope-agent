@@ -1,0 +1,16 @@
+/* Last visible row fades out while the list is folded, signalling that it
+   continues past the fold.
+
+   A MASK, not a coloured veil: an overlay painted with the card's own
+   background had to know that colour, and `--msa-fill-1` differs per theme —
+   the dark-theme result came out as a light grey band sitting on top of the
+   row. Masking fades the row's own pixels instead, so it is correct in both
+   themes with no colour knowledge at all.
+
+   Stops: the row is 32px and its glyphs sit roughly between 50% and 70% of
+   that, so ending the ramp at 70% leaves the text visibly dissolving (~0.3
+   alpha at its top edge, gone by the baseline) rather than merely dimmed. */
+.cr-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 70%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 70%);
+}

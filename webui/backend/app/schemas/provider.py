@@ -26,16 +26,26 @@ class Provider(BaseModel):
 
 
 class ProviderCreate(BaseModel):
-    # custom providers only — builtin ones are seeded
-    id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,40}$")
-    name: str = Field(min_length=1, max_length=80)
+    # custom providers only — builtin ones are seeded. Length matches the common
+    # slug / DNS-label ceiling (63/64) rather than the older, arbitrary 41.
+    # Letters of either case are fine; the shape only has to stay an identifier
+    # (no spaces or punctuation) because this is the permanent settings.json key.
+    # Uniqueness is exact, so `OpenAI` alongside builtin `openai` is allowed and
+    # is simply a separate provider — which means every lookup keyed by this id
+    # has to use it verbatim (see config._apply_model_compatibility).
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+    # Optional: a blank display name falls back to the id, which is what both the
+    # SDK's add_provider and the read mapping already do for entries without one.
+    name: str = Field(default="", max_length=80)
     base_url: str = ""
     protocol: Protocol = "openai"
     default_generation_params: dict = Field(default_factory=dict)
 
 
 class ProviderUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=80)
+    # "" is meaningful (unlike None = leave alone): it clears the user's display
+    # name so the default shows again — hence no min_length here.
+    name: str | None = Field(default=None, max_length=80)
     base_url: str | None = None
     api_key: str | None = None  # plain, server masks on read
     protocol: Protocol | None = None

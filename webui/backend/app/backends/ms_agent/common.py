@@ -79,6 +79,16 @@ def _is_cheap_title(name: str, first_text: str) -> bool:
     return head.startswith(name) or head.splitlines()[0].startswith(name)
 
 
+def _message_text(content) -> str:
+    """Readable text of a message content of any shape (see the SDK helper)."""
+    try:
+        from ms_agent.llm.message_text import flatten_message_text
+
+        return flatten_message_text(content)
+    except ImportError:  # older SDK
+        return content if isinstance(content, str) else str(content)
+
+
 def _title_from_text(text: str) -> str:
     return text.strip().splitlines()[0][:40] if text and text.strip() else ""
 
@@ -101,7 +111,10 @@ def _first_user_line(project, session) -> str:
                 except json.JSONDecodeError:
                     continue
                 if msg.get("role") == "user" and msg.get("content"):
-                    return _title_from_text(str(msg["content"]))
+                    # flatten, not str(): a block list would become a Python
+                    # repr and that repr is what gets PERSISTED as the session
+                    # name, visible in the sidebar forever.
+                    return _title_from_text(_message_text(msg["content"]))
     except OSError:
         return ""
     return ""

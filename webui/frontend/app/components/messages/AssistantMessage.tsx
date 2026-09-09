@@ -4,6 +4,7 @@ import type { OnOpenStep, OnOpenFile } from './types'
 import { ThoughtsFlow } from './ThoughtsFlow'
 import { TaskPlan } from './TaskPlan'
 import { ToolBatch } from './ToolBatch'
+import { ToolComposing } from './ToolComposing'
 import { TurnProcess } from './TurnProcess'
 import { splitTurn } from './turnSplit'
 import { ArtifactFiles } from './ArtifactFiles'
@@ -13,6 +14,7 @@ import { TurnPlan } from './TurnPlan'
 type StepPart = Extract<AgentPart, { kind: 'step' }>
 type RenderGroup =
   | { kind: 'steps'; parts: StepPart[]; endIdx: number; group: unknown }
+  | { kind: 'composing'; parts: StepPart[]; endIdx: number }
   | { kind: 'single'; part: Exclude<AgentPart, StepPart>; endIdx: number }
 
 /** History-replayed approved authorizations render nothing (the adjacent
@@ -37,6 +39,17 @@ function groupParts(parts: AgentPart[]): RenderGroup[] {
     if (part.kind === 'step') {
       const prev = groups[groups.length - 1]
       const group = part.step.meta.group
+      // Not a tool round: nothing has run. Kept in its own group so it never
+      // inflates the "used N tools" header of a real round.
+      if (part.step.kind === 'tool_composing') {
+        if (prev?.kind === 'composing' && prev.endIdx === i - 1) {
+          prev.parts.push(part)
+          prev.endIdx = i
+        } else {
+          groups.push({ kind: 'composing', parts: [part], endIdx: i })
+        }
+        return
+      }
       if (isHiddenStep(part)) {
         // Invisible, but must not split the round it sits inside.
         if (prev?.kind === 'steps' && prev.endIdx === i - 1) prev.endIdx = i
@@ -58,6 +71,30 @@ function groupParts(parts: AgentPart[]): RenderGroup[] {
     groups.push({ kind: 'single', part, endIdx: i })
   })
   return groups
+}
+
+/** A React key each block OWNS, instead of the position it happens to sit at.
+ *
+ * The parts array is not append-only: a stale placeholder gets swept out of the
+ * MIDDLE of it (see `sweepComposing`), and when a turn seals, the live parts are
+ * replaced wholesale by the server's reconstruction, which need not line up
+ * block for block. Under a positional key React hands one block's mounted state
+ * to a DIFFERENT block whenever that happens — a thought's expand flag and
+ * running timer, an accordion's open flag — and for a component whose hook count
+ * depends on its props it escalates to "the order of Hooks changed", which is an
+ * error rather than a cosmetic glitch. So the two blocks that own an identity
+ * use it: a tool round its server-assigned round id (paired with a call id, in
+ * case a round is ever split across two groups), a thought its start stamp. The
+ * rest keep the index — they hold no state worth carrying across a shift. */
+function groupKey(g: RenderGroup, gi: number): string {
+  if (g.kind === 'steps') {
+    const { group, call_id: callId } = g.parts[0].step.meta
+    return `steps-${String(group ?? '')}-${String(callId ?? gi)}`
+  }
+  if (g.kind === 'composing') return `composing-${gi}`
+  const p = g.part
+  if (p.kind === 'thought') return `thought-${p.startedAt ?? gi}`
+  return `${p.kind}-${gi}`
 }
 
 /**
@@ -120,17 +157,28 @@ export function AssistantMessage({
 
   const renderParts = (source: AgentPart[], frozen: boolean) =>
     groupParts(source).map((g, gi) => {
+      const key = groupKey(g, gi)
       // Expanded if it's the last meaningful block; auto-collapses when new
       // parts arrive (checked against the ORIGINAL parts order). Blocks folded
       // into the finished "processed" card are all history — keep them closed.
       const isLast =
         !frozen &&
         !source.slice(g.endIdx + 1).some((p) => p.kind !== 'interrupted')
+      if (g.kind === 'composing') {
+        // A placeholder is only ever truthful in one position: the tail of a turn
+        // that is still streaming. Anywhere else it outlived the call it stood
+        // for — the stream layer sweeps those (sweepComposing), and this is the
+        // backstop for a path that doesn't, e.g. a turn the user stopped, whose
+        // parts are frozen exactly as the last frame left them. A pulsing
+        // "preparing …" row over finished work is worse than no row at all.
+        if (!streaming || !isLast) return null
+        return <ToolComposing key={key} steps={g.parts} />
+      }
       if (g.kind === 'steps') {
         // One server tool round (1..N calls) → one nested accordion.
         return (
           <ToolBatch
-            key={gi}
+            key={key}
             steps={g.parts}
             isLast={isLast}
             onOpenStep={onOpenStep}
@@ -142,7 +190,7 @@ export function AssistantMessage({
       if (part.kind === 'thought') {
         return (
           <ThoughtsFlow
-            key={gi}
+            key={key}
             text={part.text}
             startedAt={part.startedAt}
             duration={part.duration}
@@ -156,7 +204,7 @@ export function AssistantMessage({
         // point in the stream (each update appends a new one) — never animated,
         // even mid-turn. The composer's pinned panel is the live view.
         return (
-          <TaskPlan key={gi} tasks={part.tasks} isLast={isLast} streaming={false} />
+          <TaskPlan key={key} tasks={part.tasks} isLast={isLast} streaming={false} />
         )
       }
       if (part.kind === 'interrupted') {
@@ -166,7 +214,7 @@ export function AssistantMessage({
       return (
         part.text && (
           <Markdown
-            key={gi}
+            key={key}
             content={part.text}
             streaming={streaming && isLast}
           />

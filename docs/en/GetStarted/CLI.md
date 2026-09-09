@@ -94,23 +94,35 @@ ms-agent tui --config path/to/agent.yaml
 
 ## ui — Web UI Server
 
-Launch the source-checkout WebUI development stack. The command supervises an internal FastAPI server and a public React Router development server.
+Start the WebUI and open it in a browser. Packages published on PyPI include prebuilt
+pages and styles; the first start installs frontend runtime dependencies in a
+user cache. Source installations also prepare and rebuild the frontend when needed.
 
 ```shell
 ms-agent ui
+ms-agent ui --port 8080 --no-browser
 ```
 
-| Argument | Description | Default |
+| Argument | Behavior | Default |
 | --- | --- | --- |
-| `--host` | Public frontend host | `127.0.0.1` |
-| `--port` | Public frontend port | `7860` |
-| `--backend-port` | Internal FastAPI port | `8000` |
-| `--reload` | Reload the Python backend when its source changes (flag) | `false` |
-| `--skip-install` | Skip dependency synchronization; requires existing `.venv` and `node_modules` (flag) | `false` |
-| `--production` | Reserved compatibility flag; exits with an unsupported-mode error | `false` |
-| `--no-browser` | Do not automatically open the browser (flag) | `false` |
+| `--host` | Public bind address | `127.0.0.1` |
+| `--port` | Exact public port; an occupied explicit port fails | First free from 8000 |
+| `--backend-port` | Internal loopback port, different from public port | Next free port |
+| `--no-browser` | Leave opening the browser to the user | `false` |
+| `--skip-install` | Do not download/synchronize dependencies; still validate build and CSS | `false` |
+| `--production` | Compatibility alias for default SSR behavior | `false` |
+| `--reload` | Currently rejected; use the documented development commands | `false` |
+| `--prepare-only` | Prepare resources/dependencies and exit | `false` |
+| `--startup-timeout` | Startup deadline in seconds | `120` |
 
-The launcher requires uv, Node.js 22.22.0 or newer, and pnpm 10.x. It installs locked project-local dependencies on first use. See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md) for setup, model configuration, environment variables, Windows support, and troubleshooting.
+The WebUI requires Python 3.12+, Node.js 22.22.0+ and pnpm 10.17.1; source setup
+also uses uv 0.5+. Explicit ports must be available, and the public and internal
+API ports must differ. If either service exits unexpectedly, the launcher stops
+the other service. Settings and sessions use `~/.ms_agent` by default; set
+`MS_AGENT_HOME` to choose another directory.
+
+See the [WebUI guide](https://github.com/modelscope/ms-agent/blob/main/webui/README.md)
+for installation, configuration, Windows and hot-reload development.
 
 ---
 

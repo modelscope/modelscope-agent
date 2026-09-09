@@ -186,3 +186,15 @@ webui/frontend/.react-router
 # Chrome DevTools probes this exact path on every page load; ignore the
 # file it asks for so a local 404-silencer never gets committed again.
 webui/frontend/public/.well-known/appspecific/com.chrome.devtools.json
+
+# Frontend CSS and dependency caches are generated during build and preparation.
+webui/frontend/public/antd/
+webui/frontend/public/assets/
+webui/frontend/.pnpm-store/
+webui/frontend/.vite/
+webui/.uv-cache/
+webui/backend/.env.*
+!webui/backend/.env.example
+
+# Prepared frontend manifests are included in release archives, not source Git.
+webui/RESOURCE-MANIFEST.json

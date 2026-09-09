@@ -43,10 +43,16 @@ export interface Session {
   preview?: string
   /** True while the session has a turn in flight (live or background). */
   running?: boolean
+  /** A turn finished with nobody watching, and the session has not been opened
+   * since. Once the spinner goes away nothing else says the answer is ready, so
+   * this drives the sidebar's unread dot; cleared by `markSessionRead`. */
+  unread?: boolean
   // Agent-assigned topic category (backend ms_agent/titler.CATEGORIES); '' or
   // undefined until the session's first message is classified. Drives the
   // recent-conversations topic icon.
   category?: string
+  // The model this session last ran on; reopening it selects that model again.
+  model_id?: string
 }
 
 export interface SessionMessage {
@@ -79,6 +85,10 @@ export interface SessionMessage {
     type?: 'file' | 'image' | 'audio' | 'video'
     size?: number
     exists?: boolean
+    // Images only: what the model actually received when this turn was
+    // answered. Same union as ChatFileRef so history and live turns are one
+    // type at every consumer.
+    delivery?: 'delivered' | 'degraded' | 'unreadable'
   }[]
   // Configuration-style content echo (user rows only): same segment shape the
   // composer sends, rebuilt by the backend so skill pills re-render on replay.
@@ -150,6 +160,8 @@ export interface Skill {
   enabled: boolean
   scope: Scope
   created_at: string
+  origin: 'managed' | 'legacy-path' | 'standard' | 'external' | 'content'
+  removable: boolean
 }
 
 export interface MemoryItem {
@@ -203,6 +215,18 @@ export interface MemoryStatus {
   error: MemoryErrorInfo | null
   ingest: MemoryIngestInfo | null
   local_embed_available: boolean
+  /** A re-embedding rebuild is running; embedder/error are withheld until it
+   * finishes, since neither the old nor the new one is the truth mid-flight. */
+  rebuilding: boolean
+}
+
+/** What a rebuild actually did: `migrated` entries were re-embedded with the
+ * current model, or `reused` when the store already spoke it and was untouched. */
+export interface MemoryRebuildResult {
+  project_id: string
+  migrated: number
+  reused: boolean
+  status: MemoryStatus
 }
 
 export interface WorkspaceFile {
@@ -253,7 +277,35 @@ export interface Model {
   display_name: string
   is_builtin: boolean
   advanced_params: Record<string, unknown>
+  /**
+   * Whether this model may be shown image attachments. Tri-state: `null` means
+   * nobody has said, and the SDK decides (provider capability, then learning
+   * from a refusal). Not a boolean — collapsing "unset" into `false` would make
+   * a vision-capable model silently ignore attachments.
+   */
+  supports_vision: boolean | null
   created_at: string
+}
+
+/**
+ * Read-only preview of what the runtime will send for a provider/model before
+ * the user overrides anything. Only about thinking on purpose: sampling knobs
+ * are ignored by reasoning models, so surfacing them would advertise settings
+ * that do nothing.
+ */
+export interface GenerationDefaults {
+  /** Canonical knob value currently in effect (`auto` unless configured). */
+  effort: string
+  /** Accepted values, weakest to strongest. */
+  effort_options: string[]
+  /** `effort` after clamping to what this endpoint supports. */
+  effective: string
+  /** What actually goes on the wire; `{}` means the model's own default. */
+  wire_params: Record<string, unknown>
+  /** Endpoint dialect: `dashscope`, `deepseek`, `unknown`, ... */
+  family: string
+  /** Raw keys this endpoint also accepts, shown as an example. */
+  extra_hint: string
 }
 
 export interface AgentSettings {
@@ -271,4 +323,36 @@ export interface AgentSettings {
   memory_recall_top_k: number | null
   global_mcp_auto_attach: boolean
   global_skill_auto_attach: boolean
+}
+
+/** A web-search engine the installed SDK accepts. */
+export interface SearchProvider {
+  id: string
+  label: string
+  /** arXiv takes no credential, so its key field is hidden entirely. */
+  requires_key: boolean
+  /** Works with no key, on a reduced free tier (Tavily's keyless mode). Not the
+   * inverse of `requires_key`: a key is still accepted and lifts the quota, so
+   * the field stays visible — this only means "unconfigured is a working
+   * state", which is why no warning is shown for it. */
+  supports_keyless?: boolean
+}
+
+/** Global web-search config. The key itself is never returned — `has_key` is
+ * all the UI needs for its status tag and placeholder. It reflects the stored
+ * config only: a key the SDK might pick up from the environment is not counted,
+ * since this page can neither show nor clear one. */
+export interface SearchSettings {
+  enabled: boolean
+  provider: string
+  has_key: boolean
+  /** Whether the SELECTED provider runs without a key. */
+  supports_keyless?: boolean
+}
+
+export interface SearchSettingsUpdate {
+  enabled: boolean
+  provider: string
+  /** Omit to keep the stored key, '' to clear it, text to replace it. */
+  api_key?: string
 }

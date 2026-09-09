@@ -14,6 +14,7 @@ from app.schemas.memory import (
     MemoryItem,
     MemoryItemCreate,
     MemoryItemUpdate,
+    MemoryRebuildResult,
     MemoryStatus,
 )
 
@@ -31,9 +32,11 @@ def get_status(project_id: str) -> MemoryStatus:
 
 
 @router.post("/rebuild")
-async def rebuild(project_id: str) -> MemoryStatus:
-    """Start the vector store over with the current embedder (the remedy for
-    an embedder mismatch). The old store is moved to qdrant.bak-<ts>."""
+async def rebuild(project_id: str) -> MemoryRebuildResult:
+    """Re-embed the project's memories with the current embedder (the remedy
+    for an embedder mismatch). Entries are carried over — the old store is kept
+    at qdrant.bak-<ts> and only swapped once the new one is complete. 409 while
+    a rebuild is already running."""
     from app.backends.ms_agent import memory
 
     return await memory.rebuild(project_id)

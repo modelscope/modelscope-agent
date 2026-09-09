@@ -12,9 +12,22 @@ class Session(BaseModel):
     # True while this session has a turn in flight (live or continuing in the
     # background after its viewer navigated away) — drives the sidebar spinner.
     running: bool = False
+    # A turn finished with nobody watching this session, and it has not been
+    # opened since — drives the sidebar's unread dot, which is the only hint
+    # a background answer is waiting once the spinner goes away. Set on the
+    # abandoned-turn path only (see chat._drain_abandoned_turn) and cleared by
+    # POST /sessions/{id}/read; persisted in the sidecar so it survives reloads
+    # and a turn that completed while the browser was closed.
+    unread: bool = False
     # Agent-assigned topic category (see ms_agent/titler.CATEGORIES); "" when the
     # session hasn't been classified yet. Drives the recent-list topic icon.
     category: str = ""
+    # The model this session last ran on. Reopening it selects that model again,
+    # so a conversation keeps the model it was held with instead of inheriting
+    # whatever was picked last somewhere else — which changed the answers, threw
+    # away the provider's prefix cache, and (when the capabilities differed)
+    # changed what the model could even see. "" for sessions that never ran.
+    model_id: str = ""
 
 
 class SessionCreate(BaseModel):
@@ -91,6 +104,12 @@ class SessionFile(BaseModel):
     type: str | None = None  # 'file' | 'image' | 'audio' | 'video'
     size: int | None = None  # bytes (None when the file no longer exists)
     exists: bool = True
+    # For images: what actually happened to this picture when the turn was
+    # answered — 'delivered' | 'degraded' | 'unreadable'. None for non-images
+    # and for turns recorded before this was tracked. It is the only way a
+    # reloaded conversation can tell "the model never received it" apart from
+    # "the model received it and made something up".
+    delivery: str | None = None
 
 
 class SessionMessage(BaseModel):
@@ -122,6 +141,10 @@ class SessionMessage(BaseModel):
     # array shape the composer sends (``[{type: text|skill, ...}]``), rebuilt
     # from the skill-invocation marker so the frontend re-renders skill pills.
     segments: list[dict] = Field(default_factory=list)
+    # Trailing message of a turn that is STILL RUNNING: the live stream replays
+    # these same rounds, so an attached viewer drops this copy. A viewer without
+    # a stream keeps it — it is all they have.
+    partial: bool = False
 
 
 class Artifact(BaseModel):

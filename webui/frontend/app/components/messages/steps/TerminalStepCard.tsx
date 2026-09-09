@@ -1,7 +1,11 @@
+import { Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { MsaButton } from '~/components/common/MsaButton'
 import { api } from '~/lib/api'
 import { useT } from '~/lib/i18n'
+import { useCollapseTransition } from '../useCollapseTransition'
+import { deniedNote } from '../authOutcome'
+import { InlineCode, stepTitleLine } from '../InlineCode'
 import type { AgentStep } from '~/lib/agentProvider'
 import type { OnOpenStep } from '../types'
 import TerminalIcon from '~/assets/icons/terminal.svg?react'
@@ -35,8 +39,7 @@ function parseExecResult(raw: string): {
           output: String(env.output ?? ''),
           error: String(env.error ?? ''),
           exitFailed:
-            env.success === false ||
-            (typeof code === 'number' && code !== 0)
+            env.success === false || (typeof code === 'number' && code !== 0)
         }
       }
     }
@@ -67,6 +70,12 @@ export function TerminalStepCard({
 }) {
   const { t } = useT()
   const code = String(step.meta.code ?? '')
+  // One-line preview of the command for the header, the same way a file search
+  // titles itself with its query: collapsed still says WHAT is about to run, so
+  // a page of these cards is readable without opening any. Whitespace is folded
+  // because a multi-line script's indentation would otherwise land in the
+  // header as a long gap.
+  const headline = code.replace(/\s+/g, ' ').trim()
   const metaState = (step.meta.state as TerminalState | undefined) ?? null
   const [localState, setLocalState] = useState<TerminalState | null>(null)
   const state = localState ?? metaState
@@ -74,6 +83,7 @@ export function TerminalStepCard({
   const [expanded, setExpanded] = useState(
     (isLast ?? false) || metaState === 'pending'
   )
+  const { animating, onTransitionEnd } = useCollapseTransition(expanded)
 
   // Auto-collapse once newer parts arrive — except a pending authorization.
   useEffect(() => {
@@ -166,9 +176,17 @@ export function TerminalStepCard({
         ) : (
           <TerminalIcon className="h-4 w-4 shrink-0 text-msa-text-3" />
         )}
-        <span className="min-w-0 flex-1 truncate text-sm text-msa-text-1">
-          {t.chat.stepTerminal}
-        </span>
+        {/* Still a Typography so the chip inherits antd's `code` chrome (its
+            hairline border) exactly like the file-search header does — that
+            chip's look is context-dependent, so leaving this wrapper out is
+            what made the two cards differ. `stepTitleLine` in place of its
+            `ellipsis` prop: see there for why. */}
+        <Typography.Text
+          className={`${stepTitleLine} !text-sm !text-msa-text-1`}
+        >
+          <span>{t.chat.stepTerminal}</span>
+          {!!headline && <InlineCode>{headline}</InlineCode>}
+        </Typography.Text>
         {executing && (
           <span className="shrink-0 text-xs text-msa-text-3">
             {t.chat.authExecuting}
@@ -176,7 +194,7 @@ export function TerminalStepCard({
         )}
         {denied && (
           <span className="shrink-0 text-xs text-msa-text-3">
-            {t.chat.authRejected}
+            {deniedNote(t, step.meta)}
           </span>
         )}
         {failed && (
@@ -193,8 +211,11 @@ export function TerminalStepCard({
 
       {/* Body: animated accordion via grid-template-rows transition */}
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        className={`grid duration-200 ease-in-out ${
+          animating ? 'transition-[grid-template-rows]' : ''
+        }`}
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           <div className="border-t border-msa-line-1">

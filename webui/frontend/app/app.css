@@ -1,9 +1,32 @@
 /* Tailwind v4. Skip the preflight layer so antd's own resets win.
- * Layer order: utilities goes last, so Tailwind utilities beat antd's
- * @layer antd output without needing `!important` on every class.
- * antd's runtime cssinjs output is wrapped into `@layer antd` by
- * entry.server.tsx (SSR) and the StyleProvider config in root.tsx (client). */
-@layer theme, base, antd, components, utilities;
+ *
+ * THE cascade layer order, declared identically here and in root.tsx <head>.
+ * It has to be in both, and the two copies have to stay character-identical.
+ *
+ * A layer ranks where its name is FIRST SEEN, so whichever of the two the
+ * browser parses first fixes the order and the other is a no-op — which is the
+ * point: neither position is dependable on its own. root.tsx renders its copy
+ * ahead of everything, but only while React leaves it there; when React
+ * re-mounts the root Layout (the error boundary taking over after a client-side
+ * render error) it removes and re-appends the <head> nodes it owns, landing them
+ * AFTER the <style> Vite injected for this file. With the statement only in
+ * root.tsx, `utilities` was then first seen here and `antd` first seen in the
+ * baked sheet below it — so antd out-ranked the utilities meant to override it,
+ * and every antd component on the error page rendered with its own default
+ * chrome (a primary button losing its fill and white text to
+ * `.ant-btn-variant-text`). Declaring it here too makes the order hold under
+ * any arrangement of <head>.
+ *
+ * Any layer name missing from the list gets appended *after* `utilities` the
+ * first time it is seen, i.e. it silently wins over Tailwind. `properties` is
+ * Tailwind's own `--tw-*` fallback shim and must stay first (lowest); `antd` /
+ * `antdx` come from the sheet baked by scripts/genAntdCss.tsx (antd runs
+ * zero-runtime) and must sit under `utilities`.
+ *
+ * Names used below: `theme` and `utilities` (the two Tailwind imports), plus
+ * `properties` — which Tailwind emits as the very first statement of its
+ * compiled output. */
+@layer properties, theme, base, antd, antdx, components, utilities;
 
 /* x-markdown typography themes (light/dark class applied by <Markdown/>).
  * Imported here (not in the component) so the css always goes through Vite's
@@ -222,6 +245,88 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* --- Scrollbars -----------------------------------------------------------
+   One thin, translucent, reveal-on-hover scrollbar for the whole app,
+   replacing the browser default (a thick, always-visible grey track). The
+   thumb is invisible until the pointer enters the scroll container, then
+   fades in as a slim pill; hovering the thumb itself deepens it. Colour is
+   the theme-aware neutral token faded with `color-mix`, so it adapts
+   light/dark and never becomes a hardcoded value.
+
+   Unlayered on purpose: these must outrank antd's layered styles, and the
+   WebKit pseudo-elements below already override the `color-scheme` bar. */
+* {
+  scrollbar-width: thin;
+  /* thumb track — transparent until hover (Firefox has no hover pseudo). */
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: color-mix(in srgb, var(--msa-text-3) 45%, transparent)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* The 2px transparent border + padding-box clip shrinks the visible pill to
+   ~4px, thinner than the 8px hit area it still keeps for grabbing. */
+*::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 9999px;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--msa-text-3) 35%, transparent);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--msa-text-3) 60%, transparent);
+}
+
+/* --- Keyboard focus ring ---------------------------------------------------
+   One brand-coloured ring for the whole app. antd bakes its own
+   `:focus-visible` outline from a pale derived tint (colorPrimaryBorder,
+   #d2c4ff) at a heavy 3px, and elements antd doesn't reset fall back to the
+   browser's black ring — so the same keyboard focus looked pale here and
+   black there.
+
+   Layering does the work, not specificity: root.tsx pins the order
+   `… antd, antdx, components, utilities`, so a rule in `components` outranks
+   every antd focus outline (in `antd`/`antdx`) by layer precedence alone —
+   no matter how many `.ant-*` classes those selectors stack — while still
+   sitting BELOW `utilities`, so a deliberate Tailwind `outline-none` on a
+   component that manages its own focus keeps winning. Colour is the
+   theme-aware brand token (adapts light/dark), thinner than antd's default. */
+@layer components {
+  :focus-visible {
+    outline: 2px solid var(--msa-text-brand1);
+    outline-offset: 1px;
+  }
+
+  /* Text-entry fields already carry their own focus treatment (antd draws a
+     brand border + ring on them), so the outline above would double it into a
+     twin purple ring. They match `:focus-visible` even on mouse click, hence
+     the explicit opt-out. antd's input WRAPPERS focus via `:focus-within`, not
+     `:focus-visible`, so only these inner controls need it. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [contenteditable]:focus-visible {
+    outline: none;
+  }
+}
+
 /* --- Anti-flicker loading (skeletons / spinners) ---------------------------
    Fast responses used to flash a skeleton for a frame or two. Pure-CSS
    two-phase gate (SSR-safe, no hydration timing):
@@ -232,10 +337,12 @@ a {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
+
 .msa-loading-defer {
   opacity: 0;
   animation: msa-loading-reveal 150ms ease-out 250ms forwards;

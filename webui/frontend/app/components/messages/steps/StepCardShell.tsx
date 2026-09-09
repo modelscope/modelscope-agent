@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { FileTypeIcon } from '~/components/common/FileCard'
 import { useT } from '~/lib/i18n'
 import type { AgentStep } from '~/lib/agentProvider'
-import { InlineCode } from '../InlineCode'
+import { InlineCode, stepTitleLine } from '../InlineCode'
 import JumpIcon from '~/assets/icons/jump.svg?react'
 import SearchIcon from '~/assets/icons/search.svg?react'
 
@@ -30,8 +30,7 @@ export function StepCardShell({
   nonInteractive = false,
   note,
   noteTone = 'danger',
-  maxWidthClass = 'max-w-full',
-  tipText
+  maxWidthClass = 'max-w-full'
 }: {
   icon: ReactNode
   children: ReactNode
@@ -44,12 +43,6 @@ export function StepCardShell({
    * accordion cards use, so only genuine failures are red. */
   noteTone?: 'danger' | 'muted'
   maxWidthClass?: string
-  /** PLAIN-TEXT tooltip for the clipped label. Required because `children`
-   * carries card chrome (InlineCode chips, favicons) styled for the light card
-   * surface — rendering that JSX inside antd's dark tooltip produced a pale
-   * chip on a dark bubble (unreadable). Mirrors ToolCallStepCard's
-   * `titleText`. */
-  tipText?: string
 }) {
   const noteClass =
     noteTone === 'muted' ? 'text-msa-text-3' : 'text-msa-text-danger'
@@ -64,8 +57,7 @@ export function StepCardShell({
           {icon}
         </span>
         <Typography.Text
-          ellipsis={{ tooltip: tipText ? { title: tipText } : true }}
-          className={`min-w-0 flex-1 !text-sm ${
+          className={`${stepTitleLine} !text-sm ${
             disabled ? '!text-msa-text-3' : '!text-msa-text-1'
           }`}
         >
@@ -86,17 +78,12 @@ export function StepCardShell({
       <span className="flex h-4 w-4 shrink-0 items-center justify-center text-msa-text-3">
         {icon}
       </span>
-      <Typography.Text
-        ellipsis={{ tooltip: tipText ? { title: tipText } : true }}
-        className="min-w-0 flex-1 !text-sm !text-msa-text-1"
-      >
+      <Typography.Text className={`${stepTitleLine} !text-sm !text-msa-text-1`}>
         {children}
       </Typography.Text>
       {/* An openable card can still carry an outcome note (a failed search keeps
           its row clickable so the rail can show the error). */}
-      {note && (
-        <span className={`shrink-0 text-xs ${noteClass}`}>{note}</span>
-      )}
+      {note && <span className={`shrink-0 text-xs ${noteClass}`}>{note}</span>}
       <JumpIcon className="h-4 w-4 shrink-0 text-msa-text-3" />
     </button>
   )
@@ -115,11 +102,7 @@ export function InProgressRow({
   icon: ReactNode
 }) {
   return (
-    <StepCardShell
-      nonInteractive
-      icon={icon}
-      tipText={detail ? `${label} ${detail}` : label}
-    >
+    <StepCardShell nonInteractive icon={icon}>
       <span className="align-middle">{label}</span>
       {detail ? (
         <>

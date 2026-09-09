@@ -258,7 +258,10 @@ def vector_project():
 
 @pytest.fixture
 def fake_mem0(monkeypatch, vector_project):
-    """Swap the real client in, keeping _mem0_for's contextmanager shape."""
+    """Stand in for the client a live chat session owns.
+
+    Both entry points are swapped: ``_live_mem0`` (what reads borrow) and
+    ``_mem0_for`` (what deletes go through)."""
     import contextlib
 
     fake = _FakeMem0()
@@ -268,12 +271,16 @@ def fake_mem0(monkeypatch, vector_project):
     def _for(_proj):
         yield fake
 
+    monkeypatch.setattr(M, "_live_mem0", lambda _proj: fake)
     monkeypatch.setattr(M, "_mem0_for", _for)
     monkeypatch.setattr(M, "_invalidate_live", lambda _proj: None)
     return fake
 
 
-def test_list_maps_mem0_rows_to_items(fake_mem0, vector_project):
+def test_list_maps_mem0_rows_to_items_newest_first(fake_mem0, vector_project):
+    """Newest first — mem0/qdrant hand rows back in point-UUID order, which is
+    arbitrary to a reader, and since mem0 2.x only ever ADDs, a superseded
+    memory sits right next to the one that replaced it."""
     fake_mem0.rows = [
         {"id": "uuid-1", "memory": "prefers concise Chinese",
          "updated_at": "2026-08-06T04:53:21+00:00"},
@@ -281,10 +288,10 @@ def test_list_maps_mem0_rows_to_items(fake_mem0, vector_project):
          "created_at": "2026-08-06T04:53:22+00:00"},
     ]
     items = asyncio.run(M.list_items(vector_project.id))
-    assert [i.id for i in items] == ["uuid-1", "uuid-2"]
-    assert items[0].content == "prefers concise Chinese"
+    assert [i.id for i in items] == ["uuid-2", "uuid-1"]
+    assert items[1].content == "prefers concise Chinese"
     # created_at stands in when the row has no updated_at.
-    assert items[1].updated_at is not None
+    assert items[0].updated_at is not None
 
 
 def test_list_drops_contentless_rows(fake_mem0, vector_project):
@@ -422,6 +429,10 @@ def test_status_reports_identity_mismatch_with_rebuild_code(
 
     sdk_proj = pm().get(vector_project.id)
     monkeypatch.setattr(C, "_probe_embed_dimension", lambda desc: (384, False))
+    # The rebuild materializes the embedder before touching anything (for a
+    # real local model that is the first-use download); these tests use a fake
+    # model name, so the preflight has nothing to load.
+    monkeypatch.setattr(C, "ensure_embedder_usable", lambda desc: None)
     C._resolve_embedder_identity(
         sdk_proj, {"mode": "local", "provider": None, "model": "old-model"})
     monkeypatch.setattr(
@@ -434,10 +445,19 @@ def test_status_reports_identity_mismatch_with_rebuild_code(
     assert status.embedder.model == "old-model"
 
 
-def test_rebuild_backs_up_the_store_and_clears_identity(
-        monkeypatch, vector_project):
-    import asyncio
+# ── rebuild = re-embedding migration ──────────────────────────────────────
+# Changing the embedding model invalidates the vectors, not the memories: their
+# text is in the store's payload. The old behaviour opened an empty store and
+# left the entries in a backup nobody reads, which is data loss in every sense
+# the user cares about.
 
+def _mismatched_store(monkeypatch, vector_project, rows=None):
+    """A project whose store was built by ``old-model`` while the configured
+    embedder is now ``new-model`` — the state the rebuild button exists for.
+
+    Returns ``(sdk_proj, mem_dir, written)``, where ``written`` records the rows
+    handed to the re-embedding step (faked: a real one loads an embedder).
+    """
     from app.backends.ms_agent.common import pm
     from ms_agent.project.paths import memory_dir
 
@@ -447,6 +467,10 @@ def test_rebuild_backs_up_the_store_and_clears_identity(
     (mem_dir / "qdrant" / "meta.json").write_text("{}")
     (mem_dir / "ingest_state.json").write_text('{"hashes": ["x"]}')
     monkeypatch.setattr(C, "_probe_embed_dimension", lambda desc: (384, False))
+    # The rebuild materializes the embedder before touching anything (for a
+    # real local model that is the first-use download); these tests use a fake
+    # model name, so the preflight has nothing to load.
+    monkeypatch.setattr(C, "ensure_embedder_usable", lambda desc: None)
     C._resolve_embedder_identity(
         sdk_proj, {"mode": "local", "provider": None, "model": "old-model"})
     monkeypatch.setattr(
@@ -454,14 +478,140 @@ def test_rebuild_backs_up_the_store_and_clears_identity(
         lambda s, m: {"mode": "local", "provider": None, "model": "new-model",
                       "fallback_reason": None})
 
-    asyncio.run(M.rebuild(vector_project.id))
+    stored = rows if rows is not None else [
+        {"id": "uuid-1", "payload": {"data": "prefers concise Chinese"}},
+        {"id": "uuid-2", "payload": {"data": "develops on macOS"}},
+    ]
+    monkeypatch.setattr(M, "_read_store_rows", lambda store: list(stored))
+    written: dict = {}
 
-    assert not (mem_dir / "qdrant").exists()
+    def _write(options, given):
+        written["rows"] = list(given)
+        written["path"] = options["vector_store"]["config"]["path"]
+        Path(written["path"]).mkdir(parents=True, exist_ok=True)
+        (Path(written["path"]) / "meta.json").write_text('{"new": true}')
+        return len(given)
+
+    monkeypatch.setattr(M, "_write_rows", _write)
+    return sdk_proj, mem_dir, written
+
+
+def test_rebuild_carries_entries_into_the_new_store(monkeypatch, vector_project):
+    sdk_proj, mem_dir, written = _mismatched_store(monkeypatch, vector_project)
+
+    result = asyncio.run(M.rebuild(vector_project.id))
+
+    assert result.migrated == 2 and result.reused is False
+    # Re-embedded into a staging dir, then swapped in.
+    assert [r["id"] for r in written["rows"]] == ["uuid-1", "uuid-2"]
+    assert "qdrant.new-" in written["path"]
+    assert (mem_dir / "qdrant" / "meta.json").read_text() == '{"new": true}'
     backups = list(mem_dir.glob("qdrant.bak-*"))
-    assert len(backups) == 1  # moved aside, never deleted
-    assert (backups[0] / "meta.json").exists()
-    assert C._load_embedder_identity(sdk_proj) is None
+    assert len(backups) == 1  # old store moved aside, never deleted
+    assert (backups[0] / "meta.json").read_text() == "{}"
+    assert not list(mem_dir.glob("qdrant.new-*"))  # nothing left behind
+    # The identity is recorded only now that those vectors actually exist.
+    assert C._load_embedder_identity(sdk_proj)["model"] == "new-model"
+    # The memories came along, so re-ingesting the session would duplicate them.
+    assert (mem_dir / "ingest_state.json").exists()
+
+
+def test_rebuild_reuses_a_store_that_already_matches(monkeypatch, vector_project):
+    """Switching away and back again must not cost the store.
+
+    Two rebuilds in a row (GLM, then back to the original model) is exactly how
+    a user loses everything when a rebuild means "start empty".
+    """
+    from app.backends.ms_agent.common import pm
+    from ms_agent.project.paths import memory_dir
+
+    sdk_proj = pm().get(vector_project.id)
+    mem_dir = Path(str(memory_dir(sdk_proj.path)))
+    (mem_dir / "qdrant").mkdir(parents=True)
+    (mem_dir / "qdrant" / "meta.json").write_text("{}")
+    monkeypatch.setattr(C, "_probe_embed_dimension", lambda desc: (384, False))
+    # The rebuild materializes the embedder before touching anything (for a
+    # real local model that is the first-use download); these tests use a fake
+    # model name, so the preflight has nothing to load.
+    monkeypatch.setattr(C, "ensure_embedder_usable", lambda desc: None)
+    desc = {"mode": "local", "provider": None, "model": "same-model",
+            "fallback_reason": None}
+    C._resolve_embedder_identity(sdk_proj, desc)
+    monkeypatch.setattr(C, "_resolve_embedder", lambda s, m: dict(desc))
+    monkeypatch.setattr(
+        M, "_read_store_rows",
+        lambda store: pytest.fail("a matching store must not be re-read"))
+
+    result = asyncio.run(M.rebuild(vector_project.id))
+
+    assert result.reused is True and result.migrated == 0
+    assert not list(mem_dir.glob("qdrant.bak-*"))
+    assert (mem_dir / "qdrant" / "meta.json").exists()
+
+
+def test_rebuild_of_an_empty_store_backs_the_ledger_up(monkeypatch, vector_project):
+    """Nothing carried over → the ledger's "already ingested" claim is void, so
+    it is set aside (kept, not deleted) and the next turn re-ingests."""
+    sdk_proj, mem_dir, _ = _mismatched_store(monkeypatch, vector_project, rows=[])
+
+    result = asyncio.run(M.rebuild(vector_project.id))
+
+    assert result.migrated == 0 and result.reused is False
+    assert len(list(mem_dir.glob("qdrant.bak-*"))) == 1
     assert not (mem_dir / "ingest_state.json").exists()
+    assert len(list(mem_dir.glob("ingest_state.json.bak-*"))) == 1
+    assert C._load_embedder_identity(sdk_proj)["model"] == "new-model"
+
+
+def test_rebuild_failure_leaves_everything_as_it_was(monkeypatch, vector_project):
+    """Re-embedding hits the provider (quota, revoked key, wrong dimension). On
+    failure the project must be exactly as before — still mismatched, still one
+    click from another attempt — never half-migrated."""
+    sdk_proj, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+
+    def _boom(options, rows):
+        Path(options["vector_store"]["config"]["path"]).mkdir(parents=True)
+        raise RuntimeError("Free quota exhausted")
+
+    monkeypatch.setattr(M, "_write_rows", _boom)
+
+    with pytest.raises(BadRequest):
+        asyncio.run(M.rebuild(vector_project.id))
+
+    assert (mem_dir / "qdrant" / "meta.json").read_text() == "{}"
+    assert not list(mem_dir.glob("qdrant.bak-*"))
+    assert not list(mem_dir.glob("qdrant.new-*"))  # staging cleaned up
+    assert C._load_embedder_identity(sdk_proj)["model"] == "old-model"
+    assert (mem_dir / "ingest_state.json").exists()
+
+
+def test_rebuild_refuses_to_run_twice_at_once(monkeypatch, vector_project):
+    from app.backends.errors import Conflict
+
+    _mismatched_store(monkeypatch, vector_project)
+    M._REBUILD_LOCKS.clear()  # asyncio locks bind to the loop that takes them
+
+    async def main():
+        lock = M._rebuild_lock(vector_project.id)
+        await lock.acquire()
+        try:
+            with pytest.raises(Conflict):
+                await M.rebuild(vector_project.id)
+        finally:
+            lock.release()
+
+    asyncio.run(main())
+
+
+def test_status_reports_a_rebuild_in_flight(vector_project):
+    """Mid-rebuild the identity file still names the OLD model while the new
+    vectors are in staging — reporting either as fact would be a lie."""
+    M._REBUILDING.add(vector_project.id)
+    try:
+        status = M.get_status(vector_project.id)
+    finally:
+        M._REBUILDING.discard(vector_project.id)
+    assert status.rebuilding is True and status.error is None
 
 
 # ── per-project memory-model ownership ─────────────────────────────────────
@@ -545,3 +695,592 @@ def test_legacy_project_without_group_resolves_as_follow():
         assert C._project_memory_models(pm().get(proj.id)) == {}
     finally:
         P.delete_project(proj.id)
+
+
+# ── config changes reaching a live runtime ─────────────────────────────────
+# An agent freezes its whole configuration (and its store client) at build
+# time, so without this a saved change keeps being ignored for as long as a
+# runtime stays alive — up to the idle TTL. That is what "changing the recall
+# size does nothing" actually was.
+
+@pytest.fixture
+def dropped(monkeypatch):
+    from app.backends.ms_agent.runtime import registry
+
+    calls: list[str] = []
+    monkeypatch.setattr(registry, "discard_project",
+                        lambda pid: calls.append(pid) or 0)
+    return calls
+
+
+def _group(**over):
+    from app.schemas.project import ProjectUpdate
+
+    base = dict(memory_llm_provider_id="zhipu", memory_llm_model="glm-5",
+                memory_embed_mode="local", memory_embed_provider_id=None,
+                memory_embed_model=None, memory_recall_top_k=10)
+    base.update(over)
+    return ProjectUpdate(**base)
+
+
+def test_changing_the_memory_group_drops_live_runtimes(dropped):
+    proj = P.create_project(ProjectCreate(name="recall-change"))
+    try:
+        P.update_project(proj.id, _group())
+        dropped.clear()  # the first save is a change too
+        P.update_project(proj.id, _group(memory_recall_top_k=3))
+        assert dropped == [proj.id]
+    finally:
+        P.delete_project(proj.id)
+
+
+def test_resaving_the_same_group_leaves_runtimes_alone(dropped):
+    """The edit modal submits the whole shape on every save, so an unchanged
+    group must not cost the user their live session's agent."""
+    proj = P.create_project(ProjectCreate(name="recall-resave"))
+    try:
+        P.update_project(proj.id, _group())
+        dropped.clear()
+        P.update_project(proj.id, _group())
+        assert dropped == []
+    finally:
+        P.delete_project(proj.id)
+
+
+def test_toggling_memory_drops_live_runtimes(dropped):
+    from app.schemas.project import ProjectUpdate
+
+    proj = P.create_project(ProjectCreate(name="mem-toggle",
+                                          memory_enabled=False))
+    try:
+        P.update_project(proj.id, ProjectUpdate(memory_enabled=True))
+        assert dropped == [proj.id]
+        dropped.clear()
+        P.update_project(proj.id, ProjectUpdate(name="mem-toggle-renamed"))
+        assert dropped == []
+    finally:
+        P.delete_project(proj.id)
+
+
+def test_discard_project_closes_idle_runtimes_and_releases_the_store():
+    """The implementation behind the hook above — untested until now, and the
+    live PATCHes never reached it (it returns early when nothing is live).
+
+    Idle runtimes of that project are closed (which is what releases the shared
+    embedded store), an in-flight turn is left alone, other projects untouched.
+    """
+    from app.backends.ms_agent.runtime import RuntimeRegistry
+
+    class FakeRT:
+        def __init__(self, pid, sid):
+            self.project = type("P", (), {"id": pid, "path": "/tmp/" + pid})()
+            self.session = type("S", (), {"id": sid})()
+            self.turn_lock = asyncio.Lock()
+            self.closed = False
+
+        async def aclose(self):
+            self.closed = True
+
+    async def main():
+        reg = RuntimeRegistry()
+        idle, busy, other = FakeRT("p1", "s1"), FakeRT("p1", "s2"), FakeRT("p2", "s3")
+        await busy.turn_lock.acquire()  # a turn in flight
+        reg._runtimes = {"s1": idle, "s2": busy, "s3": other}
+        released: list[str] = []
+
+        async def _release(project):
+            released.append(project.id)
+
+        reg._release_project_memory = _release
+        dropped = await reg._discard_project("p1")
+        return dropped, reg, idle, busy, other, released
+
+    dropped, reg, idle, busy, other, released = asyncio.run(main())
+    assert dropped == 1
+    assert idle.closed and "s1" not in reg._runtimes  # closed AND forgotten
+    assert busy.closed is False and other.closed is False
+    assert set(reg._runtimes) == {"s2", "s3"}
+    assert released == ["p1"]
+
+
+# ── the embedder never follows a GLOBAL setting ────────────────────────────
+# The conversation provider is global, so an embedder that follows it changes
+# under a project whenever the user switches models while chatting in another
+# one — which invalidates this project's store and asks for a re-embed nobody
+# wanted. The UI dropped the "follow" option; these pin the behaviour for
+# projects saved before it did.
+
+def _stub_project(tmp_path, pid):
+    return type("P", (), {"id": pid, "path": str(tmp_path)})()
+
+
+def _pin_store_to(proj, provider, model):
+    C._store_embedder_identity(
+        proj, {"provider": provider, "model": model, "dimension": 384,
+               "pass_dimensions": False})
+
+
+def test_a_store_pins_the_provider_when_none_was_saved(tmp_path):
+    from app.backends.ms_agent import sidecar
+
+    proj = _stub_project(tmp_path, "pin-provider")
+    sidecar.put("projects", proj.id, {
+        "memory_models": {"embed_mode": "provider", "embed_provider_id": None}})
+    _pin_store_to(proj, "zhipu", "embedding-3")
+
+    cfg = C._project_memory_models(proj)
+    assert cfg["embed_provider_id"] == "zhipu"
+
+    # Chatting elsewhere switched the conversation provider to deepseek.
+    settings = _settings_with(
+        "deepseek",
+        deepseek={"api_key": "d", "base_url": "https://api.deepseek.com/v1"},
+        zhipu={"api_key": "z", "base_url": "https://zhipu.example/v4"})
+    desc = C._resolve_embedder(settings, cfg)
+    assert (desc["provider"], desc["model"]) == ("zhipu", "embedding-3")
+
+
+def test_a_store_built_locally_stays_local(monkeypatch, tmp_path):
+    """The nastier half: a project that fell back to the local model would flip
+    to a provider as soon as one that CAN embed became the conversation
+    provider — same invalidation, from the opposite direction."""
+    from app.backends.ms_agent import sidecar
+
+    monkeypatch.setattr(C, "_local_embed_available", lambda: True)
+    proj = _stub_project(tmp_path, "pin-local")
+    sidecar.put("projects", proj.id, {
+        "memory_models": {"embed_mode": "provider", "embed_provider_id": None}})
+    _pin_store_to(proj, "local", C._LOCAL_EMBED_MODEL)
+
+    cfg = C._project_memory_models(proj)
+    assert cfg["embed_mode"] == "local"
+
+    settings = _settings_with(
+        "zhipu", zhipu={"api_key": "z", "base_url": "https://zhipu.example/v4"})
+    assert C._resolve_embedder(settings, cfg)["mode"] == "local"
+
+
+def test_an_explicit_provider_is_left_alone(tmp_path):
+    from app.backends.ms_agent import sidecar
+
+    proj = _stub_project(tmp_path, "explicit-provider")
+    sidecar.put("projects", proj.id, {
+        "memory_models": {"embed_mode": "provider",
+                          "embed_provider_id": "dashscope"}})
+    _pin_store_to(proj, "zhipu", "embedding-3")  # must NOT win
+    assert C._project_memory_models(proj)["embed_provider_id"] == "dashscope"
+
+
+# ── backups: at most one per embedding model ───────────────────────────────
+# A rebuild always carries every entry forward, so the previous backup for the
+# SAME model is a strict subset of what is being retired — keeping it costs disk
+# for nothing. (A provider store is ~4x a local one; a few thousand memories
+# turn each switch into tens of MB.)
+
+def _switch_embedder_to(monkeypatch, model):
+    monkeypatch.setattr(
+        C, "_resolve_embedder",
+        lambda s, m: {"mode": "local", "provider": None, "model": model,
+                      "fallback_reason": None})
+
+
+def _backup_names(mem_dir):
+    return {p.name for p in mem_dir.glob("qdrant.bak-*") if p.is_dir()}
+
+
+def _backup_for(model, provider=None):
+    """The backup directory name a local store built by ``model`` retires to.
+
+    Derived, never hardcoded: the name carries a digest of the full identity so
+    two models whose readable part collides cannot share (and delete) one
+    backup."""
+    return "qdrant.bak-" + M._embedder_slug(
+        {"provider": provider or "local", "model": model})
+
+
+def test_rebuild_keeps_one_backup_per_embedder(monkeypatch, vector_project):
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+
+    asyncio.run(M.rebuild(vector_project.id))  # old-model -> new-model
+    assert _backup_names(mem_dir) == {_backup_for("old-model")}
+
+    # Switching back retires the new-model store: a second backup, for the
+    # other model.
+    _switch_embedder_to(monkeypatch, "old-model")
+    asyncio.run(M.rebuild(vector_project.id))
+    assert _backup_names(mem_dir) == {_backup_for("old-model"),
+                                      _backup_for("new-model")}
+
+    # Switching yet again REPLACES that model's backup instead of piling up.
+    _switch_embedder_to(monkeypatch, "new-model")
+    asyncio.run(M.rebuild(vector_project.id))
+    assert _backup_names(mem_dir) == {_backup_for("old-model"),
+                                      _backup_for("new-model")}
+
+
+def test_backup_records_which_model_built_it(monkeypatch, vector_project):
+    """Named by embedder, and self-describing: the identity goes into the
+    directory, so a backup is still attributable if the naming ever changes."""
+    import json
+
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+    asyncio.run(M.rebuild(vector_project.id))
+    marker = mem_dir / _backup_for("old-model") / "embedder.json"
+    assert json.loads(marker.read_text(encoding="utf-8"))["model"] == "old-model"
+
+
+def test_legacy_timestamped_backups_collapse_to_the_newest(monkeypatch,
+                                                           vector_project):
+    """Backups from before per-embedder naming carry no record of their model,
+    so they cannot be grouped: keep the newest as a last-resort copy, drop the
+    rest instead of leaving every past switch on disk forever."""
+    import os
+
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+    for name, mtime in (("qdrant.bak-20260101-000000", 1_700_000_000),
+                        ("qdrant.bak-20260102-000000", 1_700_001_000),
+                        ("qdrant.bak-20260103-000000", 1_700_002_000)):
+        (mem_dir / name).mkdir()
+        os.utime(mem_dir / name, (mtime, mtime))
+
+    asyncio.run(M.rebuild(vector_project.id))
+
+    names = _backup_names(mem_dir)
+    assert _backup_for("old-model") in names  # this rebuild's own
+    assert {n for n in names if n.startswith("qdrant.bak-2026")} == {
+        "qdrant.bak-20260103-000000"}
+
+
+def test_listing_never_builds_an_embedder(monkeypatch, vector_project):
+    """Listing needs payload text and timestamps — nothing that requires
+    embedding anything. Going through mem0 for it built a client and loaded the
+    embedding model on every request: ~800ms in steady state, measured, on the
+    endpoint the memory card polls."""
+    monkeypatch.setattr(M, "_live_mem0", lambda _proj: None)  # no live session
+
+    def _boom(_proj):
+        raise AssertionError("a read must not construct a mem0 client")
+
+    monkeypatch.setattr(M, "_mem0_for", _boom)
+    assert asyncio.run(M.list_items(vector_project.id)) == []
+
+
+def test_listing_reads_payloads_straight_from_the_store(monkeypatch,
+                                                       vector_project):
+    from app.backends.ms_agent.common import pm
+    from ms_agent.project.paths import memory_dir
+
+    sdk_proj = pm().get(vector_project.id)
+    (Path(str(memory_dir(sdk_proj.path))) / "qdrant").mkdir(parents=True)
+    monkeypatch.setattr(M, "_live_mem0", lambda _proj: None)
+    monkeypatch.setattr(M, "_read_store_rows", lambda store: [
+        {"id": "a", "payload": {"data": "older", "user_id": vector_project.id,
+                                "updated_at": "2026-08-01T00:00:00+00:00"}},
+        {"id": "b", "payload": {"data": "newer", "user_id": vector_project.id,
+                                "updated_at": "2026-08-09T00:00:00+00:00"}},
+        # Another namespace in the same collection is not this project's.
+        {"id": "c", "payload": {"data": "someone else", "user_id": "other"}},
+    ])
+    items = asyncio.run(M.list_items(vector_project.id))
+    assert [i.content for i in items] == ["newer", "older"]
+
+
+# ── a rebuild must not leave agents holding a retired store ────────────────
+# Closing a shared orchestrator retires it for good (the SDK refuses to reopen
+# an embedded store behind its owner's back), so any agent still holding one
+# keeps running with memory that silently does nothing.
+
+class _FakeRuntime:
+
+    def __init__(self, pid, sid):
+        self.project = type("P", (), {"id": pid, "path": "/tmp/" + pid})()
+        self.session = type("S", (), {"id": sid})()
+        self.turn_lock = asyncio.Lock()
+        self.run_task = type("T", (), {"done": lambda self: False})()
+        self.needs_rebuild = False
+        self.closed = False
+        self.model_key = None
+
+    def touch(self):
+        pass
+
+    async def aclose(self):
+        self.closed = True
+
+
+def test_rebuild_retires_the_projects_runtimes_first(monkeypatch, vector_project):
+    from app.backends.ms_agent.runtime import registry
+
+    _mismatched_store(monkeypatch, vector_project)
+    idle = _FakeRuntime(vector_project.id, "s-idle")
+    other = _FakeRuntime("someone-else", "s-other")
+    monkeypatch.setitem(registry._runtimes, "s-idle", idle)
+    monkeypatch.setitem(registry._runtimes, "s-other", other)
+
+    async def _release(project):
+        pass
+
+    monkeypatch.setattr(registry, "_release_project_memory", _release)
+
+    asyncio.run(M.rebuild(vector_project.id))
+
+    assert idle.closed and "s-idle" not in registry._runtimes
+    assert not other.closed and "s-other" in registry._runtimes
+
+
+def test_rebuild_refuses_while_a_turn_is_running(monkeypatch, vector_project):
+    """A turn in flight cannot be served across a rebuild: the store it
+    retrieves from is about to be replaced and the shared instance it holds gets
+    retired. Refuse rather than let that turn silently lose its memory."""
+    from app.backends.errors import Conflict
+    from app.backends.ms_agent.runtime import registry
+
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+    busy = _FakeRuntime(vector_project.id, "s-busy")
+
+    async def main():
+        await busy.turn_lock.acquire()
+        monkeypatch.setitem(registry._runtimes, "s-busy", busy)
+        try:
+            with pytest.raises(Conflict):
+                await M.rebuild(vector_project.id)
+        finally:
+            busy.turn_lock.release()
+
+    asyncio.run(main())
+
+    # Nothing touched, and the turn kept its agent.
+    assert (mem_dir / "qdrant" / "meta.json").read_text() == "{}"
+    assert not _backup_names(mem_dir)
+    assert not busy.closed and "s-busy" in registry._runtimes
+
+
+def test_a_flagged_runtime_is_rebuilt_on_the_next_turn(monkeypatch):
+    """The other half: `get()` used to look only at the conversation model, so
+    a flagged runtime kept serving the old configuration anyway."""
+    from app.backends.ms_agent import model_link
+    from app.backends.ms_agent import runtime as R
+
+    reg = R.RuntimeRegistry()
+    stale = _FakeRuntime("p1", "s1")
+    stale.model_key = model_link.active_model()
+    stale.needs_rebuild = True
+    reg._runtimes["s1"] = stale
+    built = []
+
+    def _fake_runtime(project, session, mcp):
+        built.append(session.id)
+        return _FakeRuntime("p1", session.id)
+
+    monkeypatch.setattr(R, "SessionRuntime", _fake_runtime)
+
+    async def _mcp(project):
+        return {}
+
+    monkeypatch.setattr(reg, "_resolve_mcp", _mcp)
+
+    got = asyncio.run(reg.get(stale.project, stale.session))
+    assert built == ["s1"] and got is not stale and stale.closed
+
+
+def test_identity_that_cannot_be_written_aborts_before_moving_anything(
+        monkeypatch, vector_project):
+    """A store that speaks model B under an identity file still naming model A
+    reads as a permanent mismatch — and pins the project to the wrong model. So
+    the write is proven possible BEFORE anything moves."""
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+
+    def _no_write(project, identity):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(C, "_stage_embedder_identity", _no_write)
+
+    with pytest.raises(BadRequest):
+        asyncio.run(M.rebuild(vector_project.id))
+
+    from app.backends.ms_agent.common import pm
+
+    assert (mem_dir / "qdrant" / "meta.json").read_text() == "{}"  # untouched
+    assert not _backup_names(mem_dir)
+    assert C._load_embedder_identity(
+        pm().get(vector_project.id))["model"] == "old-model"
+
+
+# ── races and rollbacks around retiring runtimes / swapping stores ──────────
+
+def test_discard_never_closes_a_runtime_that_just_became_busy():
+    """Idleness has to be decided under the create lock, right before removal:
+    a turn can start between any two awaits, and dropping it then cancels an
+    answer mid-generation."""
+    from app.backends.ms_agent.runtime import RuntimeRegistry
+
+    async def main():
+        reg = RuntimeRegistry()
+        first = _FakeRuntime("p1", "s1")
+        second = _FakeRuntime("p1", "s2")
+        reg._runtimes = {"s1": first, "s2": second}
+
+        async def _release(project):
+            pass
+
+        reg._release_project_memory = _release
+        closing = first.aclose
+
+        async def close_then_start_a_turn():
+            await closing()
+            await second.turn_lock.acquire()  # the next turn begins right here
+
+        first.aclose = close_then_start_a_turn
+        dropped = await reg._discard_project("p1")
+        second.turn_lock.release()
+        return dropped, first, second
+
+    dropped, first, second = asyncio.run(main())
+    assert first.closed and dropped == 1
+    assert not second.closed          # the turn was not cancelled
+    assert second.needs_rebuild is True  # ...it rebuilds on its next turn
+    assert "s2" in second.session.id
+
+
+def test_a_queued_turn_does_not_run_on_a_superseded_runtime(monkeypatch):
+    """The second request may already be waiting on the turn lock when the
+    config changes. `registry.get` cannot rebuild a busy runtime, so the check
+    has to happen again AFTER the wait — otherwise that request runs on the old
+    agent (old config, or a memory instance that has been retired)."""
+    from app.backends.ms_agent import chat as CH
+
+    built = []
+
+    class Reg:
+
+        def __init__(self, rt):
+            self._runtimes = {rt.session.id: rt}
+
+        async def get(self, project, session):
+            rt = self._runtimes.get(session.id)
+            # Same rebuild rule as the real registry: no mapping, or an idle
+            # runtime that was flagged.
+            if rt is None or (not rt.turn_lock.locked() and rt.needs_rebuild):
+                fresh = _FakeRuntime("p1", session.id)
+                self._runtimes[session.id] = fresh
+                built.append(fresh)
+                return fresh
+            return rt
+
+        def peek_exact(self, sid):
+            return self._runtimes.get(sid)
+
+        async def close(self, sid):
+            rt = self._runtimes.pop(sid, None)
+            if rt is not None:
+                await rt.aclose()
+
+    async def main():
+        old = _FakeRuntime("p1", "s1")
+        reg = Reg(old)
+        monkeypatch.setattr(CH, "registry", reg)
+        await old.turn_lock.acquire()  # turn 1 in flight
+        queued = asyncio.create_task(
+            CH._acquire_live_runtime(old.project, old.session))
+        await asyncio.sleep(0.05)  # the request is now waiting on the lock
+        old.needs_rebuild = True  # ...and the config changes
+        old.turn_lock.release()  # turn 1 ends
+        got = await queued
+        got.turn_lock.release()
+        return got, old
+
+    got, old = asyncio.run(main())
+    assert got is not old and built and got is built[0]
+    assert old.closed  # retired rather than left around
+
+
+def test_backup_names_cannot_collide_across_models():
+    """Two models whose readable part is identical must not share a backup
+    directory — the second retirement would delete the first one's copy."""
+    a = M._embedder_slug({"provider": "openai", "model": "openai/org-a/embed-large"})
+    b = M._embedder_slug({"provider": "openai", "model": "openai/org-b/embed-large"})
+    long_a = M._embedder_slug({"provider": "x", "model": "m" * 100 + "-v1"})
+    long_b = M._embedder_slug({"provider": "x", "model": "m" * 100 + "-v2"})
+    assert a != b and long_a != long_b
+    # ...while the same identity still maps to one stable name.
+    assert a == M._embedder_slug(
+        {"provider": "openai", "model": "openai/org-a/embed-large"})
+
+
+def test_a_backup_claiming_another_model_is_not_deleted(monkeypatch,
+                                                       vector_project):
+    import json
+
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+    squatter = mem_dir / _backup_for("old-model")
+    squatter.mkdir()
+    (squatter / "embedder.json").write_text(
+        json.dumps({"provider": "local", "model": "someone-else"}),
+        encoding="utf-8")
+
+    asyncio.run(M.rebuild(vector_project.id))
+
+    assert json.loads((squatter / "embedder.json").read_text())[
+        "model"] == "someone-else"  # left alone
+    assert any(n.startswith("qdrant.bak-2026") for n in _backup_names(mem_dir))
+
+
+def test_a_failed_swap_puts_the_previous_store_back(monkeypatch, vector_project):
+    """Losing the live store is the one outcome a rebuild must never produce."""
+    import shutil
+
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+    real_move = shutil.move
+
+    def flaky(src, dst):
+        if "qdrant.new-" in str(src):
+            raise OSError("simulated: cannot move the new store into place")
+        return real_move(src, dst)
+
+    monkeypatch.setattr(shutil, "move", flaky)
+
+    with pytest.raises(BadRequest):
+        asyncio.run(M.rebuild(vector_project.id))
+
+    monkeypatch.undo()
+    assert (mem_dir / "qdrant" / "meta.json").read_text() == "{}"  # restored
+    assert not _backup_names(mem_dir)
+    assert not list(mem_dir.glob("qdrant.new-*"))
+
+
+def test_rebuild_fails_before_touching_anything_when_the_local_model_is_unusable(
+        monkeypatch, vector_project):
+    """The local embedder is downloaded on first use (~220 MB). When that fails
+    the rebuild must say so and stop BEFORE the destructive part: previously the
+    error surfaced from inside the re-embedding step as a bare
+    ``[Errno 60] Operation timed out``, after the project's runtimes had already
+    been retired for a rebuild that could not proceed."""
+    from app.backends.ms_agent.runtime import registry
+
+    _, mem_dir, _ = _mismatched_store(monkeypatch, vector_project)
+
+    def _boom(desc):
+        raise C.MemoryConfigError(
+            "local_model_unavailable",
+            "the local embedding model (x) could not be loaded: "
+            "[Errno 60] Operation timed out. It is downloaded on first use "
+            "(~220 MB) — check the network/proxy to huggingface.co and try again")
+
+    monkeypatch.setattr(C, "ensure_embedder_usable", _boom)
+    retired: list[str] = []
+
+    async def _record(project_id):
+        retired.append(project_id)
+        return 0
+
+    monkeypatch.setattr(registry, "_discard_project", _record)
+
+    with pytest.raises(BadRequest) as err:
+        asyncio.run(M.rebuild(vector_project.id))
+
+    assert "downloaded on first use" in str(err.value)
+    assert "local embedding model" in str(err.value)
+    # Nothing was retired and the store is exactly as it was.
+    assert retired == []
+    assert (mem_dir / "qdrant" / "meta.json").exists()
+    assert not list(mem_dir.glob("qdrant.new-*"))

@@ -84,18 +84,34 @@ export function MemoryModelConfig({ value, onChange, errors }: Props) {
     () => providers.map((p) => ({ value: p.id, label: p.name || p.id })),
     [providers]
   )
+
+  // Normalize a value saved before this row lost its "follow" option (or seeded
+  // from such defaults): provider mode has to name a provider, otherwise saving
+  // the form re-creates the follow behaviour. Projects whose store already
+  // exists arrive pinned to it by the server; this only fills the rest.
+  useEffect(() => {
+    if (
+      value.memory_embed_mode !== 'local' &&
+      !value.memory_embed_provider_id &&
+      providers.length
+    ) {
+      onChange({ memory_embed_provider_id: providers[0].id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providers, value.memory_embed_mode, value.memory_embed_provider_id])
   const modelOptionsFor = (providerId: string | null) =>
     models
       .filter((m) => m.provider_id === providerId)
       .map((m) => ({ value: m.name, label: m.display_name || m.name }))
 
   const llmChoice = value.memory_llm_provider_id ? 'custom' : 'follow'
-  const embedChoice =
-    value.memory_embed_mode === 'local'
-      ? 'local'
-      : value.memory_embed_provider_id
-        ? 'custom'
-        : 'follow'
+  // Two choices only. "Follow the conversation provider" is deliberately gone:
+  // the conversation provider is a GLOBAL setting, so an embedder that follows
+  // it changes under a project whenever the user switches models elsewhere —
+  // which invalidates that project's vector store and asks for a re-embed the
+  // user never asked for. The extraction model above may still follow, because
+  // nothing is persisted in its vector space.
+  const embedChoice = value.memory_embed_mode === 'local' ? 'local' : 'custom'
 
   return (
     <div className="space-y-4">
@@ -166,17 +182,13 @@ export function MemoryModelConfig({ value, onChange, errors }: Props) {
           <Radio.Group
             value={embedChoice}
             onChange={(e) => {
-              const v = e.target.value
-              if (v === 'follow')
+              if (e.target.value === 'custom')
                 onChange({
                   memory_embed_mode: 'provider',
-                  memory_embed_provider_id: null,
-                  memory_embed_model: null
-                })
-              else if (v === 'custom')
-                onChange({
-                  memory_embed_mode: 'provider',
-                  memory_embed_provider_id: providers[0]?.id ?? null
+                  // Never save "provider mode, no provider": that is the
+                  // follow-the-global-setting behaviour under another name.
+                  memory_embed_provider_id:
+                    value.memory_embed_provider_id ?? providers[0]?.id ?? null
                 })
               else
                 onChange({
@@ -186,9 +198,6 @@ export function MemoryModelConfig({ value, onChange, errors }: Props) {
                 })
             }}
           >
-            <Radio value="follow">
-              {t.personalization.embedFollowProvider}
-            </Radio>
             <Radio value="custom">{t.personalization.specificProvider}</Radio>
             <Radio value="local">{t.personalization.embedLocal}</Radio>
           </Radio.Group>

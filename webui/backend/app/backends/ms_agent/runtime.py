@@ -43,11 +43,15 @@ class WebInputSource:
     marks no boundary; every later read means the previous turn finished, so it
     pushes a TURN_END sentinel to the active turn queue before blocking.
 
-    A queue item is either the prompt string, or ``(prompt, marker)`` where
-    ``marker`` is a display-only skill-invocation record. The marker is written
-    here — immediately before the SDK appends the (expanded) user row — so its
-    seq precedes that row's, letting history replay show the user's original
-    text instead of the expanded skill prompt. ``log_getter`` is lazy because
+    A queue item is either the prompt string, or ``(prompt, marker)`` /
+    ``(prompt, marker, attachments)``. ``marker`` is a display-only
+    skill-invocation record, written here — immediately before the SDK appends
+    the (expanded) user row — so its seq precedes that row's, letting history
+    replay show the user's original text instead of the expanded skill prompt.
+    ``attachments`` are the turn's image references, handed to the SDK through
+    the optional ``take_attachments`` hook rather than through ``read_prompt``'s
+    ``str`` return: widening that return type would ripple through every
+    InputSource implementation and every caller. ``log_getter`` is lazy because
     the session log is created when the agent's run loop starts."""
 
     def __init__(self, queue: "asyncio.Queue", sink: "QueueEventSink",
@@ -56,6 +60,10 @@ class WebInputSource:
         self._sink = sink
         self._log_getter = log_getter
         self._first = True
+        # Attachments for the prompt most recently returned by read_prompt.
+        # Consumed (and cleared) by take_attachments immediately after, so a
+        # later turn can never inherit them.
+        self._pending_attachments: list[dict] = []
 
     async def read_prompt(self, prompt: str = ">>> ") -> str:
         if self._first:
@@ -63,7 +71,12 @@ class WebInputSource:
         else:
             self._sink.push({"type": TURN_END})
         item = await self._queue.get()
-        text, marker = item if isinstance(item, tuple) else (item, None)
+        if isinstance(item, tuple):
+            text, marker, *rest = item
+            attachments = rest[0] if rest else None
+        else:
+            text, marker, attachments = item, None, None
+        self._pending_attachments = list(attachments or [])
         if marker and self._log_getter is not None:
             try:
                 log = self._log_getter()
@@ -72,6 +85,16 @@ class WebInputSource:
             except Exception:  # display-only; never block the turn
                 logger.debug("skill invocation marker skipped", exc_info=True)
         return text
+
+    def take_attachments(self) -> list[dict]:
+        """Optional InputSource hook: the parts belonging to the last prompt.
+
+        "Take" rather than "get": the SDK calls this once per submission right
+        after read_prompt, and the source must not hand the same images to a
+        later turn.
+        """
+        attachments, self._pending_attachments = self._pending_attachments, []
+        return attachments
 
 
 class QueueEventSink:
@@ -144,7 +167,63 @@ class _PermissionEmitter:
         self._sink.push(event)
 
 
-def _persisting_permission_handler(sink, session_log_getter):
+#: How long a full-access session waits for an answer before giving up on it.
+#: Long enough to survive a meeting, short enough that a session started and
+#: walked away from does not sit on its turn forever. Only reachable in that
+#: mode: the sole thing still asking there is network egress (curl/ssh/…), so
+#: the wait is rare by construction.
+FULL_ACCESS_ASK_TIMEOUT_S = float(os.environ.get("MSA_ASK_TIMEOUT", 25 * 60))
+
+
+def _mcp_fingerprint(project) -> str:
+    """Identity of the RESOLVED mcp config (global + project files, pre-health).
+
+    Deliberately the raw resolution, not the health-filtered set the agent was
+    built with: health verdicts flap, and a fingerprint that includes them
+    would rebuild agents because a remote endpoint blinked. Config edits are
+    the thing this tracks — whoever made them and through whatever channel.
+    """
+    import hashlib
+    import json
+
+    try:
+        from ms_agent.tui.managed_config import resolve_mcp_config
+
+        from app.backends.ms_agent.common import home
+
+        raw = resolve_mcp_config(home(), project.path, None) or {}
+        return hashlib.sha1(
+            json.dumps(raw, sort_keys=True, default=str).encode()).hexdigest()
+    except Exception:  # noqa: BLE001 — a fingerprint failure must not block chat
+        return ""
+
+
+def _ask_timeout_for(permission_mode: str | None) -> float | None:
+    """``None`` — wait indefinitely — whenever the user chose to be asked.
+
+    Expiring an approval answers it as a refusal, which is both the wrong
+    answer and an unrecoverable one: the user comes back to "rejected" with no
+    way to tell that nobody ever rejected anything. Someone who selected
+    "always ask" is telling us they intend to answer, so we wait. Full access
+    is the opposite statement, and there a bound is what keeps an unattended
+    session from parking on a question no one will read.
+    """
+    if (permission_mode or "").strip().lower() in ("auto", "full", "full_access"):
+        return FULL_ACCESS_ASK_TIMEOUT_S
+    return None
+
+
+# The SDK's WebPermissionHandler stamps this feedback on the ONE path that denies
+# with nobody having decided: its ask() hitting the timeout (permission/handler.py).
+# Nothing else here ever sets feedback — resolve_permission() builds its
+# PermissionResponse from the action alone — so the string is what tells an
+# expired ask apart from a human's "Reject". Compared exactly on purpose: if the
+# SDK ever rewords it, a timeout degrades to a plain rejection (how it has always
+# looked), whereas a looser test risks labelling a deliberate refusal a timeout.
+_TIMEOUT_FEEDBACK = "Permission request timed out"
+
+
+def _persisting_permission_handler(sink, session_log_getter, timeout=None):
     """WebPermissionHandler that also persists each resolved authorization to the
     session log (``record_permission``), so history can replay the card in its
     approved/rejected state. The record is display-only (filtered out of the LLM
@@ -155,7 +234,12 @@ def _persisting_permission_handler(sink, session_log_getter):
     It also ANNOUNCES a refusal (``permission_resolved``): the SDK's ask() returns
     DENY silently on timeout, so without this the only hint reaching live viewers
     is the gated call's errored result — the card sat there offering buttons for a
-    decision that had already been made for it."""
+    decision that had already been made for it.
+
+    A refusal nobody made carries ``reason: "timeout"`` — both on the wire and in
+    the persisted record, so a reload keeps it — because "rejected" alone reads as
+    a deliberate decision, and which one it was is exactly what tells the user
+    whether to just approve the retry."""
     from ms_agent.permission.handler import (
         PermissionAction,
         WebPermissionHandler,
@@ -166,43 +250,48 @@ def _persisting_permission_handler(sink, session_log_getter):
                       call_id=""):
             response = await super().ask(
                 tool_name, tool_args, context, suggestions, call_id=call_id)
+            denied = response.action == PermissionAction.DENY
+            timed_out = denied and str(
+                response.feedback or "") == _TIMEOUT_FEEDBACK
             try:
                 log = session_log_getter()
                 if log is not None and hasattr(log, "record_permission"):
-                    state = (
-                        "rejected"
-                        if response.action == PermissionAction.DENY
-                        else "approved"
-                    )
                     # Persist the gating tool_call's id so history replay pairs
                     # this decision to the exact call — robust when a round
                     # fires several identical tool calls in parallel (args alone
                     # can't disambiguate). Empty when the adapter hadn't assigned
                     # an id yet; reconstruct then falls back to arg matching.
-                    log.record_permission({
+                    record = {
                         "tool_name": tool_name,
                         "arguments": tool_args,
-                        "state": state,
+                        "state": "rejected" if denied else "approved",
                         "call_id": str(call_id or ""),
-                    })
+                    }
+                    if timed_out:
+                        record["reason"] = "timeout"
+                    log.record_permission(record)
             except Exception:  # never let persistence break the turn
                 logger.debug("permission record skipped", exc_info=True)
-            if response.action == PermissionAction.DENY:
+            if denied:
                 # Announce the refusal NOW. Covers both ways one happens: the
-                # 120s timeout (no client action at all) and a deny clicked in
+                # full-access timeout (no client action at all) and a deny in
                 # ANOTHER tab. Carries no request_id — the decision is final, so
                 # the card must render its rejected state, not live buttons. The
                 # frontend merges it onto the ask by call_id.
-                sink.push({
+                event = {
                     "type": "permission_resolved",
                     "call_id": str(call_id or ""),
                     "tool_name": tool_name,
                     "tool_args": tool_args,
                     "state": "rejected",
-                })
+                }
+                if timed_out:
+                    event["reason"] = "timeout"
+                sink.push(event)
             return response
 
-    return _PersistingWebPermissionHandler(_PermissionEmitter(sink))
+    return _PersistingWebPermissionHandler(
+        _PermissionEmitter(sink), timeout=timeout)
 
 
 class SessionRuntime:
@@ -215,6 +304,15 @@ class SessionRuntime:
         # settings.json.llm, so a later model switch is detected by comparing
         # against active_model() and triggers a rebuild (see RuntimeRegistry.get).
         self.model_key = model_link.active_model()
+        # Config identity at build time; get() compares it per turn so edits
+        # made outside the management routes still reach the next turn.
+        self.mcp_fingerprint = _mcp_fingerprint(project)
+        # Set when this agent's configuration was superseded while it was
+        # mid-turn (a memory-model edit, a store rebuild): it finishes the turn
+        # it is in, and the NEXT one gets a freshly built agent. Without it a
+        # busy session kept serving the old config until the idle TTL — which is
+        # exactly "I saved it and nothing happened".
+        self.needs_rebuild = False
         self.input_queue: "asyncio.Queue[str]" = asyncio.Queue()
         self.sink = QueueEventSink()
         self.input_source = WebInputSource(
@@ -222,17 +320,29 @@ class SessionRuntime:
             log_getter=lambda: getattr(self.agent, "session_log", None),
         )
         self.turn_lock = asyncio.Lock()
+        # The user message that opened the CURRENT turn, as the composer showed
+        # it (pre-expansion text plus any configuration segments), or None
+        # between turns. Handed to re-attaching viewers on the `turn` frame,
+        # because mid-turn that row may not exist anywhere else yet: the SDK
+        # appends it to the session log only when the driver picks the prompt up
+        # (1-2s in, longer on a cold build), and the asker's own optimistic
+        # bubble dies with its component on the first navigation away. A viewer
+        # landing in that window used to render a history WITHOUT the question
+        # while the turn streamed an answer to it.
+        self.turn_user: dict | None = None
         # Count of live SSE viewers (the original /api/chat stream plus any
         # /api/chat/attach viewers). Diagnostic state: a background-continued
         # turn has zero watchers. Nothing cancels a turn based on this — only
         # the explicit Stop button ends a turn early.
         self.watchers = 0
-        # Restricted-mode asks suspend on this handler until the frontend
-        # answers via POST /api/chat/permission (deny after its timeout); the
-        # decision is persisted for replay. The getter reads the log lazily —
-        # it is created when the agent's run loop starts, after this line.
+        # Asks suspend on this handler until the frontend answers via
+        # POST /api/chat/permission; the decision is persisted for replay. The
+        # getter reads the log lazily — the log is created when the agent's run
+        # loop starts, after this line.
         self.permission_handler = _persisting_permission_handler(
-            self.sink, lambda: getattr(self.agent, "session_log", None)
+            self.sink,
+            lambda: getattr(self.agent, "session_log", None),
+            timeout=_ask_timeout_for(getattr(project, "permission_mode", None)),
         )
         self.agent = build_agent(
             project,
@@ -265,12 +375,36 @@ class SessionRuntime:
         else:
             self.sink.push({"type": DRIVER_DONE})
 
-    async def enqueue(self, text: str, marker: dict | None = None) -> None:
+    async def enqueue(self,
+                      text: str,
+                      marker: dict | None = None,
+                      attachments: list[dict] | None = None) -> None:
         self.touch()
-        # Plain string when no marker, so simple consumers/tests stay unchanged.
-        await self.input_queue.put((text, marker) if marker else text)
+        # Plain string when there is nothing extra, so simple consumers/tests
+        # stay unchanged; a 3-tuple only when this turn carries attachments.
+        if attachments:
+            await self.input_queue.put((text, marker, attachments))
+        elif marker:
+            await self.input_queue.put((text, marker))
+        else:
+            await self.input_queue.put(text)
 
     async def aclose(self) -> None:
+        # Answer anything still waiting on a person BEFORE cancelling the run
+        # task. An ask with no deadline (every "always ask" session) suspends
+        # its turn until something resolves it, and a suspended turn is exactly
+        # what cancellation has to interrupt — resolving first lets the turn
+        # unwind on its own instead of being torn out mid-await.
+        try:
+            cancelled = self.permission_handler.cancel_pending(
+                "Session closed before this was answered.")
+            if cancelled:
+                logger.info(
+                    "closed %d unanswered permission request(s) for session %s",
+                    cancelled, self.session.id)
+        except Exception:
+            logger.debug("pending permission cleanup skipped", exc_info=True)
+
         if not self.run_task.done():
             self.run_task.cancel()
             try:
@@ -316,6 +450,14 @@ class RuntimeRegistry:
 
     def __init__(self) -> None:
         self._runtimes: dict[str, SessionRuntime] = {}
+        # Sessions whose turn has been ACCEPTED but whose runtime is not holding
+        # turn_lock yet, mapped to their project id. Building a cold runtime
+        # (resolve MCP, spawn servers, build the agent) takes SECONDS and the
+        # lock is taken at the END of it, so every running-state reader saw
+        # "idle" for a turn that was already underway — measured at 6.1s on a
+        # cold session. A client navigating away and back inside that window
+        # opened no attach at all and rendered the session as finished.
+        self._starting: dict[str, str] = {}
         self._create_lock = asyncio.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._sweeper: asyncio.Task | None = None
@@ -329,8 +471,44 @@ class RuntimeRegistry:
             rt.touch()
         return rt
 
-    def is_running(self, session_id: str) -> bool:
-        """Whether the session has a turn in flight (live or background)."""
+    def peek_exact(self, session_id: str) -> "SessionRuntime | None":
+        """The mapped runtime without touching it — for identity checks, where
+        refreshing the idle timer would be a side effect."""
+        return self._runtimes.get(session_id)
+
+    def mark_starting(self, session_id: str, project_id: str) -> None:
+        """Declare a turn accepted for this session, before its runtime exists.
+
+        Closes the window described on `_starting`: from here on presence,
+        `session.running` and attach all report the turn, so a viewer that
+        leaves and comes back rejoins it instead of seeing an idle session.
+        """
+        self._starting[session_id] = project_id
+
+    def clear_starting(self, session_id: str) -> None:
+        """Hand running-state back to `turn_lock`. Called once the enqueue has
+        landed (the lock is held, so the transition is seamless) or the turn
+        failed to start (nothing is running, which is what readers should see).
+        """
+        self._starting.pop(session_id, None)
+
+    def is_starting(self, session_id: str) -> bool:
+        """Turn accepted, runtime not ready to be observed yet — attach has to
+        WAIT for the buffer instead of concluding there is nothing to replay."""
+        return session_id in self._starting
+
+    def is_generating(self, session_id: str) -> bool:
+        """Turn handed to the driver and producing events — the stricter half of
+        `is_running`, which also covers the accepted-but-still-building window.
+
+        This is the question "does the event buffer hold THIS turn", which is
+        what decides whether a trailing assistant row on disk is a partial copy
+        of something a live viewer also replays, and whether `turn_started_wall`
+        belongs to the current turn. Inside `_starting` neither is true: the
+        buffer is empty and the trailing row is the PREVIOUS turn, complete —
+        answering `is_running` there would make an attached viewer drop a
+        finished answer and mis-date the plan file.
+        """
         rt = self._runtimes.get(session_id)
         return (
             rt is not None
@@ -338,8 +516,28 @@ class RuntimeRegistry:
             and not rt.run_task.done()
         )
 
+    def is_running(self, session_id: str) -> bool:
+        """Whether the session has a turn in flight (live or background)."""
+        if session_id in self._starting:
+            return True
+        return self.is_generating(session_id)
+
     def running_sessions(self) -> list[str]:
-        return [sid for sid in list(self._runtimes) if self.is_running(sid)]
+        ids = [sid for sid in list(self._runtimes) if self.is_running(sid)]
+        # A starting session usually has no runtime mapped yet (that is the
+        # point), so it would be missed by the scan above.
+        ids.extend(
+            sid for sid in list(self._starting) if sid not in self._runtimes)
+        return ids
+
+    def project_is_running(self, project_id: str) -> bool:
+        """Whether any of this project's sessions has a turn in flight."""
+        if project_id in set(self._starting.values()):
+            return True
+        return any(
+            getattr(rt.project, "id", None) == project_id
+            and rt.turn_lock.locked()
+            for rt in list(self._runtimes.values()))
 
     async def get(self, project, session) -> SessionRuntime:
         """Return a live runtime for the session, (re)building if the driver has
@@ -351,14 +549,25 @@ class RuntimeRegistry:
             self._loop = asyncio.get_running_loop()  # for cross-thread toggles
             self._ensure_sweeper()
             rt = self._runtimes.get(session.id)
-            # Rebuild on model switch, but never mid-turn: an in-flight turn holds
-            # turn_lock, so defer the swap to the next idle turn to avoid cancelling it.
-            model_changed = (
+            # Rebuild on a model switch or a superseded config, but never
+            # mid-turn: an in-flight turn holds turn_lock, so defer the swap to
+            # the next idle turn to avoid cancelling it. The MCP fingerprint
+            # covers config edits the management routes never see — the agent
+            # repairing its own mcp.json with a file edit, a user hand-editing
+            # one — which previously took effect only for NEW sessions: the
+            # session where the fix happened kept its frozen tool set.
+            current_fp = _mcp_fingerprint(project)
+            superseded = (
                 rt is not None
                 and not rt.turn_lock.locked()
-                and rt.model_key != model_link.active_model()
+                and (rt.model_key != model_link.active_model()
+                     or rt.needs_rebuild
+                     # Both sides non-empty: a fingerprint FAILURE ("") must
+                     # neither force nor mask a rebuild.
+                     or bool(current_fp and rt.mcp_fingerprint
+                             and rt.mcp_fingerprint != current_fp))
             )
-            if rt is not None and not rt.run_task.done() and not model_changed:
+            if rt is not None and not rt.run_task.done() and not superseded:
                 rt.touch()
                 return rt
             if rt is not None:
@@ -444,7 +653,7 @@ class RuntimeRegistry:
         from app.backends.ms_agent.common import home
 
         raw = (resolve_mcp_config(home(), project.path, None) or {}).get("mcpServers", {})
-        healthy = await mcp_health.filter_healthy(raw)
+        healthy, _dropped = await mcp_health.filter_healthy(raw)
         return {"mcpServers": healthy} if healthy else {}
 
     async def _apply_mcp_toggle(self, name: str, enabled: bool) -> None:
@@ -464,6 +673,15 @@ class RuntimeRegistry:
         """Sync entry (for sync management routes running in the threadpool):
         connect/disconnect a server on any live session that manages it.
         Best-effort and non-fatal — persistence is the source of truth."""
+        # A live agent froze its tool set at build time, and webui agents carry
+        # no MCPRuntime, so the live toggle below is a no-op for them. Without
+        # this mark, "applies on the next session build" never arrives for a
+        # session that stays alive: a server switched off in management kept
+        # answering tool calls in every open conversation. The mark makes the
+        # NEXT turn rebuild from the persisted config (same supersede semantics
+        # as a model switch); the turn already in flight finishes as it was.
+        for rt in list(self._runtimes.values()):
+            rt.needs_rebuild = True
         loop = self._loop
         if loop is None or not self._runtimes:
             return  # no live session to affect; change applies on next build
@@ -475,6 +693,74 @@ class RuntimeRegistry:
         except Exception:
             logger.warning("scheduling live MCP toggle failed: %s", name, exc_info=True)
 
+    async def _discard_project(self, project_id: str) -> int:
+        mine = [
+            rt for rt in list(self._runtimes.values())
+            if getattr(rt.project, "id", None) == project_id
+        ]
+        dropped = 0
+        for rt in mine:
+            # Whether a runtime is busy is decided INSIDE the create lock, right
+            # before removing it: a turn can start between any two awaits here,
+            # and dropping it then cancels an answer mid-generation.
+            async with self._create_lock:
+                if self._runtimes.get(rt.session.id) is not rt:
+                    continue  # already replaced/evicted while we waited
+                if rt.turn_lock.locked():
+                    # Cannot drop an in-flight turn — mark it so the NEXT one
+                    # gets a rebuilt agent instead of reusing this config.
+                    rt.needs_rebuild = True
+                    continue
+                self._runtimes.pop(rt.session.id, None)
+            await rt.aclose()  # flushes pending ingest before tearing down
+            await self._release_project_memory(rt.project)
+            dropped += 1
+        return dropped
+
+    def discard_project(self, project_id: str) -> int:
+        """Drop a project's idle runtimes so the next turn rebuilds the agent.
+
+        Sync entry, for management routes running in the threadpool. Needed
+        because an agent freezes its whole configuration at build time: without
+        this, editing a project's memory models (or toggling memory) would keep
+        serving the old ones for as long as a runtime stays alive — up to the
+        idle TTL. A session with a turn in flight cannot be dropped, so it is
+        flagged instead and rebuilt on its next turn.
+        Returns how many runtimes were dropped (flagged ones are not counted).
+        """
+        loop = self._loop
+        if loop is None or not self._runtimes:
+            return 0  # nothing live; the next build reads the new config anyway
+        try:
+            future = asyncio.run_coroutine_threadsafe(
+                self._discard_project(project_id), loop)
+            return future.result(timeout=20)
+        except Exception:  # noqa: BLE001 - persistence already succeeded
+            logger.warning("discarding runtimes for project %s failed",
+                           project_id, exc_info=True)
+            return 0
+
+    def mark_all_stale(self) -> int:
+        """Flag every live runtime so its NEXT turn rebuilds with fresh config.
+
+        For settings that are not scoped to one project — a model's advanced
+        params, a provider's generation defaults — where any live session might
+        be using the edited model. An agent freezes its configuration at build
+        time, so without this an open conversation keeps sending the old
+        thinking parameters until it is evicted; the user changes the tier,
+        sees no difference, and reasonably concludes the setting is broken.
+
+        Deliberately only FLAGS: unlike ``discard_project`` this tears nothing
+        down and cannot interrupt a turn in flight — ``get()`` already defers
+        the swap to the next idle moment. Sync entry, for management routes.
+        Returns how many runtimes were flagged.
+        """
+        flagged = 0
+        for rt in list(self._runtimes.values()):
+            rt.needs_rebuild = True
+            flagged += 1
+        return flagged
+
     def resolve_permission(self, session_id: str, request_id: str, action: str) -> bool:
         """Answer a pending restricted-mode ask on the session's live runtime.
 
@@ -484,8 +770,11 @@ class RuntimeRegistry:
         handler = getattr(rt, "permission_handler", None) if rt else None
         if handler is None:
             return False
-        future = handler._pending.get(request_id)
-        if future is None or future.done():
+        # Asked through the handler's own API rather than by reading its
+        # pending map: what that map stores is the handler's business, and
+        # depending on its shape here once turned a field being added to it
+        # into a 500 on every approval click.
+        if not handler.is_awaiting(request_id):
             return False
         from ms_agent.permission.handler import PermissionAction, PermissionResponse
 

@@ -9,15 +9,15 @@ from fastapi import HTTPException
 
 
 class NotFound(HTTPException):
-    def __init__(self, detail: str = "not found") -> None:
+    def __init__(self, detail: str = "The requested item was not found.") -> None:
         super().__init__(404, detail)
 
 
 class BadRequest(HTTPException):
-    def __init__(self, detail: str = "bad request") -> None:
+    def __init__(self, detail: str = "The request could not be processed.") -> None:
         super().__init__(400, detail)
 
 
 class Conflict(HTTPException):
-    def __init__(self, detail: str = "conflict") -> None:
+    def __init__(self, detail: str = "This action conflicts with the current state.") -> None:
         super().__init__(409, detail)

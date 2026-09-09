@@ -22,6 +22,7 @@ import iconImage from '~/assets/icons/image.svg?react'
 import iconAudio from '~/assets/icons/audio.svg?react'
 import iconVideo from '~/assets/icons/video.svg?react'
 import CloseIcon from '~/assets/icons/close.svg?react'
+import JumpIcon from '~/assets/icons/jump.svg?react'
 import RefreshIcon from '~/assets/icons/refresh.svg?react'
 import SpinnerIcon from '~/assets/icons/generating.svg?react'
 
@@ -159,65 +160,74 @@ function RemoveButton({ onClick }: { onClick?: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="absolute -right-1.5 -top-1.5 z-10 flex h-[20px] w-[20px] items-center justify-center rounded-full bg-red-500 text-[10px] text-white shadow-sm opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100 border-none outline-none cursor-pointer"
+      className="absolute -right-1.5 -top-1.5 z-10 flex h-[20px] w-[20px] items-center justify-center p-0 rounded-full bg-msa-fill-3  text-mas-text-0 shadow-sm  transition-opacity opacity-0 group-hover:opacity-100 border-none outline-none cursor-pointer"
     >
-      {/* This icon library insets its glyphs to ~50% of the canvas, so the box
-          must be the full badge size for the × to read at ~8px. */}
-      <CloseIcon className="h-2.5 w-2.5" />
+      <CloseIcon className="h-2.5 h-2.5" />
     </button>
   )
 }
 
-// Card chrome for media (image/audio/video) shown in the message list, so they
-// match the document card. It's only applied when the card is NOT removable:
-// composer upload previews (removable) render bare, without this outer frame.
-// `group-hover/filecard:*` reacts to the clickable wrapper in a chat bubble
-// (UserBubble) and tints the card on hover.
-const MEDIA_CARD =
-  'rounded-xl border border-msa-line-2 bg-msa-fill-0 transition-colors group-hover/filecard:bg-msa-fill-4'
+// Media in the message list renders BARE — no frame, no padding, no tinted
+// surface. The picture/player is the content; wrapping it in card chrome added a
+// rim that read as a gap and had nowhere useful to put a hover state. The
+// "open in workspace" action lives in a corner button instead (see OpenButton),
+// which is also the only way to offer it without the media element's own clicks
+// (antd's preview, the native controls) fighting a whole-card handler.
 
-// The native control (audio/video) and the antd image preview own their own
-// clicks: stop the event so it doesn't bubble to the bubble wrapper's
-// open-in-workspace handler. Clicking the surrounding card padding still opens.
-const stopControl = {
-  onClick: (e: React.MouseEvent) => e.stopPropagation(),
-  onKeyDown: (e: React.KeyboardEvent) => e.stopPropagation()
+// ---- Open-in-workspace Button ----
+
+/** Hover-revealed corner action on a media card. Geometry is deliberately
+ * identical to RemoveButton (same offsets, size and shape) — both are the same
+ * class of corner affordance on the same cards, so they should land in exactly
+ * the same spot. */
+function OpenButton({ onClick }: { onClick?: () => void }) {
+  const { t } = useT()
+  return (
+    <button
+      type="button"
+      title={t.session.openInWorkspace}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick?.()
+      }}
+      className="absolute -right-1.5 -top-1.5 z-10 flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-full border-none bg-msa-fill-3 p-0 text-msa-text-2 opacity-0 shadow-sm outline-none transition-opacity hover:text-msa-text-1 group-hover:opacity-100"
+    >
+      <JumpIcon className="h-5 w-5" />
+    </button>
+  )
 }
 
 // ---- Image Card ----
 
 function ImageCard({
   src,
-  name,
   removable,
-  onRemove
+  onRemove,
+  onOpen
 }: {
   src?: string
-  name: string
   removable?: boolean
   onRemove?: () => void
+  onOpen?: () => void
 }) {
-  const thumb = (
-    <div className="h-20 w-20 overflow-hidden rounded-lg" {...stopControl}>
-      <Image
-        src={src}
-        alt={name}
-        width={80}
-        height={80}
-        classNames={{
-          image: 'object-cover'
-        }}
-      />
-    </div>
-  )
   return (
     <div className="group relative">
       {removable && <RemoveButton onClick={onRemove} />}
-      {removable ? (
-        thumb
-      ) : (
-        <div className={`inline-block p-1.5 ${MEDIA_CARD}`}>{thumb}</div>
-      )}
+      {!removable && onOpen && <OpenButton onClick={onOpen} />}
+      <div className="h-20 w-20 overflow-hidden rounded-lg">
+        {/* alt is empty on purpose: the thumbnail is decorative — the corner
+            button is the labelled control, and a raw "image.png" here described
+            nothing while being what a failed load would print on screen. */}
+        <Image
+          src={src}
+          alt=""
+          width={80}
+          height={80}
+          classNames={{
+            image: 'object-cover'
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -227,23 +237,20 @@ function ImageCard({
 function AudioCard({
   src,
   removable,
-  onRemove
+  onRemove,
+  onOpen
 }: {
   src?: string
   removable?: boolean
   onRemove?: () => void
+  onOpen?: () => void
 }) {
   return (
     <div className="group relative">
       {removable && <RemoveButton onClick={onRemove} />}
-      <div
-        className={
-          removable
-            ? 'flex items-center'
-            : `flex items-center p-2 ${MEDIA_CARD}`
-        }
-      >
-        <audio src={src} controls className="w-[280px]" {...stopControl} />
+      {!removable && onOpen && <OpenButton onClick={onOpen} />}
+      <div className="flex items-center">
+        <audio src={src} controls className="w-[280px]" />
       </div>
     </div>
   )
@@ -254,27 +261,23 @@ function AudioCard({
 function VideoCard({
   src,
   removable,
-  onRemove
+  onRemove,
+  onOpen
 }: {
   src?: string
   removable?: boolean
   onRemove?: () => void
+  onOpen?: () => void
 }) {
   return (
-    <div className="group relative">
+    <div className="group relative inline-block">
       {removable && <RemoveButton onClick={onRemove} />}
-      <div
-        className={
-          removable ? 'inline-block' : `inline-block p-2 ${MEDIA_CARD}`
-        }
-      >
-        <video
-          src={src}
-          controls
-          className="block max-h-[200px] max-w-[200px] rounded-lg"
-          {...stopControl}
-        />
-      </div>
+      {!removable && onOpen && <OpenButton onClick={onOpen} />}
+      <video
+        src={src}
+        controls
+        className="block max-h-[200px] max-w-[200px] rounded-lg"
+      />
     </div>
   )
 }
@@ -297,10 +300,25 @@ function DocCard({
 }) {
   const ext = getFileExt(name)
 
+  // `min-w-0` and the breakpoint on the floor are what keep this card inside a
+  // phone. The name is `truncate` (so `white-space: nowrap`), which makes the
+  // card's min-content width the *whole* filename — a 40-char one measures
+  // 413px — and as a flex item with the default `min-width: auto` it refused to
+  // shrink. Both rows it lives in overflowed: the message bubble's row is
+  // `justify-end`, so the card ran off the LEFT edge (163px of a long filename
+  // simply gone, and even a short name overhung by 50px), while the composer's
+  // row pushed it off the right.
+  //
+  // The 300px floor is dropped only below `sm`, where the bubble row is ~250px
+  // and no card can honour it; a phone gets a card that fits and an ellipsis.
+  // From `sm` up the row is always well past 300px, so the floor — and the
+  // uniform look it exists for — is untouched. Note a *percentage* floor
+  // (`min(300px, 100%)`) does NOT work here: percentages count as zero during
+  // intrinsic sizing, so it collapsed short cards to 142px at every width.
   return (
-    <div className="group relative">
+    <div className="group relative min-w-0">
       {removable && <RemoveButton onClick={onRemove} />}
-      <div className="flex min-w-[300px] items-center gap-3 rounded-xl border border-msa-line-2 bg-msa-fill-0 px-3 py-2.5 transition-colors group-hover/filecard:bg-msa-fill-4">
+      <div className="flex min-w-0 items-center gap-3 rounded-xl border border-msa-line-2 bg-msa-fill-0 px-3 py-2.5 transition-colors group-hover/filecard:bg-msa-fill-4 sm:min-w-[300px]">
         <FileTypeIcon name={name} className="h-9 w-9 shrink-0" />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm text-msa-text-1">{name}</span>
@@ -336,6 +354,10 @@ interface FileCardProps {
   deleted?: boolean
   /** Sub-label under the name (e.g. the "file deleted" note). */
   note?: string
+  /** Media only: reveals a corner button that opens the file in the workspace.
+   * Documents keep their whole-card click (wired by the caller) instead — a doc
+   * card has no self-owned interaction to collide with. */
+  onOpen?: () => void
 }
 
 /** Overlay covering a card while an upload is in flight or after it failed. */
@@ -377,7 +399,8 @@ export function FileCard({
   status,
   onRetry,
   deleted = false,
-  note
+  note,
+  onOpen
 }: FileCardProps) {
   const card = (() => {
     // A deleted file has no bytes to preview — always fall back to the generic
@@ -397,15 +420,29 @@ export function FileCard({
         return (
           <ImageCard
             src={src}
-            name={name}
             removable={removable}
             onRemove={onRemove}
+            onOpen={onOpen}
           />
         )
       case 'audio':
-        return <AudioCard src={src} removable={removable} onRemove={onRemove} />
+        return (
+          <AudioCard
+            src={src}
+            removable={removable}
+            onRemove={onRemove}
+            onOpen={onOpen}
+          />
+        )
       case 'video':
-        return <VideoCard src={src} removable={removable} onRemove={onRemove} />
+        return (
+          <VideoCard
+            src={src}
+            removable={removable}
+            onRemove={onRemove}
+            onOpen={onOpen}
+          />
+        )
       default:
         return (
           <DocCard

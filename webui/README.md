@@ -1,406 +1,212 @@
 # MS-Agent WebUI
 
-[中文说明](./README_ZH.md)
+Use MS-Agent in your browser to research, write code and work with project files.
+Conversations, tool activity and generated results stay together so you can
+follow a task and continue the conversation. [中文说明](README_ZH.md)
 
-This directory contains the source-checkout WebUI for MS-Agent:
-
-- `frontend/`: React Router 8 with server-side rendering, React 19, Vite, and
-  Ant Design.
-- `backend/`: FastAPI, the MS-Agent SDK adapter, and SSE chat streaming.
-
-The supported launcher is intended for a local developer workspace. One
-`ms-agent ui` command supervises two child services:
-
-```text
-http://127.0.0.1:7860       React Router development server
-          /api/*  ────────> FastAPI on http://127.0.0.1:8000
-```
-
-This is not a production deployment or a standalone wheel installation. The
-command needs an MS-Agent source checkout containing this `webui/` directory,
-and the frontend is served by its development server.
-
-### Not carried over from the previous WebUI
-
-This interface replaced an earlier Vite/MUI one. It is a general agent
-workspace and deliberately does **not** reproduce that version's dedicated
-**Deep Research** view (the `deep_research_worker` / `DeepResearchView`
-pipeline). Run Agentic Insight v2 from the CLI instead — see
-[`projects/deep_research/v2`](../projects/deep_research/v2/README.md).
-
-### Runtime constraints
-
-- The chat runtime, event buffers, turn locks, and permission futures all live
-  in process memory, so the backend **must stay single-worker**. Adding uvicorn
-  workers silently breaks stop/interrupt, re-attach, and authorization prompts.
-- Chat streams over SSE; there is no WebSocket anywhere in the stack.
-- `--host` accepts any interface, and the stack has **no authentication**. On a
-  non-loopback host, anyone who can reach the port gets the agent — including
-  its shell tool.
-
-## Prerequisites
-
-| Tool | Required version | Purpose |
-| --- | --- | --- |
-| Python | 3.12 or newer | WebUI backend; `uv` creates its isolated environment |
-| [uv](https://docs.astral.sh/uv/) | Recent version | Synchronizes `webui/backend/.venv` |
-| [Node.js](https://nodejs.org/) | **22.22.0 or newer** | Required by React Router 8 |
-| [pnpm](https://pnpm.io/installation) | **10.x** | Synchronizes frontend dependencies; the project pins 10.17.1 |
-
-With `--skip-install` only Node.js is required — the launcher never resolves
-`uv` or `pnpm` in that mode.
-
-### Installing the tools without Corepack
-
-Corepack is no longer bundled with Node.js 25+, and inside a conda environment
-"installed" is not the same as "resolved" — PATH may still find an older global
-copy. The launcher prints the executable path it resolved whenever a version
-check fails; to install both tools into the ACTIVE environment:
-
-```bash
-pip install uv                                        # uv into this env's bin/
-npm install --global --prefix "$CONDA_PREFIX" pnpm@10.17.1
-hash -r                                               # rehash, then verify:
-command -v uv pnpm                                    # both under $CONDA_PREFIX/bin
-```
-
-On Node.js < 25, `corepack enable && corepack prepare pnpm@10.17.1 --activate`
-still works as an alternative for pnpm.
-
-The WebUI's Python 3.12 does not need to be the currently activated Python;
-uv selects a compatible interpreter and can download one when necessary.
-
-Check the tools before starting:
-
-```bash
-python --version
-uv --version
-node --version
-pnpm --version
-```
-
-If Corepack is available, the pinned pnpm release can be activated with:
-
-```bash
-corepack enable
-corepack prepare pnpm@10.17.1 --activate
-```
+- **Organize work by project:** open a local folder, manage multiple sessions,
+  and browse or edit project files.
+- **Follow the agent's progress:** stream replies, reasoning, tool calls and
+  generated files as the task runs.
+- **Choose models and tools:** configure model providers, connect MCP tools and
+  enable the skills each project needs.
+- **Continue with context:** keep session history and manage project memory for
+  later conversations.
 
 ## Quick start
 
-Run these commands from the MS-Agent repository root:
+### 1. Prepare the environment
+
+| Tool | Requirement | Purpose |
+| --- | --- | --- |
+| [Python](https://www.python.org/downloads/) | 3.12 or newer | SDK and API server |
+| [Node.js](https://nodejs.org/en/download) | 22.22.0 or newer | Frontend server |
+| pnpm | 10.17.1 | Frontend dependencies |
+
+After installing Node.js, install pnpm:
 
 ```bash
-pip install -e .
+npm install --global pnpm@10.17.1
+```
+
+Check your environment with `python --version`, `node --version` and
+`pnpm --version`. If you do not already have a Python environment, create one:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+On Windows PowerShell, activate it with `.\.venv\Scripts\Activate.ps1` instead.
+An existing virtual or Conda environment also works. Run the following `pip`
+and `ms-agent` commands in that environment.
+
+### 2. Install and start
+
+```bash
+pip install -U "ms-agent[webui]"
 ms-agent ui
 ```
 
-On the first launch, the command automatically runs the equivalent of:
+The `[webui]` extra installs the Python dependencies for the interface. The first
+start also downloads frontend runtime dependencies; later starts reuse them.
+Packages published on PyPI include built pages and styles. If you install the
+SDK directly from Git or an unprepared source tree, the first start also builds
+the frontend in your cache; later starts reuse the validated build.
+
+The browser opens automatically, usually at **http://127.0.0.1:8000**. If the
+port is occupied, the launcher selects another available port; use the URL
+printed in the terminal. Press **Ctrl-C** to stop the service.
+
+### 3. Start a conversation
+
+1. Open **Settings → Models** and add a provider's API key, endpoint and model.
+2. Create or open a project, choosing a workspace, skills and MCP tools as needed.
+3. Create a session, choose a model and enter your task. Attach files or images
+   when relevant.
+
+## Edit project files
+
+Open a project's workspace to create files or folders, rename entries in place,
+and edit text files. Changes stay in the editor when switching between files;
+press **Cmd/Ctrl+S** to save the open file, or choose **Save all and close**
+when closing the workspace editor. Save before leaving the page
+or refreshing the browser: these unsaved buffers are not stored on disk.
+
+If another editor or the agent changes a file, the workspace detects it when
+rechecking the open file. With unsaved edits, review the warning before choosing
+to reload from disk or overwrite with your version. Reloading discards your draft.
+
+## Startup options
 
 ```bash
-cd webui/backend && uv sync --locked --no-dev --inexact
-cd webui/frontend && pnpm install --frozen-lockfile
-```
-
-Later launches recheck both environments against their lockfiles. No global
-Python or Node packages are installed by this synchronization. After both
-services report ready, the browser opens at <http://127.0.0.1:7860>.
-
-On Windows, use the PowerShell wrapper (it forces UTF-8 console output before
-delegating to the same command):
-
-```powershell
-py -m pip install -e .
-.\webui\scripts\start-webui.ps1
-```
-
-Press `Ctrl+C` in the launcher terminal to stop both services.
-
-## Configure a model
-
-Environment variables are not required to open the WebUI. The simplest setup
-for real chat is through the browser:
-
-1. Start `ms-agent ui`.
-2. Open **Settings → Models**.
-3. Select a built-in provider, or add a compatible custom provider.
-4. Configure its API key and base URL if required.
-5. Add a model to that provider.
-6. Select the default provider and model.
-
-The settings are shared with the normal MS-Agent CLI/TUI under
-`~/.ms_agent` unless `MS_AGENT_HOME` is explicitly changed. Provider
-credentials stored through the UI are written to `settings.json` in that
-directory in plaintext; do not publish or commit that file.
-
-## Configuration files and environment variables
-
-The backend reads dotenv files from broadest to most specific:
-
-```text
-<repository>/.env
-<repository>/webui/.env
-<repository>/webui/backend/.env
-```
-
-The effective precedence is:
-
-```text
-process environment / launcher injection
-    > webui/backend/.env
-    > webui/.env
-    > repository .env
-```
-
-Real process environment variables are never overwritten by dotenv files.
-This also makes arbitrary variables available to MCP `${NAME}` placeholders.
-All `.env` files are ignored by Git.
-
-For an advanced or scripted setup, copy the template:
-
-```bash
-cp webui/backend/.env.example webui/backend/.env
-```
-
-PowerShell equivalent:
-
-```powershell
-Copy-Item .\webui\backend\.env.example .\webui\backend\.env
-```
-
-### Model bootstrap variables
-
-These are optional alternatives to configuring the model in the browser:
-
-| Variable | Meaning |
-| --- | --- |
-| `MS_AGENT_LLM_MODEL` | Model ID to seed. **Bootstrap does nothing at all unless this is set** — the other three are ignored without it. |
-| `MS_AGENT_LLM_PROVIDER` | MS-Agent provider ID to seed (default `openai`). Must actually serve the model above: `qwen*` is DashScope/ModelScope, not OpenAI. |
-| `OPENAI_API_KEY` | Credential, applied **only** when the provider is `openai`. Other providers resolve their own variable (`DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, …). |
-| `OPENAI_BASE_URL` | Base URL, same `openai`-only rule. |
-
-Bootstrap only fills a missing `llm` block. If
-`~/.ms_agent/settings.json` (or the selected `MS_AGENT_HOME`) already contains
-`llm`, changing these variables does **not** replace it. Update the provider or
-model in **Settings → Models** instead.
-
-### Optional runtime variables
-
-| Variable | Meaning |
-| --- | --- |
-| `MS_AGENT_HOME` | Override the SDK data directory; default is `~/.ms_agent` |
-| `EXA_API_KEY` | Optional credential for Exa-backed web search |
-| Any `${NAME}` variable | Expanded at runtime in MCP configuration |
-
-### Launcher-managed variables
-
-Normal `ms-agent ui` users should not set these manually:
-
-| Variable | How it is managed |
-| --- | --- |
-| `HOST`, `PORT` | Internal FastAPI address, derived from launcher options |
-| `API_BASE_URL` | Injected into the React Router process |
-| `CORS_ORIGINS` | Only normally relevant when starting the services manually |
-
-## Command-line options
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `--host HOST` | `127.0.0.1` | Frontend listen address |
-| `--port PORT` | `7860` | Frontend port and browser URL |
-| `--backend-port PORT` | `8000` | Internal FastAPI port |
-| `--reload` | off | Reload the Python backend after source changes; frontend HMR is always active |
-| `--skip-install` | off | Skip both dependency synchronization commands; fails if either local environment is missing. With it, only Node.js needs to be on `PATH` — `uv` and `pnpm` are not resolved at all. |
-| `--no-browser` | off | Do not open a browser automatically |
-| `--production` | unsupported | Reserved option that exits with an explanatory error |
-
-Examples:
-
-```bash
-# Use different ports
-ms-agent ui --port 8080 --backend-port 8001
-
-# Reload the backend as its source changes
-ms-agent ui --reload
+# Choose the browser-facing port
+ms-agent ui --port 8080
 
 # Start without opening a browser
 ms-agent ui --no-browser
 
-# Deliberately expose the frontend to the local network
-ms-agent ui --host 0.0.0.0
+# Listen on the machine's other network interfaces
+ms-agent ui --host 0.0.0.0 --port 8000
 ```
 
-The backend remains bound to `127.0.0.1`; browser API traffic goes through the
-frontend proxy. Exposing the development server is not a production deployment
-and does not add authentication or production hardening.
+The application has no built-in login. Configure access control through a
+reverse proxy or network settings when sharing it with other users.
 
-## Start the two services manually
+| Option | Description |
+| --- | --- |
+| `--host HOST` | Bind address; defaults to `127.0.0.1` |
+| `--port PORT` | Browser-facing port; otherwise choose a free port from 8000 |
+| `--backend-port PORT` | Internal API port; usually does not need to be set |
+| `--no-browser` | Do not open a browser |
+| `--skip-install` | Skip dependency installation; still validate pages and CSS and rebuild stale source output |
+| `--prepare-only` | Prepare dependencies and exit without starting services |
+| `--startup-timeout SECONDS` | Startup timeout; defaults to 120 seconds |
+| `--production` | Compatibility option; built frontend output is already the default |
+| `--reload` | Currently unsupported; use the development commands below |
 
-Manual mode is useful when debugging the frontend and backend in separate
-terminals. It is not needed for normal use.
+Explicit ports must be available and different for the frontend and API. If a
+service exits unexpectedly, the launcher stops the other service and reports
+an error.
 
-### 1. Backend
+## Configuration and data
 
-Model credentials come from `webui/backend/.env` (see `.env.example`); copy it
-before the first manual start.
+Models, tools and memory can usually be configured in the interface. Environment
+variables such as `OPENAI_API_KEY` and `OPENAI_BASE_URL` are also supported;
+`MS_AGENT_LLM_PROVIDER` and `MS_AGENT_LLM_MODEL` provide first-run defaults.
+
+Project settings, sessions and managed skills are stored in `~/.ms_agent` by
+default. Set `MS_AGENT_HOME` to use another directory. Project workspace files
+remain at their original paths. Frontend dependency caches are separate from
+application data; `MS_AGENT_WEBUI_CACHE` selects a different cache location.
+
+Pip installations read process environment variables and saved SDK settings,
+without discovering `.env` files in the current directory. Source installations
+also read `.env` files from the repository root, `webui/` and `webui/backend/`,
+in that order. Later files take precedence; process environment variables win
+over all files. See the [configuration example](backend/.env.example).
+
+Local vector memory needs the optional `fastembed` package and downloads an
+embedding model on first use. For a pip installation, run `pip install fastembed`
+in the active environment. For a source checkout, run
+`uv sync --locked --extra local-embed` in `webui/backend/`. Other model and search services use their own
+settings; ordinary chat does not require a local embedding model.
+
+## Run from source and develop
+
+Source installations also require [uv](https://docs.astral.sh/uv/getting-started/installation/)
+0.5 or newer, which can be installed with `pip install uv`.
 
 ```bash
+git clone https://github.com/modelscope/ms-agent.git
+cd ms-agent
+pip install -e .
+ms-agent ui
+```
+
+The first start prepares the backend environment, installs frontend dependencies
+and builds the application, including CSS. Later starts check whether source
+changes require a new build.
+
+For live development, open two terminals at the repository root:
+
+```bash
+# Terminal 1: API
 cd webui/backend
 uv sync --locked
-uv run --frozen dev
+uv run dev
 ```
 
-The backend listens on <http://127.0.0.1:8000>; its health endpoint is
-<http://127.0.0.1:8000/api/health>. The backend dependency points to the
-containing MS-Agent checkout as an editable package.
-
-### 2. Frontend
-
-In another terminal:
-
 ```bash
+# Terminal 2: frontend
 cd webui/frontend
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:5173>. The Vite development server proxies `/api/*` to
-`http://127.0.0.1:8000`, which is also the default endpoint used by SSR route
-loaders. To use another backend port, set `API_BASE_URL` for the frontend
-process before starting it.
+Open **http://localhost:5173**. The frontend development server connects to the
+API on local port 8000 by default.
 
-## Tests
+Install frontend dependencies before running backend tests; launcher tests use
+the frontend’s `tsx` tool. Run `uv run pytest` in `webui/backend/`, and `pnpm typecheck` and `pnpm build` in
+`webui/frontend/`. Use the full `pnpm build` command to generate matching CSS,
+client files and server output.
 
-The backend suite lives in `webui/backend/tests` and runs inside the backend's
-own environment. Note that the launcher syncs that environment **without** the
-dev group, so install it once before testing:
+Windows supports the same installation and startup commands. Source checkouts
+also provide a PowerShell wrapper:
+
+```powershell
+.\webui\scripts\start-webui.ps1 --no-browser
+```
+
+See [AGENTS.md](AGENTS.md) for development conventions and the
+[build tools guide](../.dev_scripts/webui/README.md) for package preparation.
+
+## Run with Docker
+
+Docker does not require Python, Node.js or pnpm on the host. Replace `TAG` with
+the published image tag you want to use:
 
 ```bash
-cd webui/backend
-uv sync --locked            # includes the dev group (pytest)
-./.venv/bin/python -m pytest
+docker run --rm -p 127.0.0.1:9000:8000 \
+  -e MS_AGENT_HOME=/data -v ms-agent-data:/data \
+  modelscope-registry.us-west-1.cr.aliyuncs.com/modelscope-repo/ms-agent:TAG
 ```
 
-The launcher/contract suites live with the repository's tests and run with any
-Python that has the SDK installed:
+Open **http://127.0.0.1:9000**. The `ms-agent-data` volume stores application data;
+keep it when replacing the container. Mount project directories separately to
+work on host files. To change the access port, change the left side of `9000:8000`.
 
-```bash
-python -m pytest tests/cli/test_ui.py tests/ui
-```
-
-The frontend has no automated tests yet; `pnpm typecheck` is the gate, and
-manual Chrome walkthroughs are the UI regression instrument.
-
-The repository CI (`pytest tests`) does **not** include `webui/backend/tests` —
-its dependencies (FastAPI and friends) are not installed there. Run it locally
-as above when touching the backend or the SDK surfaces it consumes.
-
-## Windows
-
-PowerShell is recommended. From the repository root, use the included UTF-8
-wrapper:
-
-```powershell
-.\webui\scripts\start-webui.ps1
-```
-
-All launcher arguments are forwarded:
-
-```powershell
-.\webui\scripts\start-webui.ps1 --reload --no-browser
-```
-
-The wrapper switches the current console to UTF-8 and sets `PYTHONUTF8` and
-`PYTHONIOENCODING`, preserving the fix introduced after Windows users reported
-garbled output.
-
-If the local PowerShell execution policy blocks the script, allow it for the
-current process only:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\webui\scripts\start-webui.ps1
-```
-
-This does not change the machine-wide or user-wide policy. The launcher uses a
-Windows process group and stops descendant Python/Node processes when you press
-`Ctrl+C`. The built-in terminal uses the native Windows command processor and
-does not require a separate POSIX `sh`. Repository paths containing spaces and
-non-ASCII characters are supported; keep the repository on a local filesystem
-for the best file-watcher behavior.
-
-Useful Windows checks:
-
-```powershell
-Get-Command ms-agent, uv, node, pnpm
-node --version
-pnpm --version
-```
+`MS_AGENT_FRONTEND_HOSTED_MODE=1` hides local-path controls that are unsuitable
+for remote users; access control still needs to be configured separately.
 
 ## Troubleshooting
 
-### A required command was not found
-
-Install the missing tool, reopen the terminal so `PATH` is refreshed, and run
-the version checks above. The launcher rejects Node older than 22.22.0 and pnpm
-outside the 10.x series before installing dependencies.
-
-### Dependency synchronization failed
-
-The first launch downloads both Python and Node dependencies and can take a
-while. Check registry/network access, then run `ms-agent ui` again. To see the
-failing operation independently, run the two synchronization commands shown in
-the manual-start section. `--skip-install` is only appropriate after both
-`webui/backend/.venv` and `webui/frontend/node_modules` already exist.
-
-### A port is already in use
-
-The launcher checks both ports before it touches any dependency, so this fails
-fast and names the port. Two rules it enforces:
-
-- `--port` and `--backend-port` must differ.
-- The frontend uses `--strictPort`, so a busy frontend port is a hard failure —
-  it never silently moves to the next one.
-
-Select both ports explicitly:
-
-```bash
-ms-agent ui --port 8080 --backend-port 8001
-```
-
-On Windows, inspect the defaults with:
-
-```powershell
-Get-NetTCPConnection -LocalPort 7860,8000 -ErrorAction SilentlyContinue
-```
-
-### The page opens but API requests fail
-
-Open <http://127.0.0.1:8000/api/health>, or the corresponding custom backend
-port. If the health request fails, inspect the backend error in the launcher
-terminal. In manual mode, confirm that the frontend's `API_BASE_URL` matches the
-backend port.
-
-### Chat reports a provider, model, or authentication error
-
-Return to **Settings → Models** and verify all three items: provider credential,
-model entry, and selected default model. If environment changes appear to be
-ignored, an existing `settings.json.llm` is taking precedence by design.
-
-### The browser did not open
-
-Open the printed frontend URL manually. Browser launch failure does not stop
-the services; `--no-browser` disables the attempt intentionally.
-
-### Windows output is garbled
-
-Stop the launcher and use `webui\scripts\start-webui.ps1` from PowerShell. The
-plain `ms-agent ui` command still works, but it cannot retroactively change the
-encoding of a parent console that was opened with a legacy code page.
-
-### `--production` exits immediately
-
-This is expected. The current one-command mode deliberately runs the React
-Router development server and FastAPI for a local source checkout. Production
-SSR deployment, static packaging, wheels, and container images are outside this
-launcher.
+| Symptom | What to check |
+| --- | --- |
+| `ms-agent`, `node` or `pnpm` is not found | Confirm installation and command availability in the current terminal; reopen the terminal after installation if needed |
+| Python or Node version is unsupported | Check the requirements above and which interpreter the terminal uses |
+| An explicit port is occupied | Choose another `--port`, or omit it for automatic selection |
+| Pages or styles are missing | For source installs, run `pnpm build` in `webui/frontend/`; for pip installs, reinstall the package and follow the error message to prepare its cache again |
+| Model connection or authentication fails | Check the provider's API key, endpoint, model name and network access |
+| WebUI Python dependencies are missing | Run `pip install -U "ms-agent[webui]"` in the environment used to start the app |

@@ -4,6 +4,7 @@ import emptyDark from '~/assets/images/empty-dark.png'
 import chatEmptyLight from '~/assets/images/chat-empty-light.png'
 import chatEmptyDark from '~/assets/images/chat-empty-dark.png'
 import { useTheme } from '~/lib/theme'
+import { MsaButton, type MsaButtonProps } from './MsaButton'
 
 export type EmptyStateSize = 'sm' | 'md' | 'lg'
 
@@ -77,5 +78,26 @@ export function EmptyState({
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>
+  )
+}
+
+/**
+ * The call-to-action inside an EmptyState: a pill-shaped primary button.
+ *
+ * Lives here so an empty list offers the same affordance everywhere instead of
+ * each caller re-deriving the radius and padding — and so "nothing here" always
+ * comes with the one thing that fixes it, rather than prose pointing at a
+ * button somewhere else on the page.
+ */
+export function EmptyStateAction({
+  className = '',
+  ...rest
+}: MsaButtonProps) {
+  return (
+    <MsaButton
+      variant="primary"
+      className={`h-auto rounded-full px-6 py-2 ${className}`}
+      {...rest}
+    />
   )
 }

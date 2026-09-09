@@ -100,6 +100,51 @@ def _parse(content: str) -> tuple[str, str] | None:
     return title, category
 
 
+#: Enough room for a one-line JSON title. Deliberately NOT tight: on a model
+#: whose thinking cannot be switched off, a tight budget is spent on reasoning
+#: and the reply never reaches the title.
+_MAX_TOKENS = 600
+
+#: Budget once we know reasoning is unavoidable — it has to cover a full
+#: thinking pass plus the title (measured: grok-4.5 spends ~70 reasoning tokens
+#: on this prompt before writing anything).
+_MAX_TOKENS_THINKING = 2000
+
+#: Phrases an endpoint uses to say thinking cannot be switched off. Shared with
+#: the SDK so the two paths recognise the same condition.
+def _is_mandatory_thinking(resp: httpx.Response) -> bool:
+    from ms_agent.llm.thinking import is_thinking_mandatory
+
+    if resp.status_code != 400:
+        return False
+    # `is_thinking_mandatory` reads an exception's text; hand it the body.
+    return is_thinking_mandatory(RuntimeError(f"400 - {resp.text}"))
+
+
+def _thinking_off(base_url: str) -> dict:
+    """The wire params that switch thinking off on THIS endpoint.
+
+    Every vendor spells it differently — `enable_thinking` on DashScope,
+    `thinking: {type: disabled}` on Zhipu and DeepSeek, `reasoning_effort:
+    none` on Moonshot, `reasoning: {enabled: false}` on OpenRouter — and the
+    titler used to hardcode the Qwen one, which the others silently ignore. So
+    reuse the SDK's lowering table, flattening `extra_body` into the raw JSON
+    body (that is exactly what the OpenAI client does with it).
+    """
+    from ms_agent.llm.thinking import plan
+
+    params = plan("off", base_url=base_url)["params"]
+    body = {k: v for k, v in params.items() if k != "extra_body"}
+    body.update(params.get("extra_body") or {})
+    return body
+
+
+def _without_thinking(payload: dict) -> dict:
+    from ms_agent.llm.thinking import THINKING_PARAM_KEYS
+
+    return {k: v for k, v in payload.items() if k not in THINKING_PARAM_KEYS}
+
+
 def _anthropic_text(data: dict) -> str:
     """The first text block of an Anthropic Messages response (a thinking-mode
     gateway may put a thinking block before it)."""
@@ -127,12 +172,12 @@ async def generate_title_and_category(text: str) -> tuple[str, str] | None:
             "model": model,
             "system": _SYSTEM,
             "messages": [{"role": "user", "content": text[:2000]}],
-            "temperature": 0.2,
-            "max_tokens": 600,
+            "max_tokens": _MAX_TOKENS,
             # Thinking-default gateways (DeepSeek /anthropic) otherwise spend
             # the whole budget on a thinking block for a long first message and
             # return no text block at all — the observed intermittent-title
-            # failure. Explicitly off; standard Anthropic accepts this too.
+            # failure. This is the Messages-API spelling; the OpenAI-compatible
+            # branch gets its own from the SDK below.
             "thinking": {"type": "disabled"},
         }
     else:
@@ -144,11 +189,8 @@ async def generate_title_and_category(text: str) -> tuple[str, str] | None:
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": text[:2000]},
             ],
-            "temperature": 0.2,
-            "max_tokens": 160,
-            # Qwen thinking models require thinking off for non-streaming calls;
-            # OpenAI-compatible servers ignore the extra field.
-            "enable_thinking": False,
+            "max_tokens": _MAX_TOKENS,
+            **_thinking_off(base_url),
         }
     # One retry after a beat: transient gateway hiccups were observed live.
     # Credentials/config problems returned above never reach this loop, so
@@ -157,13 +199,28 @@ async def generate_title_and_category(text: str) -> tuple[str, str] | None:
         try:
             async with httpx.AsyncClient(timeout=20) as client:
                 resp = await client.post(url, json=payload, headers=headers)
+                if _is_mandatory_thinking(resp):
+                    # This model cannot stop thinking (OpenRouter answers
+                    # "Reasoning is mandatory for this endpoint and cannot be
+                    # disabled" for the Grok family). Stop asking, and pay for
+                    # the reasoning we now cannot avoid: at the normal budget it
+                    # eats the whole allowance and the model answers the user's
+                    # question instead of titling it.
+                    payload = _without_thinking(payload)
+                    payload["max_tokens"] = _MAX_TOKENS_THINKING
+                    resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
                 data = resp.json()
                 if protocol == "anthropic":
                     content = _anthropic_text(data)
                 else:
                     content = data["choices"][0]["message"]["content"]
-        except (httpx.HTTPError, KeyError, ValueError, IndexError) as exc:
+        # TypeError belongs here: a 200 response is not a promise of a body in
+        # the documented shape. ModelScope intermittently answers 200 with
+        # `choices: null` (seen right after a 429), and the subscript then
+        # raises out of this coroutine instead of degrading to "no title".
+        except (httpx.HTTPError, KeyError, ValueError, IndexError,
+                TypeError) as exc:
             logger.warning("titler request failed (attempt %d, %s %s): %s",
                            attempt, protocol, model, exc)
             content = ""

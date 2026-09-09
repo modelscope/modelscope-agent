@@ -2,8 +2,9 @@ import { App, Button, Form, Input, Modal, Radio, Tooltip } from 'antd'
 import type { UploadFile } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '~/lib/api'
-import { dispatchWorkspaceChanged } from '~/lib/events'
+import { dispatchWorkspaceChanged, dispatchProjectSettingsChanged } from '~/lib/events'
 import { collectDroppedFiles } from '~/lib/dropFiles'
+import { useHosted } from '~/lib/hosted'
 import { useT } from '~/lib/i18n'
 import type { MemoryBackend, Project } from '~/lib/types'
 import UploadIcon from '~/assets/icons/upload.svg?react'
@@ -42,6 +43,9 @@ export function NewProjectModal({
 }: Props) {
   const { t } = useT()
   const { message } = App.useApp()
+  // Hosted: the project always lands in the server's data directory, so there is
+  // no location to choose and none worth showing.
+  const hosted = useHosted()
   const [form] = Form.useForm<FormValues>()
   const [memoryEnabled, setMemoryEnabled] = useState(true)
   const [memoryBackend, setMemoryBackend] = useState<MemoryBackend>('file')
@@ -165,12 +169,16 @@ export function NewProjectModal({
           dispatchWorkspaceChanged()
         }
         form.resetFields()
+        dispatchProjectSettingsChanged()
         onUpdated?.(updated)
       } else {
         // Create new project
         const created = await api.createProject({
           name: v.name,
-          local_path: v.local_path,
+          // Omitted rather than sent empty when hosted: the field is not
+          // rendered there, so there is no value to speak for, and the server
+          // already creates the default location for an absent path.
+          ...(hosted ? {} : { local_path: v.local_path }),
           memory_enabled: memoryEnabled,
           memory_backend: memoryBackend,
           ...(memoryBackend === 'vector' ? memoryModels : {})
@@ -349,26 +357,33 @@ export function NewProjectModal({
         {/* Project location. Read-only when editing: the directory IS the
             project's identity and holds all of its data, and nothing moves it on
             disk, so a changed path would point at a directory without the
-            project's sessions/workspace/memory (the server rejects it too). */}
-        <Form.Item
-          label={t.newProject.locationLabel}
-          name="local_path"
-          className="!mb-0"
-        >
-          <Input
-            placeholder={t.newProject.locationPlaceholder}
-            readOnly={isEditing}
-            disabled={isEditing}
-          />
-        </Form.Item>
-        {/* Hint styled like the memory-backend one below rather than antd's
-            `extra`, which renders at the body font size and sits flush against
-            the field. */}
-        <div className="mt-1.5 mb-6 text-xs text-msa-text-3">
-          {isEditing
-            ? t.newProject.locationLockedHint
-            : t.newProject.locationHint}
-        </div>
+            project's sessions/workspace/memory (the server rejects it too).
+
+            Absent entirely when hosted — naming a directory on a machine the
+            user cannot see is not a choice they are able to make. */}
+        {!hosted && (
+          <>
+            <Form.Item
+              label={t.newProject.locationLabel}
+              name="local_path"
+              className="!mb-0"
+            >
+              <Input
+                placeholder={t.newProject.locationPlaceholder}
+                readOnly={isEditing}
+                disabled={isEditing}
+              />
+            </Form.Item>
+            {/* Hint styled like the memory-backend one below rather than antd's
+                `extra`, which renders at the body font size and sits flush against
+                the field. */}
+            <div className="mt-1.5 mb-6 text-xs text-msa-text-3">
+              {isEditing
+                ? t.newProject.locationLockedHint
+                : t.newProject.locationHint}
+            </div>
+          </>
+        )}
 
         {/* Memory toggle section */}
         <div className="mb-2">

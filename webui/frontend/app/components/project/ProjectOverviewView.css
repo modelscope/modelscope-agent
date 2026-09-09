@@ -18,3 +18,14 @@
 .pov-table-no-last-border .ant-table-tbody>tr:last-child>td {
     border-bottom: 0;
 }
+
+/* The card owns the rounding; the table is an inner surface. antd rounds a
+   table's own TOP corners (`headerBorderRadius`, 10px) and paints its
+   background inside that radius, so under the info bar the corners went
+   unpainted and the page showed through the transparent card — two notches
+   breaking each end of the info bar's bottom border. */
+.pov-table-no-last-border .ant-table,
+.pov-table-no-last-border .ant-table-container,
+.pov-table-no-last-border .ant-table-container>.ant-table-content {
+    border-radius: 0;
+}

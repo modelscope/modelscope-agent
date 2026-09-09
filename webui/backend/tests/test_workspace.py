@@ -237,3 +237,117 @@ def test_by_path_read_of_hidden_file_is_404():
             pass
     # A normal (visible) file still reads fine.
     assert workspace.get_file(pid, "shown.txt").content == "ok"
+
+
+def _unzip(pid: str, path: str = "") -> tuple[str, dict[str, bytes]]:
+    """Drain the streamed archive and read it back as {name-in-zip: bytes}."""
+    import io
+    import zipfile
+
+    name, chunks = workspace.archive(pid, path)
+    blob = b"".join(chunks)
+    with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+        assert zf.testzip() is None
+        return name, {n: zf.read(n) for n in zf.namelist()}
+
+
+def test_archive_streams_a_readable_zip_of_the_whole_workspace():
+    """The server-built archive replaced client-side zipping, so the bytes it
+    streams have to be a valid zip on their own — it is written to an unseekable
+    sink, which is the part that could silently produce a broken central
+    directory."""
+    pid = _new_project("ws-zip")
+    workspace.save_upload(pid, "a.txt", b"one")
+    workspace.save_upload(pid, "deep/nested/b.txt", b"two")
+    workspace.save_upload(pid, "logo.png", _PNG)
+
+    name, members = _unzip(pid)
+    assert name.endswith(".zip")
+    assert members["a.txt"] == b"one"
+    assert members["deep/nested/b.txt"] == b"two"
+    # Binary survives the compress/decompress round-trip byte for byte.
+    assert members["logo.png"] == _PNG
+
+
+def test_archive_streams_incrementally_rather_than_buffering():
+    """The point of the endpoint is that neither side holds the whole archive, so
+    a multi-file workspace must come out as several chunks. One chunk would mean
+    the generator had buffered everything before yielding."""
+    pid = _new_project("ws-zip-stream")
+    # Incompressible-ish payloads, each well over the flush threshold.
+    import os
+
+    for i in range(3):
+        workspace.save_upload(pid, f"big{i}.bin", os.urandom(300 * 1024))
+
+    _, chunks = workspace.archive(pid)
+    assert sum(1 for c in chunks if c) > 3
+
+
+def test_archive_of_a_folder_is_rooted_at_that_folder():
+    """Names are relative to the folder's PARENT, so it unpacks as itself instead
+    of spilling its contents into the cwd — what the client-side zip did with its
+    stripPrefix."""
+    pid = _new_project("ws-zip-folder")
+    workspace.save_upload(pid, "src/utils/a.ts", b"export {}")
+    workspace.save_upload(pid, "src/main.ts", b"main")
+    workspace.save_upload(pid, "outside.txt", b"no")
+
+    name, members = _unzip(pid, "src/utils")
+    assert name == "utils.zip"
+    assert set(members) == {"utils/a.ts"}
+
+
+def test_archive_never_ships_listing_hidden_files():
+    """The security boundary: `.ms_agent/memory` dumps embed API keys and are
+    hidden from the tree AND from by-path reads, so a bulk download must not be
+    the one route that hands them out."""
+    import pathlib
+
+    pid = _new_project("ws-zip-hidden")
+    root = pathlib.Path(workspace._project_path(pid))
+    (root / ".ms_agent" / "memory").mkdir(parents=True, exist_ok=True)
+    (root / ".ms_agent" / "memory" / "Agent-default.yaml").write_text(
+        "llm:\n  deepseek_api_key: sk-secret\n"
+    )
+    (root / ".ms_agent" / "memory" / "MEMORY.md").write_text("- remembered")
+    (root / ".ms_agent" / "snapshots").mkdir(parents=True, exist_ok=True)
+    (root / ".ms_agent" / "snapshots" / "ab12").write_text("blob")
+    (root / ".git").mkdir(exist_ok=True)
+    (root / ".git" / "config").write_text("[core]")
+    workspace.save_upload(pid, "shown.txt", b"ok")
+
+    _, members = _unzip(pid)
+    assert "shown.txt" in members
+    assert ".ms_agent/memory/MEMORY.md" in members  # user memory is not hidden
+    assert not any("snapshots" in n or n.startswith(".git/") for n in members)
+    assert not any(n.endswith((".yaml", ".json")) for n in members
+                   if n.startswith(".ms_agent/memory/"))
+    assert not any(b"sk-secret" in b for b in members.values())
+
+
+def test_archive_rejects_a_missing_hidden_or_file_target():
+    """Validation happens before the response starts, so these surface as real
+    status codes rather than a truncated download. A file target is refused
+    outright: raw_file serves those, and zipping one instead would hand back an
+    unexpected format."""
+    import pathlib
+
+    import pytest
+
+    from app.backends.errors import BadRequest, NotFound
+
+    pid = _new_project("ws-zip-reject")
+    root = pathlib.Path(workspace._project_path(pid))
+    (root / ".ms_agent" / "snapshots").mkdir(parents=True, exist_ok=True)
+    (root / ".ms_agent" / "snapshots" / "ab12").write_text("blob")
+    workspace.save_upload(pid, "a.txt", b"one")
+
+    with pytest.raises(NotFound):
+        workspace.archive(pid, "nope")
+    with pytest.raises(NotFound):
+        workspace.archive(pid, ".ms_agent/snapshots")
+    with pytest.raises(BadRequest):
+        workspace.archive(pid, "a.txt")
+    with pytest.raises(BadRequest):
+        workspace.archive(pid, "../escape")

@@ -1,0 +1,26 @@
+/* Preview inside the "follow system" theme card.
+ *
+ * Both variants are rendered into the DOM and toggled by a media query rather
+ * than picked in JS. The server cannot know `prefers-color-scheme`, so a JS
+ * choice would paint the wrong screenshot first and correct it after hydration;
+ * CSS decides before the first paint and keeps following the OS live, with no
+ * listener at all. (Same reasoning as the Composer's `md:` driven pills — see
+ * the SSR-flicker note in the project docs.)
+ *
+ * Not Tailwind's `dark:` variant: that is bound to the `.dark` class, i.e. the
+ * APP theme. This card has to show what the OS is doing even while the app is
+ * pinned to the other one.
+ */
+.appearance-sys-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .appearance-sys-light {
+    display: none;
+  }
+
+  .appearance-sys-dark {
+    display: block;
+  }
+}

@@ -1,4 +1,4 @@
-import { ConfigProvider, Tabs } from 'antd'
+import { Tabs } from 'antd'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import './mcp-skills.css'
@@ -40,17 +40,19 @@ export default function SettingsMcpSkills() {
   const actions =
     tab === 'mcps' ? (
       <>
+        {/* Both open something on top of the list now (a dialog each), so neither
+            has to know about the other: no disabled state, no active highlight. */}
         <MsaButton
+          key="via-json"
           variant="tonal"
           onClick={() => setViaJson(true)}
-          className={viaJson ? '!text-msa-text-brand1' : ''}
         >
           {t.resources.viaJson}
         </MsaButton>
         <MsaButton
+          key="add-mcp"
           variant="primary"
           icon={<AddIcon className="h-4 w-4" />}
-          disabled={viaJson}
           onClick={() => setMcpImporting('custom')}
         >
           {t.resources.addMcp}
@@ -59,6 +61,7 @@ export default function SettingsMcpSkills() {
     ) : (
       <MsaButton
         variant="primary"
+        key="add-skill"
         icon={<AddIcon className="h-4 w-4" />}
         onClick={() => setSkillImporting('local')}
       >
@@ -72,79 +75,69 @@ export default function SettingsMcpSkills() {
   // antd's nav overflow measurement), they drop to a standalone row above the
   // tabs instead. The switch is driven by a container query on the actual
   // content width (see mcp-skills.css), not a fixed viewport breakpoint.
-  const extra = <div className="mcp-skills-extra items-center gap-3">{actions}</div>
+  const extra = (
+    <div className="mcp-skills-extra items-center gap-3">{actions}</div>
+  )
 
   return (
     <div className="mcp-skills-shell flex h-full min-h-0 flex-col">
-      <ConfigProvider
-        theme={{
-          components: {
-            Tabs: {
-              itemSelectedColor: 'var(--msa-text-1)',
-              itemHoverColor: 'var(--msa-text-1)',
-              itemActiveColor: 'var(--msa-text-1)'
-            }
-          }
+      <div className="mcp-skills-top-actions mb-3 items-center gap-3">
+        {actions}
+      </div>
+      <Tabs
+        activeKey={tab}
+        onChange={onTabChange}
+        indicator={{ size: 8, align: 'center' }}
+        className="flex min-h-0 flex-1 flex-col mcp-skills-tabs-flex"
+        classNames={{
+          indicator: 'bg-msa-text-1 h-[2px]',
+          header: 'before:hidden',
+          body: 'h-full'
         }}
-      >
-        <div className="mcp-skills-top-actions mb-3 items-center gap-3">
-          {actions}
-        </div>
-        <Tabs
-          activeKey={tab}
-          onChange={onTabChange}
-          indicator={{ size: 8, align: 'center' }}
-          className="flex min-h-0 flex-1 flex-col mcp-skills-tabs-flex"
-          classNames={{
-            indicator: 'bg-msa-text-1 h-[2px]',
-            header: 'before:hidden',
-            body: 'h-full'
-          }}
-          tabBarExtraContent={extra}
-          items={[
-            {
-              key: 'mcps',
-              label: (
-                <span
-                  className={`inline-flex items-center gap-1.5 ${
-                    tab === 'mcps' ? 'font-semibold' : ''
-                  }`}
-                >
-                  {tab === 'mcps' && <McpIcon className="h-4 w-4" />}
-                  {t.settings.mcpsTab}
-                </span>
-              ),
-              children: (
-                <McpsPanel
-                  viaJson={viaJson}
-                  onViaJsonChange={setViaJson}
-                  importing={mcpImporting}
-                  onImportingChange={setMcpImporting}
-                />
-              )
-            },
-            {
-              key: 'skills',
-              label: (
-                <span
-                  className={`inline-flex items-center gap-1.5 ${
-                    tab === 'skills' ? 'font-semibold' : ''
-                  }`}
-                >
-                  {tab === 'skills' && <SkillIcon className="h-4 w-4" />}
-                  {t.settings.skillsTab}
-                </span>
-              ),
-              children: (
-                <SkillsPanel
-                  importing={skillImporting}
-                  onImportingChange={setSkillImporting}
-                />
-              )
-            }
-          ]}
-        />
-      </ConfigProvider>
+        tabBarExtraContent={extra}
+        items={[
+          {
+            key: 'mcps',
+            label: (
+              <span
+                className={`flex items-center gap-1.5 ${
+                  tab === 'mcps' ? 'font-semibold' : ''
+                }`}
+              >
+                {tab === 'mcps' && <McpIcon className="h-4 w-4" />}
+                {t.settings.mcpsTab}
+              </span>
+            ),
+            children: (
+              <McpsPanel
+                viaJson={viaJson}
+                onViaJsonChange={setViaJson}
+                importing={mcpImporting}
+                onImportingChange={setMcpImporting}
+              />
+            )
+          },
+          {
+            key: 'skills',
+            label: (
+              <span
+                className={`flex items-center gap-1.5 ${
+                  tab === 'skills' ? 'font-semibold' : ''
+                }`}
+              >
+                {tab === 'skills' && <SkillIcon className="h-4 w-4" />}
+                {t.settings.skillsTab}
+              </span>
+            ),
+            children: (
+              <SkillsPanel
+                importing={skillImporting}
+                onImportingChange={setSkillImporting}
+              />
+            )
+          }
+        ]}
+      />
     </div>
   )
 }

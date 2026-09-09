@@ -1,17 +1,18 @@
 import { Pagination, Segmented } from 'antd'
 import { App } from 'antd'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { CardSkeletonGrid } from '~/components/common/CardSkeletonGrid'
-import { EmptyState } from '~/components/common/EmptyState'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { MsaButton } from '~/components/common/MsaButton'
 import { api } from '~/lib/api'
 import { dispatchMcpSkillChanged } from '~/lib/events'
 import { useT } from '~/lib/i18n'
+import { useMcpHealth } from '~/lib/mcpHealth'
 import type { Mcp, Project, Scope } from '~/lib/types'
 import { McpCard } from '~/components/resources/McpCard'
 import { McpCustomModal } from '~/components/resources/McpCustomModal'
-import { McpJsonView } from '~/components/resources/McpJsonView'
+import { McpJsonModal } from '~/components/resources/McpJsonModal'
 import AddIcon from '~/assets/icons/add.svg?react'
 
 // ---------- Main component ----------
@@ -48,14 +49,55 @@ export function McpTabPanel({ project }: Props) {
 
   const PAGE_SIZE = 10
 
-  const refresh = () =>
+  // Reachability, same contract as McpsPanel: the verdicts come from the shared
+  // `useMcpHealth` cache (this tab and the composer pill mount together, and
+  // used to sweep once each), stale-while-revalidate so known verdicts stay
+  // during a sweep, plus one DEEP check for a just-added stdio server, whose
+  // existence-only sweep verdict would lie green.
+  const {
+    rows: health,
+    sweeping,
+    refresh: refreshHealth,
+    put: putHealth
+  } = useMcpHealth()
+  const [deepChecking, setDeepChecking] = useState<Set<string>>(new Set())
+  const knownIdsRef = useRef<Set<string> | null>(null)
+  const deepCheck = (id: string) => {
+    setDeepChecking((prev) => new Set(prev).add(id))
+    api
+      .checkMcpHealth(id)
+      .then(putHealth)
+      .catch(() => {})
+      .finally(() =>
+        setDeepChecking((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      )
+  }
+
+  // `fresh` = a mutation just changed the server set, so the cached sweep is
+  // about the wrong one; a plain mount or scope switch reuses it.
+  const refresh = (fresh = false) =>
     api
       .listMcps(activeScope)
-      .then(setItems)
+      .then((rows) => {
+        setItems(rows)
+        const known = knownIdsRef.current
+        knownIdsRef.current = new Set(rows.map((r) => r.id))
+        void refreshHealth(fresh)
+        if (known)
+          rows
+            .filter(
+              (r) => r.enabled && r.transport === 'stdio' && !known.has(r.id)
+            )
+            .forEach((r) => deepCheck(r.id))
+      })
       .catch(() => setItems([]))
 
   const refreshAndNotify = () => {
-    refresh()
+    refresh(true)
     dispatchMcpSkillChanged()
   }
   useEffect(() => {
@@ -65,6 +107,8 @@ export function McpTabPanel({ project }: Props) {
 
   // Reset state when project changes (the scope itself is URL-driven; a
   // cross-project navigation carries no ?scope, which already means global).
+  // Closing the JSON dialog matters: its document belongs to the scope it was
+  // opened for, and saving it replaces every server in that scope.
   useEffect(() => {
     setViaJson(false)
     setPage(1)
@@ -74,6 +118,12 @@ export function McpTabPanel({ project }: Props) {
     { value: 'global', label: t.resources.globalMcps },
     { value: projectScope, label: t.resources.projectMcps }
   ]
+
+  // Both dialogs write into the selected scope, and both say so in their title.
+  const scopeBadge =
+    activeScope === 'global'
+      ? t.mcpImport.hubGlobalBadge
+      : t.mcpImport.hubProjectBadge
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -85,17 +135,12 @@ export function McpTabPanel({ project }: Props) {
           options={scopeOptions}
         />
         <div className="flex items-center gap-3">
-          <MsaButton
-            variant="tonal"
-            onClick={() => setViaJson(true)}
-            className={viaJson ? '!text-msa-text-brand1' : ''}
-          >
+          <MsaButton variant="tonal" onClick={() => setViaJson(true)}>
             {t.resources.viaJson}
           </MsaButton>
           <MsaButton
             variant="primary"
             icon={<AddIcon className="h-4 w-4" />}
-            disabled={viaJson}
             onClick={() => setImporting('custom')}
           >
             {t.resources.addMcp}
@@ -105,17 +150,18 @@ export function McpTabPanel({ project }: Props) {
 
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-auto overflow-x-hidden">
-        {viaJson ? (
-          <McpJsonView
-            scope={activeScope}
-            items={items ?? []}
-            onSaved={refreshAndNotify}
-            onCancel={() => setViaJson(false)}
-          />
-        ) : items === null ? (
+        {items === null ? (
           <CardSkeletonGrid className="grid grid-cols-1 gap-3 md:grid-cols-2" />
         ) : items.length === 0 ? (
-          <EmptyState size="lg" description={t.resources.mcpEmpty} />
+          <EmptyState
+            size="lg"
+            description={`${t.resources.mcpEmpty}${t.resources.mcpEmptyHint}`}
+            action={
+              <EmptyStateAction onClick={() => setImporting('custom')}>
+                {t.resources.addNow}
+              </EmptyStateAction>
+            }
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -125,6 +171,17 @@ export function McpTabPanel({ project }: Props) {
                   <McpCard
                     key={m.id}
                     mcp={m}
+                    probing={
+                      (sweeping && !health[m.id]) || deepChecking.has(m.id)
+                    }
+                    healthy={
+                      deepChecking.has(m.id)
+                        ? undefined // the shallow verdict must not flash green
+                        : health[m.id]?.healthy
+                    }
+                    healthError={
+                      deepChecking.has(m.id) ? undefined : health[m.id]?.error
+                    }
                     onToggle={async (v) => {
                       await api.updateMcp(m.id, { enabled: v })
                       refreshAndNotify()
@@ -132,6 +189,7 @@ export function McpTabPanel({ project }: Props) {
                     onReconnect={async () => {
                       try {
                         const result = await api.checkMcpHealth(m.id)
+                        putHealth(result)
                         if (result.healthy) {
                           message.success(`${m.name}: ${t.resources.statusOk}`)
                         } else {
@@ -167,15 +225,20 @@ export function McpTabPanel({ project }: Props) {
       </div>
 
       {/* Modals */}
+      <McpJsonModal
+        open={viaJson}
+        scope={activeScope}
+        scopeBadge={scopeBadge}
+        items={items ?? []}
+        onSaved={refreshAndNotify}
+        onClose={() => setViaJson(false)}
+      />
+
       <McpCustomModal
         open={importing === 'custom' || !!editingMcp}
         scope={activeScope}
         editingMcp={editingMcp}
-        scopeBadge={
-          activeScope === 'global'
-            ? t.mcpImport.hubGlobalBadge
-            : t.mcpImport.hubProjectBadge
-        }
+        scopeBadge={scopeBadge}
         onClose={() => {
           setImporting(null)
           setEditingMcp(null)

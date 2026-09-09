@@ -36,13 +36,22 @@ export function MemoryDocCard({ project }: { project: Project }) {
   // Reset/Save stay disabled until the draft diverges from what is stored.
   const dirty = draft !== content
 
+  const memoryOn = project.memory_enabled
+
   const refresh = useCallback(() => {
+    // Guarded here and not only by the early return further down: that return is
+    // a RENDER decision, and effects run no matter what render produced. So a
+    // memory-off project still fetched, and the request came back 400 (the
+    // backend rejects every memory route for such a project) behind a card that
+    // was already saying memory is off — an error in the console for an answer
+    // the client had in hand.
+    if (!memoryOn) return
     api
       .getMemoryDoc(project.id, { silent: true })
       .then((d) => setContent(d.content ?? ''))
       .catch(() => setContent(''))
       .finally(() => setLoaded(true))
-  }, [project.id])
+  }, [project.id, memoryOn])
 
   useEffect(() => {
     setLoaded(false)
@@ -67,7 +76,7 @@ export function MemoryDocCard({ project }: { project: Project }) {
     }
   }
 
-  if (!project.memory_enabled) {
+  if (!memoryOn) {
     return (
       <WidgetCard
         title={t.widgets.memoryTitle}

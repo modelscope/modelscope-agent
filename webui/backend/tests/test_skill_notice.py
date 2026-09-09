@@ -139,6 +139,19 @@ def test_reference_file_edit_alone_triggers_notice(tmp_path):
     assert "Content updated since last known state: alpha" in notice
 
 
+def test_surface_reuses_signature_from_full_catalog_load(tmp_path, monkeypatch):
+    cat = _catalog(_mk_skill(tmp_path, "alpha").parent)
+
+    def _unexpected_walk(_path):
+        raise AssertionError("notice must reuse the SDK materialization signature")
+
+    monkeypatch.setattr(skill_notice, "_files_sig", _unexpected_walk)
+    surface = build_surface(cat)
+
+    assert surface["alpha"]["files"] == cat.get_skill(
+        "alpha")._files_signature
+
+
 def test_description_edit_triggers_notice(tmp_path):
     proj, sess = _proj_sess()
     tree = tmp_path / "tree"

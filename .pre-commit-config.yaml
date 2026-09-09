@@ -1,5 +1,8 @@
 default_language_version:
-  python: python3.11
+  python: python3.12
+# WebUI and development skills use their own formatting conventions.
+# WebUI behavior/type/build checks run in the dedicated workflow.
+exclude: ^(webui/|\.agents/)
 repos:
   - repo: https://github.com/pycqa/flake8.git
     rev: 7.3.0

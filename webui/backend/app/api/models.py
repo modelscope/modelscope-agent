@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.envelope import EnvelopeRoute
-from app.schemas.model import Model, ModelCreate, ModelUpdate
+from app.schemas.model import GenerationDefaults, Model, ModelCreate, ModelUpdate
 
 router = APIRouter(prefix="/api/models", tags=["models"],
                    route_class=EnvelopeRoute)
@@ -12,6 +12,17 @@ def list_models(provider_id: str | None = None) -> list[Model]:
     from app.backends.ms_agent import models
 
     return models.list_models(provider_id)
+
+
+# Declared before "/{model_id}" routes so the literal path is not swallowed by
+# the id parameter.
+@router.get("/generation-defaults")
+def generation_defaults(provider_id: str, model: str = "") -> GenerationDefaults:
+    """What the runtime will send for this provider/model before any override —
+    the values the advanced-params editor pre-fills and explains."""
+    from app.backends.ms_agent import models
+
+    return models.generation_defaults(provider_id, model)
 
 
 @router.post("", status_code=201)

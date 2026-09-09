@@ -1,0 +1,133 @@
+/* MessageNavRail.css */
+/* Collapsed, the rail is nothing but a column of ticks: the panel surface
+   (background, border, shadow) and the labels themselves only materialise on
+   hover. Kept in a co-located stylesheet because one hover state drives several
+   descendants at once (label width, tick size/colour, row background), which
+   Tailwind v4 arbitrary variants cannot express reliably. */
+
+/* The strip spans the message list's full height purely to centre the panel in
+   it, so it must not swallow pointer events over that whole column — only the
+   panel is interactive, and it is also therefore the hover target below. */
+.mnr-root {
+  pointer-events: none;
+}
+
+.mnr-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 4px;
+  border-radius: 16px;
+  /* Widest row (the active tick) sets the collapsed width; pinning a minimum
+     stops the panel twitching by a few px as the active row moves. Every inner
+     size below is tuned to keep that collapsed width inside the gutter the chat
+     panel reserves (`px-9`), so the ticks never reach a bubble. */
+  min-width: 24px;
+  /* Share of the LIST's height (the strip is stretched to it), so the panel can
+     never reach the composer below. Percentage rather than a measured pixel cap:
+     the layout engine re-evaluates it on every reflow without a re-render. */
+  max-height: 80%;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  /* Collapsed the panel CLIPS rather than scrolls — no scrollbar in a 24px
+     strip. It still scrolls programmatically, which is how the tick window
+     follows the turn being read. The open panel scrolls normally. This is an
+     overlay of its own, unrelated to the message list's scroll box. */
+  overflow: hidden;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* `:has(:focus-visible)` and NOT `:focus-within`: a mouse click leaves the
+   clicked row focused, and matching plain focus kept the panel pinned open
+   after the pointer left. This keeps keyboard navigation expanding the panel
+   while ignoring the focus a click leaves behind (the row also drops that focus
+   itself — see NavRow's onClick). */
+.mnr-panel:hover,
+.mnr-panel:has(:focus-visible) {
+  background: var(--msa-bg-1);
+  border-color: var(--msa-line-1);
+  box-shadow: var(--msa-shadow-m);
+  overflow-y: auto;
+}
+
+.mnr-row {
+  display: flex;
+  align-items: center;
+  /* No gap while collapsed: it would pad the row out by its own width next to a
+     zero-width label. The open state adds it back (below) — safe to animate
+     because the gap sits AFTER the tick and so never moves the hover target. */
+  gap: 0;
+  padding: 3px 2px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  /* `gap` animates in step with the label it separates (see .mnr-label). */
+  transition:
+    background-color 0.15s ease,
+    gap 0.22s ease;
+}
+
+.mnr-row:hover,
+.mnr-row:focus-visible {
+  background: var(--msa-fill-2);
+}
+
+.mnr-dash {
+  flex: none;
+  width: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--msa-neutral-1);
+  transition:
+    width 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.mnr-row:hover .mnr-dash {
+  background: var(--msa-neutral-3);
+}
+
+/* The turn currently being read: longer and darker, so the collapsed column
+   alone tells the user where they are. */
+.mnr-row-active .mnr-dash {
+  width: 9px;
+  background: var(--msa-neutral-4);
+}
+
+.mnr-label {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--msa-text-3);
+  transition:
+    max-width 0.22s ease,
+    opacity 0.18s ease;
+}
+
+.mnr-panel:hover .mnr-row,
+.mnr-panel:has(:focus-visible) .mnr-row {
+  gap: 8px;
+}
+
+.mnr-panel:hover .mnr-label,
+.mnr-panel:has(:focus-visible) .mnr-label {
+  /* Width owned by the component (fed in as a custom property) so the tooltip's
+     "is this label ellipsised?" test compares against the very same number. */
+  max-width: var(--mnr-label-w, 208px);
+  opacity: 1;
+}
+
+.mnr-row-active .mnr-label {
+  color: var(--msa-text-1);
+}

@@ -40,6 +40,92 @@ def test_compose_prompt_files_only_turn():
     assert prompt and "user_files/a.pdf" in prompt
 
 
+def test_compose_turn_splits_images_from_ordinary_files():
+    """Images become attachments (the model can see them); other files stay
+    path-only (the model must read them with tools). Both remain in the text
+    block, which is what history replay rebuilds cards from."""
+    msg = ChatMessage(
+        role="user",
+        content="compare these",
+        files=[
+            ChatFile(name="a.pdf", path="user_files/a.pdf"),
+            ChatFile(name="one.png", path="user_files/one.png"),
+            ChatFile(name="two.JPG", path="user_files/two.JPG"),
+            ChatFile(name="notes.txt", path="user_files/notes.txt"),
+        ],
+    )
+    prompt, attachments = chat._compose_turn(msg)
+
+    assert [a["path"] for a in attachments] == [
+        "user_files/one.png", "user_files/two.JPG"
+    ]
+    assert [a["media_type"] for a in attachments] == ["image/png", "image/jpeg"]
+    # The label carries the filename only. The ORDINAL is assigned by the
+    # transport across the whole request, because numbering per turn gave two
+    # different pictures the same name ("Image 1" in turn one and again in turn
+    # two), which is precisely what the ordinal exists to prevent.
+    assert [a["label"] for a in attachments] == ["one.png", "two.JPG"]
+    # Every file still listed, so replay can reconstruct all four cards.
+    for path in ("user_files/a.pdf", "user_files/one.png",
+                 "user_files/two.JPG", "user_files/notes.txt"):
+        assert path in prompt
+    # Nothing here may claim what the images will look like to the model. This
+    # function runs before the switch, the endpoint and the encoder have had any
+    # say, and whatever it writes is persisted verbatim — so the old sentence
+    # ("are shown to you directly above as images — no need to read those with
+    # file tools") outlived every model switch and told the model not to reach
+    # for the tools either. The claim now comes from the transport, per request.
+    assert "shown to you directly above" not in prompt
+    assert "no need to read those with file tools" not in prompt
+    assert "use the file tools to read them" not in prompt
+    for line in prompt.splitlines():
+        if line.startswith("- "):
+            assert line[2:] in (
+                "user_files/a.pdf", "user_files/one.png",
+                "user_files/two.JPG", "user_files/notes.txt"
+            ), f"path line carries an annotation: {line!r}"
+    assert prompt.startswith("compare these")
+
+
+def test_compose_turn_non_image_media_is_not_attached():
+    """Only formats every provider accepts become image attachments; anything
+    else (svg/heic/pdf) keeps the previous path-only behaviour."""
+    msg = ChatMessage(
+        role="user",
+        content="",
+        files=[
+            ChatFile(name="d.svg", path="user_files/d.svg"),
+            ChatFile(name="e.heic", path="user_files/e.heic"),
+        ],
+    )
+    prompt, attachments = chat._compose_turn(msg)
+    assert attachments == []
+    assert "user_files/d.svg" in prompt and "user_files/e.heic" in prompt
+
+
+def test_compose_turn_no_files_has_no_attachments():
+    prompt, attachments = chat._compose_turn(
+        ChatMessage(role="user", content="hello"))
+    assert (prompt, attachments) == ("hello", [])
+
+
+def test_compose_turn_attachment_order_follows_composer_order():
+    """Attachment order == the order the composer sent == chip order. If these
+    diverge, "the second image" points at the wrong picture."""
+    files = [
+        ChatFile(name=f"{n}.png", path=f"user_files/{n}.png")
+        for n in ("z", "a", "m")
+    ]
+    _, attachments = chat._compose_turn(
+        ChatMessage(role="user", content="x", files=files))
+    assert [a["path"] for a in attachments] == [
+        "user_files/z.png", "user_files/a.png", "user_files/m.png"
+    ]
+    # Order is the contract here — the ordinal itself is assigned later, by the
+    # transport, across the whole request.
+    assert [a["label"] for a in attachments] == ["z.png", "a.png", "m.png"]
+
+
 def test_turn_mapper_maps_new_protocol():
     m = chat._TurnMapper()
     assert [c.type for c in m.map({
@@ -230,6 +316,82 @@ def test_turn_mapper_announces_a_timed_out_permission_as_rejected():
     assert meta["call_id"] == "c1"  # replaces the pending ask in place
     assert meta["group"] == 1
     assert "request_id" not in meta
+    # A deny somebody CLICKED carries no reason, so the card words it as a
+    # rejection (see the timeout case below for the other half).
+    assert "reason" not in meta
+
+
+def test_turn_mapper_forwards_the_timeout_reason_onto_the_card():
+    """An expired ask must be distinguishable from a refusal a person chose: both
+    resolve to DENY, and "rejected" alone blames a decision nobody took. The
+    runtime marks the timeout, and the mapper carries the mark to the card."""
+    m = chat._TurnMapper("sid-3")
+    out = m.map({
+        "type": "permission_resolved",
+        "call_id": "c1",
+        "tool_name": "howtocook-mcp---whatToEat",
+        "tool_args": {
+            "people": 2
+        },
+        "state": "rejected",
+        "reason": "timeout",
+    })
+    meta = out[0].meta
+    assert meta["state"] == "rejected" and meta["reason"] == "timeout"
+
+
+def test_attach_replay_keeps_a_timed_out_ask_labelled_as_timed_out():
+    """Rejoining the turn (or reloading) must not downgrade an expired ask to a
+    plain rejection: the reason is persisted with the decision, so the replayed
+    card reads the same as the live one did."""
+    m = chat._TurnMapper(
+        "sid-5",
+        resolved_permissions=[{
+            "tool_name": "code_executor---shell_executor",
+            "call_id": "c4",
+            "state": "rejected",
+            "reason": "timeout",
+        }],
+    )
+    out = m.map({
+        "type": "permission_request",
+        "request_id": "req-9",
+        "call_id": "c4",
+        "tool_name": "code_executor---shell_executor",
+        "tool_args": {
+            "command": "echo aaa"
+        },
+    })
+    meta = out[0].meta
+    assert meta["kind"] == "terminal"
+    assert meta["state"] == "rejected" and meta["reason"] == "timeout"
+
+
+def test_history_permission_step_keeps_the_timeout_reason():
+    """Same distinction after a full reload, where cards come from the session
+    log rather than any live buffer."""
+    from app.backends.ms_agent.sessions import _permission_step
+
+    step = _permission_step({
+        "tool_name": "howtocook-mcp---whatToEat",
+        "arguments": {
+            "people": 2
+        },
+        "state": "rejected",
+        "reason": "timeout",
+    })
+    assert step is not None
+    assert step.meta["state"] == "rejected"
+    assert step.meta["reason"] == "timeout"
+
+    clicked = _permission_step({
+        "tool_name": "howtocook-mcp---whatToEat",
+        "arguments": {
+            "people": 2
+        },
+        "state": "rejected",
+    })
+    assert clicked is not None and "reason" not in clicked.meta
 
 
 def test_turn_mapper_announced_rejection_uses_the_generic_card_when_not_inlined():
@@ -1739,9 +1901,15 @@ class _FakeRuntime:
         self.run_task = _FakeRunTask()
         self.watchers = 0
 
-    async def enqueue(self, text, marker=None):
-        # Mirrors SessionRuntime.enqueue: tuple only when a marker rides along.
-        await self.input_queue.put((text, marker) if marker else text)
+    async def enqueue(self, text, marker=None, attachments=None):
+        # Mirrors SessionRuntime.enqueue: a bare string when nothing rides
+        # along, a 2-tuple for a marker, a 3-tuple once attachments are present.
+        if attachments:
+            await self.input_queue.put((text, marker, attachments))
+        elif marker:
+            await self.input_queue.put((text, marker))
+        else:
+            await self.input_queue.put(text)
 
 
 class _FakeRunTask:
@@ -1912,6 +2080,36 @@ async def test_drain_abandoned_turn_keeps_running_then_releases_at_boundary():
     assert fake_rt.turn_lock.locked() is False
 
 
+async def test_drain_flags_unread_only_when_nobody_watched(monkeypatch):
+    """A turn that ends with no viewer leaves the sidebar with nothing to show:
+    the spinner goes away and the row looks untouched again. The drain marks it
+    unread so a dot can point the user at the answer.
+
+    With a viewer attached (the user came back mid-turn and watched it finish)
+    there is nothing to announce, so the flag must NOT be written — a dot on a
+    conversation just read on screen is noise.
+    """
+
+    async def _drain_with(watchers: int) -> list[tuple[str, str, dict]]:
+        fake_rt = _FakeRuntime()
+        fake_rt.watchers = watchers
+        fake_rt.sink.new_turn()
+        await fake_rt.turn_lock.acquire()
+        writes: list[tuple[str, str, dict]] = []
+        monkeypatch.setattr(
+            chat.sidecar, "merge",
+            lambda sec, key, patch: writes.append((sec, key, patch)))
+        drain = asyncio.create_task(
+            chat._drain_abandoned_turn(fake_rt, fake_rt.sink.size, "sid-1"))
+        fake_rt.sink.push({"type": rt_mod.TURN_END})
+        await asyncio.wait_for(drain, timeout=2)
+        return [w for w in writes if w[2].get("unread") is True]
+
+    flagged = await _drain_with(0)
+    assert [w[:2] for w in flagged] == [("sessions", "sid-1")]
+    assert await _drain_with(1) == []
+
+
 async def test_attach_replays_buffer_then_follows_live_tail(monkeypatch):
     """A late viewer gets a full catch-up of the in-flight turn (from the
     sink's event buffer) and then the live tail until the boundary — the same
@@ -1926,7 +2124,8 @@ async def test_attach_replays_buffer_then_follows_live_tail(monkeypatch):
     await fake_rt.turn_lock.acquire()  # turn in flight
 
     monkeypatch.setattr(chat.registry, "peek", lambda sid: fake_rt)
-    monkeypatch.setattr(chat.registry, "is_running", lambda sid: True)
+    monkeypatch.setattr(chat.registry, "is_starting", lambda sid: False)
+    monkeypatch.setattr(chat.registry, "is_generating", lambda sid: True)
 
     frames: list[dict] = []
 
@@ -2005,6 +2204,117 @@ async def test_registry_running_state():
     assert registry.is_running("sid-r") is True
     assert registry.running_sessions() == ["sid-r"]
     assert registry.is_running("nope") is False
+
+
+async def test_accepted_turn_reads_as_running_before_its_runtime_exists():
+    """A turn is accepted seconds before its runtime takes `turn_lock` (cold
+    build: resolve MCP, spawn servers, build the agent). Every running-state
+    reader must already see it, or a client that navigates away and back inside
+    that window rejoins nothing and renders the session as idle.
+
+    `is_generating` stays FALSE there on purpose: the event buffer is empty and
+    the trailing history row still belongs to the previous turn.
+    """
+    registry = rt_mod.RuntimeRegistry()
+
+    assert registry.is_running("sid-cold") is False
+    registry.mark_starting("sid-cold", "proj-1")
+
+    assert registry.is_running("sid-cold") is True
+    assert registry.is_starting("sid-cold") is True
+    # No runtime is mapped yet, so the presence scan has to include the
+    # starting set explicitly.
+    assert registry.running_sessions() == ["sid-cold"]
+    assert registry.project_is_running("proj-1") is True
+    # ...but nothing is on the driver, so nothing is replayable.
+    assert registry.is_generating("sid-cold") is False
+
+    # Handover: the enqueue landed and the runtime holds the lock, so clearing
+    # the marker must not make the turn blink out of the running set.
+    rt = _FakeRuntime()
+    registry._runtimes["sid-cold"] = rt
+    await rt.turn_lock.acquire()
+    registry.clear_starting("sid-cold")
+    assert registry.is_running("sid-cold") is True
+    assert registry.is_generating("sid-cold") is True
+    assert registry.running_sessions() == ["sid-cold"]
+
+
+async def test_a_turn_that_never_started_stops_reading_as_running():
+    """The other exit from `_start_turn`: an intro-only reply or a failure. The
+    marker is dropped with no lock held, so readers go back to idle."""
+    registry = rt_mod.RuntimeRegistry()
+    registry.mark_starting("sid-intro", "proj-1")
+    registry.clear_starting("sid-intro")
+    assert registry.is_running("sid-intro") is False
+    assert registry.running_sessions() == []
+    assert registry.project_is_running("proj-1") is False
+
+
+async def test_attach_waits_out_a_starting_turn_instead_of_giving_up(monkeypatch):
+    """Attach arriving inside the accepted-but-building window must WAIT for the
+    event buffer. Answering `done` there is the bug it was reported as: the
+    viewer paints an idle session, and its one-shot latch then keeps it from
+    ever rejoining the turn that follows a moment later."""
+    fake_rt = _FakeRuntime()
+    fake_rt.sink.new_turn()
+    state = {"generating": False}
+
+    monkeypatch.setattr(chat, "_ATTACH_POLL_S", 0.01)
+    monkeypatch.setattr(chat.registry, "peek", lambda sid: fake_rt)
+    monkeypatch.setattr(chat.registry, "is_starting", lambda sid: True)
+    monkeypatch.setattr(
+        chat.registry, "is_generating", lambda sid: state["generating"])
+
+    frames: list[dict] = []
+
+    async def _consume():
+        async for f in chat.attach("sid-cold"):
+            frames.append(json.loads(f["data"]))
+
+    task = asyncio.create_task(_consume())
+    await asyncio.sleep(0.05)
+    assert frames == []  # still waiting — no premature `done`
+
+    # The runtime reaches the driver and the turn starts producing.
+    await fake_rt.turn_lock.acquire()
+    state["generating"] = True
+    fake_rt.sink.push({"type": "content_delta", "text": "开场"})
+    await asyncio.sleep(0.05)
+    assert [f["type"] for f in frames] == ["turn", "text"]
+
+    fake_rt.sink.push({"type": rt_mod.TURN_END})
+    await asyncio.wait_for(task, timeout=2)
+    assert frames[-1]["type"] == "done"
+
+
+async def test_attach_gives_up_when_the_starting_turn_never_arrives(monkeypatch):
+    """The wait is bounded: a marker that outlives its turn must not hold an SSE
+    open forever — the viewer falls back to history."""
+    monkeypatch.setattr(chat, "_ATTACH_POLL_S", 0.01)
+    monkeypatch.setattr(chat, "_ATTACH_START_WAIT_S", 0.05)
+    monkeypatch.setattr(chat.registry, "peek", lambda sid: _FakeRuntime())
+    monkeypatch.setattr(chat.registry, "is_starting", lambda sid: True)
+    monkeypatch.setattr(chat.registry, "is_generating", lambda sid: False)
+
+    frames = [json.loads(f["data"]) async for f in chat.attach("sid-stuck")]
+    assert [f["type"] for f in frames] == ["done"]
+
+
+def test_turn_frame_carries_the_turn_question():
+    """The `turn` frame hands a rejoining viewer the turn's own user row. Mid-turn
+    it exists nowhere else that viewer can read: the SDK appends it to the
+    session log only when the driver picks the prompt up, and the asker's
+    optimistic bubble died with the component it was navigating away from."""
+    rt = _FakeRuntime()
+    rt.turn_started_at = None
+
+    bare = json.loads(chat._turn_frame(rt)["data"])
+    assert bare["type"] == "turn" and "user" not in bare["meta"]
+
+    rt.turn_user = {"content": "帮我重构一下", "segments": None}
+    framed = json.loads(chat._turn_frame(rt)["data"])
+    assert framed["meta"]["user"]["content"] == "帮我重构一下"
 
 
 class _FakeLog:
@@ -2725,6 +3035,166 @@ def test_sync_runtime_skills_picks_up_live_tree_drop(tmp_path):
     )  # next round rebuilds the system prompt
 
 
+def test_sync_runtime_skills_skips_known_clean_catalog(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from omegaconf import OmegaConf
+
+    from app.backends.ms_agent.skill_index import skill_index
+
+    calls = []
+
+    class _SkillRuntime:
+        def sync_with_config(self, config, *, force=True):
+            calls.append(force)
+            return False
+
+    project = _FakeProject()
+    project.path = str(tmp_path)
+    config = OmegaConf.create({"skills": {"sources": [], "disabled": []}})
+    agent = SimpleNamespace(
+        config=config,
+        _skill_runtime=_SkillRuntime(),
+        _webui_skill_sync_token="stable-token",
+    )
+    rt = SimpleNamespace(agent=agent)
+    monkeypatch.setattr(
+        skill_index,
+        "runtime_snapshot",
+        lambda *args, **kwargs: SimpleNamespace(
+            token="stable-token", trusted=True),
+    )
+
+    chat._sync_runtime_skills(rt, project)
+
+    assert calls == [False]
+
+
+def test_skill_change_token_is_consumed_independently_by_each_runtime(
+        tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from omegaconf import OmegaConf
+
+    from app.backends.ms_agent.skill_index import skill_index
+
+    calls = []
+
+    class _SkillRuntime:
+        def __init__(self, runtime_id):
+            self.runtime_id = runtime_id
+
+        def sync_with_config(self, config, *, force=True):
+            calls.append((self.runtime_id, force))
+            return force
+
+    project = _FakeProject()
+    project.path = str(tmp_path)
+
+    def _runtime(runtime_id):
+        agent = SimpleNamespace(
+            config=OmegaConf.create({
+                "skills": {"sources": [], "disabled": []}
+            }),
+            _skill_runtime=_SkillRuntime(runtime_id),
+            _webui_skill_sync_token="old-token",
+        )
+        return SimpleNamespace(agent=agent)
+
+    monkeypatch.setattr(
+        skill_index,
+        "runtime_snapshot",
+        lambda *args, **kwargs: SimpleNamespace(
+            token="new-token", trusted=True),
+    )
+    first = _runtime("first")
+    second = _runtime("second")
+
+    chat._sync_runtime_skills(first, project)
+    chat._sync_runtime_skills(second, project)
+    chat._sync_runtime_skills(first, project)
+    chat._sync_runtime_skills(second, project)
+
+    assert calls == [
+        ("first", True),
+        ("second", True),
+        ("first", False),
+        ("second", False),
+    ]
+
+
+def test_untrusted_tracker_state_forces_legacy_full_sync(tmp_path,
+                                                        monkeypatch):
+    from types import SimpleNamespace
+
+    from omegaconf import OmegaConf
+
+    from app.backends.ms_agent.skill_index import skill_index
+
+    calls = []
+
+    class _SkillRuntime:
+        def sync_with_config(self, config, *, force=True):
+            calls.append(force)
+            return False
+
+    project = _FakeProject()
+    project.path = str(tmp_path)
+    agent = SimpleNamespace(
+        config=OmegaConf.create({
+            "skills": {"sources": [], "disabled": []}
+        }),
+        _skill_runtime=_SkillRuntime(),
+        _webui_skill_sync_token="same-token",
+    )
+    monkeypatch.setattr(
+        skill_index,
+        "runtime_snapshot",
+        lambda *args, **kwargs: SimpleNamespace(
+            token="same-token", trusted=False),
+    )
+
+    chat._sync_runtime_skills(SimpleNamespace(agent=agent), project)
+
+    assert calls == [True]
+
+
+def test_tracker_exception_falls_back_to_legacy_full_sync(tmp_path,
+                                                          monkeypatch):
+    from types import SimpleNamespace
+
+    from omegaconf import OmegaConf
+
+    from app.backends.ms_agent.skill_index import skill_index
+
+    calls = []
+
+    class _SkillRuntime:
+        def sync_with_config(self, config, *, force=True):
+            calls.append(force)
+            return False
+
+    project = _FakeProject()
+    project.path = str(tmp_path)
+    agent = SimpleNamespace(
+        config=OmegaConf.create({
+            "skills": {"sources": [], "disabled": []}
+        }),
+        _skill_runtime=_SkillRuntime(),
+        _webui_skill_sync_token="stable-token",
+    )
+
+    def _broken_snapshot(*args, **kwargs):
+        raise RuntimeError("index unavailable")
+
+    monkeypatch.setattr(skill_index, "runtime_snapshot", _broken_snapshot)
+
+    chat._sync_runtime_skills(SimpleNamespace(agent=agent), project)
+
+    assert calls == [True]
+    assert agent._webui_skill_sync_token == "stable-token"
+
+
 def test_resolve_permission_forwards_allow_always_to_the_handler():
     """The three-way authorization card (deny / always allow / allow once) maps
     each action straight onto the SDK's PermissionAction — notably allow_always,
@@ -2734,14 +3204,26 @@ def test_resolve_permission_forwards_allow_always_to_the_handler():
     seen: list[PermissionAction] = []
 
     class _Handler:
+        """Stands in for WebPermissionHandler through its PUBLIC surface.
+
+        Deliberately exposes no ``_pending``: this route used to read that
+        private map to decide whether a request was still open, so adding a
+        field to it turned every approval click into a 500 while this test —
+        mirroring the same internals — kept passing.
+        """
 
         def __init__(self) -> None:
-            fut: asyncio.Future = asyncio.get_event_loop().create_future()
-            self._pending = {"req-1": fut}
+            self._futures = {
+                "req-1": asyncio.get_event_loop().create_future()
+            }
+
+        def is_awaiting(self, request_id):
+            fut = self._futures.get(request_id)
+            return fut is not None and not fut.done()
 
         def resolve(self, request_id, response):
             seen.append(response.action)
-            self._pending[request_id].set_result(response)
+            self._futures[request_id].set_result(response)
 
     async def drive():
         registry = rt_mod.RuntimeRegistry()
@@ -3061,6 +3543,67 @@ def test_permission_handler_announces_a_denial_to_live_viewers(monkeypatch):
     assert pushed[0]["tool_name"] == "code_executor---shell_executor"
 
 
+def test_permission_handler_marks_a_timeout_apart_from_a_clicked_deny(monkeypatch):
+    """Both ways of refusing resolve to DENY, so "rejected" alone told the user a
+    decision had been made when in fact nobody answered in time. The wrapper marks
+    the expired one (``reason: "timeout"``) — announced live AND persisted, so a
+    reload keeps saying it — and leaves a deliberate deny unmarked.
+
+    The mark is derived from the feedback the SDK stamps on its timeout path
+    alone; nothing here sets feedback otherwise (resolve_permission builds its
+    response from the action), which is what makes the two distinguishable."""
+    import asyncio
+
+    from ms_agent.permission.handler import (
+        PermissionAction,
+        PermissionResponse,
+        WebPermissionHandler,
+    )
+
+    from app.backends.ms_agent import runtime as runtime_mod
+
+    class _Sink:
+        def __init__(self) -> None:
+            self.pushed: list[dict] = []
+
+        def push(self, payload: dict) -> None:
+            self.pushed.append(payload)
+
+    class _Log:
+        def __init__(self) -> None:
+            self.records: list[dict] = []
+
+        def record_permission(self, event: dict) -> None:
+            self.records.append(event)
+
+    def _run(response: PermissionResponse) -> tuple[_Sink, _Log]:
+        async def _ask(self, tool_name, tool_args, context, suggestions=None,
+                       call_id=""):
+            return response
+
+        monkeypatch.setattr(WebPermissionHandler, "ask", _ask)
+        sink, log = _Sink(), _Log()
+        handler = runtime_mod._persisting_permission_handler(sink, lambda: log)
+        asyncio.run(
+            handler.ask("code_executor---shell_executor",
+                        {"command": "echo aaa"}, "", call_id="c1"))
+        return sink, log
+
+    sink, log = _run(
+        PermissionResponse(action=PermissionAction.DENY,
+                           feedback="Permission request timed out"))
+    assert sink.pushed[0]["reason"] == "timeout"
+    assert log.records[0]["state"] == "rejected"
+    assert log.records[0]["reason"] == "timeout"
+
+    # A deny somebody chose: same state, no reason — the card must not claim it
+    # expired.
+    sink, log = _run(PermissionResponse(action=PermissionAction.DENY))
+    assert sink.pushed[0]["state"] == "rejected"
+    assert "reason" not in sink.pushed[0]
+    assert "reason" not in log.records[0]
+
+
 def test_permission_handler_stays_silent_on_approval(monkeypatch):
     """An APPROVAL needs no announcement: the deciding client already flipped its
     card, other viewers get the resolved ask on attach, and the tool's result
@@ -3092,3 +3635,193 @@ def test_permission_handler_stays_silent_on_approval(monkeypatch):
         handler.ask("code_executor---shell_executor", {"command": "echo aaa"},
                     "", call_id="c1"))
     assert pushed == []
+
+
+def test_web_input_source_hands_attachments_to_the_sdk():
+    """The composer->SDK seam. ``read_prompt`` still returns a bare ``str``;
+    attachments cross through the optional ``take_attachments`` hook, and are
+    cleared so a later turn cannot inherit the previous turn's images."""
+    import asyncio
+
+    from app.backends.ms_agent import runtime as rt_mod
+
+    async def run():
+        queue: asyncio.Queue = asyncio.Queue()
+        src = rt_mod.WebInputSource(queue, rt_mod.QueueEventSink())
+        atts = [{"type": "image", "path": "user_files/a.png"}]
+
+        await queue.put(("look at this", None, atts))
+        assert await src.read_prompt() == "look at this"
+        assert src.take_attachments() == atts
+        # Taken once only.
+        assert src.take_attachments() == []
+
+        # A plain-string item (the overwhelmingly common case) is unchanged and
+        # carries no attachments.
+        await queue.put("just text")
+        assert await src.read_prompt() == "just text"
+        assert src.take_attachments() == []
+
+        # A 2-tuple (marker, no attachments) still works.
+        await queue.put(("with marker", {"original_text": "orig"}))
+        assert await src.read_prompt() == "with marker"
+        assert src.take_attachments() == []
+
+    asyncio.run(run())
+
+
+def test_enqueue_shapes_stay_backward_compatible():
+    import asyncio
+
+    from app.backends.ms_agent import runtime as rt_mod
+
+    async def run():
+        rt = rt_mod.SessionRuntime.__new__(rt_mod.SessionRuntime)
+        rt.input_queue = asyncio.Queue()
+        rt.touch = lambda: None
+
+        await rt.enqueue("a")
+        assert rt.input_queue.get_nowait() == "a"
+
+        await rt.enqueue("b", marker={"m": 1})
+        assert rt.input_queue.get_nowait() == ("b", {"m": 1})
+
+        atts = [{"type": "image", "path": "p.png"}]
+        await rt.enqueue("c", attachments=atts)
+        assert rt.input_queue.get_nowait() == ("c", None, atts)
+
+    asyncio.run(run())
+
+
+def test_compose_turn_path_lines_survive_split_attached_roundtrip():
+    """Regression: an inline annotation on a ``- <path>`` line made replay parse
+    the annotation as part of the path, producing a phantom file card that did
+    not exist on disk (and a duplicate of the real one)."""
+    from app.backends.ms_agent import sessions
+
+    msg = ChatMessage(
+        role="user",
+        content="hi",
+        files=[
+            # A name containing " (" — exactly why the annotation cannot be
+            # trimmed back off the path.
+            ChatFile(name="screenshot (1).png",
+                     path="user_files/screenshot (1).png"),
+            ChatFile(name="d.pdf", path="user_files/d.pdf"),
+        ],
+    )
+    prompt, attachments = chat._compose_turn(msg)
+    _text, paths = sessions._split_attached(prompt)
+    assert paths == ["user_files/screenshot (1).png", "user_files/d.pdf"]
+    # And the structured attachment agrees with the parsed path, so the replay
+    # merge cannot produce a duplicate.
+    assert [a["path"] for a in attachments] == ["user_files/screenshot (1).png"]
+
+
+# --- reasoning blocks: identity, server-authoritative time, replay safety -----
+# The SDK reports `reasoning_ended` only after the whole response drains, so the
+# mapper closes the block itself ahead of any frame that proves it ended, and
+# names every frame with the block it belongs to.
+
+
+def test_thought_is_sealed_before_the_frame_that_proves_it_ended():
+    m = chat._TurnMapper()
+    m.map({"type": "reasoning_started", "_ts": 100.0})
+    m.map({"type": "reasoning_delta", "text": "plan it", "_ts": 100.5})
+    # The model starts writing a tool call 12s later.
+    out = m.map({
+        "type": "tool_call_composing",
+        "name": "write_file",
+        "index": 0,
+        "arguments_len": 512,
+        "_ts": 112.0,
+    })
+    assert [c.type for c in out] == ["thought", "step"], (
+        "the close frame must be emitted BEFORE the step it precedes")
+    close = out[0]
+    assert close.content == ""
+    assert close.meta["duration"] == 12
+    assert close.meta["block"] == 1
+    # The SDK's own (late) end event must not open or close anything more.
+    assert m.map({"type": "reasoning_ended", "_ts": 118.0}) == []
+
+
+def test_thought_frames_carry_block_id_and_age():
+    m = chat._TurnMapper()
+    m.map({"type": "reasoning_started", "_ts": 0.0})
+    first = m.map({"type": "reasoning_delta", "text": "a", "_ts": 0.0})[0]
+    # Same second: no second age stamp.
+    same_second = m.map({"type": "reasoning_delta", "text": "b", "_ts": 0.3})[0]
+    later = m.map({"type": "reasoning_delta", "text": "c", "_ts": 7.0})[0]
+    assert first.meta["block"] == same_second.meta["block"] == 1
+    assert first.meta["elapsed_ms"] == 0
+    assert "elapsed_ms" not in same_second.meta
+    assert later.meta["elapsed_ms"] == 7000
+
+    # A second block gets its own id and its own clock.
+    m.map({"type": "content_delta", "text": "done thinking", "_ts": 10.0})
+    m.map({"type": "reasoning_started", "_ts": 20.0})
+    second = m.map({"type": "reasoning_delta", "text": "d", "_ts": 20.0})[0]
+    assert second.meta["block"] == 2 and second.meta["elapsed_ms"] == 0
+
+
+def test_image_delivery_does_not_cut_a_thought_in_two():
+    """It draws no card and lands mid-reasoning, so it must not seal."""
+    m = chat._TurnMapper()
+    m.map({"type": "reasoning_started", "_ts": 0.0})
+    m.map({"type": "reasoning_delta", "text": "look", "_ts": 0.1})
+    out = m.map({
+        "type": "image_delivered",
+        "index": 0,
+        "path": "user_files/a.png",
+        "filename": "a.png",
+        "state": "delivered",
+        "_ts": 1.0,
+    })
+    assert [c.type for c in out] == ["step"]
+    cont = m.map({"type": "reasoning_delta", "text": "ing", "_ts": 2.0})[0]
+    assert cont.meta["block"] == 1, "still the same reasoning block"
+
+
+def test_replay_reports_the_same_durations_as_the_live_pass():
+    """What /chat/attach does: same buffered events, fresh mapper — the numbers
+    must be identical (measured between the ORIGINAL events)."""
+    events = [
+        {"type": "reasoning_started", "_ts": 5.0},
+        {"type": "reasoning_delta", "text": "think", "_ts": 5.2},
+        {"type": "tool_call_composing", "name": "write_file", "index": 0,
+         "arguments_len": 300, "_ts": 41.0},
+        {"type": "reasoning_ended", "_ts": 44.0},
+        {"type": "tool_call_started", "call_id": "c1",
+         "name": "file_system---write_file",
+         "arguments": {"path": "a.md", "content": "x"}, "_ts": 44.1},
+    ]
+
+    def durations(mapper):
+        out = []
+        for ev in events:
+            for c in mapper.map(ev):
+                if c.type == "thought" and c.meta.get("duration") is not None:
+                    out.append((c.meta["block"], c.meta["duration"]))
+        return out
+
+    live = durations(chat._TurnMapper())
+    replay = durations(chat._TurnMapper())
+    assert live == replay == [(1, 36)]
+
+
+def test_a_retry_closes_the_block_it_abandons():
+    """A retried `step` starts a fresh block; the abandoned one must still be
+    closed with the time it really ran."""
+    m = chat._TurnMapper()
+    m.map({"type": "reasoning_started", "_ts": 0.0})
+    m.map({"type": "reasoning_delta", "text": "第一次尝试", "_ts": 1.0})
+    # upstream dies; the SDK retries and starts over
+    out = m.map({"type": "reasoning_started", "_ts": 9.0})
+    assert [c.type for c in out] == ["thought"]
+    assert out[0].meta["block"] == 1 and out[0].meta["duration"] == 9
+    second = m.map({"type": "reasoning_delta", "text": "第二次尝试", "_ts": 9.0})[0]
+    assert second.meta["block"] == 2
+    closed = m.map({"type": "error", "message": "RemoteProtocolError", "_ts": 20.0})
+    assert [c.type for c in closed] == ["thought", "error"]
+    assert closed[0].meta == {"block": 2, "duration": 11, "elapsed_ms": 11000}

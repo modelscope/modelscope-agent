@@ -1,8 +1,10 @@
+import { LoadingOutlined } from '@ant-design/icons'
 import { App, Button, Popconfirm, Tooltip, Typography } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import { IconButton } from '~/components/common/IconButton'
 import { EmptyState } from '~/components/common/EmptyState'
 import { api } from '~/lib/api'
+import { useOnProjectSettingsChanged } from '~/lib/events'
 import { useT } from '~/lib/i18n'
 import type { MemoryItem, MemoryStatus, Project } from '~/lib/types'
 import { WidgetCard } from './WidgetCard'
@@ -20,6 +22,16 @@ function embedderLabel(status: MemoryStatus | null): string | null {
   if (!e?.model) return null
   const model = e.model.split('/').pop() || e.model
   return e.mode === 'local' ? `local · ${model}` : `${e.provider} · ${model}`
+}
+
+/** The chip is truncated in the header; the tooltip carries the full identity,
+ * including the width the store was built at. */
+function embedderTitle(status: MemoryStatus | null): string {
+  const e = status?.embedder
+  if (!e?.model) return ''
+  const who = e.mode === 'local' ? 'local' : (e.provider ?? '')
+  const dims = e.dimension ? ` · ${e.dimension}d` : ''
+  return `${who} · ${e.model}${dims}`
 }
 
 export function MemoryCard({ project }: Props) {
@@ -61,16 +73,33 @@ export function MemoryCard({ project }: Props) {
       .getMemoryStatus(project.id, { silent: true })
       .then(setStatus)
       .catch(() => setStatus(null))
+    // Re-checked whenever the EMBEDDER choice changes, not just on mount: that
+    // choice decides whether the store is still readable at all, so editing it
+    // has to re-run the health check — otherwise the card keeps showing a
+    // healthy list for a store the project can no longer open, until something
+    // else happens to reload the page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id, memoryOn])
+  }, [
+    project.id,
+    memoryOn,
+    project.memory_embed_mode,
+    project.memory_embed_provider_id,
+    project.memory_embed_model
+  ])
   useEffect(refresh, [refresh])
+  // Re-fetch when the edit modal saves (the user may have changed the embed
+  // model or toggled memory on/off — the status endpoint reflects the new
+  // config immediately).
+  useOnProjectSettingsChanged(refresh)
 
-  // A background ingest may be in flight right after a turn — poll briefly
-  // while the server reports scheduled/running so the new rows appear without
-  // a manual refresh.
+  // A background ingest may be in flight right after a turn, and re-embedding
+  // a store takes as long as the embedder takes — poll while the server reports
+  // either so the result appears without a manual refresh.
   useEffect(() => {
     const state = status?.ingest?.state
-    if (state !== 'scheduled' && state !== 'running') return
+    const busy =
+      status?.rebuilding || state === 'scheduled' || state === 'running'
+    if (!busy) return
     const timer = setTimeout(refresh, 2000)
     return () => clearTimeout(timer)
   }, [status, refresh])
@@ -83,8 +112,14 @@ export function MemoryCard({ project }: Props) {
   const rebuild = async () => {
     setRebuilding(true)
     try {
-      await api.rebuildMemory(project.id)
-      message.success(t.widgets.memoryRebuilt)
+      const result = await api.rebuildMemory(project.id)
+      // Say what actually happened: entries are carried over now, and a store
+      // that already speaks the current model is left alone entirely.
+      message.success(
+        result.reused
+          ? t.widgets.memoryRebuildReused
+          : t.widgets.memoryRebuilt.replace('{n}', String(result.migrated))
+      )
       refresh()
     } catch {
       // surfaced by the global toast
@@ -110,6 +145,18 @@ export function MemoryCard({ project }: Props) {
   const chip = embedderLabel(status)
   const ingest = status?.ingest
   const mismatch = status?.error?.code === 'embedder_mismatch'
+  const ingestNote =
+    ingest?.state === 'scheduled' || ingest?.state === 'running' ? (
+      <span className="text-xs text-msa-text-3">
+        {t.widgets.memoryIngesting}
+      </span>
+    ) : ingest?.state === 'error' ? (
+      <Tooltip title={ingest.error ?? ''}>
+        <span className="text-xs text-msa-text-danger">
+          {t.widgets.memoryIngestFailed}
+        </span>
+      </Tooltip>
+    ) : null
 
   return (
     <WidgetCard
@@ -119,19 +166,16 @@ export function MemoryCard({ project }: Props) {
       // This card is the VECTOR shape of memory; the tag says so, since the file
       // backend gets a completely different (document) UI.
       badge={t.newProject.backendVector}
-      // Embedder identity in the top-right, next to the title — it's metadata
-      // about the whole store, so it reads better as a header chip than as a
-      // footer that scrolls with (and gets mistaken for) the memory rows.
+      // The embedder belongs to the header, next to what it produced: it names
+      // the model every entry below was embedded with, and putting it under a
+      // scrolling list buried it.
       extra={
         chip ? (
-          <Typography.Text
-            className="text-msa-text-3"
-            ellipsis={{
-              tooltip: { title: chip }
-            }}
-          >
-            <span className="text-xs">{chip}</span>
-          </Typography.Text>
+          <Tooltip title={embedderTitle(status)}>
+            <span className="max-w-[220px] truncate text-xs font-normal text-msa-text-3">
+              {chip}
+            </span>
+          </Tooltip>
         ) : undefined
       }
       className="flex-initial min-h-0 flex flex-col overflow-hidden"
@@ -139,6 +183,13 @@ export function MemoryCard({ project }: Props) {
     >
       {!loaded ? (
         <DeferredSkeleton rows={6} className="py-1" />
+      ) : status?.rebuilding ? (
+        /* Mid-rebuild the entries are being written into a staging store, so
+           neither the old list nor the mismatch error is the truth. */
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-msa-fill-2 px-3 py-3 text-xs text-msa-text-3">
+          <LoadingOutlined />
+          {t.widgets.memoryRebuilding}
+        </div>
       ) : error || status?.error ? (
         <div className="rounded-lg bg-msa-fill-2 px-3 py-3">
           <p className="m-0 text-xs font-medium text-msa-text-danger">
@@ -211,26 +262,14 @@ export function MemoryCard({ project }: Props) {
           ))}
         </div>
       )}
-      {/* Footer: transient ingest states only (updating / failed). The embedder
-          identity moved to the header chip; the count is already in the title. */}
-      {loaded &&
-        (ingest?.state === 'scheduled' ||
-          ingest?.state === 'running' ||
-          ingest?.state === 'error') && (
-          <div className="mt-2 flex items-center justify-end border-t border-msa-line-1 pt-2">
-            {ingest.state === 'error' ? (
-              <Tooltip title={ingest.error ?? ''}>
-                <span className="shrink-0 text-xs text-msa-text-danger">
-                  {t.widgets.memoryIngestFailed}
-                </span>
-              </Tooltip>
-            ) : (
-              <span className="shrink-0 text-xs text-msa-text-3">
-                {t.widgets.memoryIngesting}
-              </span>
-            )}
-          </div>
-        )}
+      {/* Footer: transient ingest states only (updating / failed), so it is
+          absent in the normal case. Totals are in the header count, and the
+          embedder is in the header too. */}
+      {loaded && ingestNote && (
+        <div className="mt-2 flex items-center justify-end border-t border-msa-line-1 pt-2">
+          {ingestNote}
+        </div>
+      )}
     </WidgetCard>
   )
 }

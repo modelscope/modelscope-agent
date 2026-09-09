@@ -18,7 +18,7 @@ MS-Agent也是魔搭官网的[mcp-playground](https://modelscope.cn/mcp/playgrou
 
 ## 安装
 
-MS-Agent的安装请参考[安装文档](installation)。
+MS-Agent的安装请参考[安装文档](installation.md)。
 
 ## 使用样例
 
@@ -64,3 +64,14 @@ ms-agent run --config ms-agent/simple_agent --modelscope_api_key xxx
 - 一个[更全面的例子](https://github.com/modelscope/ms-agent/tree/main/examples)
 - DeepResearch的[例子](https://github.com/modelscope/ms-agent/tree/main/projects/deep_research)
 - CodeGenesis的[例子](https://github.com/modelscope/ms-agent/blob/main/projects/code_genesis/README.md)
+
+## 使用 WebUI
+
+也可以在浏览器中管理项目、与智能体对话和查看工具执行过程。准备 Python 3.12+、Node.js 22.22.0+ 和 pnpm 10.17.1 后，执行：
+
+```shell
+pip install -U "ms-agent[webui]"
+ms-agent ui
+```
+
+在打开的页面中进入 **设置 → 模型设置**，配置模型服务，再创建项目与会话。详细环境准备和使用方法见 [WebUI 指南](https://github.com/modelscope/ms-agent/blob/main/webui/README_ZH.md)。

@@ -12,6 +12,7 @@ from app.api import (
     profile,
     projects,
     providers,
+    search,
     sessions,
     skills,
     workspace,
@@ -34,16 +35,40 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Ensure ~/.ms_agent + default project + settings.json llm are ready.
+    # Ensure the SDK home + default project + settings.json llm are ready.
     from app.backends.ms_agent.bootstrap import bootstrap
 
     bootstrap()
 
+    # HOME semantics, pinned (docs and code agree from here on): the default is
+    # the SHARED ~/.ms_agent — the same home CLI/TUI use; isolation is an
+    # explicit choice via MS_AGENT_HOME / ms_agent_home in backend/.env. Print
+    # the effective home once so "which home am I on" is never guesswork.
+    # Runs in the startup hook (not at import) so uvicorn's logging is wired;
+    # uvicorn.error is the logger whose handlers reach the dev console.
+    @app.on_event("startup")
+    async def _log_effective_home() -> None:
+        import logging
+        import os
+
+        from app.backends.ms_agent.common import home
+
+        effective = home()
+        shared_default = os.path.expanduser("~/.ms_agent")
+        logging.getLogger("uvicorn.error").info(
+            "ms_agent home: %s (%s)", effective,
+            "shared default" if effective == shared_default else
+            "isolated via MS_AGENT_HOME")
+
     @app.on_event("shutdown")
     async def _shutdown() -> None:
         from app.backends.ms_agent.runtime import registry
+        from app.backends.ms_agent.skill_index import skill_index
 
-        await registry.close_all()
+        try:
+            await registry.close_all()
+        finally:
+            skill_index.stop()
 
     app.include_router(chat.router)
     app.include_router(presence.router)
@@ -56,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(providers.router)
     app.include_router(models.router)
     app.include_router(agent_settings.router)
+    app.include_router(search.router)
     app.include_router(profile.router)
     app.include_router(workspace.router)
 

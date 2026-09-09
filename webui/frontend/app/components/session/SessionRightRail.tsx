@@ -1,14 +1,7 @@
-import {
-  App,
-  Button,
-  Dropdown,
-  Input,
-  Modal,
-  Splitter,
-  Tooltip
-} from 'antd'
+import { App, Button, Dropdown, Input, Modal, Splitter, Tooltip } from 'antd'
 import type { MenuProps, TreeDataNode } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import { CodeEditor } from '~/components/common/CodeEditor'
 import { EmptyState } from '~/components/common/EmptyState'
 import { FolderTree } from '~/components/common/FolderTree'
@@ -19,7 +12,13 @@ import { IconButton } from '~/components/common/IconButton'
 import { api } from '~/lib/api'
 import { dispatchWorkspaceChanged, useOnWorkspaceChanged } from '~/lib/events'
 import { collectDroppedFiles } from '~/lib/dropFiles'
-import { downloadWorkspaceAll, downloadWorkspaceFile } from '~/lib/download'
+import { createWorkspaceEntry } from '~/lib/workspaceCreate'
+import {
+  downloadErrorText,
+  downloadWorkspaceAll,
+  downloadWorkspaceFile,
+  hasDownloadableFiles
+} from '~/lib/download'
 import { useT } from '~/lib/i18n'
 import type { Project, WorkspaceFile } from '~/lib/types'
 import { MsaButton } from '../common/MsaButton'
@@ -47,6 +46,23 @@ interface Props {
    * request so re-clicking the same file re-triggers the selection.
    */
   openFile?: { path: string; nonce: number }
+  /**
+   * External "create an entry here" request (e.g. the project page's file
+   * table, which opens this rail instead of asking for the name itself). Opens
+   * the inline naming row inside `dir` ('' = workspace root); `nonce` changes
+   * on every request so asking twice re-opens the row.
+   */
+  createEntry?: { dir: string; kind: 'file' | 'folder'; nonce: number }
+  /**
+   * Asked before a container closes this rail. The rail sets it to a function
+   * that answers "I am holding this close back" — unsaved buffers get a prompt
+   * instead of being thrown away. Only containers that DESTROY the rail on close
+   * need to pass it; where it stays mounted, closing loses nothing.
+   *
+   * A ref rather than a callback prop, because the answer has to arrive
+   * synchronously, inside the container's own close handler.
+   */
+  closeGuard?: RefObject<(() => boolean) | null>
   onClose?: () => void
 }
 
@@ -113,7 +129,6 @@ function toTreeData(node: DirNode): TreeDataNode[] {
   }))
   return [...dirs, ...files]
 }
-
 
 type PreviewKind = 'text' | 'image' | 'video' | 'audio' | 'unsupported'
 
@@ -230,11 +245,28 @@ const parentDir = (p: string) => {
 }
 const joinPath = (dir: string, name: string) => (dir ? `${dir}/${name}` : name)
 
+// How often the open file is re-read to notice a write nothing announced. Long
+// enough that an open editor is not a source of traffic, short enough that the
+// user is warned before they have typed a paragraph over someone else's work.
+const OPEN_FILE_POLL_MS = 15_000
+
+// Unsaved text for a file that is not the open one. `disk` is what the file held
+// when the buffer was parked, which is what lets a later save tell an external
+// write from its own. `changed` carries the "changed elsewhere" warning along
+// with it: nothing on the way back can re-derive a warning that was ALREADY up.
+interface ParkedBuffer {
+  draft: string
+  disk: string
+  changed: boolean
+}
+
 export function SessionRightRail({
   project,
   sessionId: _sessionId,
   active,
   openFile,
+  createEntry,
+  closeGuard,
   onClose
 }: Props) {
   const { t } = useT()
@@ -242,25 +274,69 @@ export function SessionRightRail({
   const [files, setFiles] = useState<WorkspaceFile[] | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [filter, setFilter] = useState('')
-  // Name-prompt modal for New file / New folder / Rename.
-  const [prompt, setPrompt] = useState<{
-    title: string
-    initial: string
-    onOk: (value: string) => void
+  // The entry being created: an inline row in the tree, named in place the way
+  // an editor does it. null = nothing being created; '' is the workspace root,
+  // so null and '' cannot be collapsed into one falsy check.
+  const [newEntry, setNewEntry] = useState<{
+    dir: string
+    kind: 'file' | 'folder'
   } | null>(null)
-  const [promptValue, setPromptValue] = useState('')
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  // Mirrored into a ref for the same reason `diskContent` below is one: every
+  // mutation here broadcasts synchronously (dispatchWorkspaceChanged), and the
+  // listener that re-reads the open file runs BEFORE React has re-rendered. Read
+  // as state there, the path is still the one the file had before the rename, so
+  // the re-read asks for a path that no longer exists and 404s. Always go through
+  // `putSelectedFile` so the two cannot drift.
+  const selectedFileRef = useRef<string | null>(null)
+  const selectionRevision = useRef(0)
+  const putSelectedFile = (path: string | null) => {
+    if (path === null) selectionRevision.current += 1
+    selectedFileRef.current = path
+    setSelectedFile(path)
+  }
   const [fileContent, setFileContent] = useState<string | null>(null)
   // Live editor buffer; diverges from `fileContent` while the user edits.
   const [draft, setDraft] = useState('')
   const [fileLoading, setFileLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [previewKind, setPreviewKind] = useState<PreviewKind>('text')
+  // The open file was written by someone else (the agent, another view) while
+  // the buffer had unsaved edits, so neither version can be dropped silently.
+  const [externalChanged, setExternalChanged] = useState(false)
+  // Content the open file is known to hold ON DISK. A ref, not state: our own
+  // save broadcasts synchronously, before React has re-rendered with the new
+  // content, so a state read inside that listener would still see the old text
+  // and mistake our own write for someone else's.
+  const diskContent = useRef<string | null>(null)
+  // Unsaved buffers of files the user navigated AWAY from. Clicking another file
+  // parks the current one here instead of dropping it — an editor that loses what
+  // you typed because you looked at a second file is an editor you cannot use.
+  const [stash, setStash] = useState<Record<string, ParkedBuffer>>({})
+  // The close the guard is holding back, shown as a list of what would be lost.
+  const [unsavedPrompt, setUnsavedPrompt] = useState(false)
+  const [savingAll, setSavingAll] = useState(false)
+  // Set for the one close that follows the user's answer to that prompt, so the
+  // guard doesn't ask again about a stash React has not re-rendered without yet.
+  const skipGuard = useRef(false)
   const [downloadingAll, setDownloadingAll] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
   const dirty = selectedFile !== null && draft !== (fileContent ?? '')
+
+  // Everything holding text that is not on disk: the parked buffers plus the open
+  // one, if it has been edited.
+  const unsavedPaths = useMemo(() => {
+    const paths = Object.keys(stash)
+    if (selectedFile && dirty) paths.push(selectedFile)
+    return paths.sort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stash, selectedFile, dirty])
+  const dirtyKeys = useMemo(
+    () => unsavedPaths.map((p) => `file:${p}`),
+    [unsavedPaths]
+  )
 
   // Set webkitdirectory attribute via DOM (React doesn't support it natively)
   useEffect(() => {
@@ -290,9 +366,12 @@ export function SessionRightRail({
     if (prevProjectRef.current === project.id) return
     prevProjectRef.current = project.id
     setFiles(null)
-    setSelectedFile(null)
+    putSelectedFile(null)
     setFileContent(null)
     setDraft('')
+    // Buffers are keyed by workspace-relative path, which means nothing in
+    // another project's workspace.
+    setStash({})
   }, [project.id])
 
   // Load on open (and on project change while open). The rail stays mounted at
@@ -304,15 +383,102 @@ export function SessionRightRail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, project.id])
 
+  // Re-read the OPEN file after someone else touched the workspace — on the
+  // in-tab event below, on regaining focus, on a poll while it stays open, and
+  // once more right before a save. Defined before the listener, which lists it as
+  // a dependency.
+  //
+  // Three outcomes: unchanged on disk (the common one — the event was about
+  // other files, or it was our own save), changed while the buffer is clean
+  // (adopt it, no one loses anything), changed while the buffer is dirty (say so
+  // and let the user pick — overwriting their edits, or dropping them, are both
+  // decisions that aren't ours to make).
+  const syncOpenFile = useCallback(async () => {
+    // Non-text previews (image, video, …) hold no buffer to conflict with, and
+    // their <img>/<video> src re-reads on its own.
+    const path = selectedFileRef.current
+    if (!path || previewKind !== 'text') return
+    if (diskContent.current === null) return
+    let latest: string
+    try {
+      const f = await api.getWorkspaceFile(project.id, path)
+      if (previewKindOf(f) !== 'text') return
+      latest = f.content ?? f.preview ?? ''
+    } catch {
+      // Gone or unreadable now — the list refresh is the honest signal for that;
+      // don't blame the editor for it.
+      return
+    }
+    // The open file changed while this was in flight (the user clicked another
+    // one, or a move landed): this text belongs to a file no longer on screen.
+    if (selectedFileRef.current !== path) return
+    if (latest === diskContent.current) return
+    diskContent.current = latest
+    if (dirty) {
+      setExternalChanged(true)
+      return
+    }
+    setFileContent(latest)
+    setDraft(latest)
+    // The path comes from the ref above, not from `selectedFile`, so this does
+    // not need to be rebuilt when the selection changes.
+  }, [project.id, previewKind, dirty])
+
   // Cross-component sync: another view (e.g. project-edit modal) uploaded files.
   // Wrapped so the event's optional `created` paths payload isn't mistaken for
   // loadFiles' `spin` flag.
-  const reloadOnChange = useCallback(() => loadFiles(), [loadFiles])
+  const reloadOnChange = useCallback(() => {
+    loadFiles()
+    void syncOpenFile()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadFiles, syncOpenFile])
   useOnWorkspaceChanged(reloadOnChange)
+
+  // That event bus only carries writes made in THIS tab. Regaining focus is the
+  // cheapest moment to notice all the others — a second tab, a turn that kept
+  // running while this one was hidden, an edit made outside the browser entirely.
+  // One listing fetch per focus, the same one the refresh button does.
+  useEffect(() => {
+    if (active === false) return
+    const check = () => {
+      if (document.visibilityState !== 'visible') return
+      loadFiles()
+      void syncOpenFile()
+    }
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, syncOpenFile])
+
+  // Focus alone still leaves one case silent: the window never lost focus, and
+  // the writer is outside this tab (a turn streaming into another tab, an editor
+  // on the same machine). Only a poll can make the badge appear on its own.
+  //
+  // Deliberately narrow, so this is one small request per interval rather than
+  // background traffic: only while a TEXT file is open in a visible tab, only
+  // that one file (not the listing), and stopped the moment the file is closed.
+  useEffect(() => {
+    if (active === false || !selectedFile || previewKind !== 'text') return
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void syncOpenFile()
+    }, OPEN_FILE_POLL_MS)
+    return () => window.clearInterval(id)
+  }, [active, selectedFile, previewKind, syncOpenFile])
 
   // Zip the whole workspace and download it as `<project>.zip`.
   const handleDownloadAll = async () => {
     if (!files || files.length === 0) return
+    // A listing of only (empty) folders has no bytes to zip, and the button
+    // stays enabled for it — say so instead of letting the click do nothing.
+    if (!hasDownloadableFiles(files)) {
+      message.warning(t.workspace.downloadEmpty)
+      return
+    }
     setDownloadingAll(true)
     try {
       await downloadWorkspaceAll(
@@ -320,14 +486,14 @@ export function SessionRightRail({
         files,
         `${project.name || 'workspace'}.zip`
       )
-    } catch {
-      message.error(t.workspace.downloadFailed)
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
     } finally {
       setDownloadingAll(false)
     }
   }
 
-  const handleUpload = async (fileList: FileList | null) => {
+  const handleUpload = async (fileList: FileList | null, dir = '') => {
     if (!fileList || fileList.length === 0) return
     // Multipart upload preserves raw bytes, so binary files (images, archives,
     // …) aren't corrupted by UTF-8 coercion the way `file.text()` would.
@@ -336,7 +502,7 @@ export function SessionRightRail({
         .uploadWorkspaceFile(
           project.id,
           file,
-          file.webkitRelativePath || file.name,
+          joinPath(dir, file.webkitRelativePath || file.name),
           { silent: [409] }
         )
         .catch(() => {})
@@ -345,17 +511,43 @@ export function SessionRightRail({
     dispatchWorkspaceChanged()
   }
 
+  // Folder the next OS file picker should upload into. The two hidden inputs are
+  // shared by the Add-file menu (root) and a folder's context menu, and a picker
+  // reports back through its own onChange — so the target has to be parked
+  // somewhere in between.
+  const uploadDirRef = useRef('')
+  const pickUpload = (dir: string, kind: 'file' | 'folder') => {
+    uploadDirRef.current = dir
+    const input = kind === 'file' ? fileInputRef : folderInputRef
+    input.current?.click()
+  }
+
   const addMenu: MenuProps = {
     items: [
+      // First, before the uploads: creating an empty entry needs nothing from the
+      // user's disk. Like the uploads below them, both land at the workspace
+      // root — the tree's own context menu is what targets a specific folder.
+      {
+        key: 'new-file',
+        label: t.workspace.newFile,
+        onClick: () => startNewEntry('', 'file')
+      },
+      {
+        key: 'new-folder',
+        label: t.workspace.newFolder,
+        onClick: () => startNewEntry('', 'folder')
+      },
+      // Made here vs. taken from the user's disk: two different errands.
+      { type: 'divider' },
       {
         key: 'upload-file',
         label: t.workspace.uploadFile,
-        onClick: () => fileInputRef.current?.click()
+        onClick: () => pickUpload('', 'file')
       },
       {
         key: 'upload-folder',
         label: t.workspace.uploadFolder,
-        onClick: () => folderInputRef.current?.click()
+        onClick: () => pickUpload('', 'folder')
       }
     ]
   }
@@ -365,30 +557,97 @@ export function SessionRightRail({
     [files]
   )
 
-  const selectPath = (path: string) => {
-    setSelectedFile(path)
+  // Load `path` into the editor. `restore` is a buffer parked for it earlier,
+  // which goes back on top of the file's content so the user's edits survive the
+  // round trip through another file.
+  const loadPath = (path: string, restore: ParkedBuffer | null) => {
+    putSelectedFile(path)
+    const revision = ++selectionRevision.current
     setFileContent(null)
     setDraft('')
     setPreviewKind('text')
+    setExternalChanged(false)
+    diskContent.current = null
     setFileLoading(true)
     api
       .getWorkspaceFile(project.id, path)
       .then((f) => {
+        // A later selection owns the editor, even if it returned to this path.
+        if (selectionRevision.current !== revision) return
         const kind = previewKindOf(f)
         setPreviewKind(kind)
         if (kind === 'text') {
           const content = f.content ?? f.preview ?? ''
           setFileContent(content)
-          setDraft(content)
+          setDraft(restore ? restore.draft : content)
+          diskContent.current = content
+          // The badge means "this draft no longer sits on top of what is on disk",
+          // which stays true across a trip through another file — whether it was
+          // already up when the buffer was parked, or the file moved on while it
+          // sat there. `disk !== content` alone covers only the second case: this
+          // line adopts the latest content as the new base, so the next park would
+          // record "same as disk" and the warning would silently vanish on the
+          // second visit. It stops mattering once the draft matches disk again —
+          // then there is nothing left to overwrite.
+          if (
+            restore &&
+            restore.draft !== content &&
+            (restore.changed || restore.disk !== content)
+          )
+            setExternalChanged(true)
         }
       })
       .catch(() => {
+        if (selectionRevision.current !== revision) return
         setPreviewKind('text')
         setFileContent('')
         setDraft('')
       })
-      .finally(() => setFileLoading(false))
+      .finally(() => {
+        if (selectionRevision.current === revision) setFileLoading(false)
+      })
   }
+
+  // Open a file the user picked. The buffer being left is parked rather than
+  // dropped, and the one parked for `path` comes back with it. Both sides of that
+  // swap are computed here, in one pass over the current stash: an entry parked
+  // through `setStash` would not be readable until the next render.
+  const selectPath = (path: string) => {
+    // Already open: re-reading it would be the one click that discards a buffer.
+    if (path === selectedFile) return
+    const next = { ...stash }
+    const parked = next[path] ?? null
+    delete next[path]
+    if (selectedFile && previewKind === 'text') {
+      if (draft !== (fileContent ?? ''))
+        next[selectedFile] = {
+          draft,
+          // `diskContent`, not `fileContent`: after an external write the latter
+          // is still the text the draft was based on, while the former is what
+          // the file actually holds — the value a later save has to compare, so
+          // that saving a parked buffer behaves exactly like saving the open one.
+          disk: diskContent.current ?? fileContent ?? '',
+          changed: externalChanged
+        }
+      else delete next[selectedFile]
+    }
+    setStash(next)
+    loadPath(path, parked)
+  }
+
+  // Forget the buffers of a deleted path (a buffer keyed to a file that no longer
+  // exists would be offered for saving and fail), or carry them to where the file
+  // moved. `dest === null` = deleted. Folders take their children's buffers with
+  // them either way.
+  const remapStash = (src: string, dest: string | null) =>
+    setStash((prev) => {
+      const next: Record<string, ParkedBuffer> = {}
+      for (const [p, buf] of Object.entries(prev)) {
+        if (p !== src && !p.startsWith(`${src}/`)) next[p] = buf
+        else if (dest !== null) next[dest + p.slice(src.length)] = buf
+      }
+      return next
+    })
 
   const handleSelect = (key: string) => {
     if (!key.startsWith('file:')) return
@@ -397,55 +656,57 @@ export function SessionRightRail({
 
   // ---- File-management actions (context menu + drag & drop) ----
 
-  const openPrompt = (p: {
-    title: string
-    initial: string
-    onOk: (value: string) => void
-  }) => {
-    setPromptValue(p.initial)
-    setPrompt(p)
+  // Open the inline naming row. The filter is cleared first: the row lives
+  // inside the tree, and a filter in force could have pruned away the very
+  // folder it belongs to.
+  const startNewEntry = (dir: string, kind: 'file' | 'folder') => {
+    setFilter('')
+    setNewEntry({ dir, kind })
   }
 
-  const submitPrompt = () => {
-    const value = promptValue.trim()
-    if (!value || !prompt) return
-    prompt.onOk(value)
-    setPrompt(null)
-  }
-
-  const createEntry = (dir: string, kind: 'file' | 'folder') =>
-    openPrompt({
-      title:
-        kind === 'folder'
-          ? t.workspace.newFolderTitle
-          : t.workspace.newFileTitle,
-      initial: '',
-      onOk: async (name) => {
-        const path = joinPath(dir, name)
-        try {
-          await api.createWorkspaceFile(project.id, { path, kind, content: '' })
-          // Broadcast instead of a local reload: our own listener refreshes
-          // the tree, AND chat file cards / the project page stay in sync.
-          dispatchWorkspaceChanged()
-          if (kind === 'file') selectPath(path)
-        } catch {
-          message.error(t.workspace.createFailed)
-        }
-      }
+  const commitNewEntry = async (name: string) => {
+    if (!newEntry) return
+    const { dir, kind } = newEntry
+    // Close the row first: the creation is the user's answer to it, and leaving
+    // it open would invite a second Enter on the same name.
+    setNewEntry(null)
+    const res = await createWorkspaceEntry({
+      projectId: project.id,
+      dir,
+      name,
+      kind,
+      existingPaths: (files ?? []).map((f) => f.path)
     })
+    if (!res.ok) {
+      message.error(
+        res.reason === 'exists'
+          ? t.workspace.nameExists
+          : res.reason === 'invalid'
+            ? t.workspace.nameInvalid
+            : t.workspace.createFailed
+      )
+      return
+    }
+    // Open the new file in the editor, as creating one in an editor does.
+    if (kind === 'file') selectPath(res.path)
+  }
 
   // Rewrite the open file's path when it (or its parent folder) is moved/renamed
   // so the editor keeps pointing at the same file after the tree refreshes.
   const remapSelected = (src: string, dest: string) => {
-    if (selectedFile === src) setSelectedFile(dest)
-    else if (selectedFile?.startsWith(`${src}/`))
-      setSelectedFile(dest + selectedFile.slice(src.length))
+    // Read through the ref: `moveMany` calls this once per move, and each call
+    // has to see the previous one's result rather than the same pre-batch state.
+    const cur = selectedFileRef.current
+    if (cur === src) putSelectedFile(dest)
+    else if (cur?.startsWith(`${src}/`))
+      putSelectedFile(dest + cur.slice(src.length))
   }
 
   const moveEntry = async (src: string, dest: string) => {
     try {
       await api.moveWorkspaceFile(project.id, src, dest)
       remapSelected(src, dest)
+      remapStash(src, dest)
       dispatchWorkspaceChanged()
     } catch {
       message.error(t.workspace.moveFailed)
@@ -459,6 +720,7 @@ export function SessionRightRail({
     try {
       await api.moveWorkspaceFile(project.id, path, dest)
       remapSelected(path, dest)
+      remapStash(path, dest)
       dispatchWorkspaceChanged()
     } catch {
       message.error(t.workspace.renameFailed)
@@ -476,8 +738,10 @@ export function SessionRightRail({
       onOk: async () => {
         try {
           await api.deleteWorkspaceFile(project.id, path)
-          if (selectedFile === path || selectedFile?.startsWith(`${path}/`)) {
-            setSelectedFile(null)
+          remapStash(path, null)
+          const cur = selectedFileRef.current
+          if (cur === path || cur?.startsWith(`${path}/`)) {
+            putSelectedFile(null)
             setFileContent(null)
             setDraft('')
           }
@@ -530,11 +794,9 @@ export function SessionRightRail({
   // ---- Batch actions (multi-selection) ----
 
   const clearSelectedIfUnder = (paths: string[]) => {
-    if (
-      selectedFile &&
-      paths.some((p) => selectedFile === p || selectedFile.startsWith(`${p}/`))
-    ) {
-      setSelectedFile(null)
+    const cur = selectedFileRef.current
+    if (cur && paths.some((p) => cur === p || cur.startsWith(`${p}/`))) {
+      putSelectedFile(null)
       setFileContent(null)
       setDraft('')
     }
@@ -554,6 +816,7 @@ export function SessionRightRail({
             )
           )
           clearSelectedIfUnder(items.map((it) => it.path))
+          for (const it of items) remapStash(it.path, null)
           dispatchWorkspaceChanged()
         } catch {
           message.error(t.workspace.saveFailed)
@@ -561,9 +824,26 @@ export function SessionRightRail({
       }
     })
 
-  const downloadMany = (paths: string[]) => {
+  // Every download fetches its bytes, so failures are ours to report (see
+  // lib/download.ts) — an unhandled rejection would otherwise leave the click
+  // looking like it did nothing.
+  const downloadOne = async (path: string) => {
+    try {
+      await downloadWorkspaceFile(project.id, path)
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
+    }
+  }
+
+  const downloadMany = async (paths: string[]) => {
     // Folders can't be streamed as a single file; caller passes files only.
-    paths.forEach((p) => downloadWorkspaceFile(project.id, p))
+    try {
+      await Promise.all(
+        paths.map((p) => downloadWorkspaceFile(project.id, p))
+      )
+    } catch (err) {
+      message.error(downloadErrorText(t, err))
+    }
   }
 
   const copyPaths = async (paths: string[]) => {
@@ -584,6 +864,7 @@ export function SessionRightRail({
         )
       )
       for (const m of moves) remapSelected(m.src, m.dest)
+      for (const m of moves) remapStash(m.src, m.dest)
       dispatchWorkspaceChanged()
     } catch {
       message.error(t.workspace.moveFailed)
@@ -591,12 +872,14 @@ export function SessionRightRail({
   }
 
   const treeActions: FolderTreeActions = {
-    onNewFile: (dir) => createEntry(dir, 'file'),
-    onNewFolder: (dir) => createEntry(dir, 'folder'),
+    onNewFile: (dir) => startNewEntry(dir, 'file'),
+    onNewFolder: (dir) => startNewEntry(dir, 'folder'),
+    onUploadFiles: (dir) => pickUpload(dir, 'file'),
+    onUploadFolder: (dir) => pickUpload(dir, 'folder'),
     onRename: renameTo,
     onDelete: deleteEntry,
     onCopyPath: copyPath,
-    onDownload: (path) => downloadWorkspaceFile(project.id, path),
+    onDownload: downloadOne,
     onMove: moveEntry,
     onUploadTo: uploadEntries,
     onDeleteMany: deleteMany,
@@ -616,26 +899,197 @@ export function SessionRightRail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openFile?.nonce])
 
+  // Same, for a create request. No `loadFiles` here: the request arrives as the
+  // rail mounts, which loads the list anyway, and the row is held in state — it
+  // appears with the tree once that list is in.
+  useEffect(() => {
+    if (!createEntry) return
+    startNewEntry(createEntry.dir, createEntry.kind)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createEntry?.nonce])
+
+  // Write one buffer to disk, refusing to flatten a change that landed after that
+  // buffer was read. `knownDisk` is what the file held then; null = unknown, so
+  // there is nothing to compare and the write goes ahead.
+  //
+  // Shared by the open file and the parked ones, so "save" means the same thing
+  // whichever of them is being written.
+  const writeBuffer = async (
+    path: string,
+    text: string,
+    knownDisk: string | null
+  ): Promise<
+    | { status: 'saved'; file: WorkspaceFile }
+    | { status: 'conflict'; latest: string }
+    | { status: 'failed' }
+  > => {
+    if (knownDisk !== null) {
+      let latest: string | null = null
+      try {
+        const f = await api.getWorkspaceFile(project.id, path)
+        if (previewKindOf(f) === 'text') latest = f.content ?? f.preview ?? ''
+      } catch {
+        // Unreadable right now — let the PUT below be the one to report it.
+      }
+      if (latest !== null && latest !== knownDisk)
+        return { status: 'conflict', latest }
+    }
+    try {
+      return {
+        status: 'saved',
+        file: await api.putWorkspaceFile(project.id, path, text)
+      }
+    } catch {
+      return { status: 'failed' }
+    }
+  }
+
+  // Write the OPEN file. False = nothing was written: the file changed underneath
+  // (recorded so a second press overwrites deliberately), or the request failed.
+  // `quiet` is for the save-all below, which reports once for the whole batch
+  // instead of per file.
+  const saveSelected = async (quiet = false): Promise<boolean> => {
+    if (!selectedFile) return false
+    const res = await writeBuffer(selectedFile, draft, diskContent.current)
+    if (res.status === 'conflict') {
+      diskContent.current = res.latest
+      setExternalChanged(true)
+      if (!quiet) message.warning(t.workspace.saveConflict)
+      return false
+    }
+    if (res.status === 'failed') {
+      if (!quiet) message.error(t.workspace.saveFailed)
+      return false
+    }
+    setFileContent(draft)
+    // Our text is now the file's text — recorded before the broadcast below,
+    // whose listener runs synchronously and would otherwise read this write as
+    // someone else's. Also settles a pending conflict: the user chose to
+    // overwrite.
+    diskContent.current = draft
+    setExternalChanged(false)
+    // Reflect updated size / mtime in the tree metadata.
+    setFiles((prev) =>
+      prev
+        ? prev.map((f) => (f.path === res.file.path ? { ...f, ...res.file } : f))
+        : prev
+    )
+    // An edit changes no path, but it does change what other views SHOW about
+    // the file — its size, its modified time, and the project page's "last
+    // edited" line. The merge above only fixes this tree; every other listener
+    // would keep the numbers it read before the save.
+    dispatchWorkspaceChanged()
+    return true
+  }
+
   const saveFile = async () => {
     if (!selectedFile || !dirty || saving) return
     setSaving(true)
     try {
-      const saved = await api.putWorkspaceFile(project.id, selectedFile, draft)
-      setFileContent(draft)
-      // Reflect updated size / mtime in the tree metadata.
-      setFiles((prev) =>
-        prev
-          ? prev.map((f) => (f.path === saved.path ? { ...f, ...saved } : f))
-          : prev
-      )
-    } catch {
-      message.error(t.workspace.saveFailed)
+      await saveSelected()
     } finally {
       setSaving(false)
     }
   }
 
+  // Write every unsaved buffer, the open one included. Returns the paths that were
+  // NOT written; those keep their buffer, so a failed save never costs the user
+  // what they typed. A conflicted buffer records the newer disk content, which
+  // makes a second attempt the deliberate overwrite.
+  const saveAllUnsaved = async (): Promise<string[]> => {
+    const rejected: string[] = []
+    const written: string[] = []
+    const conflicts: Record<string, string> = {}
+    for (const [path, buf] of Object.entries(stash)) {
+      const res = await writeBuffer(path, buf.draft, buf.disk)
+      if (res.status === 'saved') written.push(path)
+      else {
+        if (res.status === 'conflict') conflicts[path] = res.latest
+        rejected.push(path)
+      }
+    }
+    if (written.length > 0 || Object.keys(conflicts).length > 0)
+      setStash((prev) => {
+        const next = { ...prev }
+        for (const p of written) delete next[p]
+        for (const [p, latest] of Object.entries(conflicts))
+          if (next[p]) next[p] = { ...next[p], disk: latest, changed: true }
+        return next
+      })
+    if (written.length > 0) dispatchWorkspaceChanged()
+    if (selectedFile && dirty && !(await saveSelected(true)))
+      rejected.push(selectedFile)
+    return rejected
+  }
+
   const selectedLanguage = selectedFile ? languageFor(selectedFile) : ''
+
+  // Drop the buffer and take what's on disk. Confirmed, because the edits being
+  // discarded are the user's and nothing else holds a copy of them. Goes straight
+  // to `loadPath`: `selectPath` would park this buffer and hand it right back.
+  const reloadOpenFile = () => {
+    if (!selectedFile) return
+    modal.confirm({
+      title: t.workspace.reloadConfirm,
+      okText: t.workspace.reload,
+      cancelText: t.workspace.cancel,
+      onOk: () => loadPath(selectedFile, null)
+    })
+  }
+
+  // ---- Unsaved buffers vs. closing the rail ----
+
+  // Answer the container's "may I close?". Registered only when one asks, which
+  // is the same as saying: only where closing would destroy these buffers.
+  useEffect(() => {
+    if (!closeGuard) return
+    closeGuard.current = () => {
+      if (skipGuard.current) {
+        skipGuard.current = false
+        return false
+      }
+      if (unsavedPaths.length === 0) return false
+      setUnsavedPrompt(true)
+      return true
+    }
+    return () => {
+      closeGuard.current = null
+    }
+  }, [closeGuard, unsavedPaths])
+
+  // Close for real. The prompt below IS the answer the guard would ask for, and
+  // the state that answers it (an emptied stash) has not re-rendered yet — so the
+  // guard is told to stand down for this one close.
+  const closeAnyway = () => {
+    skipGuard.current = true
+    setUnsavedPrompt(false)
+    onClose?.()
+  }
+
+  const discardAllAndClose = () => {
+    setStash({})
+    // The open file's buffer is state rather than a stash entry: put it back to
+    // the file's content so nothing is left to park on the way out.
+    setDraft(fileContent ?? '')
+    setExternalChanged(false)
+    closeAnyway()
+  }
+
+  const saveAllAndClose = async () => {
+    setSavingAll(true)
+    try {
+      const rejected = await saveAllUnsaved()
+      // Something refused to be written — closing now would throw away exactly
+      // the buffers this prompt exists to protect. Stay open, still listing them.
+      if (rejected.length > 0) {
+        message.warning(`${t.workspace.saveSomeFailed}${rejected.join(', ')}`)
+        return
+      }
+      closeAnyway()
+    } finally {
+      setSavingAll(false)
+    }
+  }
 
   // Cmd/Ctrl+S saves the open file (falls through to the browser otherwise).
   useEffect(() => {
@@ -653,14 +1107,15 @@ export function SessionRightRail({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Hidden file inputs */}
+      {/* Hidden file inputs (see `pickUpload` for how they learn their target
+          folder) */}
       <input
         ref={fileInputRef}
         type="file"
         multiple
         className="hidden"
         onChange={(e) => {
-          handleUpload(e.target.files)
+          handleUpload(e.target.files, uploadDirRef.current)
           e.target.value = ''
         }}
       />
@@ -669,7 +1124,7 @@ export function SessionRightRail({
         type="file"
         className="hidden"
         onChange={(e) => {
-          handleUpload(e.target.files)
+          handleUpload(e.target.files, uploadDirRef.current)
           e.target.value = ''
         }}
       />
@@ -705,14 +1160,18 @@ export function SessionRightRail({
       </div>
 
       {/* Body */}
-      {files !== null && files.length === 0 ? (
-        /* Empty state: no split, full width */
+      {files !== null && files.length === 0 && !newEntry ? (
+        /* Empty state: no split, full width. Once a name is being typed the tree
+           takes over — that row has to be somewhere. */
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <EmptyState
             description={t.workspace.empty}
             action={
-              <Dropdown menu={addMenu} trigger={['click']}>
-                <MsaButton variant="primary" icon={<AddIcon className="h-4 w-4" />}>
+              <Dropdown menu={addMenu} trigger={['hover']}>
+                <MsaButton
+                  variant="primary"
+                  icon={<AddIcon className="h-4 w-4" />}
+                >
                   {t.workspace.addFile}
                 </MsaButton>
               </Dropdown>
@@ -736,7 +1195,13 @@ export function SessionRightRail({
                 />
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1"
+                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-1"
+                // stable both-edges: the styled scrollbar reserves a gutter on
+                // the right only; mirroring it on the left keeps the selected
+                // tree-row highlight's left/right insets equal. The former px-2
+                // is dropped because the ~8px gutter already supplies that inset,
+                // keeping the total spacing the same as before.
+                style={{ scrollbarGutter: 'stable both-edges' }}
                 onDragOver={(e) => {
                   // Native OS file drag over empty tree area -> upload to root.
                   // Folder nodes handle (and stop) their own drops.
@@ -757,9 +1222,13 @@ export function SessionRightRail({
                   <FolderTree
                     treeData={treeData}
                     selectedKey={selectedFile ? `file:${selectedFile}` : ''}
+                    dirtyKeys={dirtyKeys}
                     onSelect={handleSelect}
                     filter={filter}
                     actions={treeActions}
+                    draft={newEntry}
+                    onDraftCommit={commitNewEntry}
+                    onDraftCancel={() => setNewEntry(null)}
                   />
                 )}
               </div>
@@ -777,7 +1246,7 @@ export function SessionRightRail({
                   {t.workspace.downloadAll}
                 </Button>
                 <div className="w-px bg-msa-line-1" />
-                <Dropdown menu={addMenu} trigger={['click']}>
+                <Dropdown menu={addMenu} trigger={['hover']}>
                   <Button
                     type="text"
                     size="small"
@@ -798,23 +1267,34 @@ export function SessionRightRail({
                 <>
                   {/* Editor toolbar: file path + download (all file types) */}
                   <div className="flex shrink-0 items-center justify-between gap-2 border-b border-msa-line-1 px-4 py-2">
-                    <span
-                      className="truncate text-sm text-msa-text-2"
-                      title={selectedFile}
-                    >
-                      {selectedFile}
-                      {previewKind === 'text' && dirty && (
-                        <span className="ml-1 text-msa-text-3">•</span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="truncate text-sm text-msa-text-2"
+                        title={selectedFile}
+                      >
+                        {selectedFile}
+                        {previewKind === 'text' && dirty && (
+                          <span className="ml-1 text-msa-text-3">•</span>
+                        )}
+                      </span>
+                      {previewKind === 'text' && externalChanged && (
+                        <Tooltip title={t.workspace.externalChangedHint}>
+                          <button
+                            type="button"
+                            onClick={reloadOpenFile}
+                            className="shrink-0 cursor-pointer rounded-full border-none bg-msa-fill-warning px-2 py-0.5 text-xs text-msa-text-2"
+                          >
+                            {t.workspace.externalChanged}
+                          </button>
+                        </Tooltip>
                       )}
-                    </span>
+                    </div>
                     <Tooltip title={t.workspace.download}>
                       <Button
                         type="text"
                         size="small"
                         icon={<DownloadIcon className="h-4 w-4" />}
-                        onClick={() =>
-                          downloadWorkspaceFile(project.id, selectedFile)
-                        }
+                        onClick={() => downloadOne(selectedFile)}
                         className="!text-msa-text-2"
                       />
                     </Tooltip>
@@ -885,24 +1365,47 @@ export function SessionRightRail({
         </Splitter>
       )}
 
-      {/* New file / New folder / Rename name prompt */}
+      {/* Closing would take every parked buffer with it, so the ones at stake are
+          named — and each name opens that file, because "which changes?" is a
+          question a list of paths only half answers. */}
       <Modal
-        open={!!prompt}
-        title={prompt?.title}
-        okText={t.workspace.save}
-        cancelText={t.workspace.cancel}
-        okButtonProps={{ disabled: !promptValue.trim() }}
-        onOk={submitPrompt}
-        onCancel={() => setPrompt(null)}
-        destroyOnHidden
+        open={unsavedPrompt}
+        onCancel={() => setUnsavedPrompt(false)}
+        title={t.workspace.unsavedTitle}
+        footer={
+          <>
+            <Button onClick={() => setUnsavedPrompt(false)}>
+              {t.workspace.cancel}
+            </Button>
+            <Button danger onClick={discardAllAndClose}>
+              {t.workspace.discardAndClose}
+            </Button>
+            <Button type="primary" loading={savingAll} onClick={saveAllAndClose}>
+              {t.workspace.saveAllAndClose}
+            </Button>
+          </>
+        }
       >
-        <Input
-          autoFocus
-          placeholder={t.workspace.namePlaceholder}
-          value={promptValue}
-          onChange={(e) => setPromptValue(e.target.value)}
-          onPressEnter={submitPrompt}
-        />
+        <p className="m-0 text-sm text-msa-text-2">
+          {t.workspace.unsavedHint}
+        </p>
+        <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0">
+          {unsavedPaths.map((p) => (
+            <li key={p} className="min-w-0">
+              <button
+                type="button"
+                title={p}
+                onClick={() => {
+                  setUnsavedPrompt(false)
+                  selectPath(p)
+                }}
+                className="max-w-full cursor-pointer truncate border-none bg-transparent p-0 text-sm text-msa-text-brand1"
+              >
+                {p}
+              </button>
+            </li>
+          ))}
+        </ul>
       </Modal>
     </div>
   )

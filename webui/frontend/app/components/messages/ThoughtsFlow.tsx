@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useT } from '~/lib/i18n'
 import { Markdown } from '~/components/common/Markdown'
+import { useCollapseTransition } from './useCollapseTransition'
 import ThinkingIcon from '~/assets/icons/thinking.svg?react'
 import ArrowDownIcon from '~/assets/icons/arrow-down.svg?react'
 import './ThoughtsFlow.css'
@@ -61,6 +62,20 @@ export function ThoughtsFlow({
     return () => clearInterval(id)
   }, [done, startedAt])
 
+  // Live thinking → always shown; finished → collapsed unless the user expands.
+  // `done` is explicitly `false` only during live streaming; `undefined` or `true`
+  // (from server history) means the thought is complete → default collapsed.
+  const showContent = !isDone || expanded
+  const { animating, onTransitionEnd } = useCollapseTransition(showContent)
+
+  // Every hook above this line, none below: a thought part EXISTS before its
+  // text does (a `reasoning_ended` frame with no preceding delta creates an
+  // empty block), so this early return is reachable — and React counts hooks per
+  // mounted instance, not per render. When the parts array shifts under a
+  // positional key (a swept placeholder, or the live turn being replaced by the
+  // server's sealed history) an instance can go from an empty thought to a
+  // filled one; with a hook down here that reads as "the order of Hooks
+  // changed", which React treats as an error.
   if (!text) return null
 
   // Finished → the reported duration; live → the ticking counter.
@@ -73,15 +88,18 @@ export function ThoughtsFlow({
   // missing). Suppressing 0 as if it were unknown hid the time on every quick
   // thought, which is most of them.
   const shown = isDone ? (duration ?? undefined) : elapsed
-  const timing = shown != null ? ` ${formatDuration(shown)}` : ''
+  // A FINISHED thought the SDK timed at 0 was really under a second (it rounds
+  // elapsed down to whole seconds), so a bare "0s" reads as "no time at all".
+  // Show "<1s" instead — but ONLY once finished. While still thinking, the live
+  // counter must keep counting normally from 0s upward.
+  const timing =
+    shown == null
+      ? ''
+      : ` ${isDone && shown === 0 ? '<1s' : formatDuration(shown)}`
   const header = isDone
     ? `${t.chat.thoughts}${timing}`
     : `${t.chat.thoughts}${timing} ...`
 
-  // Live thinking → always shown; finished → collapsed unless the user expands.
-  // `done` is explicitly `false` only during live streaming; `undefined` or `true`
-  // (from server history) means the thought is complete → default collapsed.
-  const showContent = !isDone || expanded
   return (
     <div>
       {isDone ? (
@@ -102,11 +120,14 @@ export function ThoughtsFlow({
         </div>
       )}
       <div
-        className={`grid transition-all duration-200 ease-out ${
+        className={`grid duration-200 ease-out ${
+          animating ? 'transition-all' : ''
+        } ${
           showContent
             ? 'grid-rows-[1fr] opacity-100'
             : 'grid-rows-[0fr] opacity-0'
         }`}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           {/* Reasoning is model output too (lists, emphasis, code spans, links),

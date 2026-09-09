@@ -57,7 +57,10 @@ class ChatChunk(BaseModel):
     frontend/app/lib/agentProvider.ts::AgentChunk (task/step view-model).
 
     - text:    markdown token appended to the assistant body
-    - thought: one reasoning block (meta.duration → the "thinking Ns" header)
+    - thought: one delta of the reasoning block named by `meta.block`;
+               `meta.elapsed_ms` is that block's age at emit time (re-stamped
+               about once a second, so a reload keeps counting). Its final frame
+               is empty and carries `meta.duration` (whole seconds).
     - task:    declares/updates a todo task (meta: id, label, status)
     - step:    a step card nested under a task (meta: kind, task_id?, status?)
     - session: emitted once at turn start when the session exists (meta:
@@ -67,7 +70,10 @@ class ChatChunk(BaseModel):
                Sent first on every stream (including a re-attach, whose client
                has no idea when the turn actually started) and re-sent
                periodically, so the "processing Ns" counter survives a refresh
-               and can't drift from the server clock.
+               and can't drift from the server clock. Also carries the turn's
+               own question (meta.user: {content, segments}) while the runtime
+               knows it: mid-turn that row exists nowhere else a rejoining
+               viewer can read it (see SessionRuntime.turn_user).
     - error:   a turn/API error (meta: message, recoverable); display-only
     - done:    stream terminator (meta: session_id, project_id, title?, category?)
     """

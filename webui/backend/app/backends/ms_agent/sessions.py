@@ -75,7 +75,7 @@ def create_session(body: SessionCreate) -> Session:
 def get_session(sid: str) -> Session:
     found = find_session(sid)
     if not found:
-        raise NotFound("session not found")
+        raise NotFound("Conversation not found.")
     _project, session, _sm = found
     return _with_running(session_to_schema(session))
 
@@ -86,6 +86,8 @@ def _history_step(
     results: dict[str, str],
     durations: dict[str, int],
     project=None,
+    *,
+    has_auth_card: bool = False,
 ) -> SessionStep | None:
     """Map one persisted assistant tool_call to a step card, or None to drop it.
 
@@ -122,10 +124,13 @@ def _history_step(
     if call_id and call_id in errored:
         meta["status"] = "error"
         meta["error"] = errored[call_id]
-        # A DENIED call is already rendered by its persisted permission record
-        # (the rejected authorization card) — drop this redundant tool step so
-        # history doesn't show two identical "rejected" cards.
-        if "denied" in str(errored[call_id]).lower():
+        # A user-rejected call is already rendered by its persisted permission
+        # record (the rejected authorization card), so dropping the tool step
+        # avoids two identical "rejected" cards. But only THEN: a call refused
+        # by a rule was never asked about and has no such record, so dropping it
+        # deleted the call from history entirely — the model narrated a refusal
+        # the timeline never showed.
+        if has_auth_card and "denied" in str(errored[call_id]).lower():
             return None
     # NOTE: an errored/interrupted file step used to be re-kinded to `tool_call`
     # here, to get the rich accordion (arguments + error) instead of the
@@ -185,6 +190,11 @@ def _permission_step(row: dict) -> SessionStep | None:
             "desc": f"{tool} {preview}".strip(),
             "source": _tool_source(tool),
         }, tool, args)
+    # A refusal nobody made (the ask expired) keeps saying so on reload — the
+    # runtime persists it as ``reason`` for exactly that.
+    reason = str(row.get("reason") or "")
+    if reason:
+        meta["reason"] = reason
     kind = str(meta.pop("kind"))
     if kind != "authorization" and state == "approved":
         return None
@@ -281,7 +291,11 @@ def read_plan(session_id: str) -> SessionPlan:
     try:
         from app.backends.ms_agent.runtime import registry
 
-        if registry.is_running(session_id):
+        # `is_generating`, not `is_running`: only a turn already on the driver
+        # has a `turn_started_wall` of its own. In the accepted-but-building
+        # window the runtime still carries the PREVIOUS turn's origin, against
+        # which a plan file written back then dates as "active now".
+        if registry.is_generating(session_id):
             rt = registry.peek(session_id)
             started_wall = getattr(rt, "turn_started_wall", None)
             if started_wall is not None:
@@ -296,7 +310,7 @@ def read_plan(session_id: str) -> SessionPlan:
 def list_messages(sid: str) -> list[SessionMessage]:
     found = find_session(sid)
     if not found:
-        raise NotFound("session not found")
+        raise NotFound("Conversation not found.")
     project, session, sm = found
     rows: list[dict] = []
     extra: list[dict] = []
@@ -317,13 +331,49 @@ def list_messages(sid: str) -> list[SessionMessage]:
     except Exception:
         rows, extra = [], []
     stream = sorted([*rows, *extra], key=lambda r: r.get("seq", 0))
-    return _reconstruct(stream, project)
+    messages = _reconstruct(stream, project)
+    # A turn in flight has its finished rounds on disk AND replayed on the live
+    # stream. Flag the trailing message so an attached viewer drops this copy
+    # and renders the turn once, not twice.
+    #
+    # `is_generating` is the exact question: the event buffer holds the turn only
+    # once it reaches the driver. A turn that is merely ACCEPTED (runtime still
+    # building) has an empty buffer and the trailing row is the PREVIOUS turn,
+    # complete — flagging it there makes an attached viewer drop a finished
+    # answer with nothing to replay in its place.
+    if messages and messages[-1].role == "assistant":
+        try:
+            from app.backends.ms_agent.runtime import registry
+
+            messages[-1].partial = registry.is_generating(sid)
+        except Exception:  # a history read must never fail over a live check
+            messages[-1].partial = False
+    return messages
 
 
 # Marker prefixed to the enqueued prompt by chat._compose_prompt when the user
 # attached files. Reconstruction splits it back out so replay shows file cards
 # instead of the raw path list.
 _ATTACHED_MARKER = "[Attached files]"
+
+# Framework <system-reminder> blocks riding on persisted user rows (single
+# source of truth for the pattern lives in the SDK).
+try:
+    from ms_agent.prompting.workspace_files import \
+        REMINDER_BLOCK_RE as _REMINDER_RE
+except ImportError:  # older SDK without the shared constant
+    _REMINDER_RE = re.compile(r"<system-reminder>.*?</system-reminder>\s*",
+                              re.DOTALL)
+
+
+def _message_text(content) -> str:
+    """Readable text of a message content of any shape (see the SDK helper)."""
+    try:
+        from ms_agent.llm.message_text import flatten_message_text
+
+        return flatten_message_text(content)
+    except ImportError:  # older SDK
+        return content if isinstance(content, str) else str(content)
 
 
 def _split_attached(content: str) -> tuple[str, list[str]]:
@@ -362,8 +412,12 @@ def _raw_url(pid: str, path: str) -> str:
     return f"/api/projects/{quote(pid)}/workspace/files/{enc}/raw"
 
 
-def _attached_files(project, paths: list[str]) -> list[SessionFile]:
+def _attached_files(project,
+                    paths: list[str],
+                    deliveries: dict[str, str] | None = None
+                    ) -> list[SessionFile]:
     root = Path(project.path)
+    deliveries = deliveries or {}
     out: list[SessionFile] = []
     for p in paths:
         size: int | None = None
@@ -382,6 +436,7 @@ def _attached_files(project, paths: list[str]) -> list[SessionFile]:
                 type=_file_kind(p),
                 size=size,
                 exists=exists,
+                delivery=deliveries.get(p),
             ))
     return out
 
@@ -585,13 +640,37 @@ def _reconstruct(rows: list[dict], project=None) -> list[SessionMessage]:
             flush()
             content = row.get("content")
             if content is not None:
+                # flatten, not str(): a block list rendered as a Python repr
+                # is what the user would see as their own message on reload.
                 display = (pending_skill
-                           or {}).get("original_text") or str(content)
+                           or {}).get("original_text") or _message_text(content)
+                # Persisted user rows can carry framework <system-reminder>
+                # blocks (skill update notices prefixed at enqueue, prompt-file
+                # update notices, memory recall appended by the SDK). They are
+                # for the model; replay shows only the user's words.
+                display = _REMINDER_RE.sub("", display).strip()
                 skill_ids = (pending_skill or {}).get("skill_ids") or []
                 sent_segments = (pending_skill or {}).get("segments") or []
                 pending_skill = None
                 text, paths = _split_attached(display)
-                files = (_attached_files(project, paths)
+                # Images are persisted structurally on the row as well. Prefer
+                # that over the text block: parsing prose is a fallback for rows
+                # written before the field existed, and it cannot distinguish an
+                # image the model actually saw from a path it was merely told
+                # about. Order is preserved so replayed cards match the chips.
+                deliveries: dict[str, str] = {}
+                for att in row.get("attachments") or []:
+                    if not isinstance(att, dict) or att.get("type") != "image":
+                        continue
+                    att_path = str(att.get("path") or "")
+                    if att_path and att_path not in paths:
+                        paths.append(att_path)
+                    # Stamped once by the SDK when this turn was answered, so it
+                    # says what the model actually received THEN rather than
+                    # what the switch happens to say now.
+                    if att_path and att.get("delivery"):
+                        deliveries[att_path] = str(att["delivery"])
+                files = (_attached_files(project, paths, deliveries)
                          if paths and project is not None else [])
                 # Configuration-style echo: prefer the segments AS SENT by the
                 # composer (skill id + display name + text); fall back to
@@ -689,8 +768,12 @@ def _reconstruct(rows: list[dict], project=None) -> list[SessionMessage]:
                             pstep.meta["group"] = group_seq
                             parts.append(
                                 SessionPart(kind="step", step=pstep))
-                    step = _history_step(tc, errored, results, durations,
-                                         project)
+                    step = _history_step(tc,
+                                         errored,
+                                         results,
+                                         durations,
+                                         project,
+                                         has_auth_card=perm is not None)
                     if step is not None:
                         step.meta["group"] = group_seq
                         parts.append(SessionPart(kind="step", step=step))
@@ -717,7 +800,7 @@ def delete_session(sid: str) -> None:
 
     found = find_session(sid)
     if not found:
-        raise NotFound("session not found")
+        raise NotFound("Conversation not found.")
     _project, _session, sm = found
     registry.discard(sid)  # stop any live agent before removing its log
     sm.delete(sid)
@@ -728,12 +811,27 @@ def update_session(sid: str, body: SessionUpdate) -> Session:
     """Rename a session (update its title)."""
     found = find_session(sid)
     if not found:
-        raise NotFound("session not found")
+        raise NotFound("Conversation not found.")
     project, session, _sm = found
     if body.title is not None:
         sm_for(project).update(sid, name=body.title)
         session = sm_for(project).get(sid)
     return session_to_schema(session)
+
+
+def mark_session_read(sid: str) -> None:
+    """Clear the unread flag a background turn left behind (see
+    chat._drain_abandoned_turn). Idempotent — the frontend calls this whenever a
+    session view is opened, and once more when a turn finishes with the view
+    open, which is what settles the race between an attached viewer and the
+    drain task both waking on the same turn-end event.
+
+    Resolved through find_session first: an unknown id must 404 rather than
+    silently accrete a sidecar entry no session will ever read.
+    """
+    if not find_session(sid):
+        raise NotFound("Conversation not found.")
+    sidecar.merge("sessions", sid, {"unread": False})
 
 
 def _artifact_id(path: str) -> str:
@@ -935,7 +1033,7 @@ def list_artifacts(sid: str) -> list[Artifact]:
     """
     found = find_session(sid)
     if not found:
-        raise NotFound("session not found")
+        raise NotFound("Conversation not found.")
     project, session, sm = found
     try:
         rows = sm.get_session_log(session).get_all_messages()

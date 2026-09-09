@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useT } from '~/lib/i18n'
 import type { AgentPart } from '~/lib/agentProvider'
 import { StepCard } from './StepCard'
+import { useCollapseTransition } from './useCollapseTransition'
 import type { OnOpenStep, OnOpenFile } from './types'
 import TodoIcon from '~/assets/icons/todo.svg?react'
 import ArrowDownIcon from '~/assets/icons/arrow-down.svg?react'
@@ -34,6 +35,7 @@ export function ToolBatch({
     (p) => String(p.step.meta.state ?? '') === 'pending'
   )
   const [expanded, setExpanded] = useState(isLast || hasPending)
+  const { animating, onTransitionEnd } = useCollapseTransition(expanded)
 
   useEffect(() => {
     if (!isLast && !hasPending) setExpanded(false)
@@ -54,8 +56,11 @@ export function ToolBatch({
         />
       </div>
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        className={`grid duration-200 ease-in-out ${
+          animating ? 'transition-[grid-template-rows]' : ''
+        }`}
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
+        onTransitionEnd={onTransitionEnd}
       >
         <div className="overflow-hidden">
           <div className="space-y-3 pt-3">

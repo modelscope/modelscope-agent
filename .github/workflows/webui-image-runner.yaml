@@ -1,0 +1,237 @@
+name: WebUI image runner
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        description: 'build validates and archives; publish restores the original archive'
+        type: string
+        required: true
+      image_tag:
+        description: 'SDK version, dev, or empty for build-only checks'
+        type: string
+        default: ''
+      development_version:
+        description: 'Expected development package version, empty for a release'
+        type: string
+        default: ''
+      publish_wheel:
+        description: 'Deliver the matching development wheel through runner-local OSS configuration'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+# Both development and release writes share this registry namespace.
+concurrency:
+  group: ms-agent-acr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    if: >-
+      github.repository == 'modelscope/ms-agent' &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'push') &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') ||
+       startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ms-agent-image
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare isolated job directories
+        id: dirs
+        env:
+          OPERATION: ${{ inputs.operation }}
+          SELECTED_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          case "$OPERATION" in build|publish) ;; *) exit 1 ;; esac
+          test "$(uname -m)" = x86_64
+          umask 077
+          job_dir=$(mktemp -d "$RUNNER_TEMP/ms-agent-image.XXXXXX")
+          echo "path=$job_dir" >> "$GITHUB_OUTPUT"
+          mkdir -p "$job_dir/docker" "$job_dir/inputs" "$job_dir/image" "$job_dir/logs"
+          printf '%s\n' '{"auths":{}}' > "$job_dir/docker/config.json"
+          {
+            echo "IMAGE_JOB_DIR=$job_dir"
+            echo "DOCKER_CONFIG=$job_dir/docker"
+            echo "UV_CACHE_DIR=$job_dir/uv-cache"
+            echo "UV_PYTHON_INSTALL_DIR=$job_dir/python"
+            echo "UV_TOOL_DIR=$job_dir/uv-tools"
+            echo "UV_TOOL_BIN_DIR=$job_dir/uv-bin"
+            echo "BUILDER_NAME=ms-agent-image-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$OPERATION"
+            echo "LOCAL_IMAGE=ms-agent-webui:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$OPERATION"
+            echo "RESOURCE_LABEL=com.modelscope.ms-agent.image-ci=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$OPERATION"
+          } >> "$GITHUB_ENV"
+      - name: Resolve publication configuration
+        env:
+          REPOSITORY_ACR_AUTH_FILE: ${{ vars.MS_AGENT_ACR_AUTH_FILE }}
+          REPOSITORY_OSS_ROOT: ${{ vars.MS_AGENT_OSS_ROOT }}
+          SELECTED_TAG: ${{ inputs.image_tag }}
+          PUBLISH_WHEEL: ${{ inputs.publish_wheel }}
+        run: |
+          set -euo pipefail
+          if test -n "$SELECTED_TAG"; then
+            acr_file="${REPOSITORY_ACR_AUTH_FILE:-${MS_AGENT_ACR_AUTH_FILE:-}}"
+            case "$acr_file" in
+              ''|*$'\n'*|*$'\r'*) echo 'Set MS_AGENT_ACR_AUTH_FILE to an absolute credential file path.' >&2; exit 1 ;;
+              /*) ;;
+              *) echo 'MS_AGENT_ACR_AUTH_FILE must be absolute.' >&2; exit 1 ;;
+            esac
+            test -f "$acr_file" && test -r "$acr_file" || { echo 'MS_AGENT_ACR_AUTH_FILE must point to a readable file.' >&2; exit 1; }
+            echo "ACR_AUTH_FILE=$acr_file" >> "$GITHUB_ENV"
+          fi
+          if test "$PUBLISH_WHEEL" = true; then
+            oss_root="${REPOSITORY_OSS_ROOT:-${MS_AGENT_OSS_ROOT:-}}"
+            case "$oss_root" in
+              ''|*$'\n'*|*$'\r'*) echo 'Set MS_AGENT_OSS_ROOT to an absolute configuration directory.' >&2; exit 1 ;;
+              /*) ;;
+              *) echo 'MS_AGENT_OSS_ROOT must be absolute.' >&2; exit 1 ;;
+            esac
+            test -d "$oss_root" || { echo 'MS_AGENT_OSS_ROOT must point to an existing directory.' >&2; exit 1; }
+            echo "MS_AGENT_OSS_ROOT=$oss_root" >> "$GITHUB_ENV"
+          fi
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.12.8'
+          enable-cache: false
+          prune-cache: false
+          tool-dir: ${{ steps.dirs.outputs.path }}/uv-tools
+          tool-bin-dir: ${{ steps.dirs.outputs.path }}/uv-bin
+      - name: Prepare job-local Python
+        run: |
+          uv --no-config python install --no-bin 3.12
+          echo "PYTHON_BIN=$(uv --no-config python find --managed-python 3.12)" >> "$GITHUB_ENV"
+          # Managed Python may not find Alibaba Cloud Linux's system CA bundle.
+          for ca_file in "${SSL_CERT_FILE:-}" /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-certificates.crt; do
+            if test -n "$ca_file" && test -f "$ca_file"; then
+              echo "SSL_CERT_FILE=$ca_file" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+      - uses: actions/download-artifact@v4
+        with:
+          name: webui-release-inputs
+          path: ${{ steps.dirs.outputs.path }}/inputs
+      - name: Verify package inputs
+        env:
+          SELECTED_TAG: ${{ inputs.image_tag }}
+          DEVELOPMENT_VERSION: ${{ inputs.development_version }}
+          PUBLISH_WHEEL: ${{ inputs.publish_wheel }}
+        run: |
+          (cd "$IMAGE_JOB_DIR/inputs" && sha256sum --check SHA256SUMS)
+          "$PYTHON_BIN" .dev_scripts/webui/check_webui_release.py --dist "$IMAGE_JOB_DIR/inputs" --sdk-sha "$GITHUB_SHA" --package-version "$DEVELOPMENT_VERSION"
+          "$PYTHON_BIN" - <<'PY'
+          import json, os
+          import re
+          from pathlib import Path
+          release = json.loads((Path(os.environ['IMAGE_JOB_DIR']) / 'inputs/release.json').read_text())
+          wheel_sha = next(value for name, value in release['files'].items() if name.endswith('.whl'))
+          tag = os.environ['SELECTED_TAG']
+          if tag == 'dev':
+              tag = 'dev-' + release['sdk_commit'][:12]
+          if tag not in ('', release['version'], 'dev-' + release['sdk_commit'][:12]):
+              raise ValueError('Invalid image tag')
+          if os.environ['PUBLISH_WHEEL'] == 'true' and (
+              not re.fullmatch(r'\d+\.\d+\.\d+\.dev[1-9]\d*', release['version'])
+              or tag != release['version']
+          ):
+              raise ValueError('Business delivery requires a matching development wheel/image version')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('SDK_VERSION=' + release['version'] + '\n')
+              output.write('WHEEL_SHA256=' + wheel_sha + '\n')
+              output.write('IMAGE_TAG=' + tag + '\n')
+          PY
+      - name: Find the original validated image
+        id: original
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: '"$PYTHON_BIN" .dev_scripts/webui/release_artifacts.py find --name webui-validated-image'
+      - name: Require the original image when publishing
+        if: inputs.operation == 'publish' && steps.original.outputs.artifact_id == ''
+        run: |
+          echo 'Original validated image is missing. Restore the workflow artifact; do not rebuild after publication.' >&2
+          exit 1
+      - uses: actions/download-artifact@v4
+        if: steps.original.outputs.artifact_id != ''
+        with:
+          artifact-ids: ${{ steps.original.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ steps.dirs.outputs.path }}/image
+      - name: Restore the exact tested image
+        if: steps.original.outputs.artifact_id != ''
+        run: '"$PYTHON_BIN" .dev_scripts/webui/release_artifacts.py restore --local-tag "$LOCAL_IMAGE" --directory "$IMAGE_JOB_DIR/image" --inputs "$IMAGE_JOB_DIR/inputs"'
+      - name: Build with a dedicated resource-limited builder
+        if: inputs.operation == 'build' && steps.original.outputs.artifact_id == ''
+        run: |
+          docker buildx create --name "$BUILDER_NAME" --driver docker-container \
+            --driver-opt memory=8g,cpu-period=100000,cpu-quota=400000
+          docker buildx build --builder "$BUILDER_NAME" --platform linux/amd64 \
+            --load --provenance=false --progress plain --tag "$LOCAL_IMAGE" \
+            --build-arg SDK_VERSION="$SDK_VERSION" --build-arg SDK_SHA="$GITHUB_SHA" \
+            --build-arg WHEEL_SHA256="$WHEEL_SHA256" --file docker/webui.Dockerfile "$IMAGE_JOB_DIR/inputs"
+      - name: Validate the running image and archive it
+        if: inputs.operation == 'build' && steps.original.outputs.artifact_id == ''
+        run: |
+          "$PYTHON_BIN" .dev_scripts/webui/check_webui_image.py --image "$LOCAL_IMAGE" \
+            --inputs "$IMAGE_JOB_DIR/inputs" --output "$IMAGE_JOB_DIR/image/image.json" \
+            --logs "$IMAGE_JOB_DIR/logs" --resource-label "$RESOURCE_LABEL"
+          "$PYTHON_BIN" .dev_scripts/webui/release_artifacts.py save --directory "$IMAGE_JOB_DIR/image" --inputs "$IMAGE_JOB_DIR/inputs"
+      - uses: actions/upload-artifact@v4
+        if: inputs.operation == 'build' && steps.original.outputs.artifact_id == ''
+        with:
+          name: webui-validated-image
+          path: ${{ steps.dirs.outputs.path }}/image/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload and verify the matching development wheel
+        if: inputs.operation == 'publish' && inputs.publish_wheel
+        run: |
+          "$PYTHON_BIN" .dev_scripts/webui/oss_distribution.py upload --inputs "$IMAGE_JOB_DIR/inputs"
+      - name: Check ACR before PyPI or push the restored image
+        if: inputs.image_tag != ''
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          action=check-acr
+          if test "$OPERATION" = publish; then action=acr; fi
+          "$PYTHON_BIN" .dev_scripts/webui/publish_webui_release.py "$action" \
+            --inputs "$IMAGE_JOB_DIR/inputs" --image-record "$IMAGE_JOB_DIR/image/image.json" \
+            --image-tag "$IMAGE_TAG" --auth-file "$ACR_AUTH_FILE" \
+            --receipt "$IMAGE_JOB_DIR/image/published.json"
+      - name: Record the completed wheel and image delivery
+        if: inputs.operation == 'publish' && inputs.publish_wheel
+        run: |
+          "$PYTHON_BIN" .dev_scripts/webui/oss_distribution.py complete --inputs "$IMAGE_JOB_DIR/inputs" \
+            --image-record "$IMAGE_JOB_DIR/image/image.json" --image-receipt "$IMAGE_JOB_DIR/image/published.json"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.dirs.outputs.path != ''
+        with:
+          name: webui-image-logs-${{ inputs.operation }}-${{ github.run_attempt }}
+          path: ${{ steps.dirs.outputs.path }}/logs/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Clean up only this job's resources
+        if: always() && steps.dirs.outputs.path != ''
+        run: |
+          set -euo pipefail
+          case "$IMAGE_JOB_DIR" in "$RUNNER_TEMP"/ms-agent-image.*) ;; *) exit 1 ;; esac
+          trap 'rm -rf -- "$IMAGE_JOB_DIR"' EXIT
+          containers=$(docker ps -aq --filter "label=$RESOURCE_LABEL")
+          while IFS= read -r container; do
+            if test -n "$container"; then docker rm --force "$container"; fi
+          done <<< "$containers"
+          volumes=$(docker volume ls -q --filter "label=$RESOURCE_LABEL")
+          while IFS= read -r volume; do
+            if test -n "$volume"; then docker volume rm "$volume"; fi
+          done <<< "$volumes"
+          docker buildx rm --force "$BUILDER_NAME" || true
+          docker image rm --no-prune "$LOCAL_IMAGE" || true

@@ -1,24 +1,42 @@
-import { zip } from 'fflate'
 import { api } from './api'
+import type { Dict } from './i18n'
 import type { WorkspaceFile } from './types'
 
 /**
  * Unified workspace download logic. Single source of truth for every "download"
  * affordance in the app:
  *
- * - single file  -> stream the raw endpoint straight to the browser (no copy).
- * - directory     -> fetch every file under it and zip on the client.
- * - whole workspace -> zip everything.
+ * - single file  -> fetch the raw bytes, then save them from memory.
+ * - directory     -> ask the server for a zip of that subtree.
+ * - whole workspace -> ask the server for a zip of everything.
  *
  * `downloadWorkspacePath` auto-detects file vs directory from the file listing,
  * so callers can wire one handler to a per-row action regardless of kind.
+ *
+ * Zipping used to happen here, with fflate over bytes fetched file by file.
+ * That meant one request per file with no concurrency limit, and a memory peak
+ * of every file's bytes AND the finished archive at once -- enough to lose the
+ * tab on a large workspace. The server now streams the zip as it compresses it,
+ * so this is a single request and only the archive is held.
+ *
+ * Every one of them goes through `fetch`, deliberately. Pointing an `<a
+ * download>` straight at the raw or archive URL would avoid copying through
+ * memory, but that request leaves the document: the browser's download stack
+ * makes it, so it does not inherit the frame's cookie partition. Deployed
+ * inside an iframe with partitioned cookies -- a gateway putting its token
+ * there -- such a download arrives with no credentials and gets rejected, while
+ * every fetch-based download here succeeds against the same URL. The in-memory
+ * copy buys credentials that work, plus a response we can inspect, which is
+ * what `assertRawResponse` needs.
  */
 
 const basename = (path: string): string => path.split('/').pop() || path
 
-/** Trigger a browser "Save as" for `url`, keeping `filename`. Same-origin plus
- * the `download` attribute forces a download instead of navigating. */
-function saveUrl(url: string, filename: string): void {
+/** Trigger a browser download of an in-memory Blob (revoking the URL after).
+ * A blob URL is same-origin and never hits the network, so unlike a raw
+ * endpoint URL it raises no credentials question (see the file header). */
+function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -26,55 +44,123 @@ function saveUrl(url: string, filename: string): void {
   document.body.appendChild(a)
   a.click()
   a.remove()
-}
-
-/** Trigger a browser download of an in-memory Blob (revoking the URL after). */
-function saveBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
-  saveUrl(url, filename)
   setTimeout(() => URL.revokeObjectURL(url), 1_000)
 }
 
-/** Fetch one workspace file's raw bytes. */
-async function fetchBytes(projectId: string, path: string): Promise<Uint8Array> {
-  const res = await fetch(api.workspaceFileRawUrl(projectId, path))
+/**
+ * A raw-bytes request that came back with something other than file bytes
+ * because it wasn't authorized — an auth gateway bouncing it to a login page,
+ * or a session that expired mid-visit.
+ *
+ * Kept apart from a plain failure so the UI can point at the session instead of
+ * saying "download failed", which sends the user hunting for a problem with the
+ * file.
+ */
+export class DownloadUnauthorizedError extends Error {
+  constructor(path: string) {
+    super(`download not authorized: ${path}`)
+    this.name = 'DownloadUnauthorizedError'
+  }
+}
+
+/** True when the body is an HTML page nobody asked for. Real `.html` files in
+ * the workspace are served as text/html too, so only an unexpected one gives
+ * away a gateway's login page. */
+function isUnexpectedHtml(res: Response, path: string): boolean {
+  const ctype = res.headers.get('content-type') ?? ''
+  if (!/^\s*text\/html\b/i.test(ctype)) return false
+  return !/\.(html?|xhtml)$/i.test(path)
+}
+
+/**
+ * Vet a raw-bytes response before its body is treated as file content.
+ *
+ * `res.ok` on its own isn't enough behind an auth gateway: an unauthorized
+ * request gets redirected to a login page answering 200 text/html, and fetch
+ * follows that silently — so the page would be saved, or zipped up, as if it
+ * were the file. `redirected` is the tell, since the raw endpoint never
+ * redirects on its own; the HTML check backs it up for gateways that rewrite
+ * the response in place instead.
+ */
+function assertRawResponse(res: Response, path: string): void {
+  if (res.status === 401 || res.status === 403) {
+    throw new DownloadUnauthorizedError(path)
+  }
   if (!res.ok) throw new Error(`download failed: ${path} (${res.status})`)
+  if (res.redirected || isUnexpectedHtml(res, path)) {
+    throw new DownloadUnauthorizedError(path)
+  }
+}
+
+/**
+ * A download target that holds no bytes: an empty folder, or one whose only
+ * contents are hidden from the listing.
+ *
+ * Not a failure — there is simply nothing to put in a zip — so callers report
+ * it as a notice in its own right rather than as a download that broke, which
+ * would have the user retrying something that cannot succeed.
+ */
+export class DownloadEmptyError extends Error {
+  constructor(path: string) {
+    super(`nothing to download: ${path}`)
+    this.name = 'DownloadEmptyError'
+  }
+}
+
+/** Message for a download that actually failed. An auth bounce gets its own
+ * wording, since "download failed" would have the user looking at the file
+ * rather than at their expired session. (`DownloadEmptyError` is not a failure
+ * and is handled by the caller, which reports it at notice level.) */
+export function downloadErrorText(t: Dict, err: unknown): string {
+  return err instanceof DownloadUnauthorizedError
+    ? t.workspace.downloadUnauthorized
+    : t.workspace.downloadFailed
+}
+
+/** Fetch one workspace file's raw bytes. `credentials` is spelled out because
+ * in deployment this runs inside an iframe, where the cookie the gateway checks
+ * is partitioned to the embedding page. */
+async function fetchBytes(projectId: string, path: string): Promise<Uint8Array> {
+  const res = await fetch(api.workspaceFileRawUrl(projectId, path), {
+    credentials: 'include'
+  })
+  assertRawResponse(res, path)
   return new Uint8Array(await res.arrayBuffer())
 }
 
-/** Download a single file by streaming the raw endpoint, keeping its name. */
-export function downloadWorkspaceFile(projectId: string, path: string): void {
-  saveUrl(api.workspaceFileRawUrl(projectId, path), basename(path))
+/** Download a single file, keeping its name. */
+export async function downloadWorkspaceFile(
+  projectId: string,
+  path: string
+): Promise<void> {
+  const bytes = await fetchBytes(projectId, path)
+  saveBlob(new Blob([bytes as unknown as BlobPart]), basename(path))
 }
 
-/** Zip the given files (by full workspace path) and download as `zipName`.
- * `stripPrefix` is removed from each entry name so a folder unpacks cleanly
- * (e.g. `src/utils/a.ts` under prefix `src/` becomes `utils/a.ts`). */
+/** Download a server-built zip of the workspace, or of the folder at `path`,
+ * saving it as `zipName`. The archive arrives already assembled, so folder
+ * entries are named by the server (a folder unpacks as itself, not as its
+ * loose contents). */
 async function downloadWorkspaceZip(
   projectId: string,
-  paths: string[],
   zipName: string,
-  stripPrefix = ''
+  path?: string
 ): Promise<void> {
-  const entries: Record<string, Uint8Array> = {}
-  await Promise.all(
-    paths.map(async (p) => {
-      const rel =
-        stripPrefix && p.startsWith(stripPrefix)
-          ? p.slice(stripPrefix.length)
-          : p
-      entries[rel || basename(p)] = await fetchBytes(projectId, p)
-    })
-  )
-  const bytes = await new Promise<Uint8Array>((resolve, reject) => {
-    zip(entries, { level: 6 }, (err, data) =>
-      err ? reject(err) : resolve(data)
-    )
-  })
-  saveBlob(
-    new Blob([bytes as unknown as BlobPart], { type: 'application/zip' }),
-    zipName
-  )
+  const url = api.workspaceArchiveUrl(projectId, path)
+  const res = await fetch(url, { credentials: 'include' })
+  // Same vetting as a raw file fetch: behind an auth gateway a bounced request
+  // answers 200 with a login page, which would otherwise be saved as the .zip.
+  // Vetted against the archive name, not the folder path: what's expected back
+  // is always a zip, so any HTML at all gives the gateway away.
+  assertRawResponse(res, zipName)
+  saveBlob(await res.blob(), zipName)
+}
+
+/** Whether a listing holds anything a download could contain. Folders carry no
+ * bytes of their own, so a workspace of only (empty) ones would yield an empty
+ * zip — callers check this to say so rather than letting the click do nothing. */
+export function hasDownloadableFiles(files: WorkspaceFile[]): boolean {
+  return files.some((f) => f.kind !== 'folder')
 }
 
 /** Download every file in the workspace as a single zip. */
@@ -83,9 +169,8 @@ export async function downloadWorkspaceAll(
   files: WorkspaceFile[],
   zipName = 'workspace.zip'
 ): Promise<void> {
-  const paths = files.filter((f) => f.kind !== 'folder').map((f) => f.path)
-  if (paths.length === 0) return
-  await downloadWorkspaceZip(projectId, paths, zipName)
+  if (!hasDownloadableFiles(files)) return
+  await downloadWorkspaceZip(projectId, zipName)
 }
 
 /** Download a workspace path, auto-detecting file vs directory: a directory (a
@@ -98,22 +183,20 @@ export async function downloadWorkspacePath(
 ): Promise<void> {
   const clean = targetPath.replace(/\/+$/, '')
   const prefix = `${clean}/`
-  const children = files.filter(
+  const hasChildren = files.some(
     (f) => f.kind !== 'folder' && f.path.startsWith(prefix)
   )
-  if (children.length > 0) {
-    // A directory: zip its subtree, keeping the folder itself as the zip root.
-    const parent = clean.includes('/')
-      ? clean.slice(0, clean.lastIndexOf('/') + 1)
-      : ''
-    await downloadWorkspaceZip(
-      projectId,
-      children.map((f) => f.path),
-      `${basename(clean)}.zip`,
-      parent
-    )
+  if (hasChildren) {
+    // A directory: the server zips its subtree, keeping the folder as the root.
+    await downloadWorkspaceZip(projectId, `${basename(clean)}.zip`, clean)
     return
   }
-  // A single file (or an empty folder — nothing to zip): download directly.
-  downloadWorkspaceFile(projectId, clean)
+  // Nothing under it, so the target is either a file or an empty folder. Asking
+  // the raw endpoint for a folder 404s (it only serves files), which would
+  // surface as "download failed" — so an empty folder is reported for what it
+  // is, matching what the download-all button says about the same situation.
+  if (files.some((f) => f.path === clean && f.kind === 'folder')) {
+    throw new DownloadEmptyError(clean)
+  }
+  await downloadWorkspaceFile(projectId, clean)
 }

@@ -8,8 +8,11 @@ subtrees (the ``snapshots`` git store, transient ``locks``) stay hidden, along
 with the top-level ``sessions`` dir (session logs)."""
 from __future__ import annotations
 
+import io
 import shutil
 import time
+import zipfile
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
@@ -62,11 +65,23 @@ _HIDDEN_MSA_MEMORY_SUFFIXES = {".yaml", ".yml", ".json"}
 # needs a readable slice; larger files stay listable but preview-truncated).
 _MAX_PREVIEW_BYTES = 512 * 1024
 
+# Read/flush granularity for the streamed archive. Small enough that neither
+# side ever holds a whole file, big enough that a large workspace isn't paced by
+# per-chunk overhead.
+_ARCHIVE_CHUNK = 64 * 1024
+
+# Deflate level for server-side archives. Deliberately NOT the 6 the browser
+# used when it zipped client-side: compression is now the server's CPU, shared
+# by every request, whereas the client's was its own. Level 1 keeps most of the
+# ratio on the text/code a workspace is mostly made of for a fraction of the
+# work.
+_ARCHIVE_LEVEL = 1
+
 
 def _project_path(pid: str) -> str:
     proj = pm().get(pid)
     if proj is None:
-        raise NotFound("project not found")
+        raise NotFound("Project not found.")
     return proj.path
 
 
@@ -81,7 +96,7 @@ def _safe(ws, rel: str) -> Path:
     try:
         target.relative_to(ws.root)
     except ValueError:
-        raise BadRequest("path traversal blocked")
+        raise BadRequest("Invalid file path.")
     return target
 
 
@@ -175,7 +190,7 @@ def create_file(pid: str, body: WorkspaceFileCreate) -> WorkspaceFile:
     ws = _ws(pid)
     target = _safe(ws, body.path)
     if target.exists():
-        raise Conflict("file already exists")
+        raise Conflict("A file with this name already exists.")
     if body.kind == "folder":
         target.mkdir(parents=True, exist_ok=True)
     else:
@@ -190,9 +205,9 @@ def get_file(pid: str, path: str) -> WorkspaceFile:
     # (else e.g. an .ms_agent/memory dump — which embeds API keys — would still
     # leak via a guessed URL). 404 so hidden files' existence isn't revealed.
     if _hidden(Path(path)):
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     if not target.exists():
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     entry = _entry(pid, ws.root, target)
     if target.is_dir():
         # Match the listing: a folder reports its subtree's total bytes.
@@ -219,7 +234,7 @@ def update_file(pid: str, path: str, body: WorkspaceFileUpdate) -> WorkspaceFile
     ws = _ws(pid)
     target = _safe(ws, path)
     if not target.is_file():
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     ws.write_file(path, body.content)
     return _entry(pid, ws.root, target)
 
@@ -228,7 +243,7 @@ def delete_file(pid: str, path: str) -> None:
     ws = _ws(pid)
     target = _safe(ws, path)
     if not target.exists():
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     ws.delete(path)
 
 
@@ -240,16 +255,16 @@ def move_file(pid: str, src: str, dst: str) -> WorkspaceFile:
     s = _safe(ws, src)
     d = _safe(ws, dst)
     if not s.exists():
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     if d == s:
         return _entry(pid, ws.root, s)
     if d.exists():
-        raise Conflict("target already exists")
+        raise Conflict("A file with this name already exists at the destination.")
     if s.is_dir():
         # Block moving a folder into itself or a descendant (would recurse).
         try:
             d.relative_to(s)
-            raise BadRequest("cannot move a folder into itself")
+            raise BadRequest("A folder cannot be moved into itself.")
         except ValueError:
             pass
     d.parent.mkdir(parents=True, exist_ok=True)
@@ -298,10 +313,10 @@ def save_upload(pid: str, rel: str, data: bytes, dedup: bool = False) -> Workspa
     """
     ws = _ws(pid)
     if not rel:
-        raise BadRequest("missing file path")
+        raise BadRequest("A file path is required.")
     base = _safe(ws, rel)
     if base.is_dir():
-        raise Conflict("a folder already exists at this path")
+        raise Conflict("A folder already exists at this path.")
     target = _dedup_target(base, data) if dedup else base
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
@@ -315,7 +330,136 @@ def raw_file(pid: str, path: str) -> tuple[Path, str]:
     # Same guard as get_file: never serve the bytes of a listing-hidden file
     # (e.g. an .ms_agent/memory state dump with embedded secrets) by direct path.
     if _hidden(Path(path)):
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     if not target.is_file():
-        raise NotFound("file not found")
+        raise NotFound("File not found.")
     return target, guess_type(target.name) or "application/octet-stream"
+
+
+class _ZipSink(io.RawIOBase):
+    """Write-only, unseekable sink that hands finished bytes to a generator.
+
+    ``zipfile`` streams into this instead of a file or a BytesIO so the archive
+    is never held whole on either side. It needs no ``seek``, only a truthful
+    ``tell`` (offsets go into the central directory), and answers unseekable so
+    it emits data descriptors rather than rewriting local headers.
+    """
+
+    def __init__(self) -> None:
+        self._buf = bytearray()
+        self._pos = 0
+
+    def writable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return False
+
+    def write(self, b) -> int:  # noqa: ANN001 - buffer protocol, like RawIOBase
+        self._buf += b
+        self._pos += len(b)
+        return len(b)
+
+    def tell(self) -> int:
+        return self._pos
+
+    def pending(self) -> int:
+        """Bytes buffered but not yet drained.
+
+        Deliberately a named method rather than ``__len__``: ``zipfile`` tests its
+        output stream with ``if not self.fp`` (truthiness, not ``is None``), so a
+        sink whose length is its buffer size reads as CLOSED the moment it is
+        drained empty.
+        """
+        return len(self._buf)
+
+    def drain(self) -> bytes:
+        """Take everything buffered so far, leaving the position untouched."""
+        out = bytes(self._buf)
+        self._buf.clear()
+        return out
+
+
+def _archive_members(root: Path, base: Path,
+                     start: Path) -> list[tuple[Path, str]]:
+    """(file, name-in-zip) pairs for everything under ``start``.
+
+    Membership is decided by the same ``_hidden`` rule the listing uses, so an
+    archive holds exactly what the file tree showed. That is a security
+    boundary, not just consistency: ``.ms_agent/memory``'s state dumps embed API
+    keys, and a bulk download must not be the one path that ships them.
+
+    ``base`` is what names are relative to, which is how a folder download
+    unpacks as that folder rather than spilling its contents (matching what the
+    client-side zip did with its ``stripPrefix``).
+    """
+    members: list[tuple[Path, str]] = []
+    for target in sorted(start.rglob("*")):
+        if _hidden(target.relative_to(root)):
+            continue
+        if not target.is_file():
+            continue  # folders carry no bytes; empty ones simply don't appear
+        members.append((target, target.relative_to(base).as_posix()))
+    return members
+
+
+def _stream_zip(members: list[tuple[Path, str]]) -> Iterator[bytes]:
+    """Deflate ``members`` into a zip, yielding it as it is produced."""
+    sink = _ZipSink()
+    with zipfile.ZipFile(sink, "w", zipfile.ZIP_DEFLATED,
+                         compresslevel=_ARCHIVE_LEVEL) as zf:
+        for target, arcname in members:
+            try:
+                src = target.open("rb")
+            except OSError:
+                # Vanished or unreadable between listing and read. Skipping beats
+                # aborting: the response has already begun, so raising here would
+                # leave the user with a truncated file and no error to show.
+                continue
+            # from_file carries the real mtime into the entry (the plain-name
+            # form of ZipFile.open stamps 1980), and _compresslevel is how a
+            # hand-built ZipInfo picks up the level -- ZipFile's own is only
+            # applied to entries it constructs itself.
+            info = zipfile.ZipInfo.from_file(target, arcname)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info._compresslevel = _ARCHIVE_LEVEL
+            try:
+                with src, zf.open(info, "w") as dst:
+                    while chunk := src.read(_ARCHIVE_CHUNK):
+                        dst.write(chunk)
+                        if sink.pending() >= _ARCHIVE_CHUNK:
+                            yield sink.drain()
+            except OSError:
+                continue
+            if out := sink.drain():
+                yield out
+    # The central directory, written by ZipFile.close on exiting the block.
+    if out := sink.drain():
+        yield out
+
+
+def archive(pid: str, path: str = "") -> tuple[str, Iterator[bytes]]:
+    """Stream a zip of the workspace, or of one folder in it.
+
+    Returns ``(suggested_filename, chunks)``. Replaces the browser fetching every
+    file and zipping them itself: that cost one request per file and held the
+    whole workspace plus the finished archive in tab memory at once.
+
+    Raises NotFound for a missing/hidden path and BadRequest when the target is
+    a file (``raw_file`` serves those, and silently zipping one instead would
+    hand back an unexpected format).
+    """
+    ws = _ws(pid)
+    root = ws.root
+    rel = path.strip("/")
+    if not rel:
+        return f"{root.name or 'workspace'}.zip", _stream_zip(
+            _archive_members(root, root, root))
+    target = _safe(ws, rel)
+    if _hidden(Path(rel)) or not target.exists():
+        raise NotFound("Folder not found.")
+    if not target.is_dir():
+        raise BadRequest("Not a folder.")
+    # Names stay relative to the PARENT so the folder is the archive's root.
+    return f"{target.name}.zip", _stream_zip(
+        _archive_members(root, target.parent, target))

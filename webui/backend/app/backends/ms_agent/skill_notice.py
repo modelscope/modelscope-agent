@@ -62,11 +62,17 @@ def build_surface(catalog) -> dict:
     for sid, skill in (catalog.get_enabled_skills() or {}).items():
         name = getattr(skill, "name", sid) or sid
         desc = getattr(skill, "description", "") or ""
+        files_signature = getattr(skill, "_files_signature", None)
+        if not isinstance(files_signature, str):
+            # Backward-compatible fallback for older SDK objects and virtual
+            # skills that did not come from a directory materialization.
+            files_signature = _files_sig(
+                str(getattr(skill, "skill_path", "") or ""))
         surface[sid] = {
             "name": name,
             "sig": hashlib.sha256(
                 f"{name}\x1f{desc}".encode()).hexdigest()[:16],
-            "files": _files_sig(str(getattr(skill, "skill_path", "") or "")),
+            "files": files_signature,
         }
     return surface
 
