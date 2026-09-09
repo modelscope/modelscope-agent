@@ -8,9 +8,10 @@ import re
 from pathlib import Path
 
 from ms_agent.utils.logger import get_logger
-from .._workspace import (ARGS_LIST_KEYS, DEFAULT_AGENT_NAME, SECRET_BAG_KEYS,
-                          WorkspaceSpec, is_secret_key, register_framework,
-                          scrub_scalar_url_token, scrub_toml_array_args)
+from .._workspace import (ARGS_LIST_KEYS, DEFAULT_AGENT_NAME, MAX_FILE_SIZE,
+                          SECRET_BAG_KEYS, WorkspaceSpec, is_secret_key,
+                          register_framework, scrub_scalar_url_token,
+                          scrub_toml_array_args)
 
 logger = get_logger()
 
@@ -19,38 +20,33 @@ class OpenhumanWorkspace(WorkspaceSpec):
     """Workspace spec for the OpenHuman agent framework (root-per-agent).
 
     OpenHuman is a Rust/Tauri desktop app whose brain is a local Memory Tree
-    (SQLite at ``memory_tree/chunks.db``) mirrored as an Obsidian-style
-    ``wiki/`` Markdown vault.  Per its "move to a new PC" guide the portable,
-    human-authored state is: the ``wiki/`` vault, the persona files
-    ``SOUL.md`` / ``IDENTITY.md`` / ``HEARTBEAT.md`` and the ``config.toml``
-    settings (models / providers / routing / autonomy).
+    (SQLite at ``memory_tree/chunks.db``).  The portable, human-authored
+    state is: the persona files ``SOUL.md`` / ``IDENTITY.md`` /
+    ``HEARTBEAT.md``, the curated ``MEMORY.md`` (+ ``MEMORY_GOALS.md``), the
+    ``config.toml`` settings (models / providers / routing / autonomy) and
+    the skill tree.
 
-    ``MEMORY.md`` is the *curated* long-term memory: unlike the Memory Tree
-    (queried on demand via recall tools) it is injected into the system prompt
-    every session and maintained by the archivist sub-agent, which makes it the
-    direct counterpart of the other products' ``MEMORY.md``. The public
-    migration guide predates the feature and only lists the Memory Tree plus
-    the wiki mirror, so it is collected on the strength of the on-disk layout
-    rather than that document.
+    ``MEMORY.md`` is injected into the system prompt every session (under a
+    char cap) and is the only memory file the agent itself may write -- the
+    direct counterpart of the other products' ``MEMORY.md``.
 
-    On-disk layout: the app does NOT keep those files directly under
-    ``~/.openhuman`` -- they live in a per-device user workspace
-    ``~/.openhuman/users/<user-id>/workspace/``, where ``<user-id>`` (e.g.
-    ``local-u-mwj2l941-2317-local``) differs on every machine. The data root
-    is therefore probed at runtime rather than hardcoded (BUG-033); a fixed
-    ``~/.openhuman`` root collected zero files on real installs.
+    On-disk layout: files live in a per-device user workspace
+    ``~/.openhuman/users/<user-id>/workspace/``, where ``<user-id>`` differs
+    on every machine, so the data root is probed at runtime rather than
+    hardcoded (BUG-033). ``config.toml`` lives ONE LEVEL ABOVE the workspace
+    (``users/<id>/``) and is collected/written through a special case.
 
-    Sub-agents are Profile personas: ``personalities/<Profile>/SOUL.md`` is a
-    self-contained persona per Profile, so each Profile directory maps 1:1 to
-    an agent (root-per-agent). The workspace-level ``SOUL.md`` is the global
-    default persona and is collected as the ``default`` agent -- matching the
-    app's own lookup order (Profile persona > ``soul_md_path`` override >
-    inline persona > global default).
+    Sub-agents are Profile personas: ``personalities/<Profile>/`` maps 1:1 to
+    an agent (root-per-agent); the workspace-level persona is the ``default``
+    agent. Every level of the app's lookup treats an EMPTY file as absent and
+    falls back to the workspace copy (mirrored by
+    :meth:`_with_workspace_fallbacks`).
 
-    Deliberately *not* collected: the SQLite stores (``memory_tree/chunks.db``,
-    ``approval/approval.db``, ``mcp_clients/mcp_clients.db``) and the session
-    history (``sessions/`` / ``session_raw/``) -- binary / run-time state that
-    does not migrate across frameworks (the wiki is the readable mirror).
+    Deliberately *not* collected: the SQLite stores, the KV memory docs
+    (machine-extracted chat derivatives), the Memory Tree chunk mirrors, the
+    derived wiki vault (``memory_tree/content/wiki/`` -- regenerable summary
+    output), and the session history: binary / run-time / derived state that
+    does not migrate across frameworks.
     """
 
     # Per-device user workspace: ``users/<user-id>/workspace``. The id segment
@@ -167,22 +163,22 @@ class OpenhumanWorkspace(WorkspaceSpec):
 
     @property
     def patterns(self) -> list[str]:
-        # fnmatch ``*`` spans ``/`` so ``wiki/*`` / ``skills/*`` recurse the
-        # whole vault / skill tree.
+        # Entries are relative to :attr:`workspace_root`, which resolves to
+        # ``personalities/<Profile>/`` for a named agent, so one list covers
+        # both scopes with no per-profile duplicates (fnmatch ``*`` spans
+        # ``/``, so ``skills/*`` recurses the whole tree).
         #
-        # Every entry is relative to :attr:`workspace_root`, which already
-        # resolves to ``personalities/<Profile>/`` for a named agent. So this
-        # one list covers both scopes with no per-profile duplicates:
-        # ``MEMORY.md`` collects the workspace-level curated memory for
-        # ``default`` and ``personalities/<id>/MEMORY.md`` for a Profile, and
-        # ``skills/*`` likewise picks up a Profile's own skill tree.
+        # ``config.toml`` really lives one level ABOVE the workspace
+        # (``users/<id>/``); the pattern stays as the resources key while the
+        # read/write is special-cased in :meth:`collect` / :meth:`apply`. The
+        # wiki vault (derived, regenerable summary output) is not collected.
         return [
             'SOUL.md',
             'IDENTITY.md',
             'HEARTBEAT.md',
             'MEMORY.md',
+            'MEMORY_GOALS.md',
             'config.toml',
-            'wiki/*',
             'skills/*',
         ]
 
@@ -257,35 +253,96 @@ class OpenhumanWorkspace(WorkspaceSpec):
     # ------------------------------------------------------------------
 
     def collect(self) -> dict[str, str]:
-        return self._with_workspace_fallbacks(super().collect(), text=True)
+        resources = self._with_workspace_fallbacks(super().collect(), text=True)
+        self._add_parent_config(resources, text=True)
+        return resources
 
     def collect_bytes(self) -> dict[str, bytes]:
-        return self._with_workspace_fallbacks(
+        resources = self._with_workspace_fallbacks(
             super().collect_bytes(), text=False)
+        self._add_parent_config(resources, text=False)
+        return resources
+
+    def _parent_config_path(self) -> Path | None:
+        """``users/<id>/config.toml`` -- one level above the workspace.
+
+        Only resolved for the real install layout (the workspace directory is
+        literally named ``workspace/``), so an explicit ``local_dir`` never
+        reaches outside the pointed-at folder. ``None`` in all-mode, where
+        per-Profile copies would duplicate the shared config.
+        """
+        if self._is_all() or self.root.name != self._WORKSPACE_DIRNAME:
+            return None
+        candidate = self.root.parent / 'config.toml'
+        return candidate if candidate.is_file() else None
+
+    def _add_parent_config(self, resources: dict, *, text: bool) -> None:
+        """Collect the user-level ``config.toml``, keyed workspace-relative.
+
+        The patterns are workspace-relative but the file lives one level up;
+        without this special case it is never collected and its TOML scrubber
+        never runs. Symmetric with :meth:`apply`.
+        """
+        path = self._parent_config_path()
+        if path is None or 'config.toml' in resources:
+            return
+        try:
+            if path.stat().st_size > MAX_FILE_SIZE:
+                logger.warning('Skip large file %s (exceeds limit %d)', path,
+                               MAX_FILE_SIZE)
+                return
+            resources['config.toml'] = (
+                path.read_text(encoding='utf-8') if text else
+                path.read_bytes())
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning('Skip %s: %s', path, e)
+
+    def apply(self, resources: dict) -> list[str]:
+        """Write resources back; ``config.toml`` returns to the user dir
+        (symmetric with collection) instead of spawning a copy inside the
+        workspace that the app never reads."""
+        if 'config.toml' not in resources or self._is_all() \
+                or self.root.name != self._WORKSPACE_DIRNAME:
+            return super().apply(resources)
+        rest = {k: v for k, v in resources.items() if k != 'config.toml'}
+        written = super().apply(rest)
+        config_target = self.root.parent / 'config.toml'
+        raw = resources['config.toml']
+        raw = raw if isinstance(raw, bytes) else raw.encode('utf-8')
+        sanitized = self.sanitize_inbound_file('config.toml', raw)
+        config_target.parent.mkdir(parents=True, exist_ok=True)
+        config_target.write_bytes(sanitized)
+        written.append(str(config_target))
+        return written
 
     def _with_workspace_fallbacks(self, resources: dict, *,
                                   text: bool) -> dict:
-        """Fill missing Profile files from the workspace-level copies.
+        """Fill missing OR BLANK Profile files from the workspace-level copies.
 
-        A Profile that lacks e.g. ``MEMORY.md`` runs with the workspace-level
-        one at runtime (app lookup order), so a converted agent must get it
-        too: missing files in :data:`_WORKSPACE_FALLBACK_FILES` are taken
-        from the workspace root when present there. Files the Profile already
-        has always win; all-mode is exempt (each Profile mirrors to its own
-        repo and workspace files would duplicate across every Profile).
+        The app treats an empty persona/memory file as absent and falls back
+        to the workspace copy, so a 0-byte Profile ``MEMORY.md`` must not
+        shadow the real workspace memory. A Profile copy with substance
+        always wins; all-mode is exempt (each Profile mirrors to its own repo
+        and workspace files would duplicate across every Profile).
         """
         if self._is_all() or self.workspace_root == self.root:
             return resources
         workspace_spec = copy.copy(self)
         workspace_spec.agent_name = DEFAULT_AGENT_NAME
         for rel, f in workspace_spec._walk_matched():
-            if rel not in self._WORKSPACE_FALLBACK_FILES or rel in resources:
+            if rel not in self._WORKSPACE_FALLBACK_FILES:
+                continue
+            existing = resources.get(rel)
+            if existing is not None and existing.strip():
                 continue
             try:
-                resources[rel] = (
+                content = (
                     f.read_text(encoding='utf-8') if text else f.read_bytes())
             except (OSError, UnicodeDecodeError) as e:
                 logger.warning('Skip workspace fallback %s: %s', f, e)
+                continue
+            if content.strip():
+                resources[rel] = content
         return resources
 
     # ------------------------------------------------------------------
