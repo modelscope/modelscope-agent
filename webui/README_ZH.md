@@ -149,6 +149,42 @@ docker run --rm -p 127.0.0.1:9000:8000 \
 
 设置 `MS_AGENT_FRONTEND_HOSTED_MODE=1` 可隐藏不适合远程用户操作的本地路径控件；访问控制仍需单独配置。
 
+### Agent 的 Python 环境
+
+服务运行在 `/opt/venv` 中；Agent 的 shell 默认使用容器内 `/usr/local/bin` 下的 Python 和 pip，预装 `requests`、`PyYAML`、`beautifulsoup4`。Git、Node.js、npm/npx、pnpm 和 uv/uvx 也可以直接使用。普通 `pip install` 不会改变服务环境里的依赖。
+
+项目已有虚拟环境时优先复用；需要不同版本的依赖时，可以为项目新建环境。每次工具调用都会启动一个新的 shell，因此应直接使用虚拟环境中的命令路径，或在同一次调用中激活环境并执行命令。使用 uv 安装到容器系统 Python 时，运行 `uv pip install --system 包名`；安装到项目虚拟环境时不加 `--system`。
+
+`MS_AGENT_SHELL_PATH` 指定 shell 默认使用的工具路径，不改变服务的 PATH；显式的 `tools.code_executor.shell_env` 配置优先。本地安装 SDK 时，如果未设置该变量，就沿用原有 PATH。运行中安装到容器系统 Python 的包不会在替换容器后保留，长期需要的依赖应加入派生镜像。
+
+### Python 软件源
+
+镜像中的 `pip`、`uv` 和 `uvx` 在运行时默认使用清华 PyPI 镜像源。
+
+需要使用其他镜像源或公司内部源时，在宿主机创建两个配置文件。例如，切换到官方 PyPI 源，将以下内容保存为 `pip.conf`：
+
+```ini
+[global]
+index-url = https://pypi.org/simple
+```
+
+将以下内容保存为 `uv.toml`：
+
+```toml
+[[index]]
+url = "https://pypi.org/simple"
+default = true
+```
+
+在上方 `docker run` 命令的镜像名称之前加入：
+
+```bash
+--mount type=bind,src="$PWD/pip.conf",dst=/etc/pip.conf,readonly \
+--mount type=bind,src="$PWD/uv.toml",dst=/etc/uv/uv.toml,readonly \
+```
+
+建议通过挂载文件设置容器内的默认源，因为 Agent 的执行工具不会继承所有通过 `-e` 传入的环境变量。软件源用于获取 PyPI 包，Git 仓库和模型下载仍使用各自的地址。
+
 ## 常见问题
 
 | 现象 | 处理方式 |

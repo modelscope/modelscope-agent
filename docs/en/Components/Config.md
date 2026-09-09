@@ -181,6 +181,9 @@ tool_call_timeout: 30000
 # Output artifact directory
 output_dir: output
 
+# Save a workspace snapshot before each task (disabled by default)
+enable_snapshots: false
+
 # Help information, usually appears after runtime errors
 help: |
   A commonly use config, try whatever you want!

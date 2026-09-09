@@ -13,6 +13,95 @@ def docker(*args):
     return subprocess.check_output(['docker', *args], text=True).strip()
 
 
+def check_package_installation(name):
+    """Install a local wheel through the agent's PATH, then import it in Python."""
+    code = r'''
+import configparser
+import asyncio
+import importlib.metadata
+import importlib.util
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+import zipfile
+from pathlib import Path
+from omegaconf import OmegaConf
+from ms_agent.tools.code.local_code_executor import LocalCodeExecutionTool
+
+prefix = Path(sys.prefix)
+assert prefix != Path(sys.base_prefix), 'SDK must run in its image environment'
+before = sorted((d.metadata['Name'], d.version) for d in importlib.metadata.distributions())
+parent_path = os.environ['PATH']
+
+config = configparser.ConfigParser()
+config.read('/etc/pip.conf')
+index = config['global']['index-url']
+assert index.startswith('https://')
+uv_config = tomllib.loads(Path('/etc/uv/uv.toml').read_text())
+assert [item['url'] for item in uv_config['index'] if item.get('default')] == [index]
+
+package = 'ms-agent-install-probe'
+module = '_ms_agent_install_probe'
+assert importlib.util.find_spec(module) is None
+with tempfile.TemporaryDirectory() as temporary:
+    tool = LocalCodeExecutionTool(OmegaConf.create({
+        'output_dir': temporary,
+        'tools': {'code_executor': {'include': ['shell_executor']}},
+    }))
+    shell_env = tool.shell_env
+    python = shutil.which('python', path=shell_env['PATH'])
+    pip = shutil.which('pip', path=shell_env['PATH'])
+    assert python == '/usr/local/bin/python', python
+    assert pip == '/usr/local/bin/pip', pip
+    assert str(prefix / 'bin') not in shell_env['PATH'].split(os.pathsep)
+    assert subprocess.check_output(['pip', 'config', '--global', 'get', 'global.index-url'], env=shell_env, text=True).strip() == index
+    subprocess.run([python, '-c', 'import requests, yaml, bs4; import sys; '
+                    'assert sys.prefix == sys.base_prefix'],
+                   env=shell_env, check=True, timeout=30)
+    async def shell(command):
+        await tool.connect()
+        try:
+            assert tool.kernel_session._client is None, 'Shell-only mode started Jupyter'
+            result = json.loads(await tool.shell_executor(command))
+            assert result['success'], result
+        finally:
+            await tool.cleanup()
+    wheel = Path(temporary) / 'ms_agent_install_probe-0.0.0-py3-none-any.whl'
+    info = 'ms_agent_install_probe-0.0.0.dist-info/'
+    files = {
+        module + '.py': 'VALUE = "installed"\n',
+        info + 'METADATA': 'Metadata-Version: 2.1\nName: ms-agent-install-probe\nVersion: 0.0.0\n',
+        info + 'WHEEL': 'Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n',
+    }
+    files[info + 'RECORD'] = ''.join(path + ',,\n' for path in [*files, info + 'RECORD'])
+    with zipfile.ZipFile(wheel, 'w') as archive:
+        for path, content in files.items():
+            archive.writestr(path, content)
+    try:
+        probe = ('import _ms_agent_install_probe as p; '
+                 'from pathlib import Path; import sys; '
+                 'assert p.VALUE == "installed"; '
+                 'assert sys.prefix == sys.base_prefix; '
+                 'assert Path(p.__file__).is_relative_to(Path(sys.prefix))')
+        asyncio.run(shell('pip install --no-index --no-deps ' + shlex.quote(str(wheel))
+                          + ' && python -c ' + shlex.quote(probe)))
+        assert importlib.util.find_spec(module) is None, 'Task package leaked into service Python'
+        assert before == sorted((d.metadata['Name'], d.version) for d in importlib.metadata.distributions())
+        assert os.environ['PATH'] == parent_path
+    finally:
+        subprocess.run(['pip', 'uninstall', '--yes', '--disable-pip-version-check', package],
+                       env=shell_env, check=True, timeout=30)
+print('Agent package installation, service isolation and index configuration passed')
+'''
+    subprocess.run(['docker', 'exec', name, 'python', '-c', code],
+                   check=True, timeout=120)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', default='ms-agent-webui:validated')
@@ -47,11 +136,13 @@ def main():
                 mapping = docker('port', name, '8000/tcp')
                 base = 'http://' + mapping
                 smoke.ready(base)
+                if scenario == 'normal':
+                    check_package_installation(name)
                 installed = json.loads(
                     docker(
                         'exec', name, 'python', '-c',
                         'import ms_agent.agent_hub; '
-                        'import bs4, lxml, pyarrow, seaborn, sklearn; '
+                        'import bs4, lxml; '
                         'from ms_agent.cli.ui_resources import find_webui; '
                         'p, installed = find_webui(); assert installed; '
                         'print((p / "RESOURCE-MANIFEST.json").read_text())'))
