@@ -70,6 +70,10 @@ ms-agent run --config path/to/agent.yaml --query "Hello"
 | `--animation_mode` | Animation mode for the video-generation project: `auto` / `human` | `None` |
 | `--knowledge_search_paths` | Comma-separated list of paths for knowledge search | `None` |
 
+Automatic workspace snapshots are disabled by default. To create a Git-backed
+snapshot before each task, set `enable_snapshots: true` at the top level of the
+agent YAML configuration. Existing snapshots are retained when this is disabled.
+
 ---
 
 ## tui — Terminal UI
