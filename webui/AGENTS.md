@@ -71,59 +71,15 @@ pnpm build:image         # the above, then assemble build-runtime/ — a traced 
 pnpm start               # serve the build: SSR + /api proxy on one port (PORT, default: API port + 1)
 ```
 
-**`pnpm build:image`** is `pnpm build` plus `scripts/traceRuntime.ts`. Vite leaves
-SSR dependencies external, so `node_modules` has to exist at runtime, but a
-`--prod` install is 430 MB against a real closure of ~51 MB, the waste sitting
-*inside* the packages rather than in a list of unneeded ones (antd ships 58 MB of
-`es/` + `lib/` + every locale, of which SSR touches 2.3 MB). The script traces
-`build/server/index.js` and `server.js` with `@vercel/nft` and copies only what
-they can reach, next to the build output, `server.js` and `package.json`, into
-`build-runtime/`. Keep the two steps in one script: tracing a build it did not
-just produce is how the two come to describe different builds.
+**Runtime image build:** `pnpm build:image` runs the normal build, then
+`scripts/traceRuntime.ts` traces the SSR entries with `@vercel/nft` into
+`build-runtime/` and verifies the assembled tree with a smoke render.
 
-`../docker/webui.Dockerfile` consumes this through the SDK rather than by copying
-a directory out of a build stage. It installs the verified wheel and runs
-`ms-agent ui --prepare-only` with `MS_AGENT_WEBUI_TRACE_RUNTIME=1`, which makes
-`prepare_installed` install devDependencies (the tracer imports `tsx` and
-`@vercel/nft`), run this script, then move `build-runtime/node_modules` over the
-installed tree and delete the rest — see `../ms_agent/cli/ui_resources.py`. The
-cache ends up with the ordinary layout and the closure inside it, so nothing
-passes `--frontend-dir`, and the full devDependency install is discarded within
-that single `RUN`.
-
-Doing the pruning in Python is what keeps this script byte-identical to the
-standalone `ms-agent-webui` repository `webui/` mirrors. Do not give the script an
-in-place mode to save the temporary copy: that copy is also what makes the order
-safe, since the closure renders a page while the tree it came from is still there.
-
-The variable is deliberately not a CLI flag (`../ms_agent/cli/ui.py`). The first
-preparation it triggers replaces a `--prod` install with a full one plus the
-tracing pass, which is a bad trade on a laptop, where the cache is not something
-you ship. `frontend/.node-dependencies.json` records `traced`, so the container's
-plain `--skip-install` start accepts the tree it was shipped without repeating the
-variable — while requesting tracing over an untraced cache re-prepares it, or a
-regression there would silently ship the full tree again.
-
-Tracing costs ~17s and a 50 MB copy, and it boots a server to check itself, so
-`pnpm build` stays hermetic and fast (8s) for the paths that never consume
-`build-runtime` — `uv run webui`, a plain `ms-agent ui`, typecheck, a local
-production check.
-
-What tracing cannot see is a specifier computed at runtime, so the script boots
-the assembled tree and renders `/settings/mcp-skills` through it before it
-returns: a dependency it missed fails the build instead of a request in
-production. That route is the smoke target because its loader degrades an
-unreachable API to empty lists, so it renders with no backend at all — keep that
-property, or move `SMOKE_PATH` to another route that has it.
-
-To run that tree locally rather than the checkout, pass it to the launcher:
-`uv run webui --frontend-dir ../frontend/build-runtime` (from `backend/`). It is
-opt-in on purpose. A traced tree has no `app/`, so `validate_build` skips the
-source comparison and the copied manifest always agrees with the copied outputs —
-auto-preferring the directory when present would serve a stale UI with every
-check green. `_check_traced_tree` compares the two manifests while the checkout
-is next door, so a `pnpm build` that landed after the last `pnpm build:image` is
-refused instead of ignored.
+`../docker/webui.Dockerfile` enables the same flow for installed packages with
+`MS_AGENT_WEBUI_TRACE_RUNTIME=1`. The prepared cache records whether its runtime
+is traced. To run the traced tree locally from `backend/`, use
+`uv run webui --frontend-dir ../frontend/build-runtime`; the launcher rejects it
+when its manifest does not match the checkout build.
 
 **Frontend configuration** is declared in `backend/.env.example` and read by
 application code through `frontend/app/lib/env.ts`. Its `SERVER_*` exports are
