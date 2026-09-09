@@ -172,11 +172,9 @@ class TuiApp:
         # user (not a round cap) ends an interactive session.
         OmegaConf.update(config, 'max_chat_round', 1000, merge=True)
         # Person is at this terminal: delegate uncertain escalates to the TUI
-        # menu. Short foreground wait so long shells auto-background.
+        # menu.
         OmegaConf.update(
             config, 'permission.human_approval_available', True, merge=True)
-        if OmegaConf.select(config, 'tool_call_timeout') in (None, 0):
-            OmegaConf.update(config, 'tool_call_timeout', 15, merge=True)
         if permission_mode:
             OmegaConf.update(
                 config, 'permission.mode', permission_mode, merge=True)
