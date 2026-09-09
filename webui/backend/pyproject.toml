@@ -3,7 +3,8 @@ name = "ms-agent-webui-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    # Include the default code executor libraries so the first chat needs no pip install.
+    # Keep optional notebook/Python execution ready; shell-only sessions skip
+    # their initialization. Image shell libraries use a separate system Python.
     "anthropic>=0.117.0",
     "beautifulsoup4",
     "exa-py>=2.16.0",

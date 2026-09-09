@@ -5,6 +5,7 @@ import io
 import json
 import os
 import shutil
+import sys
 import time
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -339,16 +340,25 @@ class LocalCodeExecutionTool(ToolBase):
 
         self.exclude_func(
             getattr(getattr(config, 'tools', None), 'code_executor', None))
-        if 'file_operation' not in self.exclude_functions:
+        self._uses_kernel = any(self._function_enabled(name) for name in
+                                ('notebook_executor', 'reset_executor'))
+        if self._function_enabled('file_operation'):
             logger.warning(
                 'file_operation is not suggested to be included in local code execution tool.'
             )
 
-        results = self._check_dependencies()
-        logger.info(f'Dependency check results: {results}\n'
-                    f'Make sure to install the missing dependencies.')
+        if (self._function_enabled('notebook_executor')
+                or self._function_enabled('python_executor')):
+            results = self._check_dependencies()
+            logger.info(f'Dependency check results: {results}\n'
+                        f'Make sure to install the missing dependencies.')
 
-        logger.info('LocalCodeExecutionTool initialized (ipykernel based)')
+        logger.info('LocalCodeExecutionTool initialized')
+
+    def _function_enabled(self, name: str) -> bool:
+        if self.include_functions:
+            return name in self.include_functions
+        return name not in self.exclude_functions
 
     def set_task_manager(self, task_manager) -> None:
         """Attach process-wide TaskManager for background shell (see shell_executor)."""
@@ -428,17 +438,18 @@ class LocalCodeExecutionTool(ToolBase):
                     if value is not None:
                         env[key] = value
 
-        if not self.tool_config or not hasattr(self.tool_config, field):
-            return env
-        env_cfg = getattr(self.tool_config, field)
-        if isinstance(env_cfg, dict):
-            items = env_cfg.items()
-        else:
-            try:
-                items = env_cfg.items()
-            except AttributeError:
-                return env
+        # The image supplies its system tool path separately from the SDK's
+        # service PATH. Local installs keep their existing environment unless
+        # the deployment explicitly configures this override.
+        shell_path = os.environ.get('MS_AGENT_SHELL_PATH')
+        if field == 'shell_env' and shell_path:
+            env['PATH'] = shell_path
+            for key in ('VIRTUAL_ENV', 'CONDA_PREFIX', 'CONDA_DEFAULT_ENV',
+                        'PYTHONHOME', 'PYTHONPATH'):
+                env.pop(key, None)
 
+        env_cfg = getattr(self.tool_config, field, None)
+        items = env_cfg.items() if hasattr(env_cfg, 'items') else ()
         for key, value in items:
             if value is None:
                 continue
@@ -451,10 +462,28 @@ class LocalCodeExecutionTool(ToolBase):
                 env['PATH'] = os.pathsep.join(paths + [env.get('PATH', '')])
         return env
 
+    def _shell_environment_hint(self) -> str:
+        path = self.shell_env.get('PATH', '')
+        python = (shutil.which('python', path=path)
+                  or shutil.which('python3', path=path))
+        pip = (shutil.which('pip', path=path)
+               or shutil.which('pip3', path=path))
+        return (
+            f'Default Python: {python or "not found on PATH"}; '
+            f'pip: {pip or "not found on PATH"}. '
+            f'The SDK service runs with {sys.executable}. '
+            'Do not install or upgrade ordinary task dependencies in the SDK '
+            'service environment. Reuse an existing project environment, or '
+            'create a project virtualenv when different package versions '
+            'are needed. When installing into a container system Python with '
+            'uv, use `uv pip install --system`; project virtualenvs do not '
+            'need that flag.\n\n')
+
     async def connect(self) -> None:
         if self._initialized:
             return
-        await self.kernel_session.start()
+        if self._uses_kernel:
+            await self.kernel_session.start()
         self._initialized = True
 
     async def cleanup(self) -> None:
@@ -464,7 +493,8 @@ class LocalCodeExecutionTool(ToolBase):
         self._watcher_tasks.clear()
         if not self._initialized:
             return
-        await self.kernel_session.stop()
+        if self._uses_kernel:
+            await self.kernel_session.stop()
         self._initialized = False
 
     async def _get_tools_inner(self) -> Dict[str, Any]:
@@ -544,7 +574,7 @@ class LocalCodeExecutionTool(ToolBase):
                     server_name='code_executor',
                     description=(
                         'Run a shell command.\n'
-                        '\n'
+                        '\n' + self._shell_environment_hint() +
                         'Each call starts a NEW shell in the workspace root, '
                         f'which is {self._ws.root}. Nothing carries over '
                         'between calls: not the working directory, not '

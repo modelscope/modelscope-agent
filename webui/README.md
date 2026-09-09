@@ -200,6 +200,57 @@ work on host files. To change the access port, change the left side of `9000:800
 `MS_AGENT_FRONTEND_HOSTED_MODE=1` hides local-path controls that are unsuitable
 for remote users; access control still needs to be configured separately.
 
+### Agent Python environment
+
+The service runs in `/opt/venv`. The agent's shell uses the container's system
+Python and pip under `/usr/local/bin`, with `requests`, `PyYAML` and
+`beautifulsoup4` preinstalled. Git, Node.js, npm/npx, pnpm and uv/uvx are also
+available. Ordinary `pip install` commands do not change the service's packages.
+
+Reuse a project's own virtual environment when it has one, or create one for
+incompatible package versions. Each tool call starts a new shell: use the
+environment's executable path or activate it in the same call as the command.
+With uv, use `uv pip install --system PACKAGE` for container system packages;
+omit `--system` when installing into a project virtual environment.
+
+`MS_AGENT_SHELL_PATH` selects the shell's default tool path without changing the
+service PATH. Explicit `tools.code_executor.shell_env` settings take precedence.
+Local SDK installs keep their existing PATH unless this variable is set.
+Packages installed into a running container's system Python are lost when that
+container is replaced. Put recurring dependencies in a derived image.
+
+### Python package sources
+
+The image uses the Tsinghua PyPI mirror for runtime `pip`, `uv` and `uvx`
+downloads.
+
+To use another mirror or a company package index, create two files on the host.
+For example, to use the official PyPI index, save this as `pip.conf`:
+
+```ini
+[global]
+index-url = https://pypi.org/simple
+```
+
+Save this as `uv.toml`:
+
+```toml
+[[index]]
+url = "https://pypi.org/simple"
+default = true
+```
+
+Add these options before the image name in the `docker run` command above:
+
+```bash
+--mount type=bind,src="$PWD/pip.conf",dst=/etc/pip.conf,readonly \
+--mount type=bind,src="$PWD/uv.toml",dst=/etc/uv/uv.toml,readonly \
+```
+
+Use file mounts for container-wide defaults: the agent's execution tools do not
+inherit every environment variable passed with `-e`. Package indexes cover
+PyPI packages; Git repositories and model downloads use their own addresses.
+
 ## Troubleshooting
 
 | Symptom | What to check |

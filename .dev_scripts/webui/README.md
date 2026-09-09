@@ -30,6 +30,14 @@ resources. An existing but invalid release manifest is always an error.
 
 ## Package inputs
 
+The image installs SDK dependencies into `/opt/venv` and shell utility packages
+into system Python. These image-only packages are declared in `docker/webui-shell.in`;
+regenerate their lock with the command recorded in `docker/webui-shell.txt`.
+Package CI copies that lock to `shell-requirements.txt` alongside the wheel and
+service dependency export. Both locks are covered by `release.json` and
+`SHA256SUMS`. Image checks verify that shell package installation leaves the SDK
+environment unchanged.
+
 Backend code and data are collected from `webui/backend/app/`. Frontend source
 files use the same discovery rules as build validation; generated outputs come
 from the frontend build manifest. New source files are included automatically.
