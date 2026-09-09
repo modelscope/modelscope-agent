@@ -6,6 +6,7 @@ dataclasses consumed by SafetyGuard and PermissionEnforcer.
 
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
 from dataclasses import dataclass
@@ -184,7 +185,9 @@ _DEFAULT_ASK_RULES: tuple[str, ...] = (
 @dataclass(frozen=True)
 class PermissionConfig:
     """Top-level permission configuration from agent YAML."""
-    mode: Literal['auto', 'strict', 'interactive'] = 'auto'
+    mode: Literal[
+        'auto', 'strict', 'interactive', 'delegate', 'full_access'
+    ] = 'auto'
     whitelist: tuple[str, ...] = ()
     blacklist: tuple[str, ...] = _DEFAULT_BLACKLIST
     # Defaulted here as well as in from_dict: a config with no ``permission``
@@ -192,6 +195,9 @@ class PermissionConfig:
     # must still be confirmed there.
     ask_rules: tuple[str, ...] = _DEFAULT_ASK_RULES
     safety: SafetyConfig = SafetyConfig()
+    decision_provider: Literal['llm', 'agent'] | None = None
+    provider_timeout: float = 30.0
+    human_approval_available: bool = False
 
     @classmethod
     def from_dict(cls,
@@ -201,8 +207,24 @@ class PermissionConfig:
             return cls()
 
         raw_mode = d.get('mode', 'auto')
-        _MODE_ALIASES = {'restricted': 'interactive'}
+        _MODE_ALIASES = {
+            'restricted': 'interactive',
+            'delegated': 'delegate',
+        }
         mode = _MODE_ALIASES.get(raw_mode, raw_mode)
+        if mode not in (
+                'auto', 'strict', 'interactive', 'delegate', 'full_access'):
+            raise ValueError(f'Unknown permission mode: {raw_mode!r}')
+        decision_provider = d.get('decision_provider')
+        if decision_provider not in (None, 'llm', 'agent'):
+            raise ValueError(
+                "decision_provider must be either 'llm' or 'agent'")
+        provider_timeout = float(d.get('provider_timeout', 30.0))
+        if not math.isfinite(provider_timeout) or provider_timeout <= 0:
+            raise ValueError(
+                'provider_timeout must be finite and greater than zero')
+        human_approval_available = bool(
+            d.get('human_approval_available', mode == 'interactive'))
         whitelist = tuple(d.get('whitelist', ()))
         user_ask_rules = tuple(d.get('ask_rules', ()))
         user_blacklist = tuple(d.get('blacklist', ()))
@@ -232,6 +254,9 @@ class PermissionConfig:
 
         return cls(
             mode=mode,
+            decision_provider=decision_provider,
+            provider_timeout=provider_timeout,
+            human_approval_available=human_approval_available,
             whitelist=whitelist,
             blacklist=blacklist,
             ask_rules=ask_rules,

@@ -16,8 +16,11 @@ from ms_agent.permission.handler import PermissionAction
 from ms_agent.tui import permission as permission_mod
 from ms_agent.tui.permission import TUIPermissionHandler
 from ms_agent.tui.renderer import RichEventSink
+from ms_agent.tui.select import SelectResult
 from ms_agent.tui.state import TuiState
 from ms_agent.ui.events import ToolCallCompleted, ToolCallStarted
+
+SHELL = 'code_executor---shell_executor'
 
 
 def _renderer():
@@ -41,8 +44,9 @@ async def test_sibling_completion_does_not_print_into_the_menu(monkeypatch):
             ToolCallCompleted(
                 call_id='c1', name='file_system---read_file', result='aaa'))
         seen_during_menu['out'] = console.file.getvalue()
-        return 0  # "Allow once"
+        return SelectResult(0)
 
+    monkeypatch.setattr(permission_mod.sys.stdin, 'isatty', lambda: True)
     monkeypatch.setattr(permission_mod, 'select_async', fake_menu)
     resp = await handler.ask('file_system---write_file', {'path': 'b.txt'}, '')
 
@@ -58,9 +62,50 @@ async def test_handler_without_a_renderer_still_works(monkeypatch):
     handler = TUIPermissionHandler(console=console)
 
     async def fake_menu(options, *, default=0, header=None):
-        return 4  # "Deny"
+        return SelectResult(len(options) - 1)
 
+    monkeypatch.setattr(permission_mod.sys.stdin, 'isatty', lambda: True)
     monkeypatch.setattr(permission_mod, 'select_async', fake_menu)
-    resp = await handler.ask('code_executor---shell', {'command': 'rm -rf /'},
-                             '')
+    resp = await handler.ask(SHELL, {'command': 'rm -rf /'}, '')
     assert resp.action == PermissionAction.DENY
+
+
+@pytest.mark.asyncio
+async def test_non_tty_yes_persist_edit_and_deny(monkeypatch):
+    handler = TUIPermissionHandler()
+    monkeypatch.setattr(permission_mod.sys.stdin, 'isatty', lambda: False)
+
+    monkeypatch.setattr(
+        permission_mod.sys.stdin, 'readline', lambda: '1\n')
+    yes = await handler.ask(SHELL, {'command': 'echo hello'}, '')
+    assert yes.action == PermissionAction.ALLOW_ONCE
+
+    monkeypatch.setattr(
+        permission_mod.sys.stdin, 'readline', lambda: '2=echo hi*\n')
+    persist = await handler.ask(SHELL, {'command': 'echo hello'}, '')
+    assert persist.action == PermissionAction.ALLOW_ALWAYS
+    assert persist.pattern.endswith('echo hi*')
+
+    monkeypatch.setattr(
+        permission_mod.sys.stdin, 'readline', lambda: '3\n')
+    deny = await handler.ask(SHELL, {'command': 'echo hello'}, '')
+    assert deny.action == PermissionAction.DENY
+
+
+@pytest.mark.asyncio
+async def test_tty_persist_row_edit_goes_through_select(monkeypatch):
+    handler = TUIPermissionHandler()
+    seen = {}
+
+    async def fake_menu(options, *, default=0, header=None):
+        seen['n'] = len(options)
+        seen['header'] = header
+        return SelectResult(1, 'echo tui*')
+
+    monkeypatch.setattr(permission_mod.sys.stdin, 'isatty', lambda: True)
+    monkeypatch.setattr(permission_mod, 'select_async', fake_menu)
+    resp = await handler.ask(SHELL, {'command': 'echo hello'}, '')
+    assert seen['n'] == 3
+    assert 'Allow this?' in seen['header']
+    assert resp.action == PermissionAction.ALLOW_ALWAYS
+    assert resp.pattern.endswith('echo tui*')

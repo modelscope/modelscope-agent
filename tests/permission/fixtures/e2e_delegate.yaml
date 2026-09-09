@@ -1,0 +1,33 @@
+llm:
+  service: dashscope
+  model: qwen3.7-plus
+  use_provider_router: true
+
+generation_config:
+  temperature: 0.1
+  stream: false
+  max_tokens: 1024
+  extra_body:
+    enable_thinking: false
+
+prompt:
+  system: |
+    You are a tool-using assistant. When the user asks you to run a command,
+    you MUST call shell_executor immediately with that exact command.
+    Do not refuse harmless echo tasks. Do not use python_executor.
+
+max_chat_round: 8
+
+interactive: false
+
+permission:
+  mode: delegate
+  decision_provider: llm
+  allow_network: false
+
+tools:
+  code_executor:
+    mcp: false
+    implementation: python_env
+    include:
+      - shell_executor

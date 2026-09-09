@@ -1,9 +1,9 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
-"""Permission handler for the TUI — an inline arrow-key confirmation menu.
+"""Permission handler for the TUI — one-layer scene-specific confirmation.
 
-Matches the pattern used by Claude Code / Qoder / hermes: a compact header for
-the tool call, then a selectable menu (``❯`` cursor, ↑/↓ + number keys, Enter)
-instead of a "type a letter" prompt. A non-TTY fallback keeps it scriptable.
+Matches Claude Code: a compact header plus a single Select whose rows are
+complete decisions (Yes / persist this scoped rule / No). Persist-row edits
+happen in place; there is no nested Always-allow wizard.
 
 This handler does NOT declare ``supports_concurrent_asks``, so the enforcer
 serializes its asks — one terminal, one menu at a time. That alone is no longer
@@ -16,15 +16,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from contextlib import contextmanager
 from rich.console import Console
 from typing import Any, Optional
 
-from ms_agent.tui.select import select_async
+from ms_agent.permission.ask_options import (build_ask_options,
+                                             format_ask_menu,
+                                             parse_ask_choice)
+from ms_agent.permission.handler import PermissionAction, PermissionResponse
+from ms_agent.permission.provider import (sanitize_sensitive_text,
+                                           sanitize_tool_args)
+from ms_agent.tui.select import SelectItem, select_async
 from ms_agent.tui.theme import DEFAULT_THEME, Theme
-
-# Menu rows → PermissionAction. Order is the on-screen order.
-_ALLOW_ONCE, _ALLOW_SESSION, _ALLOW_ALWAYS, _EDIT, _DENY = range(5)
+from ms_agent.tui.tool_view import tool_header
 
 
 class TUIPermissionHandler:
@@ -33,7 +38,8 @@ class TUIPermissionHandler:
                  console: Optional[Console] = None,
                  io: Any = None,
                  theme: Theme = DEFAULT_THEME,
-                 renderer: Any = None) -> None:
+                 renderer: Any = None,
+                 pause_live=None) -> None:
         self._console = console or Console()
         self._theme = theme
         # The event renderer, so its draws can be held while this menu owns the
@@ -42,6 +48,7 @@ class TUIPermissionHandler:
         # reading (tool completions arrive per call now, so that overlap is
         # reachable whenever one call is approved while another is still asked).
         self._renderer = renderer
+        self._pause_live = pause_live
 
     @contextmanager
     def _own_screen(self):
@@ -52,56 +59,84 @@ class TUIPermissionHandler:
         with hold():
             yield
 
-    async def ask(self, tool_name, tool_args, context, suggestions=None):
+    async def ask(
+        self,
+        tool_name,
+        tool_args,
+        context,
+        suggestions=None,
+        call_id='',
+        workspace_root='',
+    ):
         with self._own_screen():
-            return await self._ask(tool_name, tool_args, context, suggestions)
+            return await self._ask(
+                tool_name,
+                tool_args,
+                context,
+                suggestions=suggestions,
+                workspace_root=workspace_root,
+            )
 
-    async def _ask(self, tool_name, tool_args, context, suggestions=None):
-        from ms_agent.permission.handler import (PermissionAction,
-                                                 PermissionResponse)
-        suggestion = suggestions[0] if suggestions else tool_name
-
-        # No persistent box: the tool line ("• Write path") already printed by
-        # the renderer is the context. The header below renders *inside* the
-        # transient menu and is erased with it, so once decided only the tool
-        # line + its result remain (Claude Code / Qoder style).
-        header = f'⚠ allow this tool call?  {tool_name}'
-        args_preview = self._format_args(tool_args)
-        if args_preview:
-            header += '\n' + args_preview
-        if context:
-            header += '\n' + str(context)
-
-        options = [
-            'Allow once',
-            'Allow for this session',
-            f'Always allow  [{suggestion}]',
-            'Edit arguments',
-            'Deny',
-        ]
-        idx = await select_async(options, default=_ALLOW_ONCE, header=header)
-
-        # ── map selection → response (no persistent echo; the tool result line
-        # that follows is the trace — a denial shows "└ Tool call denied …") ──
-        if idx is None or idx == _DENY:
-            return PermissionResponse(action=PermissionAction.DENY)
-
-        if idx == _ALLOW_SESSION:
-            return PermissionResponse(
-                action=PermissionAction.ALLOW_SESSION, pattern=suggestion)
-        if idx == _ALLOW_ALWAYS:
-            return PermissionResponse(
-                action=PermissionAction.ALLOW_ALWAYS, pattern=suggestion)
-        if idx == _EDIT:
-            raw = (await self._read_line('new args (JSON): ')).strip()
+    async def _ask(
+        self,
+        tool_name,
+        tool_args,
+        context,
+        suggestions=None,
+        workspace_root='',
+    ):
+        options = build_ask_options(
+            tool_name,
+            tool_args,
+            workspace_root=workspace_root or None,
+            suggestions=suggestions,
+        )
+        args_preview = self._format_args(sanitize_tool_args(tool_args))
+        context_text = sanitize_sensitive_text(context) if context else ''
+        if not sys.stdin.isatty():
+            print(
+                format_ask_menu(
+                    options,
+                    tool_name=tool_name,
+                    args_preview=args_preview,
+                    context=context_text,
+                ),
+                file=sys.stderr)
+            print('choice: ', end='', file=sys.stderr, flush=True)
+            loop = asyncio.get_running_loop()
             try:
-                new_args = json.loads(raw)
-            except (json.JSONDecodeError, ValueError):
-                self._console.print('[red]invalid JSON — denying[/]')
+                raw = await loop.run_in_executor(None, sys.stdin.readline)
+            except (EOFError, KeyboardInterrupt):
                 return PermissionResponse(action=PermissionAction.DENY)
-            return PermissionResponse(
-                action=PermissionAction.MODIFY, updated_args=new_args)
-        return PermissionResponse(action=PermissionAction.ALLOW_ONCE)
+            if raw == '':
+                return PermissionResponse(action=PermissionAction.DENY)
+            return parse_ask_choice(raw, options)
+
+        items = [
+            SelectItem(
+                label=opt.label,
+                editable=opt.editable,
+                initial=opt.edit_value,
+            ) for opt in options
+        ]
+        if self._pause_live is not None:
+            self._pause_live()
+        # Compact header: the renderer already printed "• Run ssh …".
+        # Dumping pretty JSON here blew past the select window height and
+        # overwrote the transcript.
+        compact = tool_header(tool_name, tool_args)
+        header = f'⚠ Allow this?  {compact}' if compact else '⚠ Allow this tool call?'
+        result = await select_async(
+            items,
+            default=0,
+            header=header,
+        )
+        if result is None:
+            return PermissionResponse(action=PermissionAction.DENY)
+        option = options[result.index]
+        if result.value and option.editable:
+            option = option.with_edit(result.value)
+        return option.to_response()
 
     def _format_args(self, tool_args) -> str:
         try:
@@ -114,10 +149,3 @@ class TUIPermissionHandler:
         elif len(s) > 400:
             s = s[:400] + '…'
         return s
-
-    async def _read_line(self, prompt: str) -> str:
-        loop = asyncio.get_running_loop()
-        try:
-            return await loop.run_in_executor(None, input, prompt)
-        except (EOFError, KeyboardInterrupt):
-            return ''

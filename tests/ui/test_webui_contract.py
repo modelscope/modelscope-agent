@@ -71,7 +71,10 @@ def test_web_permission_roundtrip():
 
         handler.resolve(
             ev['request_id'],
-            PermissionResponse(action=PermissionAction.ALLOW_ONCE))
+            PermissionResponse(action=PermissionAction.ALLOW_ONCE),
+            token=ev['approval_token'],
+            fingerprint=ev['fingerprint'],
+        )
         resp = await task
         assert resp.action == PermissionAction.ALLOW_ONCE
 

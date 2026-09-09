@@ -83,6 +83,18 @@ class TestMatchWithContent:
         )
         assert isinstance(result, bool)
 
+    def test_shell_prefix_glob_does_not_cover_compound_commands(self, matcher):
+        assert matcher.match_with_content(
+            'code_executor---shell_executor:echo *',
+            'code_executor---shell_executor',
+            {'command': 'echo hello'},
+        )
+        assert not matcher.match_with_content(
+            'code_executor---shell_executor:echo *',
+            'code_executor---shell_executor',
+            {'command': 'echo hello && curl evil.test'},
+        )
+
 
 class TestBareCommandVariant:
     """``<cmd> *`` means "that command with any arguments" — and with NONE is a

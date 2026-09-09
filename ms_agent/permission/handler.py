@@ -11,10 +11,15 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import threading
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Callable, Protocol
-from uuid import uuid4
+from typing import Any, Callable, Literal, Protocol
+
+from .approval import (ApprovalConflictError, ApprovalRequest, ApprovalStore,
+                       MemoryApprovalStore)
+from .provider import sanitize_sensitive_text, sanitize_tool_args
 
 
 class PermissionAction(str, Enum):
@@ -31,6 +36,7 @@ class PermissionResponse:
     updated_args: dict[str, Any] | None = None
     pattern: str | None = None
     feedback: str | None = None
+    scope: Literal['project', 'global'] = 'project'
 
 
 class PermissionHandler(Protocol):
@@ -53,6 +59,7 @@ class PermissionHandler(Protocol):
         context: str,
         suggestions: list[str] | None = None,
         call_id: str = '',
+        workspace_root: str = '',
     ) -> PermissionResponse:
         ...
 
@@ -70,12 +77,21 @@ class AutoPermissionHandler:
         context: str,
         suggestions: list[str] | None = None,
         call_id: str = '',
+        workspace_root: str = '',
     ) -> PermissionResponse:
         return PermissionResponse(action=PermissionAction.ALLOW_ONCE)
 
 
+def _args_preview(tool_args: dict[str, Any]) -> str:
+    args_display = json.dumps(
+        sanitize_tool_args(tool_args), ensure_ascii=False, indent=2)
+    if len(args_display) > 500:
+        args_display = args_display[:500] + '...'
+    return args_display
+
+
 class CLIPermissionHandler:
-    """Interactive CLI permission prompt."""
+    """One-layer CLI permission prompt (scene options, single stdin read)."""
 
     async def ask(
         self,
@@ -84,65 +100,32 @@ class CLIPermissionHandler:
         context: str,
         suggestions: list[str] | None = None,
         call_id: str = '',
+        workspace_root: str = '',
     ) -> PermissionResponse:
-        args_display = json.dumps(tool_args, ensure_ascii=False, indent=2)
-        if len(args_display) > 500:
-            args_display = args_display[:500] + '...'
-
-        suggestion = suggestions[0] if suggestions else tool_name
-
-        print(f'\n{"="*60}', file=sys.stderr)
-        print(f' Permission Required', file=sys.stderr)
-        print(f'{"="*60}', file=sys.stderr)
-        print(f' Tool: {tool_name}', file=sys.stderr)
-        print(f' Args: {args_display}', file=sys.stderr)
-        if context:
-            print(f' Context: {context}', file=sys.stderr)
-        print(f'{"─"*60}', file=sys.stderr)
-        print(f' [y] Allow this once', file=sys.stderr)
-        print(f' [s] Allow for this session', file=sys.stderr)
-        print(f' [a] Always allow (pattern: {suggestion})', file=sys.stderr)
-        print(f' [e] Edit args then execute', file=sys.stderr)
-        print(f' [n] Deny', file=sys.stderr)
-        print(f'{"="*60}', file=sys.stderr)
-
+        from .ask_options import (build_ask_options, format_ask_menu,
+                                  parse_ask_choice)
+        options = build_ask_options(
+            tool_name,
+            tool_args,
+            workspace_root=workspace_root or None,
+            suggestions=suggestions,
+        )
+        menu = format_ask_menu(
+            options,
+            tool_name=tool_name,
+            args_preview=_args_preview(tool_args),
+            context=sanitize_sensitive_text(context) if context else '',
+        )
+        print(f'\n{menu}', file=sys.stderr)
+        print('choice: ', end='', file=sys.stderr, flush=True)
         loop = asyncio.get_running_loop()
-        choice = await loop.run_in_executor(
-            None, lambda: input('Choice [y/s/a/e/n]: ').strip().lower())
-
-        if choice == 's':
-            return PermissionResponse(
-                action=PermissionAction.ALLOW_SESSION,
-                pattern=suggestion,
-            )
-        elif choice == 'a':
-            edited = await loop.run_in_executor(
-                None,
-                lambda: input(f'Pattern [{suggestion}]: ').strip(),
-            )
-            final_pattern = edited if edited else suggestion
-            return PermissionResponse(
-                action=PermissionAction.ALLOW_ALWAYS,
-                pattern=final_pattern,
-            )
-        elif choice == 'e':
-            edited_raw = await loop.run_in_executor(
-                None,
-                lambda: input('New args (JSON): ').strip(),
-            )
-            try:
-                new_args = json.loads(edited_raw)
-            except json.JSONDecodeError:
-                print('Invalid JSON, denying.', file=sys.stderr)
-                return PermissionResponse(action=PermissionAction.DENY)
-            return PermissionResponse(
-                action=PermissionAction.MODIFY,
-                updated_args=new_args,
-            )
-        elif choice == 'n':
+        try:
+            raw = await loop.run_in_executor(None, sys.stdin.readline)
+        except (EOFError, KeyboardInterrupt):
             return PermissionResponse(action=PermissionAction.DENY)
-        else:
-            return PermissionResponse(action=PermissionAction.ALLOW_ONCE)
+        if raw == '':
+            return PermissionResponse(action=PermissionAction.DENY)
+        return parse_ask_choice(raw, options)
 
 
 class EventEmitter(Protocol):
@@ -156,6 +139,7 @@ class EventEmitter(Protocol):
 class _PendingAsk:
     """One card the user has not answered yet, and what it was about."""
     future: 'asyncio.Future[PermissionResponse]'
+    loop: asyncio.AbstractEventLoop
     tool_name: str
     tool_args: dict
     forced: bool = False
@@ -174,6 +158,7 @@ class WebPermissionHandler:
         self,
         event_emitter: EventEmitter,
         timeout: float | None = None,
+        store: ApprovalStore | None = None,
     ) -> None:
         """``timeout=None`` waits indefinitely for an answer.
 
@@ -184,8 +169,10 @@ class WebPermissionHandler:
         keyboard at all.
         """
         self._pending: dict[str, _PendingAsk] = {}
+        self._pending_lock = threading.RLock()
         self._event_emitter = event_emitter
         self._timeout = timeout
+        self._store = store or MemoryApprovalStore()
 
     async def ask(
         self,
@@ -194,48 +181,103 @@ class WebPermissionHandler:
         context: str,
         suggestions: list[str] | None = None,
         call_id: str = '',
+        workspace_root: str = '',
         forced: bool = False,
     ) -> PermissionResponse:
-        request_id = uuid4().hex
+        from .ask_options import build_ask_options
+        ask_options = build_ask_options(
+            tool_name,
+            tool_args,
+            workspace_root=workspace_root or None,
+            suggestions=suggestions,
+        )
+        expires_at = ''
+        if self._timeout is not None:
+            expires_at = (
+                datetime.now(timezone.utc)
+                + timedelta(seconds=self._timeout)
+            ).isoformat()
+        request = ApprovalRequest.create(
+            tool_name,
+            tool_args,
+            call_id=call_id,
+            context=context,
+            suggestions=suggestions or [],
+            expires_at=expires_at,
+        )
+        request_id = request.id
         loop = asyncio.get_running_loop()
         future: asyncio.Future[PermissionResponse] = loop.create_future()
-        # What was asked is kept beside the future so an answer to ONE card can
-        # be applied to the others it covers (see resolve_matching).
-        self._pending[request_id] = _PendingAsk(
-            future=future,
-            tool_name=tool_name,
-            tool_args=dict(tool_args or {}),
-            forced=forced,
-        )
 
-        self._event_emitter.emit({
-            'type':
-            'permission_request',
-            'request_id':
-            request_id,
-            'call_id':
-            call_id,
-            'tool_name':
-            tool_name,
-            'tool_args':
-            tool_args,
-            'context':
-            context,
-            'suggestions':
-            suggestions or [],
-            'options': [a.value for a in PermissionAction],
-        })
-
+        # Durability comes before visibility: consumers can immediately fetch
+        # every request they observe from the emitted event.
         try:
+            self._store.create(request)
+            with self._pending_lock:
+                self._pending[request_id] = _PendingAsk(
+                    future=future,
+                    loop=loop,
+                    tool_name=tool_name,
+                    tool_args=dict(tool_args or {}),
+                    forced=forced,
+                )
+            try:
+                self._event_emitter.emit({
+                    'type': 'permission_request',
+                    'request_id': request_id,
+                    'call_id': call_id,
+                    'tool_name': tool_name,
+                    'tool_args': request.tool_args,
+                    'context': sanitize_sensitive_text(context),
+                    'suggestions': list(request.suggestions),
+                    'options': [opt.key for opt in ask_options],
+                    'ask_options': [
+                        {
+                            'key': opt.key,
+                            'label': opt.label,
+                            'action': opt.action.value,
+                            'pattern': opt.pattern,
+                            'editable': opt.editable,
+                            'edit_value': opt.edit_value,
+                        }
+                        for opt in ask_options
+                    ],
+                    'approval_token': request.token,
+                    'fingerprint': request.fingerprint,
+                    'version': request.version,
+                })
+            except Exception as exc:
+                self._cancel_pending(request_id, request.version)
+                return PermissionResponse(
+                    action=PermissionAction.DENY,
+                    feedback=(
+                        'Permission request could not be delivered: '
+                        f'{type(exc).__name__}'),
+                )
             if self._timeout is None:
                 return await future
-            return await asyncio.wait_for(future, timeout=self._timeout)
+            return await asyncio.wait_for(
+                asyncio.shield(future), timeout=self._timeout)
         except asyncio.TimeoutError:
-            # Said plainly, and said to the MODEL: a timeout is not a person
-            # declining. Without the distinction the agent reads an ordinary
-            # refusal, tries a variation, and waits out the whole timeout
-            # again — one unattended prompt costing several times what the
-            # limit says it should.
+            current = self._store.get(request_id)
+            if current is not None and current.state in ('approved', 'denied'):
+                try:
+                    self._store.transition(
+                        request_id,
+                        'resume_queued',
+                        expected_version=current.version,
+                    )
+                except (ApprovalConflictError, ValueError):
+                    pass
+            elif current is not None and current.state == 'pending':
+                try:
+                    self._store.transition(
+                        request_id,
+                        'expired',
+                        expected_version=current.version,
+                    )
+                except (ApprovalConflictError, ValueError):
+                    pass
             return PermissionResponse(
                 action=PermissionAction.DENY,
                 feedback=(
@@ -245,8 +287,30 @@ class WebPermissionHandler:
                     'same approval; finish what you can without it and say '
                     'plainly what is left waiting on approval.'),
             )
+        except asyncio.CancelledError:
+            current = self._store.get(request_id)
+            if current is not None and current.state in ('approved', 'denied'):
+                try:
+                    self._store.transition(
+                        request_id,
+                        'resume_queued',
+                        expected_version=current.version,
+                    )
+                except (ApprovalConflictError, ValueError):
+                    pass
+            elif current is not None and current.state == 'pending':
+                self._cancel_pending(request_id, current.version)
+            raise
+        except Exception as exc:
+            return PermissionResponse(
+                action=PermissionAction.DENY,
+                feedback=(
+                    'Permission request could not be persisted: '
+                    f'{type(exc).__name__}'),
+            )
         finally:
-            self._pending.pop(request_id, None)
+            with self._pending_lock:
+                self._pending.pop(request_id, None)
 
     def awaiting_request_ids(self) -> set:
         """Every request still open for an answer.
@@ -254,11 +318,12 @@ class WebPermissionHandler:
         A host replaying a reconnected turn needs this to tell a card that is
         still live from one that was already decided.
         """
-        return {
-            request_id
-            for request_id, pending in self._pending.items()
-            if not pending.future.done()
-        }
+        with self._pending_lock:
+            return {
+                request_id
+                for request_id, pending in self._pending.items()
+                if not pending.future.done()
+            }
 
     def is_awaiting(self, request_id: str) -> bool:
         """Whether this request is still open for an answer.
@@ -268,13 +333,118 @@ class WebPermissionHandler:
         asks happen to be stored — which is how adding a field to that record
         turned every approval click into a 500.
         """
-        pending = self._pending.get(request_id)
+        with self._pending_lock:
+            pending = self._pending.get(request_id)
         return pending is not None and not pending.future.done()
 
-    def resolve(self, request_id: str, response: PermissionResponse) -> None:
-        pending = self._pending.get(request_id)
-        if pending and not pending.future.done():
-            pending.future.set_result(response)
+    def _cancel_pending(self, request_id: str, version: int) -> None:
+        try:
+            self._store.transition(
+                request_id,
+                'cancelled',
+                expected_version=version,
+            )
+        except (ApprovalConflictError, KeyError, ValueError):
+            pass
+
+    @staticmethod
+    def _set_future_result(
+        future: asyncio.Future[PermissionResponse],
+        response: PermissionResponse,
+    ) -> None:
+        if not future.done():
+            future.set_result(response)
+
+    def resolve(
+        self,
+        request_id: str,
+        response: PermissionResponse,
+        *,
+        token: str | None = None,
+        fingerprint: str | None = None,
+        decided_by: str = '',
+    ) -> bool:
+        request = self._store.get(request_id)
+        if request is None:
+            with self._pending_lock:
+                pending = self._pending.get(request_id)
+            if pending is None or pending.future.done():
+                return False
+            pending.loop.call_soon_threadsafe(
+                self._set_future_result, pending.future, response)
+            return True
+        # In-process resolve (TUI tests, same-handler click) may omit the
+        # one-time token; an external WebUI must still present it.
+        if token is None and request.state == 'pending':
+            token = request.token
+            fingerprint = fingerprint or request.fingerprint
+        state = (
+            'denied'
+            if response.action == PermissionAction.DENY else 'approved')
+        if request.state != 'pending':
+            return (
+                request.state in (state, 'resume_queued', 'resumed')
+                and request.decision == response.action.value
+                and request.pattern == (response.pattern or '')
+                and request.scope == response.scope
+                and request.decision_args == (
+                    sanitize_tool_args(response.updated_args)
+                    if response.updated_args is not None else None)
+            )
+        try:
+            decided = self._store.transition(
+                request_id,
+                state,
+                expected_version=request.version,
+                token=token,
+                fingerprint=fingerprint,
+                feedback=response.feedback or '',
+                decision=response.action.value,
+                pattern=response.pattern or '',
+                scope=response.scope,
+                decided_by=decided_by,
+                decision_args=response.updated_args,
+            )
+        except (ApprovalConflictError, ValueError):
+            return False
+        with self._pending_lock:
+            pending = self._pending.get(request_id)
+        if pending is not None:
+            if not pending.future.done():
+                pending.loop.call_soon_threadsafe(
+                    self._set_future_result, pending.future, response)
+                return True
+        try:
+            queued = self._store.transition(
+                request_id,
+                'resume_queued',
+                expected_version=decided.version,
+            )
+        except (ApprovalConflictError, ValueError):
+            return False
+        try:
+            self._event_emitter.emit({
+                'type': 'permission_resume_queued',
+                'request_id': request_id,
+                'decision': response.action.value,
+                'updated_args': queued.decision_args,
+                'continuation_token': queued.continuation_token,
+                'fingerprint': (
+                    queued.decision_fingerprint or queued.fingerprint),
+                'version': queued.version,
+            })
+        except Exception as exc:
+            try:
+                self._store.transition(
+                    request_id,
+                    'resume_failed',
+                    expected_version=queued.version,
+                    feedback=f'Resume delivery failed: {type(exc).__name__}',
+                )
+            except (ApprovalConflictError, ValueError):
+                pass
+            return False
+        return True
 
     def resolve_matching(
         self,
@@ -293,13 +463,17 @@ class WebPermissionHandler:
         answer cannot stand in for looking at this one.
         """
         resolved = 0
-        for request_id, pending in list(self._pending.items()):
+        with self._pending_lock:
+            items = list(self._pending.items())
+        for request_id, pending in items:
             if pending.forced or pending.future.done():
                 continue
             if not covers(pending.tool_name, pending.tool_args):
                 continue
-            pending.future.set_result(response)
-            self._pending.pop(request_id, None)
+            pending.loop.call_soon_threadsafe(
+                self._set_future_result, pending.future, response)
+            with self._pending_lock:
+                self._pending.pop(request_id, None)
             resolved += 1
         return resolved
 
@@ -312,12 +486,16 @@ class WebPermissionHandler:
         would otherwise pin its session for the life of the process.
         """
         resolved = 0
-        for request_id, pending in list(self._pending.items()):
+        deny = PermissionResponse(
+            action=PermissionAction.DENY, feedback=feedback)
+        with self._pending_lock:
+            items = list(self._pending.items())
+        for request_id, pending in items:
             if pending.future.done():
                 continue
-            pending.future.set_result(
-                PermissionResponse(
-                    action=PermissionAction.DENY, feedback=feedback))
+            pending.loop.call_soon_threadsafe(
+                self._set_future_result, pending.future, deny)
             resolved += 1
-            self._pending.pop(request_id, None)
+            with self._pending_lock:
+                self._pending.pop(request_id, None)
         return resolved

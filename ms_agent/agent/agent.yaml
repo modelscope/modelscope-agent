@@ -99,6 +99,11 @@ tools:
       - shell_executor
       - python_executor
       - notebook_executor
+  # Builtin (not an MCP server): list/cancel backgrounded shell tasks.
+  # `mcp: false` is required — every tools.<name> without it is treated as MCP
+  # and connect fails with "'url' or 'command' parameter is required".
+  task_control:
+    mcp: false
 
 help: |
   A commonly use config, try whatever you want!

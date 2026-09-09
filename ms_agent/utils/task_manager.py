@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from ms_agent.utils.logger import get_logger
+from ms_agent.utils.process_group import kill_process_group
 
 logger = get_logger()
 
@@ -91,6 +92,8 @@ class TaskManager:
                 elif asyncio.isfuture(task.proc) or asyncio.iscoroutine(
                         task.proc):
                     task.proc.cancel()
+                else:
+                    kill_process_group(task.proc)
             except Exception as e:
                 logger.warning(f'[TaskManager] kill {task_id} failed: {e}')
         task.status = 'killed'

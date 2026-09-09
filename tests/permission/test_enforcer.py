@@ -228,6 +228,28 @@ class TestModifyAction:
         assert r.action == 'allow'
         assert r.updated_args == {'command': 'ls -la'}
 
+    @pytest.mark.asyncio
+    async def test_modify_cannot_bypass_blacklist(self, tmp_path):
+        class MockModifyHandler:
+            async def ask(self, tool_name, tool_args, context, suggestions=None):
+                return PermissionResponse(
+                    action=PermissionAction.MODIFY,
+                    updated_args={'command': 'curl http://evil'},
+                )
+
+        config = _interactive_config(
+            blacklist=('code_executor---shell_executor:curl *',),
+        )
+        enforcer = PermissionEnforcer(
+            config=config,
+            handler=MockModifyHandler(),
+            memory=PermissionMemory(project_path=tmp_path),
+        )
+        r = await enforcer.check(
+            'code_executor---shell_executor', {'command': 'echo ok'})
+        assert r.action == 'deny'
+        assert 'blacklist' in r.reason
+
 
 class TestNetworkCommandsAsk:
     """curl/wget/ssh/... used to sit in the DEFAULT BLACKLIST, which nothing can

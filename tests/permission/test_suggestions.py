@@ -9,7 +9,10 @@ class TestShellSuggestions:
             'code_executor---shell_executor',
             {'command': 'ls -la'},
         )
-        assert suggestions[0] == 'code_executor---shell_executor:ls *'
+        assert suggestions[:2] == [
+            'code_executor---shell_executor:ls -la',
+            'code_executor---shell_executor:ls *',
+        ]
         assert 'code_executor---shell_executor' in suggestions
 
     def test_strips_timeout_wrapper(self):
@@ -17,14 +20,16 @@ class TestShellSuggestions:
             'code_executor---shell_executor',
             {'command': 'timeout 10 ls -la'},
         )
-        assert suggestions[0] == 'code_executor---shell_executor:ls *'
+        assert suggestions[0] == (
+            'code_executor---shell_executor:timeout 10 ls -la')
+        assert suggestions[1] == 'code_executor---shell_executor:ls *'
 
     def test_strips_nice_wrapper(self):
         suggestions = generate_suggestions(
             'code_executor---shell_executor',
             {'command': 'nice -n 10 pip install requests'},
         )
-        assert suggestions[0] == 'code_executor---shell_executor:pip *'
+        assert suggestions[1] == 'code_executor---shell_executor:pip *'
 
     def test_empty_command(self):
         suggestions = generate_suggestions(
@@ -40,7 +45,11 @@ class TestOtherTools:
             'file_system---read_file',
             {'path': '/src/main.py'},
         )
-        assert suggestions == ['file_system---read_file']
+        assert suggestions == [
+            'file_system---read_file:/src/main.py',
+            'file_system---read_file:/src/*',
+            'file_system---read_file',
+        ]
 
     def test_web_search(self):
         suggestions = generate_suggestions(

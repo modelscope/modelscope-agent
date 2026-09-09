@@ -44,6 +44,23 @@ class TestInteractiveMode:
         assert result.reason == 'test reason'
 
 
+class TestDelegateMode:
+    """delegate mode must preserve SafetyGuard asks for the enforcer."""
+
+    @pytest.mark.parametrize('category', [
+        'process_input_sub',
+        'command_validator',
+        'read_outside_dirs',
+    ])
+    def test_safety_ask_is_preserved(self, category: str) -> None:
+        decision = SafetyDecision(
+            action='ask', reason='requires safety approval', category=category)
+
+        result = resolve_ask(decision, mode='delegate')
+
+        assert result.action == 'ask'
+
+
 class TestAutoMode:
     """auto mode: per-category resolution."""
 

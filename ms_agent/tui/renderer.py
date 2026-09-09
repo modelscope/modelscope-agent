@@ -132,6 +132,27 @@ class RichEventSink:
         self._content_buf = ''
         self._label_shown = False
 
+    def pause_for_prompt(self) -> None:
+        """Stop a Live region so an inline prompt_toolkit menu can draw cleanly.
+
+        Leaves the last streamed frame on the scrollback. Does not wipe
+        ``_content_buf`` — ContentEnd can still settle later.
+        """
+        if self._live is None:
+            return
+        try:
+            self._live.update(Text(self._content_buf or ''))
+            self._live.stop()
+        except Exception:
+            pass
+        self._live = None
+        try:
+            self.console.print()
+        except Exception:
+            pass
+        from ms_agent.tui.tty import restore_cooked_tty
+        restore_cooked_tty()
+
     # ── assistant content (streamed) ───────────────────────────────────────
 
     def _on_content_delta(self, ev) -> None:

@@ -6,12 +6,23 @@ Supports ``*`` / ``?`` wildcards via fnmatch, ``|`` to separate alternatives.
 
 from __future__ import annotations
 
+import ipaddress
+import re
+import socket
 from typing import Any
+from urllib.parse import urlsplit
 
 from ms_agent.utils.pattern_matcher import match_pattern
 
 TOOL_SPLITER = '---'
 CONTENT_SEP = ':'
+_DOMAIN_PREFIXES = ('domain:', 'domain=', 'url-domain:')
+_COMPOUND_RE = re.compile(r'(\|\||&&|;|\n|\|)')
+
+
+def is_compound_shell(command: str) -> bool:
+    """True when a shell string has operators that a prefix glob must not cover."""
+    return bool(command and _COMPOUND_RE.search(command))
 
 
 def _extract_content(tool_name: str, tool_args: dict[str, Any]) -> str | None:
@@ -58,6 +69,74 @@ def _with_bare_command_variants(content_pattern: str) -> str:
     return '|'.join(p for p in out if p)
 
 
+def normalize_domain(domain: str) -> str:
+    """Return a lower-case IDNA ASCII hostname without a trailing dot."""
+    domain = domain.strip().rstrip('.').lower()
+    if not domain:
+        return ''
+    try:
+        return domain.encode('idna').decode('ascii')
+    except UnicodeError:
+        return ''
+
+
+def trusted_url_host(url: str) -> str | None:
+    """Extract a public web host suitable for persistent domain trust."""
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme.lower() not in ('http', 'https'):
+            return None
+        if parsed.username is not None or parsed.password is not None:
+            return None
+        host = normalize_domain(parsed.hostname or '')
+        if not host or host == 'localhost' or host.endswith('.localhost'):
+            return None
+        private_suffixes = (
+            '.local', '.internal', '.lan', '.corp', '.home', '.invalid')
+        if any(host.endswith(suffix) for suffix in private_suffixes):
+            return None
+        blocked_hosts = {
+            'metadata',
+            'metadata.google.internal',
+            'kubernetes',
+            'kubernetes.default',
+            'kubernetes.default.svc',
+        }
+        if host in blocked_hosts:
+            return None
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            # Browsers and libc also accept integer/hex/abbreviated IPv4
+            # spellings (for example 2130706433 == 127.0.0.1).
+            try:
+                packed = socket.inet_aton(host)
+            except OSError:
+                return host
+            address = ipaddress.ip_address(packed)
+            if not address.is_global:
+                return None
+            return str(address)
+        else:
+            if not address.is_global:
+                return None
+            return host
+    except (TypeError, ValueError):
+        return None
+
+
+def _match_domain_rule(rule: str, url: str) -> bool:
+    host = trusted_url_host(url)
+    if host is None:
+        return False
+    raw_rule = rule.strip()
+    if raw_rule.startswith('*.'):
+        suffix = normalize_domain(raw_rule[2:])
+        return bool(suffix and host.endswith(f'.{suffix}'))
+    wanted = normalize_domain(raw_rule)
+    return bool(wanted and host == wanted)
+
+
 class PermissionMatcher:
     """Wildcard matcher for permission rules, shared by both SafetyGuard and PermissionEnforcer."""
 
@@ -96,6 +175,18 @@ class PermissionMatcher:
 
         content = _extract_content(tool_name, tool_args)
         if content is None:
+            return False
+
+        for prefix in _DOMAIN_PREFIXES:
+            if content_pattern.lower().startswith(prefix):
+                domain = content_pattern[len(prefix):]
+                return _match_domain_rule(domain, content)
+
+        if (
+            tool_name.endswith(f'{TOOL_SPLITER}shell_executor')
+            and is_compound_shell(content)
+            and any(ch in content_pattern for ch in '*?[')
+        ):
             return False
 
         return self.match(_with_bare_command_variants(content_pattern), content)

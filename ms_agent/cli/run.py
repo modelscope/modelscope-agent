@@ -159,6 +159,21 @@ class RunCMD(CLICommand):
             type=str,
             default=None,
             help='Comma-separated list of paths for knowledge search.')
+        parser.add_argument(
+            '--permission_mode',
+            required=False,
+            type=str,
+            default=None,
+            choices=[
+                'auto',
+                'strict',
+                'restricted',
+                'interactive',
+                'delegate',
+                'delegated',
+                'full_access',
+            ],
+            help='Permission mode for tool calls. When set, overrides agent.yaml.')
         parser.set_defaults(func=subparser_func)
 
     @staticmethod
@@ -168,6 +183,14 @@ class RunCMD(CLICommand):
         if output_dir and isinstance(config, DictConfig):
             with open_dict(config):
                 config.output_dir = output_dir
+        permission_mode = getattr(args, 'permission_mode', None)
+        if permission_mode and isinstance(config, DictConfig):
+            with open_dict(config):
+                if not hasattr(config, 'permission') or config.permission is None:
+                    config.permission = {}
+                config.permission.mode = permission_mode
+                if permission_mode in ('interactive', 'restricted'):
+                    config.interactive = True
         return config
 
     def execute(self):
