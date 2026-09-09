@@ -112,6 +112,13 @@ def test_missing_backend_dependencies_names_matching_extra(monkeypatch):
         resources.check_backend_dependencies()
 
 
+def test_backend_starts_without_optional_python_notebook_packages(monkeypatch):
+    optional = {'ipykernel', 'jupyter_client', 'pyarrow', 'sklearn', 'seaborn'}
+    monkeypatch.setattr(resources.importlib.util, 'find_spec',
+                        lambda name: None if name in optional else object())
+    resources.check_backend_dependencies()
+
+
 def test_source_wheel_builds_in_cache_once_and_recovers_failed_build(bundle, tmp_path, monkeypatch):
     root, manifest = bundle
     manifest['prebuilt'] = False

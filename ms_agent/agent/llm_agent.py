@@ -211,26 +211,22 @@ class LLMAgent(Agent):
     def resolve_enable_snapshots(config: Any) -> bool:
         """Resolve whether to take automatic pre-task snapshots.
 
-        Tool-spawned sub-agents (``ms_agent_subagent`` in config) default to
-        ``False``; all other agents default to ``True``. An explicit
-        ``enable_snapshots`` in config always wins (including string forms
-        like ``\"false\"`` coerced to boolean).
+        Disabled by default for all agents. An explicit ``enable_snapshots``
+        in config always wins (including string forms like ``\"false\"``
+        coerced to boolean).
         """
         if OmegaConf.is_config(config):
             raw = OmegaConf.select(
                 config, 'enable_snapshots', default=_MISSING_ENABLE_SNAPSHOTS)
             if raw is not _MISSING_ENABLE_SNAPSHOTS and raw is not None:
                 return LLMAgent._coerce_enable_snapshots_value(raw)
-            sub = bool(
-                OmegaConf.select(config, 'ms_agent_subagent', default=False))
-            return not sub
+            return False
         if isinstance(config, dict):
             if 'enable_snapshots' in config and config[
                     'enable_snapshots'] is not None:
                 return LLMAgent._coerce_enable_snapshots_value(
                     config['enable_snapshots'])
-            return not bool(config.get('ms_agent_subagent'))
-        return True
+        return False
 
     TOTAL_PROMPT_TOKENS = 0
     TOTAL_COMPLETION_TOKENS = 0

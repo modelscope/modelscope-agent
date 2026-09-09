@@ -10,9 +10,9 @@ DEFAULT_TOOLS: dict = {
     },
     "todo_list": {"enabled": True, "mcp": False},
     # Shell/terminal only. implementation must be the SDK's "python_env" (a
-    # local Jupyter kernel, no Docker); "local"/"sandbox" route to the Docker
+    # local executor, no Docker); "local"/"sandbox" route to the Docker
     # CodeExecutionTool (needs ms-enclave). `include: [shell_executor]` exposes
-    # ONLY the terminal tool (not notebook/python/file_operation). Restricted
+    # ONLY the terminal tool and skips Jupyter startup. Restricted
     # permission gates shell_executor (not whitelisted) so every command asks.
     "code_executor": {
         "enabled": True,
