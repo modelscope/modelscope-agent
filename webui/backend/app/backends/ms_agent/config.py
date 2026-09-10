@@ -1,7 +1,7 @@
 """Assemble the per-session run config and construct the LLMAgent (Route A).
 
-Mirrors ms_agent/tui/app.py: ConfigResolver.resolve() for the layered config
-(framework defaults -> settings.json -> project patch -> session overrides),
+Uses the SDK ConfigResolver.resolve() for the layered config
+(framework -> WebUI defaults -> settings.json -> project -> session),
 then route-A shaping (interactive lifecycle, streaming, session-log dir), then
 the managed MCP/skills bridge, then LLMAgent with the UI seams injected.
 """
@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from app.backends.ms_agent.common import home
+from app.backends.ms_agent.defaults import DEFAULT_TOOLS, RETIRED_TOOLS
 
 logger = logging.getLogger("app.ms_agent.config")
 
@@ -51,8 +52,9 @@ def _apply_webui_defaults(config):
     }.items():
         if OmegaConf.select(config, key, default=None) is None:
             OmegaConf.update(config, key, value, merge=True)
-    # Builtin repo tools live in settings.json's `tools` block and are merged by
-    # the SDK ConfigResolver (multi-level resolve); nothing to inject here.
+    # Retired WebUI tools must not reappear after an import performed at runtime.
+    for name in RETIRED_TOOLS:
+        config.tools.pop(name, None)
     return config
 
 
@@ -984,8 +986,12 @@ def build_agent(project, session, *, event_sink, input_source, mcp_config=None,
     )
     from omegaconf import OmegaConf
 
+    from app.backends.ms_agent.tool_settings import ensure_tool_settings
+
     h = home()
-    resolver = ConfigResolver(global_dir=h, project_root=project.path)
+    ensure_tool_settings(h)
+    resolver = ConfigResolver(
+        global_dir=h, project_root=project.path, defaults={"tools": DEFAULT_TOOLS})
     sdir = session_dir(project, session)
     session_overrides = {
         # ① align the runtime SessionLog with the SessionManager session dir
@@ -1002,6 +1008,9 @@ def build_agent(project, session, *, event_sink, input_source, mcp_config=None,
         # other's plans). read_plan() resolves the same path.
         "tools": {
             "todo_list": {
+                # This is the built-in session plan, even when an existing
+                # settings block omits its MCP discriminator.
+                "mcp": False,
                 "plan_filename": os.path.join(sdir, "plan.json"),
                 "plan_md_filename": os.path.join(sdir, "plan.md"),
             },

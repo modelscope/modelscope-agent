@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Context: only the verified wheel/sdist, dependency export and release.json.
+# Context: verified packages, service/shell dependency locks and release.json.
 FROM node:22-bookworm-slim AS node
 
 FROM python:3.12-slim-bookworm AS base
@@ -36,7 +36,8 @@ LABEL org.opencontainers.image.title="MS-Agent WebUI" \
       org.opencontainers.image.version="${SDK_VERSION}" \
       org.opencontainers.image.revision="${SDK_SHA}" \
       com.modelscope.ms-agent.wheel-sha256="${WHEEL_SHA256}"
-ENV PATH="/opt/venv/bin:${PATH}" \
+ENV MS_AGENT_SHELL_PATH="${PATH}" \
+    PATH="/opt/venv/bin:${PATH}" \
     NODE_ENV=production \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -45,6 +46,12 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     MS_AGENT_WEBUI_CACHE=/opt/ms-agent-webui-cache
 COPY --from=dependencies /opt/venv /opt/venv
 COPY release.json /opt/ms-agent-release/release.json
+# Keep task libraries in the system Python; never expose service site-packages
+# to the agent's shell. The same immutable inputs also record this lockfile.
+COPY shell-requirements.txt /opt/ms-agent-release/shell-requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --python /usr/local/bin/python --require-hashes --no-deps \
+        -r /opt/ms-agent-release/shell-requirements.txt
 # Create the persistent data directory and the preloaded WebUI dependency cache.
 RUN mkdir -p /data /opt/ms-agent-webui-cache
 WORKDIR /app
@@ -52,6 +59,16 @@ WORKDIR /app
 # checkout or frontend compilation is performed inside the image.
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     ms-agent ui --prepare-only --no-browser
+# Runtime defaults also apply to agent subprocesses with filtered environments.
+# Mount replacement files at these paths to use another package index.
+RUN <<'EOF'
+mkdir -p /etc/uv
+printf '%s\n' '[global]' \
+    'index-url = https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple' > /etc/pip.conf
+printf '%s\n' '[[index]]' \
+    'url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"' \
+    'default = true' > /etc/uv/uv.toml
+EOF
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
     CMD ["curl", "--noproxy", "*", "--fail", "--silent", "http://127.0.0.1:8000/api/health"]

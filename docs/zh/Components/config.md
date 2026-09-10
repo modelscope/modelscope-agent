@@ -181,6 +181,9 @@ tool_call_timeout: 30000
 # 输出 artifact 目录
 output_dir: output
 
+# 每次任务开始前保存工作区快照，默认关闭
+enable_snapshots: false
+
 # 帮助信息，通常在运行错误后出现
 help: |
   A commonly use config, try whatever you want!

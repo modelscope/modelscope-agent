@@ -70,7 +70,8 @@ Code execution tool that can run Python code either in a sandboxed environment o
 
 - When set to `python_env`:
   - Runs code in the local Python environment. The tool API is aligned with the sandbox version and supports both Jupyter-kernel based execution and plain Python interpreter execution.
-  - Required dependencies should be installed locally; on the first run, common data-analysis and execution dependencies (such as `numpy`, `pandas`, etc.) will be installed automatically when missing.
+  - With `include: [shell_executor]`, no Python/Notebook dependencies are initialized or installed. This is the default WebUI tool scope.
+  - Before enabling `python_executor` or `notebook_executor`, prepare their dependencies in the Python environment that runs the SDK. WebUI does not preinstall PyArrow, scikit-learn or seaborn; install them with `pip install pyarrow scikit-learn seaborn`. Notebook execution also needs `pip install ipykernel jupyter-client`. The existing automatic setup attempts to install missing packages at initialization and requires working pip and network access; preinstall them for offline use.
 
 #### notebook_executor
 
