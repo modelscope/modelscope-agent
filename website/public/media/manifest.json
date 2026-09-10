@@ -1,0 +1,48 @@
+{
+  "recorded_at": "2026-09-10",
+  "repository": "https://github.com/modelscope/ms-agent",
+  "source_commit": "7c9b51f5295b841c3c9ea5db0f48465181f23663",
+  "model": "qwen3.8-max",
+  "interface": "Bundled WebUI, Agent Workshop project",
+  "task": "Read brief.md, plan with todos, write a short workshop brief and a 45-minute agenda plus an 8-minute demo checklist, then reread and verify the files.",
+  "capture": "ego lite / ego-browser, 1440 × 1000 viewport. Screenshots and sampled real browser frames. No synthetic assistant messages or altered product UI.",
+  "editing": "PNG screenshots encoded as WebP. Video assembled from selected frame ranges, time-compressed, encoded H.264 at 24 fps, with optional Chinese and English explanatory captions. No voice-over. Visible elapsed time includes human approval waits and is not a speed benchmark.",
+  "assets": [
+    {
+      "file": "webui-plan.webp",
+      "kind": "screenshot",
+      "description": "Completed task plan and project outputs"
+    },
+    {
+      "file": "webui-result.webp",
+      "kind": "screenshot",
+      "description": "Agent result, verification summary, and file changes"
+    },
+    {
+      "file": "webui-files.webp",
+      "kind": "screenshot",
+      "description": "Generated workshop brief open in the workspace"
+    },
+    {
+      "file": "webui-demo.mp4",
+      "kind": "video",
+      "description": "Reading, planning, write approval, result, and artifact inspection"
+    },
+    {
+      "file": "demo-zh.vtt",
+      "kind": "captions",
+      "description": "Chinese explanatory captions"
+    },
+    {
+      "file": "demo-en.vtt",
+      "kind": "captions",
+      "description": "English explanatory captions"
+    },
+    {
+      "file": "social-card.png",
+      "kind": "brand graphic",
+      "description": "Original MS-Agent website sharing card"
+    }
+  ],
+  "diagrams": "Composition, harness, Loop, approval, application workflows, Skill Evolution, protocol integration, plugins, and Agent Hub are explanatory graphics authored for this site."
+}

@@ -1,0 +1,16 @@
+llm:
+  service: openai
+  model: qwen3.8-max
+  openai_api_key: <OPENAI_API_KEY>
+  openai_base_url: <OPENAI_BASE_URL>
+
+generation_config:
+  stream: false
+  temperature: 0.3
+
+prompt:
+  system: You are a concise, helpful assistant. Answer using the information supplied.
+
+tools: {}
+callbacks: []
+max_chat_round: 1

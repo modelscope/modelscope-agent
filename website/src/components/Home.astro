@@ -1,0 +1,521 @@
+---
+import { Code } from 'astro:components';
+import Layout from '../layouts/Layout.astro';
+import Section from './Section.astro';
+import Icon from './Icon.astro';
+import AgentDiagram from './AgentDiagram.astro';
+import ApplicationArt from './ApplicationArt.astro';
+import Ecosystem from './Ecosystem.astro';
+import SkillEvolution from './SkillEvolution.astro';
+import { content, repo, roleCode, installCode, type Language } from '../data/content';
+interface Props {
+  language: Language;
+}
+const { language } = Astro.props;
+const c = content[language];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const docLink = language === 'zh'
+  ? 'https://ms-agent.readthedocs.io/zh-cn/latest/'
+  : 'https://ms-agent-en.readthedocs.io/en/latest/';
+const quickstartLink = `${repo}/blob/main/webui/${language === 'zh' ? 'README_ZH.md' : 'README.md'}`;
+const anchors = ['design', 'demo', 'applications', 'evolution', 'ecosystem'];
+const theme = 'github-dark';
+const frames = ['webui-plan.webp', 'webui-result.webp', 'webui-files.webp'];
+---
+
+<Layout title={c.title} description={c.description} lang={c.lang}>
+  <a class="skip-link" href="#main">{c.skip}</a>
+  <header class="site-header" id="top">
+    <div class="container nav-wrap">
+      <a class="brand" href={`${base}/${language === 'en' ? 'en/' : ''}`} aria-label="MS-Agent"
+        ><img src={`${base}/logo.png`} width="31" height="36" alt="" /><span
+          >MS-Agent<span class="brand-period">.</span></span
+        ></a
+      >
+      <nav id="main-nav" aria-label={language === 'zh' ? '主导航' : 'Main navigation'}>
+        {c.nav.map((n, i) => <a href={`#${anchors[i]}`}>{n}</a>)}
+      </nav>
+      <div class="nav-actions">
+        <a class="nav-docs" href={docLink}>{c.docs}<Icon name="external" size={13} /></a><a
+          class="language-link"
+          href={`${base}/${language === 'zh' ? 'en/' : ''}`}
+          lang={language === 'zh' ? 'en' : 'zh-CN'}>{language === 'zh' ? 'EN' : '中文'}</a
+        ><a class="github-button" href={repo} aria-label="GitHub"><Icon name="git" size={17} /><span>GitHub</span></a><button
+          class="menu-toggle"
+          aria-label={c.menu}
+          aria-expanded="false"
+          aria-controls="main-nav"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div><div class="container">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <div class="eyebrow hero-eyebrow"><span class="status-dot"></span>{c.eyebrow}</div>
+            <h1>{c.hero[0]}<br /><span>{c.hero[1]}</span></h1>
+            <p class="hero-tagline" lang="en">{c.tagline}</p>
+            <p class="hero-intro">{c.intro}</p>
+            <div class="hero-actions">
+              <a class="button primary" href="#get-started">{c.start}<Icon name="arrow" size={18} /></a><a
+                class="button secondary"
+                href="#demo"><Icon name="play" size={17} />{c.watch}</a>
+            </div>
+            <div class="hero-access">
+              <a class="license-label" href={`${repo}/blob/main/LICENSE`}>Apache 2.0</a>
+              <span class="entry-points">SDK <i></i> WebUI <i></i> CLI</span>
+            </div>
+          </div><AgentDiagram parts={c.parts} outputs={c.outputs} caption={c.heroCaption} />
+        </div>
+        <div class="feature-strip">
+          {
+            c.featureLine.map((f, i) => (
+              <a href={['#design', '#harness', '#autonomy'][i]}>
+                <>
+                  <span class="index">0{i + 1}</span>
+                  <strong>{f}</strong>
+                  <Icon name="arrow" size={18} />
+                </>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <Section id="design" class="compose-section">
+      <div class="section-heading">
+        <div><p class="eyebrow">{c.composeEyebrow}</p><h2>{c.composeTitle}</h2></div><p class="section-intro">
+          {c.composeIntro}
+        </p>
+      </div>
+      <div class="composer" data-tab-group>
+        <div
+          class="role-tabs"
+          role="tablist"
+          aria-label={language === 'zh' ? '智能体模板' : 'Agent templates'}
+        >
+          {
+            c.roles.map((role, i) => (
+              <button
+                role="tab"
+                id={`role-tab-${i}`}
+                aria-selected={i === 0 ? 'true' : 'false'}
+                aria-controls={`role-panel-${i}`}
+                tabindex={i === 0 ? 0 : -1}
+                data-tab={i}
+              >
+                <>
+                  <Icon name={['team', 'file', 'globe', 'layers', 'code'][i]} />
+                  <span>
+                    <>
+                      <strong>{role.name}</strong>
+                      <small>{role.subtitle}</small>
+                    </>
+                  </span>
+                  <Icon name="arrow" size={15} />
+                </>
+              </button>
+            ))
+          }
+        </div>
+        <div class="role-content">
+          {
+            c.roles.map((role, i) => (
+              <div
+                role="tabpanel"
+                id={`role-panel-${i}`}
+                aria-labelledby={`role-tab-${i}`}
+                hidden={i !== 0}
+                tabindex="0"
+                data-panel={i}
+              >
+                <div class="role-description">
+                  <>
+                    <span class="small-label">{role.name.toUpperCase()} AGENT</span>
+                    <h3>{role.desc}</h3>
+                    <p>{role.detail}</p>
+                    <div class="delegation">
+                      <>
+                        <span class="delegation-root">
+                          <Icon name="spark" size={16} />
+                          {role.name}
+                        </span>
+                        <div class="delegation-branches">
+                          {(i === 0
+                            ? ['Explore', 'Build', 'Research']
+                            : c.steps.slice(0, 3).map((x) => x.label)
+                          ).map((label) => (
+                            <span>{label}</span>
+                          ))}
+                        </div>
+                      </>
+                    </div>
+                  </>
+                </div>
+                <div class="code-window">
+                  <>
+                    <div class="code-bar">
+                      <>
+                        <div class="window-dots">
+                          <>
+                            <i />
+                            <i />
+                            <i />
+                          </>
+                        </div>
+                        <span>{role.name.toLowerCase()}/agent.yaml</span>
+                        <small>{c.snippet}</small>
+                      </>
+                    </div>
+                    <Code code={roleCode[i]} lang="yaml" theme={theme} />
+                  </>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+      <div class="extension-row">
+        <span class="extension-label">{c.customize}</span>
+        {c.extensions.map((extension) => <span class="extension-item">{extension}</span>)}
+      </div>
+    </Section>
+
+    <Section id="harness" class="harness-section">
+      <div class="harness-layout">
+        <div class="harness-copy">
+          <p class="eyebrow">{c.harnessEyebrow}</p><h2 class="preserve-lines">{c.harnessTitle}</h2><p
+            class="section-intro"
+          >
+            {c.harnessIntro}
+          </p>
+        </div>
+        <div class="harness-board" data-tab-group>
+          <div class="board-topline">
+            <span>AGENT HARNESS</span><span class="board-marker">PLAN / ACT / CHECK / FINISH</span>
+          </div>
+          <div
+            class="execution-steps"
+            role="tablist"
+            aria-label={language === 'zh' ? '执行步骤' : 'Execution steps'}
+          >
+            {
+              c.steps.map((s, i) => (
+                <button
+                  role="tab"
+                  id={`step-tab-${i}`}
+                  aria-selected={i === 2 ? 'true' : 'false'}
+                  aria-controls={`step-panel-${i}`}
+                  tabindex={i === 2 ? 0 : -1}
+                  data-tab={i}
+                >
+                  <>
+                    <span class="step-symbol">
+                      <Icon name={['file', 'tool', 'shield', 'check'][i]} size={22} />
+                    </span>
+                    <strong>{s.label}</strong>
+                    <small>0{i + 1}</small>
+                  </>
+                </button>
+              ))
+            }
+          </div>
+          <div class="feedback-path"><span>↶</span><span>{c.feedback}</span></div>
+          {
+            c.steps.map((s, i) => (
+              <div
+                class="step-detail"
+                role="tabpanel"
+                id={`step-panel-${i}`}
+                aria-labelledby={`step-tab-${i}`}
+                hidden={i !== 2}
+                tabindex="0"
+                data-panel={i}
+              >
+                <>
+                  <div>
+                    <>
+                      <h3>{s.title}</h3>
+                      <p>{s.text}</p>
+                      <div class="chips">
+                        {s.chips.map((chip) => (
+                          <span>{chip}</span>
+                        ))}
+                      </div>
+                    </>
+                  </div>
+                  <Code code={s.code} lang="yaml" theme={theme} />
+                </>
+              </div>
+            ))
+          }
+          <p class="diagram-note">{c.diagramNote}</p>
+        </div>
+      </div>
+    </Section>
+
+    <Section id="autonomy">
+      <div class="section-heading">
+        <div><p class="eyebrow">{c.autonomyEyebrow}</p><h2>{c.autonomyTitle}</h2></div><p
+          class="section-intro"
+        >
+          {c.autonomyIntro}
+        </p>
+      </div>
+      <div class="autonomy-grid">
+        <article class="mechanism loop-mechanism">
+          <div class="mechanism-meta"><Icon name="loop" /><span>LOOP</span></div><h3
+          >
+            {c.loopTitle}
+          </h3><p>{c.loopText}</p><div class="loop-diagram" role="img" aria-label={c.loopNodes.join(' → ')}>
+            {
+              c.loopNodes.map((n, i) => (
+                <div>
+                  <>
+                    <span>0{i + 1}</span>
+                    <strong>{n}</strong>
+                  </>
+                </div>
+              ))
+            }<span class="loop-return">↶</span>
+          </div><p class="mechanism-foot">{c.loopFooter}</p>
+        </article>
+        <article class="mechanism approval-mechanism">
+          <div class="mechanism-meta">
+            <Icon name="shield" /><span>DELEGATED APPROVAL</span>
+          </div><h3>{c.approvalTitle}</h3><p>{c.approvalText}</p><div
+            class="approval-diagram"
+            role="img"
+            aria-label={c.approvalNodes.join(' → ')}
+          >
+            <span>{c.approvalNodes[0]}</span><span class="decision"
+              ><Icon name="shield" />{c.approvalNodes[1]}</span
+            ><div>
+              <span><i class="allow-dot"></i>{c.approvalNodes[2]}</span><span
+                ><i class="ask-dot"></i>{c.approvalNodes[3]}</span>
+            </div>
+          </div><p class="mechanism-foot">{c.approvalFooter}</p>
+        </article>
+      </div>
+      <div class="continuity">
+        <h3>{c.continuityTitle}</h3><div>
+          {
+            c.continuityItems.map((item, i) => (
+              <div>
+                <>
+                  <span class="continuity-icon">
+                    <Icon name={['layers', 'file', 'loop'][i]} />
+                  </span>
+                  <strong>{item[0]}</strong>
+                  <p>{item[1]}</p>
+                </>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </Section>
+
+    <Section id="demo" class="demo-section">
+      <div class="center-heading">
+        <p class="eyebrow"><span class="status-dot"></span>{c.demoEyebrow}</p><h2>{c.demoTitle}</h2><p
+          class="section-intro"
+        >
+          {c.demoIntro}
+        </p>
+      </div>
+      <div class="demo-shell">
+        <div class="demo-chrome">
+          <div class="window-dots"><i></i><i></i><i></i></div><span
+            ><img src={`${base}/logo.png`} alt="" width="14" height="16" />MS-Agent / Agent Workshop</span
+          ><span class="live-badge">WEBUI</span>
+        </div>
+        <div class="demo-screen">
+          <button class="screenshot-button" data-enlarge aria-label={c.demoExpand}
+            ><img
+              id="demo-image"
+              src={`${base}/media/${frames[1]}`}
+              width="1440"
+              height="1000"
+              loading="lazy"
+              alt={c.demoCaption}
+            /><span class="enlarge-hint"><Icon name="external" size={17} /></span></button
+          ><video
+            id="demo-video"
+            controls
+            playsinline
+            preload="none"
+            poster={`${base}/media/${frames[1]}`}
+            hidden
+            aria-label={c.demoCaption}
+            ><source data-src={`${base}/media/webui-demo.mp4`} type="video/mp4" /><track
+              kind="captions"
+              src={`${base}/media/demo-${language}.vtt`}
+              srclang={c.lang}
+              label={language === 'zh' ? '中文' : 'English'}
+              default
+            />{c.demoCaption}</video>
+        </div>
+        <div class="demo-toolbar">
+          <div
+            class="demo-tabs"
+            role="group"
+            aria-label={language === 'zh' ? '演示截图' : 'Demo screenshots'}
+          >
+            {
+              c.demoFrames.map((f, i) => (
+                <button data-frame={`${base}/media/${frames[i]}`} aria-pressed={i === 1 ? 'true' : 'false'}>
+                  {`0${i + 1}`}
+                  <span>{f}</span>
+                </button>
+              ))
+            }
+          </div><button
+            class="button primary demo-play"
+            data-play
+            data-play-label={c.demoPlay}
+            data-pause-label={c.demoPause}><Icon name="play" size={16} /><span>{c.demoPlay}</span></button>
+        </div>
+      </div>
+      <p class="demo-caption">{c.demoCaption}</p><div class="demo-benefits">
+        {
+          c.demoDetails.map((d, i) => (
+            <span>
+              <Icon name={['layers', 'terminal', 'file'][i]} size={18} />
+              {d}
+            </span>
+          ))
+        }
+      </div>
+    </Section>
+
+    <Section id="applications" class="applications-section">
+      <div class="section-heading">
+        <div><p class="eyebrow">{c.appsEyebrow}</p><h2>{c.appsTitle}</h2></div><p class="section-intro">
+          {c.appsIntro}
+        </p>
+      </div>
+      <div class="applications-grid">
+        {
+          c.apps.map((app) => (
+            <article class={`application application-${app.id}`}>
+              <>
+                <ApplicationArt id={app.id} labels={app.art} note={c.applicationDiagram} />
+                <div class="application-copy">
+                  <>
+                    <span class="small-label">{app.label}</span>
+                    <h3>{app.name}</h3>
+                    <p>{app.text}</p>
+                    <div class="application-bottom">
+                      <>
+                        <div class="chips">
+                          {app.tags.map((tag) => (
+                            <span>{tag}</span>
+                          ))}
+                        </div>
+                        <a
+                          href={`${repo}/tree/main/${app.path}`}
+                        >
+                          {c.viewProject}
+                          <Icon name="external" size={15} />
+                        </a>
+                      </>
+                    </div>
+                  </>
+                </div>
+              </>
+            </article>
+          ))
+        }
+      </div>
+    </Section>
+
+    <SkillEvolution language={language} />
+    <Ecosystem language={language} />
+
+    <Section id="get-started" class="get-started"
+      ><div class="get-started-copy">
+        <p class="eyebrow">{c.getEyebrow}</p><h2>{c.getTitle}</h2><p class="section-intro">{c.getIntro}</p><a
+          class="button primary"
+          href={quickstartLink}>{c.guide}<Icon name="arrow" size={17} /></a>
+      </div><div class="install-block" data-tab-group>
+        <div
+          class="install-tabs"
+          role="tablist"
+          aria-label={language === 'zh' ? '开始方式' : 'Getting started'}
+        >
+          {
+            c.getTabs.map((t, i) => (
+              <button
+                role="tab"
+                id={`install-tab-${i}`}
+                aria-selected={i === 0 ? 'true' : 'false'}
+                aria-controls={`install-panel-${i}`}
+                tabindex={i === 0 ? 0 : -1}
+                data-tab={i}
+              >
+                {t}
+              </button>
+            ))
+          }
+        </div>{
+          installCode.map((code, i) => (
+            <div
+              role="tabpanel"
+              id={`install-panel-${i}`}
+              aria-labelledby={`install-tab-${i}`}
+              hidden={i !== 0}
+              data-panel={i}
+            >
+              <div class="install-code">
+                <button class="copy-button" data-copy data-label={c.copy} data-done={c.copied} data-error={c.copyFailed} aria-label={c.copy}>
+                  <Icon name="copy" size={16} /><span>{c.copy}</span>
+                </button>
+                <Code code={code} lang={i === 2 ? 'python' : 'bash'} theme={theme} />
+              </div>
+              <p class="install-help">{c.installHelp[i]}</p>
+              {i === 2 && (
+                <a class="text-link" href={`${repo}/blob/website/website/examples/basic_agent.py`}>
+                  {c.sdkExample}
+                  <Icon name="external" size={14} />
+                </a>
+              )}
+            </div>
+          ))
+        }<div class="install-links">
+          <a href={repo}>GitHub<Icon name="external" size={14} /></a>
+        </div>
+      </div></Section
+    >
+  </main>
+  <footer>
+    <div class="container">
+      <div class="footer-main">
+        <div>
+          <a class="brand" href="#top"
+            ><img src={`${base}/logo.png`} width="28" height="32" alt="" /><span>MS-Agent.</span></a
+          ><p>{c.footerLine}</p>
+        </div><div class="footer-links">
+          <a href="https://modelscope.cn/">ModelScope<Icon name="external" size={13} /></a><a
+            href={`${repo}/blob/main/LICENSE`}>{c.legal}</a
+          ><a href="#top">{c.back} ↑</a>
+        </div>
+      </div><div class="footer-bottom"><span>{c.footer}</span></div>
+    </div>
+  </footer>
+  <dialog class="image-dialog" aria-label={c.demoExpand}>
+    <button class="dialog-close" aria-label={c.demoClose}>×</button><img
+      src={`${base}/media/${frames[1]}`}
+      width="1440"
+      height="1000"
+      alt={c.demoCaption}
+      loading="lazy"
+    />
+  </dialog>
+  <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
+  <script>
+    import '../scripts/interactions';
+  </script>
+</Layout>

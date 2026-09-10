@@ -1,0 +1,59 @@
+---
+import Icon from './Icon.astro';
+interface Props {
+  parts: readonly string[];
+  outputs: readonly string[];
+  caption: string;
+}
+const { parts, outputs, caption } = Astro.props;
+---
+
+<div class="agent-diagram" role="img" aria-label={`${parts.join(' / ')} → Agent Harness → ${outputs.join(' / ')}`}>
+  <div class="diagram-grid" aria-hidden="true"></div>
+  <div class="orbit orbit-one" aria-hidden="true"></div>
+  <div class="orbit orbit-two" aria-hidden="true"></div>
+  <span class="diagram-coordinate">MS / AGENT SYSTEM</span>
+  <svg class="connectors" viewBox="0 0 560 470" aria-hidden="true">
+    <defs
+      ><linearGradient id="wire" x2="0" y2="1"
+        ><stop stop-color="#aec4ff"></stop><stop offset="1" stop-color="#4674ed"></stop></linearGradient
+      ></defs
+    >
+    <path
+      d="M125 116H180Q200 116 200 140V217H242M435 116H380Q360 116 360 140V217H318M125 292H180Q200 292 200 270V249H242M435 292H380Q360 292 360 270V249H318"
+    ></path>
+    <path d="M280 278V355M110 391V373Q110 355 130 355H430Q450 355 450 373V391M280 355V391"></path>
+    <circle cx="200" cy="184" r="3" fill="#9bb6ed"></circle>
+    <circle cx="360" cy="272" r="3" fill="#9bb6ed"></circle>
+  </svg>
+  {
+    parts.map((part, i) => (
+      <div class:list={['part-node', `part-${i}`]}>
+        <>
+          <span class="node-icon">
+            <Icon name={['spark', 'tool', 'layers', 'team'][i]} />
+          </span>
+          <span>{part}</span>
+          <span class="node-dot" />
+        </>
+      </div>
+    ))
+  }
+  <div class="core-node harness-core">
+    <Icon name="layers" size={28} />
+    <strong><span>Agent</span><span>Harness</span></strong>
+  </div>
+  <div class="diagram-outcomes">
+    {
+      outputs.map((output, i) => (
+        <div>
+          <>
+            <Icon name={['file', 'code', 'film'][i]} size={17} />
+            <span>{output}</span>
+          </>
+        </div>
+      ))
+    }
+  </div>
+  <span class="diagram-caption">{caption}</span>
+</div>

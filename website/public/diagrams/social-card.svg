@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#eaf1ff"/></linearGradient>
+    <radialGradient id="halo"><stop stop-color="#d5e2ff"/><stop offset="1" stop-color="#eef4ff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="950" cy="300" r="290" fill="url(#halo)"/>
+  <g fill="none" stroke="#cad9f6"><circle cx="929" cy="306" r="154"/><circle cx="929" cy="306" r="214"/><path d="M812 211h56v75h24m158-75h-58v75h-24M812 402h56v-76h24m158 76h-58v-76h-24"/></g>
+  <g font-family="Inter,Arial,PingFang SC,Microsoft YaHei,sans-serif">
+    <text x="70" y="89" font-size="32" font-weight="700" fill="#17243b">MS-Agent<tspan fill="#315eed">.</tspan></text>
+    <text x="70" y="158" font-size="13" letter-spacing="3" fill="#315eed">LIGHTWEIGHT · COMPOSABLE · EXTENSIBLE</text>
+    <text x="70" y="276" font-size="76" font-weight="600" fill="#15213b">复杂任务</text>
+    <text x="70" y="374" font-size="76" font-weight="600" fill="#315eed">自主执行</text>
+    <text x="70" y="444" font-size="20" fill="#566d91">A lightweight framework to empower</text>
+    <text x="70" y="477" font-size="20" fill="#566d91">agentic execution of complex tasks.</text>
+    <rect x="863" y="250" width="132" height="112" rx="20" fill="#fff" stroke="#b7cdf5"/>
+    <text x="929" y="301" font-size="22" text-anchor="middle" fill="#315eed" font-weight="600">Agent</text>
+    <text x="929" y="329" font-size="22" text-anchor="middle" fill="#315eed" font-weight="600">Harness</text>
+    <g fill="#fff" stroke="#d5e1f5"><rect x="730" y="189" width="108" height="44" rx="8"/><rect x="1020" y="189" width="108" height="44" rx="8"/><rect x="730" y="380" width="108" height="44" rx="8"/><rect x="1020" y="380" width="108" height="44" rx="8"/></g>
+    <g fill="#516c98" font-size="13" text-anchor="middle"><text x="784" y="216">Models</text><text x="1074" y="216">Tools</text><text x="784" y="407">Skills</text><text x="1074" y="407">Subagents</text></g>
+    <path d="M70 552h1060" stroke="#d9e4f6"/>
+    <text x="70" y="587" font-size="13" fill="#647da4">MODELSCOPE / OPEN SOURCE</text>
+    <text x="1130" y="587" font-size="13" fill="#647da4" text-anchor="end">github.com/modelscope/ms-agent</text>
+  </g>
+</svg>

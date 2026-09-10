@@ -1,0 +1,318 @@
+---
+import Section from './Section.astro';
+import Icon from './Icon.astro';
+import { content, repo, type Language } from '../data/content';
+interface Props {
+  language: Language;
+}
+const { language } = Astro.props;
+const c = content[language];
+---
+
+<Section id="ecosystem" class="open-ecosystem">
+  <div class="section-heading">
+    <div><p class="eyebrow">{c.connectEyebrow}</p><h2>{c.connectTitle}</h2></div>
+    <p class="section-intro">{c.connectText}</p>
+  </div>
+  <div class="model-ribbon">
+    <span><Icon name="spark" size={20} />{c.modelLabel}</span>
+    <div>{c.models.map((model) => <span>{model}</span>)}</div>
+  </div>
+  <div class="protocol-grid">
+    {
+      c.protocolCards.map((protocol) => (
+        <article class="protocol-card">
+          <div class="protocol-name">
+            <>
+              <span>{protocol.name}</span>
+              <Icon name={protocol.icon} size={24} />
+            </>
+          </div>
+          <h3>{protocol.title}</h3>
+          <p>{protocol.text}</p>
+        </article>
+      ))
+    }
+  </div>
+  <div class="ecosystem-details">
+    <article class="integration-card plugins-card">
+      <div class="integration-heading"><Icon name="layers" size={22} /><span>PLUGINS</span></div>
+      <h3>{c.pluginsTitle}</h3>
+      <p>{c.pluginsText}</p>
+      <div class="plugin-formats">{c.pluginFormats.map((name) => <span>{name}</span>)}</div>
+      <div class="plugin-flow" role="img" aria-label={c.pluginsFlow.join(' → ')}>
+        {
+          c.pluginsFlow.map((step, i) => (
+            <>
+              <span>{step}</span>
+              {i < 2 && <Icon name="arrow" size={16} />}
+            </>
+          ))
+        }
+      </div>
+      <a class="integration-link" href={`${repo}/tree/main/ms_agent/plugins`}
+        >{c.ecosystemLink}<Icon name="arrow" size={17} /></a
+      >
+    </article>
+    <article class="integration-card hub-card">
+      <div class="integration-heading"><Icon name="globe" size={22} /><span>AGENT HUB</span></div>
+      <h3>{c.hubTitle}</h3>
+      <p>{c.hubText}</p>
+      <div class="hub-map" role="img" aria-label={`${c.hubFrameworks.join(' / ')} ↔ Agent Hub ↔ MS-Agent`}>
+        <div class="hub-frameworks">{c.hubFrameworks.map((name) => <span>{name}</span>)}</div>
+        <div class="hub-bridge">
+          <span aria-hidden="true">↕</span><strong>Agent Hub</strong><span aria-hidden="true">↕</span>
+        </div>
+        <div class="hub-resources">
+          <strong>MS-Agent</strong>{c.hubResources.map((resource) => <span>{resource}</span>)}
+        </div>
+      </div>
+      <a class="integration-link" href={`${repo}/tree/main/ms_agent/agent_hub`}
+        >{c.ecosystemLink}<Icon name="arrow" size={17} /></a
+      >
+    </article>
+  </div>
+</Section>
+
+<style>
+  :global(.open-ecosystem) {
+    background: #f7f9fd;
+    border-block: 1px solid #e5ebf5;
+  }
+  .model-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    padding: 24px 0 32px;
+  }
+  .model-ribbon > span {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #586d8c;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .model-ribbon > div {
+    display: flex;
+    gap: 14px 30px;
+    flex-wrap: wrap;
+  }
+  .model-ribbon > div > span {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: #364866;
+  }
+  .protocol-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .protocol-card {
+    border: 1px solid #dce5f3;
+    border-radius: 12px;
+    background: #fff;
+    padding: 27px;
+  }
+  .protocol-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #315eed;
+    margin-bottom: 23px;
+  }
+  .protocol-name span {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.6px;
+  }
+  h3 {
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .protocol-card p,
+  .integration-card > p {
+    margin-top: 12px;
+    color: #5c6d87;
+    font-size: 16px;
+    line-height: 1.8;
+  }
+  .ecosystem-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .integration-card {
+    border: 1px solid #dce5f3;
+    border-radius: 12px;
+    padding: 31px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .integration-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: #5a6d91;
+    margin-bottom: 19px;
+  }
+  .integration-card h3 {
+    font-size: 24px;
+  }
+  .plugin-formats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 28px;
+  }
+  .plugin-formats span {
+    border: 1px solid #e2e6f3;
+    border-radius: 7px;
+    background: #f8f9ff;
+    text-align: center;
+    padding: 15px 8px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #56648c;
+  }
+  .plugin-flow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-block: 24px;
+    color: #586d8d;
+    font-size: 13px;
+    text-align: center;
+  }
+  .plugin-flow :global(svg) {
+    flex-shrink: 0;
+    color: #8298b8;
+  }
+  .hub-map {
+    margin-top: 25px;
+  }
+  .hub-frameworks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .hub-frameworks span {
+    border: 1px solid #dce7ed;
+    background: #f7fbfb;
+    border-radius: 5px;
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 13px;
+    color: #4e716f;
+  }
+  .hub-bridge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #40679f;
+    margin-block: 5px;
+    line-height: 1.3;
+  }
+  .hub-bridge > span {
+    font-size: 19px;
+  }
+  .hub-bridge strong {
+    border: 1px solid #ceddf5;
+    background: #f1f5ff;
+    padding: 8px 35px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .hub-resources {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    padding: 11px;
+    border-block: 1px solid #e6ecf5;
+    color: #62738e;
+    font-size: 12px;
+  }
+  .hub-resources strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: #263f70;
+    margin-right: 4px;
+  }
+  .integration-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 24px;
+    margin-top: auto;
+    font-size: 14px;
+    font-weight: 500;
+    color: #315eed;
+    width: fit-content;
+  }
+  @media (max-width: 1000px) {
+    .model-ribbon {
+      align-items: start;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .protocol-grid {
+      gap: 14px;
+    }
+    .protocol-card {
+      padding: 23px 21px;
+    }
+    .integration-card {
+      padding: 25px;
+    }
+  }
+  @media (max-width: 760px) {
+    .protocol-grid,
+    .ecosystem-details {
+      grid-template-columns: 1fr;
+      gap: 17px;
+    }
+    .model-ribbon {
+      padding-top: 3px;
+    }
+    .model-ribbon > div {
+      gap: 12px 22px;
+    }
+    .model-ribbon > div > span {
+      font-size: 17px;
+    }
+    .protocol-card {
+      padding: 23px 24px;
+    }
+    .protocol-name {
+      margin-bottom: 14px;
+    }
+    .protocol-name span {
+      font-size: 24px;
+    }
+    .protocol-card h3 {
+      font-size: 21px;
+    }
+    .integration-card {
+      padding: 26px 23px;
+    }
+    .integration-card h3 {
+      font-size: 23px;
+    }
+    .hub-resources {
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .hub-frameworks span {
+      font-size: 12px;
+    }
+  }
+</style>

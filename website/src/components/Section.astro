@@ -1,0 +1,12 @@
+---
+// Reduced from AstroWind's WidgetWrapper pattern; see THIRD_PARTY.md.
+interface Props {
+  id: string;
+  class?: string;
+}
+const { id, class: className = '' } = Astro.props;
+---
+
+<section id={id} class:list={['section relative scroll-mt-24', className]}>
+  <div class="container relative mx-auto"><slot /></div>
+</section>

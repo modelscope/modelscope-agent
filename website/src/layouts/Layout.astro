@@ -1,0 +1,36 @@
+---
+import '@fontsource-variable/inter/wght.css';
+import '../styles/global.css';
+interface Props {
+  title: string;
+  description: string;
+  lang: string;
+}
+const { title, description, lang } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title><meta name="description" content={description} />
+    <meta name="theme-color" content="#f8faff" />
+    <link rel="icon" href={`${base}/favicon.ico`} sizes="any" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="zh-CN" href={new URL(`${base}/`, Astro.site)} />
+    <link rel="alternate" hreflang="en" href={new URL(`${base}/en/`, Astro.site)} />
+    <link rel="alternate" hreflang="x-default" href={new URL(`${base}/`, Astro.site)} />
+    <meta property="og:type" content="website" /><meta property="og:title" content={title} /><meta
+      property="og:description"
+      content={description}
+    />
+    <meta property="og:url" content={canonical} /><meta
+      property="og:image"
+      content={new URL(`${base}/media/social-card.png`, Astro.site)}
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body><slot /></body>
+</html>

@@ -1,0 +1,219 @@
+---
+import Section from './Section.astro';
+import Icon from './Icon.astro';
+import { content, repo, type Language } from '../data/content';
+interface Props {
+  language: Language;
+}
+const { language } = Astro.props;
+const c = content[language];
+---
+
+<Section id="evolution" class="skill-evolution-section">
+  <div class="skill-evolution-layout">
+    <div class="evolution-copy">
+      <p class="eyebrow">{c.evolutionEyebrow}</p>
+      <h2>{c.evolutionTitle}</h2>
+      <p class="section-intro">{c.evolutionText}</p>
+      <a class="text-link" href={`${repo}/tree/main/projects/skill_evolution`}
+        >{c.viewProject}<Icon name="arrow" size={17} /></a
+      >
+    </div>
+    <div class="evolution-board">
+      <div class="evolution-board-top">
+        <span><Icon name="file" size={20} />SKILL.md</span><span>{c.evolutionCaption}</span>
+      </div>
+      <ol class="evolution-cycle">
+        {
+          c.evolutionSteps.map((step, i) => (
+            <li>
+              <>
+                <span class="evolution-symbol">
+                  <Icon name={['terminal', 'chart', 'spark', 'file', 'check'][i]} size={21} />
+                </span>
+                <strong>{step}</strong>
+                <small>0{i + 1}</small>
+              </>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="evolution-result"><Icon name="check" size={17} /><span>{c.evolutionOutcome}</span></div>
+      <div class="evolution-detail-grid">
+        {
+          c.evolutionDetails.map(([title, text]) => (
+            <div>
+              <>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</Section>
+
+<style>
+  :global(.skill-evolution-section) {
+    border-top: 1px solid #e5e8f3;
+    background: linear-gradient(125deg, #fcfbff, #f4f7fe);
+  }
+  .skill-evolution-layout {
+    display: grid;
+    grid-template-columns: 0.78fr 1.22fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .evolution-copy .section-intro {
+    margin: 22px 0 25px;
+  }
+  .evolution-board {
+    border: 1px solid #dcdff1;
+    border-radius: 14px;
+    background: #fff;
+    padding: 28px;
+    box-shadow: 0 12px 35px #42456a06;
+    min-width: 0;
+  }
+  .evolution-board-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    color: #67728d;
+    font-size: 12px;
+  }
+  .evolution-board-top > span:first-child {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    font-size: 14px;
+    color: #5d5e9e;
+  }
+  .evolution-cycle {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin: 33px 0 0;
+    padding: 0;
+    gap: 10px;
+    position: relative;
+  }
+  .evolution-cycle::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: 10%;
+    right: 10%;
+    border-top: 1px solid #dce1ef;
+  }
+  .evolution-cycle li {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 11px;
+  }
+  .evolution-symbol {
+    display: grid;
+    place-items: center;
+    width: 49px;
+    height: 49px;
+    background: #f6f5fd;
+    border: 1px solid #e0dcf2;
+    border-radius: 12px;
+    color: #7771aa;
+  }
+  .evolution-cycle li:last-child .evolution-symbol {
+    background: #edf7f4;
+    border-color: #d3e8df;
+    color: #3d856a;
+  }
+  .evolution-cycle strong {
+    color: #465875;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .evolution-cycle small {
+    color: #65738a;
+    font-size: 12px;
+  }
+  .evolution-result {
+    margin: 24px 5% 25px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    color: #4d736a;
+    border-bottom: 1px solid #dce9e5;
+    font-size: 13px;
+  }
+  .evolution-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .evolution-detail-grid h3 {
+    font-size: 15px;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+  .evolution-detail-grid p {
+    font-size: 13px;
+    line-height: 1.7;
+    margin-top: 6px;
+    color: #68758b;
+  }
+  @media (max-width: 1050px) {
+    .skill-evolution-layout {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .evolution-copy {
+      max-width: 680px;
+    }
+  }
+  @media (max-width: 680px) {
+    .evolution-board {
+      padding: 24px 18px;
+    }
+    .evolution-board-top {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .evolution-cycle {
+      gap: 6px;
+    }
+    .evolution-symbol {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+    }
+    .evolution-cycle::before {
+      top: 20px;
+    }
+    .evolution-cycle strong {
+      font-size: 12px;
+    }
+    .evolution-result {
+      margin-inline: 0;
+      padding-inline: 0;
+    }
+    .evolution-detail-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .evolution-detail-grid > div {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .evolution-detail-grid p {
+      margin: 0;
+    }
+  }
+</style>

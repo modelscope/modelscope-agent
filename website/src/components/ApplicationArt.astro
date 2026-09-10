@@ -1,0 +1,151 @@
+---
+import Icon from './Icon.astro';
+interface Props {
+  id: string;
+  labels: readonly string[];
+  note: string;
+}
+const { id, labels, note } = Astro.props;
+---
+
+<div class:list={['application-art', `art-${id}`]} role="img" aria-label={`${note}: ${labels.join(' → ')}`}>
+  <span class="art-label">{note}</span>
+  {
+    id === 'research' && (
+      <div class="research-art">
+        <>
+          <div class="source-sheet">
+            <>
+              <Icon name="file" />
+              <i />
+              <i />
+              <i />
+              <small>{labels[1]}</small>
+            </>
+          </div>
+          <div class="research-link">→</div>
+          <div class="report-sheet">
+            <>
+              <span class="sheet-kicker">RESEARCH BRIEF</span>
+              <strong>{labels[3]}</strong>
+              <div class="text-lines">
+                <>
+                  <i />
+                  <i />
+                  <i />
+                </>
+              </div>
+              <div class="evidence-dots">
+                <>
+                  <b>01</b>
+                  <b>02</b>
+                  <b>03</b>
+                </>
+              </div>
+            </>
+          </div>
+        </>
+      </div>
+    )
+  }
+  {
+    id === 'code' && (
+      <div class="code-art">
+        <>
+          <div class="mini-editor">
+            <>
+              <span>project/</span>
+              <p>
+                <b>├</b> src/
+              </p>
+              <p>
+                <b>├</b> components/
+              </p>
+              <p>
+                <b>└</b> tests/
+              </p>
+            </>
+          </div>
+          <div class="code-stages">
+            {labels.map((label, i) => (
+              <div>
+                <span>{`0${i + 1}`}</span>
+                {label}
+                <Icon name={i === 3 ? 'check' : 'arrow'} size={14} />
+              </div>
+            ))}
+          </div>
+        </>
+      </div>
+    )
+  }
+  {
+    id === 'finance' && (
+      <div class="finance-art">
+        <>
+          <div class="analysis-stack">
+            {labels.slice(0, 3).map((label, i) => (
+              <div>
+                <span>{`0${i + 1}`}</span>
+                {label}
+              </div>
+            ))}
+          </div>
+          <div class="analysis-report">
+            <>
+              <Icon name="chart" size={29} />
+              <strong>{labels[3]}</strong>
+              <div class="report-bars">
+                <>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </>
+              </div>
+            </>
+          </div>
+        </>
+      </div>
+    )
+  }
+  {
+    id === 'cinema' && (
+      <div class="cinema-art">
+        <>
+          <div class="film-strip">
+            {labels.map((label, i) => (
+              <div>
+                <Icon name={['file', 'spark', 'layers', 'play'][i]} size={23} />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+          <div class="timeline">
+            <>
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </>
+          </div>
+        </>
+      </div>
+    )
+  }
+</div>
