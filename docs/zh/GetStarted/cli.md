@@ -67,6 +67,8 @@ ms-agent run --config path/to/agent.yaml --query "你好"
 | `--animation_mode` | 视频生成项目的动画模式，取值 `auto` / `human` | `None` |
 | `--knowledge_search_paths` | 知识检索路径，逗号分隔 | `None` |
 
+工作区自动快照默认关闭。如需在每次任务开始前保存 Git 快照，在 Agent 的 YAML 配置顶层设置 `enable_snapshots: true`。关闭此选项不会删除已有快照。
+
 ---
 
 ## tui — 终端交互界面

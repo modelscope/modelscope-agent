@@ -25,13 +25,9 @@ def _path() -> Path:
 
 
 def _load_unlocked() -> dict:
-    p = _path()
-    if not p.exists():
-        return {}
-    try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
+    from app.backends.ms_agent.tool_settings import ensure_tool_settings
+
+    return ensure_tool_settings(home())
 
 
 def _load() -> dict:

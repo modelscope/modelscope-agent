@@ -342,13 +342,14 @@ class TestLLMAgentSnapshotInterface(unittest.TestCase):
             self.assertIsNone(truncated)
 
     def test_on_task_begin_auto_snapshots(self):
-        """on_task_begin should take a snapshot automatically — no explicit call needed."""
+        """Explicit opt-in still takes a snapshot before a task."""
         import asyncio
         from ms_agent.llm.utils import Message
 
         with tempfile.TemporaryDirectory() as td:
             _write(os.path.join(td, 'work.txt'), 'v1')
             agent = self._make_agent(td)
+            agent.config.enable_snapshots = True
 
             messages = [
                 Message(role='system', content='sys'),
@@ -362,6 +363,34 @@ class TestLLMAgentSnapshotInterface(unittest.TestCase):
             self.assertEqual(len(snaps), 1)
             self.assertIn('do something useful', snaps[0]['message'])
             self.assertEqual(snaps[0]['message_count'], len(messages))
+
+    def test_on_task_begin_skips_snapshots_by_default(self):
+        import asyncio
+        from ms_agent.llm.utils import Message
+
+        with tempfile.TemporaryDirectory() as td:
+            _write(os.path.join(td, 'work.txt'), 'v1')
+            agent = self._make_agent(td)
+            asyncio.run(agent.on_task_begin([Message(role='user', content='task')]))
+            self.assertEqual(list_snapshots(td), [])
+            self.assertFalse(os.path.exists(os.path.join(td, '.ms_agent', 'snapshots')))
+
+    def test_snapshot_defaults_and_explicit_boolean_forms(self):
+        from omegaconf import OmegaConf
+        from ms_agent.agent.llm_agent import LLMAgent
+
+        cases = [({}, False), ({'ms_agent_subagent': True}, False),
+                 ({'enable_snapshots': None}, False)]
+        for value in (True, 'true', 'yes', '1'):
+            cases.append(({'enable_snapshots': value}, True))
+            cases.append(({'enable_snapshots': value, 'ms_agent_subagent': True}, True))
+        for value in (False, 'false', 'no', '0'):
+            cases.append(({'enable_snapshots': value}, False))
+        for config, expected in cases:
+            for instance in (config, OmegaConf.create(config)):
+                with self.subTest(config=config, kind=type(instance)):
+                    self.assertEqual(LLMAgent.resolve_enable_snapshots(instance), expected)
+        self.assertFalse(LLMAgent.resolve_enable_snapshots(None))
 
     def test_on_task_begin_no_snapshot_when_disabled(self):
         """enable_snapshots=False suppresses automatic snapshot."""

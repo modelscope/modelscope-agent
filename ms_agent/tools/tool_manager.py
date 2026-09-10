@@ -196,7 +196,7 @@ class ToolManager:
             self.extra_tools.append(
                 FileSystemTool(
                     config, trust_remote_code=self.trust_remote_code))
-        if hasattr(config, 'tools') and hasattr(config.tools, 'code_executor'):
+        if _tool_on(config, 'code_executor'):
             code_exec_cfg = getattr(config.tools, 'code_executor')
             implementation = getattr(code_exec_cfg, 'implementation',
                                      'sandbox')

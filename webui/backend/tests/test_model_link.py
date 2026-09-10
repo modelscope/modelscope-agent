@@ -930,7 +930,7 @@ def test_seed_tools_settings_writes_default_block(tmp_path):
     assert tools["todo_list"]["mcp"] is False
     assert tools["code_executor"]["implementation"] == "python_env"
     assert tools["code_executor"]["include"] == ["shell_executor"]  # terminal only
-    assert tools["web_search"]["enabled"] is True
+    assert all(tool["enabled"] is True for tool in tools.values())
     # Tavily, not exa: the seeded engine must be one that works with no
     # credentials (keyless tier), so a fresh install can search immediately.
     assert tools["web_search"]["engine"] == "tavily"
@@ -945,7 +945,7 @@ def test_seed_tools_settings_writes_default_block(tmp_path):
     bootstrap._seed_tools_settings(str(tmp_path))
     migrated = json.loads((tmp_path / "settings.json").read_text())["tools"]
     assert "task_control" not in migrated             # retired -> dropped
-    assert migrated["todo_list"] == {"user_edit": 1}  # user config preserved
+    assert migrated["todo_list"] == {"enabled": True, "mcp": False, "user_edit": 1}
     assert migrated["code_executor"]["include"] == ["shell_executor"]  # narrowed
     assert migrated["code_executor"]["implementation"] == "python_env"  # new default added
 

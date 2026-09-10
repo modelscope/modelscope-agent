@@ -70,7 +70,8 @@ MS-Agent支持很多内部工具：
 
 - `implementation: python_env` 时启动本地模式：
   - 基于本地 Python 环境执行代码，在工具设计上与沙箱环境保持一致，支持 Jupyter Notebook 和 Python 解释器两种执行方式，分别适合于需要在对话内保持上下文状态的代码运行和无状态的代码运行。
-  - 所需的依赖需要在本地进行配置，第一次运行时会自动安装常用的数据分析和代码执行基础依赖（例如 `numpy`、`pandas` 等）。
+  - 设置 `include: [shell_executor]` 时，不会初始化或安装 Python/Notebook 工具的依赖。WebUI 默认使用这一工具范围。
+  - 启用 `python_executor` 或 `notebook_executor` 前，应在启动 SDK 的 Python 环境中准备所需依赖。WebUI 默认不预装 PyArrow、scikit-learn 和 seaborn，可执行 `pip install pyarrow scikit-learn seaborn` 安装；Notebook 执行另外需要 `pip install ipykernel jupyter-client`。现有逻辑会在初始化时尝试补装缺失的包，这要求该环境有可用的 pip 和网络；离线部署应提前安装。
 
 #### notebook_executor
 

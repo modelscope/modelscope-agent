@@ -104,14 +104,9 @@ def _settings_path() -> Path:
 
 
 def _load() -> dict:
-    path = _settings_path()
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-    return data if isinstance(data, dict) else {}
+    from app.backends.ms_agent.tool_settings import ensure_tool_settings
+
+    return ensure_tool_settings(home())
 
 
 def _save(data: dict) -> None:
