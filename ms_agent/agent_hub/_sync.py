@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from ms_agent.utils.logger import get_logger
 from ._cache import cache_dir
 from ._defaults import get_defaults
+from ._secrets import redact_outbound
 
 if TYPE_CHECKING:
     from modelscope_hub.agent import AgentApi, RemoteFileInfo
@@ -75,24 +76,45 @@ def backup_local(spec, name: str) -> Path:
     return zip_path
 
 
-def sanitize_outbound(resources: dict, spec) -> dict:
+def sanitize_outbound(resources: dict,
+                      spec,
+                      findings: list | None = None) -> dict:
     """Strip machine-local secrets from local files before they are pushed.
 
-    Symmetric to the per-file inbound sanitize hook: applies
-    ``spec.sanitize_outbound_file`` to every collected file so secrets a user
-    left in a local config (e.g. hermes ``config.yaml``, openhuman
-    ``config.toml``, qwenpaw ``agent.json``) are never uploaded to the remote
-    repo -- and therefore never written into its git history.
+    Two layers, both applied to EVERY collected file:
+
+    1. ``spec.sanitize_outbound_file`` -- the framework's own hook. It owns the
+       structural cleaning of the config files it knows about (hermes
+       ``config.yaml``, openhuman ``config.toml``, qwenpaw ``agent.json``, ...)
+       and fails closed (raises ``ValueError``) on one it cannot parse.
+    2. :func:`._secrets.redact_outbound` -- content-driven and
+       path-independent. The hook selects files by PATH, so a key an AI
+       assistant left in ``skills/*/scripts/*.py``, a skill-local ``mcp.json``,
+       ``SOUL.md`` or ``MEMORY.md`` used to be uploaded verbatim into the
+       remote repo and its git history (BUG-0909-01). This layer decides on
+       content instead, which also covers the frameworks that define no hook at
+       all (openclaw, nanobot, qoder).
+
+    *findings*, when given, receives one :class:`._secrets.Finding` per
+    redacted secret (never the secret text itself) so the caller can tell the
+    user what was stripped.
 
     Accepts and returns the same ``{rel_path: bytes}`` mapping
     ``collect_bytes`` produces (``str`` values are encoded as UTF-8, matching
-    the push path which uploads bytes).
+    the push path which uploads bytes). A file with nothing to redact keeps its
+    ORIGINAL bytes object: ``drop_unchanged_defaults`` compares bytes against
+    the framework default templates and ``push_mirror`` skips uploads by
+    sha256, so re-serializing an untouched file would defeat both.
     """
     out: dict = {}
     for rel, content in resources.items():
         raw = content if isinstance(content,
                                     bytes) else content.encode('utf-8')
-        out[rel] = spec.sanitize_outbound_file(rel, raw)
+        cleaned = spec.sanitize_outbound_file(rel, raw)
+        cleaned, hits = redact_outbound(rel, cleaned)
+        if findings is not None:
+            findings.extend(hits)
+        out[rel] = cleaned
     return out
 
 
