@@ -453,8 +453,7 @@ def cmd_upload(
         color=display.COLOR_WRITTEN,
     )
     if redacted:
-        # Reported before the dry-run return so `--dry-run` shows exactly what
-        # a real upload would strip. A Finding never carries the secret text.
+        # Before the dry-run return, so --dry-run shows what would be stripped.
         display.table(
             'Secrets redacted',
             [(f.rel, f.kind, f'line {f.line}' if f.line else 'structural')

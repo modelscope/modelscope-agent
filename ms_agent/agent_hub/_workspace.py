@@ -606,8 +606,8 @@ def scrub_toml_secrets(text: str) -> str:
       secret-named query parameters are stripped.
 
     Shared by openhuman's ``config.toml`` and by the content-driven outbound
-    layer (:mod:`ms_agent.agent_hub._secrets`), which cleans ``.toml`` at ANY
-    collected path -- one secret vocabulary for both.
+    layer (:mod:`ms_agent.agent_hub._secrets`), which cleans ``.toml`` at any
+    collected path.
     """
     pattern = re.compile(
         r'^(?P<pre>\s*(?P<key>[A-Za-z0-9_.-]+)\s*=\s*)(?P<val>.*)$')
@@ -1020,13 +1020,11 @@ class WorkspaceSpec(ABC):
         identity (qwenpaw ``agent.json``) must override this to blank secrets
         WITHOUT writing machine-local identity into the upload.
 
-        This hook is only the FIRST of two outbound layers, and it selects files
-        by PATH. :func:`._sync.sanitize_outbound` then runs every file through
-        the content-driven :func:`._secrets.redact_outbound`, which catches
-        secrets in the files no framework whitelists (``skills/*``, persona and
-        memory documents) -- so a framework that defines no hook at all is still
-        covered. Keep this hook for the structural cleaning and the fail-closed
-        refusals of the config files a framework owns.
+        This hook selects files by PATH and is only the first of two outbound
+        layers: :func:`._sync.sanitize_outbound` then runs every file through
+        the content-driven :func:`._secrets.redact_outbound`, so a framework
+        that defines no hook is still covered. Keep this hook for the structural
+        cleaning and fail-closed refusals of the configs a framework owns.
         """
         return self.sanitize_inbound_file(rel_path, content)
 

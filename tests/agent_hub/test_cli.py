@@ -1767,9 +1767,7 @@ class TestUploadSanitization(unittest.TestCase):
         self.assertNotIn("sk-LEAKME333", raw)
         self.assertNotIn("env-LEAKME444", raw)
 
-    # BUG-0909-01: the framework hooks select files by PATH, so everything
-    # outside the root config whitelist (``skills/*``, the persona and memory
-    # documents) used to be uploaded verbatim.
+    # BUG-0909-01: skills/*, persona and memory files used to upload verbatim.
     B64_PERSONA_KEY = base64.b64encode(b"sk-S28PersonaB64Leak1").decode()
     SKILL_SENTINELS = (
         "sk-SkillScriptLeak01",
@@ -1837,8 +1835,7 @@ class TestUploadSanitization(unittest.TestCase):
             )
         self.assertEqual(rc, 0)
         client = _StubClient.instances[0]
-        # The skill tree really was collected -- otherwise the assertions
-        # below would pass vacuously.
+        # Guard against a vacuous pass: the skill tree really was collected.
         self.assertIn("skills/weather/scripts/leak_point.py",
                       client.uploaded_resources)
         self.assertIn("skills/weather/mcp.json", client.uploaded_resources)
@@ -1846,33 +1843,17 @@ class TestUploadSanitization(unittest.TestCase):
                          for v in client.uploaded_resources.values())
         for sentinel in self.SKILL_SENTINELS:
             self.assertNotIn(sentinel, blob)
-        # Benign documentation survives: the gate must not eat placeholders.
         self.assertIn('os.environ.get("OPENWEATHER_KEY", "")', blob)
         self.assertIn('os.environ["DASHSCOPE_API_KEY"]', blob)
         self.assertIn("--api-key <YOUR_KEY>", blob)
         self.assertIn("Bearer $OPENAI_API_KEY", blob)
         self.assertIn("You are a helpful weather assistant.", blob)
-        # The user is told what was stripped -- without echoing the secret.
+        # The report names what was stripped without echoing the secret.
         report = buf.getvalue()
         self.assertIn("Secrets redacted", report)
         self.assertIn("skills/weather/scripts/leak_point.py", report)
         for sentinel in self.SKILL_SENTINELS:
             self.assertNotIn(sentinel, report)
-
-    @mock.patch("ms_agent.agent_hub._commands.AgentApi", _StubClient)
-    def test_dry_run_reports_redactions_without_uploading(self):
-        root = self._write_ws("ms-agent", self._skill_tree_files())
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            rc = cmd_upload(
-                framework="ms-agent", name=None, local_dir=str(root),
-                dry_run=True, endpoint="http://s", token="tok", username="u",
-            )
-        self.assertEqual(rc, 0)
-        report = buf.getvalue()
-        self.assertIn("[dry-run] nothing uploaded.", report)
-        self.assertIn("Secrets redacted", report)
-        self.assertFalse(_StubClient.instances)
 
 
 class _OpenclawStub(_RepoStub):

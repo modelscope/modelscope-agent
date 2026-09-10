@@ -1,55 +1,28 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
 """Content-driven outbound secret redaction (BUG-0909-01).
 
-Why this module exists
-----------------------
-:meth:`WorkspaceSpec.sanitize_outbound_file` decides *whether* to clean a file
-by its PATH: each framework whitelists its own root config (ms-agent
-``settings.json`` / ``mcp.json``, qwenpaw ``agent.json``, hermes
-``config.yaml``, openhuman ``config.toml``) and returns every other collected
-file verbatim -- openclaw, nanobot and qoder define no hook at all. The
-collect patterns, however, take ``skills/*`` recursively plus the persona and
-memory documents, so a key that an AI assistant wrote into a skill script, a
-skill-local ``mcp.json``, ``SOUL.md`` or ``MEMORY.md`` was uploaded verbatim
-into the remote repo and its git history.
+``WorkspaceSpec.sanitize_outbound_file`` picks files by PATH -- each framework
+whitelists its own root config and returns everything else verbatim, and
+openclaw / nanobot / qoder define no hook at all -- while the collect patterns
+take ``skills/*`` plus the persona and memory documents. This layer picks by
+CONTENT instead and runs *after* that hook (see
+:func:`._sync.sanitize_outbound`), so no framework spec needs editing.
 
-This layer decides on CONTENT instead of path. It runs *after* the
-per-framework hook (see :func:`ms_agent.agent_hub._sync.sanitize_outbound`),
-so the structural cleaning and the fail-closed refusals for the known config
-files keep their behavior, and every framework -- present or future -- is
-covered without editing a single spec.
+* **Tier A** -- config-shaped files, by name (``mcp.json``) or by an
+  ``mcpServers`` shape trigger, get the structural scrubbers from
+  :mod:`._workspace`. A shape-triggered file is cleaned inside that subtree
+  only: the shared vocabulary blanks any key named ``tokens`` / ``keys``, which
+  would destroy data in a skill's JSON fixture or a memory dump.
+* **Tier B** -- every other text file gets high-confidence secret VALUES
+  replaced with ``[REDACTED:<kind>]``, under a narrower name vocabulary and a
+  value gate tuned to leave documentation alone.
 
-Two tiers
----------
-* **Tier A (config-shaped)** -- a file that IS configuration, by name
-  (``mcp.json``, ``config.yaml``, ...) or by shape (its parsed JSON/YAML/TOML
-  carries an ``mcpServers`` / ``mcp_servers`` mapping), is cleaned with the
-  structural scrubbers in :mod:`._workspace`. A shape-triggered file is
-  cleaned only inside that MCP subtree: the shared vocabulary blanks any key
-  named ``tokens`` / ``keys`` / ``session_id``, which would destroy legitimate
-  data in a skill's JSON fixture or a memory dump.
-* **Tier B (everything else)** -- documents, scripts, notebooks, JSONL: only
-  high-confidence secret *values* are replaced with a ``[REDACTED:<kind>]``
-  marker. The bag rules (``env`` / ``headers`` cleared wholesale) never apply
-  here, and the name vocabulary is narrower than :func:`is_secret_key`
-  (``max_tokens`` / ``page_token`` / ``session_id`` are pagination and
-  telemetry fields, not credentials).
-
-Contract
---------
-* **Never raises.** The watch daemon swallows exceptions and keeps polling
-  (``_watcher._poll_once``), so a raise here would silently stop all syncing.
-* **Returns the original bytes object when nothing was redacted.**
-  Re-serializing a parsed config reformats it, which breaks both
-  :func:`._sync.drop_unchanged_defaults` (byte comparison against the
-  framework default templates) and the sha256 idempotent-skip in
-  ``push_mirror`` / ``push_resources``.
-* **Deterministic and idempotent.** The watcher stores the sha256 of the
-  SANITIZED bytes as its sync baseline, so an unstable rewrite would re-push
-  every cycle; a ``[REDACTED:...]`` marker never re-matches any rule.
-* **Outbound only.** ``sanitize_inbound_file`` also serves local ``convert``
-  writes, where redaction would strip the user's own keys from the converted
-  agent and leave it unable to run.
+Contract: never raises (the watch daemon swallows exceptions, so a raise would
+silently stop all syncing); returns the ORIGINAL bytes object when nothing was
+redacted (``drop_unchanged_defaults`` and the sha256 push-skip both compare
+bytes); deterministic and idempotent (the watcher baselines the sanitized sha);
+outbound only (``sanitize_inbound_file`` also serves local ``convert`` writes,
+where redaction would strip the user's own keys from the converted agent).
 """
 from __future__ import annotations
 
@@ -72,12 +45,10 @@ __all__ = ['Finding', 'redact_outbound', 'redact_text']
 
 
 class Finding(NamedTuple):
-    """One redacted secret.
+    """One redacted secret: kind and key name, never the secret text itself.
 
-    Carries the *kind* and the key name, never the secret text itself, so the
-    upload report and the watch log cannot leak what they are reporting.
-    ``line`` is 1-based; Tier A (structural config cleaning) reports line 0
-    because a structural scrub has no single location.
+    ``line`` is 1-based, or 0 for a Tier A structural scrub, which has no
+    single location.
     """
     rel: str
     kind: str
@@ -90,15 +61,14 @@ class Finding(NamedTuple):
 # ---------------------------------------------------------------------------
 
 # Vendor-prefixed credentials. The prefix is decisive on its own, so only the
-# placeholder / variable-reference gate applies to these matches -- a real key
-# may legitimately have no digit or an unusual charset. The lookbehind keeps
-# ``sk-`` from firing inside ordinary words (``task-tracking``,
-# ``<task-notification>``).
+# placeholder gate applies to these matches -- a real key may have no digit or
+# an unusual charset. The lookbehind keeps ``sk-`` from firing inside ordinary
+# words (``task-tracking``, ``<task-notification>``).
 _VENDOR_TOKEN_RE = re.compile(
     r'(?<![A-Za-z0-9_\-])(?:'
-    r'sk-(?:ant-|proj-|svc-|or-v1-)?[A-Za-z0-9_\-]{12,}'  # OpenAI/Anthropic/
-    r'|gh[pousr]_[A-Za-z0-9]{12,}'  # OpenRouter/DashScope
-    r'|github_pat_[A-Za-z0-9_]{12,}'  # GitHub
+    r'sk-(?:ant-|proj-|svc-|or-v1-)?[A-Za-z0-9_\-]{12,}'  # OpenAI / Anthropic
+    r'|gh[pousr]_[A-Za-z0-9]{12,}'  # GitHub  / OpenRouter / DashScope
+    r'|github_pat_[A-Za-z0-9_]{12,}'  # GitHub fine-grained PAT
     r'|glpat-[A-Za-z0-9_\-]{12,}'  # GitLab
     r'|xox[baprs]-[A-Za-z0-9\-]{8,}'  # Slack
     r'|AKIA[0-9A-Z]{16}'  # AWS access key id
@@ -127,8 +97,6 @@ _ASSIGN_RE = re.compile(r'(?P<vq1>["\']?)'
                         r'(?P<vq3>["\']?)'
                         r'(?P<val>[^\s"\'`,;)\]}>]+)')
 
-# ``--flag VALUE`` / ``--flag=VALUE`` / ``-f VALUE`` on a documented command
-# line.
 _FLAG_RE = re.compile(
     r'(?<![\w\-])-{1,2}(?P<name>[A-Za-z][A-Za-z0-9_.\-]{1,62})'
     r'(?:[= \t]+(?P<vq>["\']?)'
@@ -147,20 +115,17 @@ _BASE64_RE = re.compile(r'(?<![A-Za-z0-9+/=_\-])'
                         r'(?![A-Za-z0-9+/=])')
 _BASE64_MAX_ATTEMPTS = 400
 
-# Values that are documentation placeholders rather than credentials. Only
-# unambiguous markers qualify: a 5+ character word, a repeated-character run
-# (``xxxx``), or filler digits. Short words (``foo``, ``test``, ``none``) are
-# deliberately absent -- they occur inside a random base62 credential often
-# enough (~1 in 1000) that treating them as placeholders would let real keys
-# through, and a missed key is worse than a redacted doc example.
+# Documentation placeholders rather than credentials. Short common words
+# (``foo``, ``test``, ``none``) are deliberately absent: they occur inside a
+# random base62 credential often enough (~1 in 1000) that treating them as
+# placeholders would let real keys through.
 _PLACEHOLDER_RE = re.compile(
     r'(?:your|yours|xxx+|yyy+|zzz+|example|dummy|fake|sample|placeholder|'
     r'changeme|change_me|redacted|todo|fixme|localhost|something|whatever|'
     r'unknown|mysecret|secretvalue|000000|123456)', re.IGNORECASE)
 
-# Characters that mark a value as an expression / path / reference rather than
-# a credential (``keyvaultref:$SECRET_URI``, ``options?.pageToken``,
-# ``${API_KEY}``, ``/etc/keys/a.pem``).
+# Characters marking a value as an expression, path or reference rather than a
+# credential (``keyvaultref:$SECRET_URI``, ``${API_KEY}``, ``/etc/keys/a.pem``).
 _BAD_VALUE_CHARS = frozenset('$={}?*()@/\\`|&<>:,#%')
 
 # A fully base64-ish value is allowed to carry ``/``, ``+`` and ``=`` padding.
@@ -168,16 +133,11 @@ _BASE64ISH_RE = re.compile(r'^[A-Za-z0-9+/]{16,}={0,2}$')
 
 _CAMEL_RE = re.compile(r'[a-z][A-Z]')
 
-# Tier B name vocabulary, in three strengths. Deliberately NARROWER than
-# :func:`._workspace.is_secret_key`: bare plural ``tokens`` / ``keys`` and the
-# pagination / telemetry spellings in :data:`_NAME_DENY` are ordinary data
-# fields (a nanobot ``memory/history.jsonl`` cursor, an LLM ``max_tokens``
-# setting) whose values are high-entropy digit-bearing strings -- exactly what
-# a credential looks like. ``sk`` is dropped too: it is meaningless as a key
-# name and real ``sk-`` values are caught by :data:`_VENDOR_TOKEN_RE`.
-#
-# STRONG names (``api_key``, ``access_token``, ``client_secret``, ...) are
-# unambiguous: a credential is what they hold.
+# Tier B name vocabulary, in three strengths, deliberately NARROWER than
+# :func:`._workspace.is_secret_key`: the spellings in :data:`_NAME_DENY` are
+# data fields (an LLM ``max_tokens``, a ``memory/history.jsonl`` cursor) whose
+# values are high-entropy digit-bearing strings -- exactly what a credential
+# looks like. STRONG names are unambiguous credential holders.
 _STRONG_NAME_RE = re.compile(
     r'(?:^|[_\-.])(?:'
     r'api[_-]?keys?|apikeys?|access[_-]?keys?|secret[_-]?keys?|'
@@ -187,18 +147,14 @@ _STRONG_NAME_RE = re.compile(
     r'auth[_-]?key|secret[_-]?key|master[_-]?key|signing[_-]?key)$',
     re.IGNORECASE)
 
-# WEAK names are BARE singulars. They do hold credentials in a memory note
-# ("gateway token: ...") or a documented command line (``--token ...``), but
-# they are also ordinary data-mapping fields (``{"key": "user_profile_2"}``),
-# so they only fire against a stricter value gate. The same word WITH a
-# qualifier (``github_token``, ``db_password``, ``smtp_passwd``) is
-# unambiguous and counts as strong.
+# WEAK names are BARE singulars: they hold credentials in a memory note
+# ("gateway token: ...") but are also ordinary data fields
+# (``{"key": "user_profile_2"}``), so they face a stricter value gate. The same
+# word with a qualifier (``github_token``, ``db_password``) counts as strong.
 _WEAK_NAME_RE = re.compile(
     r'(?:^|[_\-.])(?:keys?|tokens?|secrets?|passwords?|passwd|'
     r'credentials?|cookies?|bearer)$', re.IGNORECASE)
 
-# Bare stems, singularized: a name whose normalized form IS one of these (and
-# nothing more) is weak.
 _WEAK_BARE_STEMS = frozenset((
     'key',
     'token',
@@ -210,13 +166,8 @@ _WEAK_BARE_STEMS = frozenset((
     'bearer',
 ))
 
-# Names that are never a trigger. Plurals are data fields (an LLM
-# ``max_tokens`` setting, a nanobot ``memory/history.jsonl`` cursor) whose
-# values are high-entropy digit-bearing strings -- exactly what a credential
-# looks like -- and the metadata spellings describe a secret without being
-# one. ``sk`` is absent from every vocabulary for the same reason: it is
-# meaningless as a key name, and real ``sk-`` values are caught by
-# :data:`_VENDOR_TOKEN_RE`.
+# Names that are never a trigger. The metadata spellings describe a secret
+# without being one.
 _NAME_DENY = frozenset((
     # pagination / telemetry cursors
     'page_token',
@@ -248,22 +199,16 @@ _NAME_DENY = frozenset((
     'secret_id',
 ))
 
-# Name strength: 0 = never a trigger, 1 = weak (strict value gate),
-# 2 = strong.
 _DENY, WEAK, STRONG = 0, 1, 2
 
 
 def name_strength(name: str) -> int:
-    """How much a key / flag *name* is allowed to drive Tier B redaction.
+    """How much a key / flag *name* may drive Tier B redaction.
 
     ``name`` may be dotted or dashed (``model.api_key``, ``--auth-token``).
-    An explicit strong spelling wins first (``client_secrets`` and
-    ``access_tokens`` are credentials even though their last segment is a
-    denied plural), then the deny list, then the generic vocabulary -- where a
-    BARE singular is weak and a qualified one (``github_token``,
-    ``db_password``) is strong. Testing the last segment is what keeps
-    ``options.pageToken`` from being a trigger at all: there is no separator
-    before ``token``.
+    Strong spellings are tested BEFORE the deny list, because
+    ``client_secrets`` ends in a denied plural yet is a credential. Testing the
+    last segment is what keeps ``options.pageToken`` from triggering at all.
     """
     full = name.strip().strip('\'"').lstrip('-').lower()
     if not full:
@@ -289,31 +234,23 @@ def _shannon_entropy(value: str) -> float:
         (c / total) * math.log2(c / total) for c in Counter(value).values())
 
 
-# Lowercase snake_case / kebab-case is how a data-mapping value or a doc
-# placeholder spells itself (``user_profile_2``, ``my-super-secret-1``); real
-# credentials are hex, base64 or mixed-case. Only applied to WEAK names, so a
-# strongly named ``api_key`` keeps its value whatever the casing.
+# Lowercase snake_case / kebab-case is how a data value or a doc placeholder
+# spells itself; only applied to WEAK names.
 _SNAKE_CASE_RE = re.compile(r'^[a-z0-9]+(?:[_\-][a-z0-9]+)+$')
 
-# Letter-words with at most TRAILING digits: the shape of a variable or field
-# name (``SendGridApiKey``, ``MySecretValue123``, ``options.pageToken``), not
-# of a credential. A real key interleaves digits with letters
-# (``S42bMemTokenLeak01``), which fails this shape and stays eligible.
+# Letter-words with at most TRAILING digits are variable names
+# (``SendGridApiKey``, ``MySecretValue123``); a real key interleaves digits
+# with letters (``S42bMemTokenLeak01``) and stays eligible.
 _IDENTIFIER_SHAPE_RE = re.compile(r'^[A-Za-z][A-Za-z_]*[0-9]*$')
 
 
 def _looks_real(value: str, quoted: bool, strength: int = STRONG) -> bool:
     """Whether *value* looks like a real credential rather than a placeholder.
 
-    This gate is what keeps the redactor from eating documentation. A value
-    must be long enough, carry at least one digit, be high-entropy, and must
-    not be a variable reference, a placeholder word, an expression, a path, or
-    a camelCase identifier (``SendGridApiKey``, ``options.pageToken``). Fully
-    base64-shaped values are exempt from the punctuation ban and the identifier
-    test, since real keys legitimately carry ``/``, ``+`` and ``=`` padding.
-
-    A WEAK name (bare ``key`` / ``token`` / ``secret`` / ...) raises every
-    threshold and additionally refuses lowercase snake_case values.
+    This gate is what keeps the redactor from eating documentation. Fully
+    base64-shaped values skip the punctuation ban and the identifier test,
+    since real keys carry ``/``, ``+`` and ``=`` padding. A WEAK name raises
+    every threshold and also refuses lowercase snake_case values.
     """
     val = value.strip().strip('\'"`')
     if not val:
@@ -390,12 +327,10 @@ def _redact_bearer(text: str, hits: list) -> str:
 def _redact_urls(text: str, hits: list) -> str:
     """Strip credentials from URLs embedded in free text.
 
-    Lenient sibling of :func:`._workspace.scrub_url_secrets`, which is written
+    Not a reuse of :func:`._workspace.scrub_url_secrets`: that one is written
     for config scalars and blanks a secret-named query parameter even when its
     value is a variable reference (``?access_token=${token}`` in a converted
-    ``AGENTS.md``). Here every credential candidate passes :func:`_looks_real`
-    first, so documentation examples such as
-    ``postgresql+asyncpg://user:pass@host`` survive.
+    ``AGENTS.md``). Here every candidate passes :func:`_looks_real` first.
     """
 
     def repl(m):
@@ -427,7 +362,7 @@ def _redact_urls(text: str, hits: list) -> str:
                     userinfo, quoted=False):
                 # Colon-less userinfo is how PAT-style tokens travel
                 # (``https://ghp_xxx@host``) and cannot be told from a
-                # username: fail closed, as ``scrub_url_secrets`` does.
+                # username, so fail closed.
                 authority = f'{_marker("token")}@' + authority[at + 1:]
                 changed = True
                 hits.append(('token', _line_of(text, m.start()), ''))
@@ -497,10 +432,10 @@ def _redact_flags(text: str, hits: list) -> str:
 def _redact_base64(text: str, hits: list) -> str:
     """Replace a base64 payload whose DECODED content is a secret.
 
-    Persona files sometimes carry "decode this at runtime" instructions whose
-    plaintext never appears in the file. Only blobs that decode to valid
-    printable text matching a credential rule are touched, so hashes (invalid
-    UTF-8), data URIs and ordinary identifiers survive.
+    Persona files carry "decode this at runtime" instructions whose plaintext
+    never appears in the file. Only blobs decoding to printable text that
+    matches a credential rule are touched, so hashes, data URIs and ordinary
+    identifiers survive.
     """
     attempts = 0
 
@@ -538,12 +473,10 @@ def _redact_base64(text: str, hits: list) -> str:
     return _BASE64_RE.sub(repl, text)
 
 
-# One cheap union of every Tier B textual trigger. A file that matches none of
-# these cannot be redacted by any of the gated passes, so skipping them is
-# lossless -- and the watch daemon re-runs this over the whole workspace every
-# poll. Deliberately over-matches (``monkey`` contains ``key``): it is a gate,
-# not a rule. The base64 pass is NOT gated, because an encoded payload carries
-# no textual signal at all.
+# Cheap union of every Tier B textual trigger: a file matching none of these
+# cannot be redacted by the gated passes, so skipping them is lossless. It
+# deliberately over-matches (``monkey`` contains ``key``) -- a gate, not a rule.
+# The base64 pass is NOT gated: an encoded payload carries no textual signal.
 _PREFILTER_RE = re.compile(
     r'(?:sk-|gh[pousr]_|github_pat_|glpat-|xox[baprs]-|AKIA|AIza|hf_|npm_|'
     r'shpat_|eyJ|[Bb]earer|://|'
@@ -554,12 +487,10 @@ _PREFILTER_RE = re.compile(
 def redact_text(text: str) -> tuple[str, tuple[tuple[str, int, str], ...]]:
     """Redact high-confidence secret values in free text (Tier B).
 
-    Returns ``(text, hits)`` where each hit is ``(kind, line, name)``. The
-    input is returned unchanged (the same ``str`` object) when nothing
-    matched. Passes run in a fixed order -- base64, vendor prefixes, JWT,
-    ``Bearer``, URLs, ``NAME=VALUE``, ``--flag VALUE`` -- so a secret is
-    replaced by the most specific rule that sees it first and the later passes
-    only ever encounter a ``[REDACTED:...]`` marker, which no rule matches.
+    Returns ``(text, hits)`` with each hit ``(kind, line, name)``, and the
+    input unchanged when nothing matched. The pass order is fixed so the most
+    specific rule sees a secret first; later passes only ever encounter a
+    ``[REDACTED:...]`` marker, which no rule matches.
     """
     if not text:
         return text, ()
@@ -610,13 +541,10 @@ def _json_has_mcp(obj) -> bool:
 
 
 def _scrub_json_mcp_subtrees(obj) -> bool:
-    """Clean only the ``mcpServers`` subtrees of a parsed JSON document.
+    """Apply the full structural policy inside ``mcpServers`` subtrees only.
 
-    A skill's ``mcp.json``-shaped payload embedded in an otherwise unrelated
-    JSON document gets the full structural policy (``env`` / ``headers`` bags
-    cleared, ``args`` command lines scrubbed, URL credentials stripped) while
-    the rest of the document -- which may legitimately hold ``tokens`` or
-    ``keys`` data fields -- is left alone. Returns whether anything changed.
+    The rest of the document may legitimately hold ``tokens`` / ``keys`` data
+    fields. Returns whether anything changed.
     """
     changed = False
     if isinstance(obj, dict):
@@ -640,11 +568,10 @@ def _redact_config(rel_path: str, text: str, hits: list[tuple[str, int,
                                                               str]]) -> str:
     """Tier A: structural cleaning of a config-shaped file at any path.
 
-    Best effort by design. A known config name that fails to parse falls
-    through to Tier B instead of raising: refusing to upload a skill's JSON
-    data fixture would be worse than redacting the secret values inside it.
-    (The per-framework hook already fails closed for the ROOT config files it
-    owns, and it runs before this layer.)
+    Best effort: a config that fails to parse falls through to Tier B instead
+    of raising, because refusing to upload a skill's JSON data fixture is worse
+    than redacting the secrets inside it. The per-framework hook already fails
+    closed for the ROOT config files it owns, and runs first.
     """
     base = rel_path.rsplit('/', 1)[-1].lower()
     if base.endswith('.json') or base.endswith('.jsonl'):
@@ -688,10 +615,9 @@ def _redact_config(rel_path: str, text: str, hits: list[tuple[str, int,
 # entry point
 # ---------------------------------------------------------------------------
 
-# Bounded sha256 -> result memo. The watcher re-sanitizes the whole workspace
-# every poll and upload re-runs it per invocation, so identical content is
-# scanned once. Capped on both entry count and per-file size to keep the
-# daemon's footprint flat.
+# Bounded sha256 -> result memo: the watcher re-sanitizes the whole workspace
+# every poll, so identical content is scanned once. Capped on entry count and
+# per-file size to keep the daemon's footprint flat.
 _MEMO_MAX_ENTRIES = 128
 _MEMO_MAX_FILE_SIZE = 128 * 1024
 _memo: 'OrderedDict[tuple[str, str], tuple[bytes, tuple[Finding, ...]]]' = \
@@ -702,7 +628,6 @@ def _redact(rel_path: str, raw: bytes) -> tuple[bytes, tuple[Finding, ...]]:
     try:
         text = raw.decode('utf-8')
     except UnicodeDecodeError:
-        # Binary asset (image, PDF, archive): not a text-secret carrier.
         return raw, ()
 
     hits: list[tuple[str, int, str]] = []
@@ -720,11 +645,9 @@ def redact_outbound(rel_path: str,
                     raw: bytes) -> tuple[bytes, tuple[Finding, ...]]:
     """Redact secrets in one collected file, by content rather than by path.
 
-    Runs after the framework's own :meth:`sanitize_outbound_file` hook. Never
-    raises: an unparseable, oversized or exotic file is returned unchanged
-    (Tier B still gets a best-effort pass at its text), because a crashed
-    sanitize would either block the upload or -- inside the watch daemon,
-    which swallows exceptions -- silently stop syncing.
+    Runs after the framework's own :meth:`sanitize_outbound_file` hook and
+    never raises: a crashed sanitize would block the upload or, inside the
+    watch daemon, silently stop syncing.
     """
     try:
         digest = hashlib.sha256(raw).hexdigest()
@@ -733,9 +656,8 @@ def redact_outbound(rel_path: str,
         if cached is not None:
             _memo.move_to_end(memo_key)
             cleaned, hits = cached
-            # The cached bytes came from an earlier call, so hand back THIS
-            # caller's object when nothing was redacted: the contract is to
-            # return the original, not merely an equal copy.
+            # The cached bytes belong to an earlier caller: hand back THIS one's
+            # object when nothing was redacted.
             return (raw if cleaned == raw else cleaned), hits
         result = _redact(rel_path, raw)
         if len(raw) <= _MEMO_MAX_FILE_SIZE:

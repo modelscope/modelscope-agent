@@ -159,7 +159,6 @@ def _poll_once(client, username, repo, framework, spec, push_only, state,
         sanitize_outbound(spec.collect_bytes(), spec, findings=redacted),
         framework, spec)
     if redacted:
-        # A Finding never carries the secret text, so this is safe to log.
         where = ', '.join(sorted({f.rel for f in redacted}))
         logger.warning('Redacted %d secret value(s) before push, in: %s',
                        len(redacted), where)

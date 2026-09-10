@@ -1609,14 +1609,9 @@ class TestLeakCarrierEdgeCases(unittest.TestCase):
 class TestOutboundCoverageAcrossFrameworks(unittest.TestCase):
     """BUG-0909-01: outbound cleaning must be content-driven, not path-driven.
 
-    Every framework collects ``skills/*`` recursively plus its persona and
-    memory documents, but the per-framework ``sanitize_outbound_file`` hooks
-    select files by PATH: ms-agent whitelisted ``settings.json`` / ``mcp.json``,
-    qwenpaw only ``agent.json``, hermes / openhuman only their root config, and
-    openclaw / nanobot / qoder defined no hook at all. A key an AI assistant
-    wrote into a skill script, a skill-local ``mcp.json``, ``SOUL.md`` or a
-    memory file was therefore uploaded verbatim into the remote repo and its
-    git history.
+    Every framework collects ``skills/*`` plus its persona and memory
+    documents, and three of them defined no outbound hook at all, so the fix
+    has to hold for all seven rather than for the two the bug report named.
     """
 
     B64_KEY = base64.b64encode(b"sk-PersonaB64Leak001").decode()
@@ -1647,8 +1642,7 @@ class TestOutboundCoverageAcrossFrameworks(unittest.TestCase):
         "nanobot": "SOUL.md",
         "qoder": "AGENTS.md",
     }
-    # The memory slot, where the framework has one (ms-agent keeps memory
-    # project-level, so its global home carries none).
+    # The memory slot; ms-agent keeps memory project-level, so it has none.
     MEMORY = {
         "qwenpaw": "MEMORY.md",
         "openclaw": "MEMORY.md",
@@ -1734,10 +1728,10 @@ class TestOutboundCoverageAcrossFrameworks(unittest.TestCase):
         return files, collected, sanitize_outbound(collected, spec,
                                                    findings=findings), findings
 
-    def test_every_framework_redacts_skills_persona_and_memory(self):
+    def test_every_framework_redacts_secrets_but_keeps_documentation(self):
         for framework in sorted(FRAMEWORK_REGISTRY):
             with self.subTest(framework=framework):
-                files, collected, out, findings = self._outbound(framework)
+                _files, collected, out, findings = self._outbound(framework)
                 # Guard against a vacuous pass: the carriers really were
                 # collected by this framework's patterns.
                 self.assertIn(self.PERSONA[framework], collected)
@@ -1749,20 +1743,15 @@ class TestOutboundCoverageAcrossFrameworks(unittest.TestCase):
                             and framework not in self.MEMORY:
                         continue
                     self.assertNotIn(sentinel, blob)
+                # Over-redaction is this layer's likely failure mode, so the
+                # same pass pins the documentation that must survive.
+                for needle in self.BENIGN:
+                    self.assertIn(needle, blob)
                 self.assertTrue(findings, "no redaction reported")
                 for finding in findings:
                     for field in finding:
                         for sentinel in self.SENTINELS:
                             self.assertNotIn(sentinel, str(field))
-
-    def test_benign_documentation_survives_in_every_framework(self):
-        for framework in sorted(FRAMEWORK_REGISTRY):
-            with self.subTest(framework=framework):
-                _files, _collected, out, _findings = self._outbound(framework)
-                blob = "\n".join(v.decode("utf-8", "replace")
-                                 for v in out.values())
-                for needle in self.BENIGN:
-                    self.assertIn(needle, blob)
 
     def test_clean_workspace_is_not_rewritten(self):
         """Byte identity matters: ``drop_unchanged_defaults`` compares bytes and

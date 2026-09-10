@@ -311,13 +311,9 @@ class OpenhumanWorkspace(WorkspaceSpec):
         return self._scrub_toml_secrets(text).encode('utf-8')
 
     def _scrub_toml_secrets(self, text: str) -> str:
-        """Thin wrapper over the shared :func:`scrub_toml_secrets`.
-
-        The implementation moved to ``_workspace`` so the content-driven
-        outbound layer can clean ``.toml`` at ANY collected path with the same
-        rules (dotted keys, inline tables, ``[...env]`` / ``[...headers]``
-        sections, ``args`` arrays, multi-line strings, URL scalars).
-        """
+        """Wrapper over the shared :func:`scrub_toml_secrets`, which moved to
+        ``_workspace`` so the content-driven outbound layer can clean ``.toml``
+        at any collected path with the same rules."""
         return scrub_toml_secrets(text)
 
 
