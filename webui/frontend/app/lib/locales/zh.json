@@ -1,5 +1,8 @@
 {
   "brand": "MS Agent",
+  "common": {
+    "noData": "暂无数据"
+  },
   "nav": {
     "newChat": "开启新对话",
     "newProject": "开启新项目",

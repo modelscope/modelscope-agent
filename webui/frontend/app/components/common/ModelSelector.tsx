@@ -1,11 +1,12 @@
 import { CheckOutlined } from '@ant-design/icons'
 import { Popover } from 'antd'
 import { Fragment, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { ProviderTags } from '~/components/models/ProviderTags'
 import { useT } from '~/lib/i18n'
 import type { AgentSettings, Model, Provider } from '~/lib/types'
 import { PillButton } from './PillButton'
-import { EmptyState } from './EmptyState'
+import { EmptyState, EmptyStateAction } from './EmptyState'
 import { DeferredSkeleton } from './DeferredSkeleton'
 import './ModelSelector.css'
 import JumpIcon from '~/assets/icons/jump.svg?react'
@@ -27,6 +28,7 @@ export function ModelSelector({
   onSelectModel
 }: ModelSelectorProps) {
   const { t } = useT()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null)
   // Below `sm` the two panes cannot both fit: the panel is capped at the viewport
@@ -68,6 +70,19 @@ export function ModelSelector({
   const handleSelectModel = (model: Model) => {
     onSelectModel(model.provider_id, model.id)
     setOpen(false)
+  }
+
+  /** A provider with no models is a dead end here — models are added in global
+   * settings, never from this picker. The provider being browsed rides along in
+   * the URL so the page opens on it instead of on its own first one, which is
+   * rarely the one the user just found empty. */
+  const goAddModels = () => {
+    setOpen(false)
+    navigate(
+      activeProvider
+        ? `/settings/models?provider=${encodeURIComponent(activeProvider.id)}`
+        : '/settings/models'
+    )
   }
 
   return (
@@ -147,7 +162,9 @@ export function ModelSelector({
                   className="flex shrink-0 cursor-pointer items-center gap-1.5 border-0 bg-msa-fill-0 px-[10px] py-[10px] text-left text-sm font-medium text-msa-text-1 transition-colors hover:text-msa-text-brand1 sm:hidden"
                 >
                   <BackIcon className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 truncate">{activeProvider.name}</span>
+                  <span className="min-w-0 truncate">
+                    {activeProvider.name}
+                  </span>
                 </button>
                 <div className="h-px shrink-0 bg-msa-line-1 sm:hidden" />
               </>
@@ -161,7 +178,24 @@ export function ModelSelector({
                   <div className="flex h-full items-center justify-center">
                     <EmptyState
                       size="sm"
+                      // The pane is 300px tall and the illustration, copy and
+                      // button already fill it — the variant's own vertical
+                      // padding on top of that would push the button out of
+                      // reach (a centred flex child clips, it does not scroll).
+                      className="!py-0"
                       description={t.modelsAdmin.modelsEmpty}
+                      action={
+                        // Smaller than the full-page empty states this button
+                        // was sized for: here it sits in a popover among 12px
+                        // rows, where the default pill reads as the loudest
+                        // thing on screen.
+                        <EmptyStateAction
+                          className="!px-4 !py-1 !text-xs"
+                          onClick={goAddModels}
+                        >
+                          {t.modelsAdmin.addModel}
+                        </EmptyStateAction>
+                      }
                     />
                   </div>
                 ) : (
