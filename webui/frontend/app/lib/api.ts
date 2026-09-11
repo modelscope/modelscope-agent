@@ -359,6 +359,10 @@ export const api = {
     json<{ path: string; content: string | null }>(
       `/api/skills/${encodeURIComponent(id)}/file?path=${encodeURIComponent(path)}`
     ),
+  /** URL for a skill file's raw bytes — what a previewed document in the skill
+   * viewer loads its images and styles from. Browser-only usage. */
+  skillFileRawUrl: (id: string, path: string) =>
+    `/api/skills/${encodeURIComponent(id)}/raw/${fp(path)}`,
   createSkill: (
     body: Omit<Skill, 'id' | 'created_at' | 'origin' | 'removable'> & {
       /** Bundle imports only: replace a same-named skill in this scope instead
@@ -481,10 +485,12 @@ export const api = {
       opts
     )
   },
-  // URL for raw file bytes (media <img>/<video>/<audio> src, or download).
-  // Relative so the same-origin proxy routes it; browser-only usage.
+  // URL for raw file bytes (media <img>/<video>/<audio> src, an HTML preview's
+  // iframe, or download). Relative so the same-origin proxy routes it;
+  // browser-only usage. The path is the URL tail so a previewed document's own
+  // relative references resolve back into this route.
   workspaceFileRawUrl: (projectId: string, path: string) =>
-    `/api/projects/${pid(projectId)}/workspace/files/${fp(path)}/raw`,
+    `/api/projects/${pid(projectId)}/workspace/raw/${fp(path)}`,
   // URL for a zip of the workspace, or of one folder in it. The server builds
   // and streams the archive; `path` is omitted for the whole workspace. Not
   // under `/files/` — that route's catch-all would swallow the segment.
