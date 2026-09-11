@@ -14,6 +14,8 @@
     "projectsTitle": "Projects",
     "expand": "Expand",
     "collapse": "Collapse",
+    "poweredBy": "Powered by",
+    "github": "MS-Agent on GitHub",
     "recentEmpty": "No chats yet — click \"New chat\" above to start."
   },
   "sidebar": {
