@@ -1,7 +1,9 @@
 {
   "brand": "MS Agent",
   "common": {
-    "noData": "暂无数据"
+    "noData": "暂无数据",
+    "viewPreview": "预览",
+    "viewCode": "源码"
   },
   "nav": {
     "newChat": "开启新对话",
@@ -289,8 +291,6 @@
   },
   "skillDetail": {
     "title": "详情",
-    "viewPreview": "预览",
-    "viewCode": "源码",
     "binaryFile": "二进制文件，暂不支持预览。"
   },
   "explore": {

@@ -1,7 +1,9 @@
 {
   "brand": "MS Agent",
   "common": {
-    "noData": "No data"
+    "noData": "No data",
+    "viewPreview": "Preview",
+    "viewCode": "Source"
   },
   "nav": {
     "newChat": "Start new chat",
@@ -289,8 +291,6 @@
   },
   "skillDetail": {
     "title": "Details",
-    "viewPreview": "Preview",
-    "viewCode": "Source",
     "binaryFile": "Binary file — preview not available."
   },
   "explore": {
