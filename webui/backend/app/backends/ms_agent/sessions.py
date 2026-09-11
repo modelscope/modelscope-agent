@@ -409,7 +409,7 @@ def _file_kind(name: str) -> str:
 
 def _raw_url(pid: str, path: str) -> str:
     enc = "/".join(quote(seg) for seg in path.split("/"))
-    return f"/api/projects/{quote(pid)}/workspace/files/{enc}/raw"
+    return f"/api/projects/{quote(pid)}/workspace/raw/{enc}"
 
 
 def _attached_files(project,
