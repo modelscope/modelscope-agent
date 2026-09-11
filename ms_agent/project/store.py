@@ -4,9 +4,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ms_agent.utils.atomic_file import atomic_write_json
+
 
 class JSONFileStore:
-    """Atomic JSON file read/write. Writes to .tmp then renames to prevent corruption."""
+    """Atomic JSON file read/write. Writes to a temp file then renames to
+    prevent corruption."""
 
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
@@ -21,10 +24,4 @@ class JSONFileStore:
             return json.load(f)
 
     def write(self, data: dict[str, Any]) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._path.with_suffix('.tmp')
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        # replace() is atomic and cross-platform; rename() raises on Windows
-        # when the destination already exists.
-        tmp.replace(self._path)
+        atomic_write_json(self._path, data)

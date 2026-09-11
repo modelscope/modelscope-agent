@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ms_agent.config.resolver import merge_skills_configs
+from ms_agent.utils.atomic_file import atomic_write_json
 
 SKILLS_FILE = 'skills.json'
 #: Live-tree directory name, shared by both scopes (``<global_dir>/skills``
@@ -281,10 +282,4 @@ class SkillsConfigManager:
 
     @staticmethod
     def _write(path: Path, data: Dict[str, Any]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix('.tmp')
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        # replace() is atomic and cross-platform; rename() raises on Windows
-        # when the destination already exists.
-        tmp.replace(path)
+        atomic_write_json(path, data)

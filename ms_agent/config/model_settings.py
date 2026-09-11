@@ -10,9 +10,10 @@ never clobbers the other settings.json sections (llm, personalization, ...).
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from ms_agent.utils.atomic_file import atomic_write_json
 
 
 class ModelSettingsManager:
@@ -34,11 +35,7 @@ class ModelSettingsManager:
             return {}
 
     def _save_raw(self, data: Dict[str, Any]) -> None:
-        self._dir.mkdir(parents=True, exist_ok=True)
-        tmp = self._path.with_suffix('.json.tmp')
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self._path)
+        atomic_write_json(self._path, data)
 
     # -- providers --
 
