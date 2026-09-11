@@ -1,9 +1,10 @@
 import { Button, Popconfirm, Select, Tooltip } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { AddProviderModal } from '~/components/models/AddProviderModal'
 import { ModelEditModal } from '~/components/models/ModelEditModal'
 import { ProviderTags } from '~/components/models/ProviderTags'
-import { EmptyState } from '~/components/common/EmptyState'
+import { EmptyState, EmptyStateAction } from '~/components/common/EmptyState'
 import { KeyStatusTag } from '~/components/common/KeyStatus'
 import { DeferredSkeleton } from '~/components/common/DeferredSkeleton'
 import { api } from '~/lib/api'
@@ -22,12 +23,18 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export default function ModelsSettings() {
   const { t } = useT()
+  const [searchParams] = useSearchParams()
   // null = not loaded yet (skeleton), [] = genuinely no providers (empty
   // state). Collapsing the two would flash "no providers" on every visit.
   const [providers, setProviders] = useState<Provider[] | null>(null)
   const [models, setModels] = useState<Model[]>([])
   const [settings, setSettings] = useState<AgentSettings | null>(null)
-  const [activeProviderId, setActiveProviderId] = useState<string | null>(null)
+  // `?provider=` lets a caller open this page on the provider it was talking
+  // about — the composer's model picker sends the one whose list it found empty.
+  // A seed only: the selection is the user's from here on.
+  const [activeProviderId, setActiveProviderId] = useState<string | null>(() =>
+    searchParams.get('provider')
+  )
 
   // Provider add/edit share one modal: null = closed, { provider: null } = add,
   // { provider } = edit.
@@ -37,7 +44,14 @@ export default function ModelsSettings() {
   const [modelEdit, setModelEdit] = useState<{
     provider: Provider
     model: Model | null
+    /** Opened from the default-model picker: the model it creates is the one the
+     *  user was trying to pick, so it becomes the selection on save. */
+    asDefault?: boolean
   } | null>(null)
+  // Controlled so the empty state's "add model" button can close the panel:
+  // the select popup outranks the modal mask, and would otherwise float on top
+  // of the dialog it just opened.
+  const [defaultModelOpen, setDefaultModelOpen] = useState(false)
 
   const refresh = () =>
     Promise.all([
@@ -49,8 +63,12 @@ export default function ModelsSettings() {
         setProviders(ps)
         setModels(ms)
         setSettings(s)
-        // Default-select the first provider when nothing is selected.
-        setActiveProviderId((prev) => prev ?? ps[0]?.id ?? null)
+        // Default-select the first provider when nothing is selected. A seed
+        // naming a provider this instance does not have is dropped here rather
+        // than left selected, which would render as a blank detail pane.
+        setActiveProviderId((prev) =>
+          prev && ps.some((p) => p.id === prev) ? prev : (ps[0]?.id ?? null)
+        )
       })
       // `null` gates the skeletons on this page, so a failure has to settle the
       // lists to `[]` or they stay skeletons for good. `Promise.all` means any
@@ -76,6 +94,11 @@ export default function ModelsSettings() {
     [models, activeProviderId]
   )
 
+  const defaultProvider = useMemo(
+    () => providers?.find((p) => p.id === settings?.default_provider_id) ?? null,
+    [providers, settings?.default_provider_id]
+  )
+
   const updateSettings = async (patch: Partial<AgentSettings>) => {
     if (!settings) return
     const next = await api.putAgentSettings({ ...settings, ...patch })
@@ -92,6 +115,12 @@ export default function ModelsSettings() {
           }
         : prev
     )
+  }
+
+  const addDefaultModel = () => {
+    if (!defaultProvider) return
+    setDefaultModelOpen(false)
+    setModelEdit({ provider: defaultProvider, model: null, asDefault: true })
   }
 
   const defaultModelOptions = useMemo(
@@ -172,6 +201,27 @@ export default function ModelsSettings() {
               value={resolvedDefaultModelId}
               onChange={(v) => updateSettings({ default_model_id: v })}
               options={defaultModelOptions}
+              open={defaultModelOpen}
+              onOpenChange={setDefaultModelOpen}
+              // A provider with no models leaves this picker with nothing to
+              // offer, and the models list that fixes it is further down the
+              // page — behind a provider selection of its own. Adding from here
+              // opens the same modal that pane uses, on the provider this
+              // picker is already pointed at.
+              notFoundContent={
+                <EmptyState
+                  size="xs"
+                  description={t.modelsAdmin.modelsEmpty}
+                  action={
+                    <EmptyStateAction
+                      className="!px-4 !py-1 !text-xs"
+                      onClick={addDefaultModel}
+                    >
+                      {t.modelsAdmin.addModel}
+                    </EmptyStateAction>
+                  }
+                />
+              }
               className="w-full"
               placeholder="—"
               disabled={!settings?.default_provider_id}
@@ -309,8 +359,25 @@ export default function ModelsSettings() {
         model={modelEdit?.model ?? null}
         providers={providers ?? []}
         onClose={() => setModelEdit(null)}
-        onSaved={() => {
+        onSaved={async (m) => {
+          const asDefault = modelEdit?.asDefault ?? false
           setModelEdit(null)
+          // Coming from the default-model picker, the new model is what the
+          // user was there to choose. The provider rides along because picking
+          // one is local state until a model is saved with it — the reload
+          // below would otherwise restore the previously persisted provider and
+          // drop the model out of sight. Awaited, since a concurrent GET can
+          // still answer with the pre-save settings.
+          if (asDefault) {
+            try {
+              await updateSettings({
+                default_provider_id: m.provider_id,
+                default_model_id: m.id
+              })
+            } catch {
+              // API errors surface via the global toast.
+            }
+          }
           refresh()
         }}
       />

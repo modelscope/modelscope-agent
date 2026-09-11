@@ -67,8 +67,19 @@ cd frontend
 pnpm install --frozen-lockfile
 pnpm dev                 # http://localhost:5173, proxies /api/* to :8000
 pnpm build               # production build
+pnpm build:image         # the above, then assemble build-runtime/ — a traced runtime tree
 pnpm start               # serve the build: SSR + /api proxy on one port (PORT, default: API port + 1)
 ```
+
+**Runtime image build:** `pnpm build:image` runs the normal build, then
+`scripts/traceRuntime.ts` traces the SSR entries with `@vercel/nft` into
+`build-runtime/` and verifies the assembled tree with a smoke render.
+
+`../docker/webui.Dockerfile` enables the same flow for installed packages with
+`MS_AGENT_WEBUI_TRACE_RUNTIME=1`. The prepared cache records whether its runtime
+is traced. To run the traced tree locally from `backend/`, use
+`uv run webui --frontend-dir ../frontend/build-runtime`; the launcher rejects it
+when its manifest does not match the checkout build.
 
 **Frontend configuration** is declared in `backend/.env.example` and read by
 application code through `frontend/app/lib/env.ts`. Its `SERVER_*` exports are

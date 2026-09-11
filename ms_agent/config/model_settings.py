@@ -100,11 +100,7 @@ class ModelSettingsManager:
     def add_model(self, provider_id: str, model: str) -> None:
         data = self._load_raw()
         providers = data.setdefault('providers', {})
-        entry = providers.setdefault(provider_id, {
-            'name': provider_id,
-            'protocol': 'openai',
-            'models': []
-        })
+        entry = providers.setdefault(provider_id, {})
         models = entry.setdefault('models', [])
         if model not in models:
             models.append(model)

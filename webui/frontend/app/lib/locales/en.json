@@ -1,5 +1,8 @@
 {
   "brand": "MS Agent",
+  "common": {
+    "noData": "No data"
+  },
   "nav": {
     "newChat": "Start new chat",
     "newProject": "Start new project",

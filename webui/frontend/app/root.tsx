@@ -15,6 +15,7 @@ import {
 
 import './app.css'
 import { NProgressHandler } from '~/components/common/NProgressHandler'
+import { renderAntdEmpty } from '~/components/common/EmptyState'
 import { ErrorState } from '~/components/common/ErrorState'
 import { ApiError, registerApiErrorReporter } from '~/lib/api'
 import { getAntdCssHref } from '~/lib/antdStyle.server'
@@ -197,6 +198,11 @@ function ThemedRoot({ children }: { children: React.ReactNode }) {
         locale={antdLocale}
         theme={getMsaAntdTheme(theme)}
         modal={msaModalProps}
+        // Every antd data component falls back to its own "No data" illustration
+        // when the call site names no empty content; this replaces all of them
+        // with the project's, so a new Select or Table is themed by default
+        // instead of by whoever remembers to pass `notFoundContent`.
+        renderEmpty={renderAntdEmpty}
       >
         <AntdApp>
           <NProgressHandler />

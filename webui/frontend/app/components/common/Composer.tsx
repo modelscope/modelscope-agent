@@ -309,11 +309,7 @@ export function Composer({
     // path; this only covers a Composer mounted outside that layout, where
     // there is no loader data to seed from.
     if (hasAppData) return
-    Promise.all([
-      api.listProviders(),
-      api.listModels(),
-      api.getAgentSettings()
-    ])
+    Promise.all([api.listProviders(), api.listModels(), api.getAgentSettings()])
       .then(([ps, ms, s]) => {
         setProviders(ps)
         setModels(ms)
@@ -417,6 +413,49 @@ export function Composer({
     suggestOpenRef.current = false
   }, [])
 
+  // The panel scrolls (it is height-capped), so arrowing past its edge would
+  // move the highlighted row out of sight. Keep the active row in view — but
+  // only for keyboard moves: hover updates the index too, and nudging the list
+  // under a resting pointer would fight the mouse.
+  const suggestListRef = useRef<HTMLDivElement>(null)
+  const activeSuggestRef = useRef<HTMLDivElement>(null)
+  const suggestKeyNavRef = useRef(false)
+
+  useEffect(() => {
+    if (!suggestKeyNavRef.current) return
+    suggestKeyNavRef.current = false
+    const list = suggestListRef.current
+    const item = activeSuggestRef.current
+    if (!list || !item) return
+    // Both ends snap all the way, so wrapping around lands on a clean edge with
+    // the panel's own padding visible instead of the row flush against it.
+    if (suggestIndex === 0) {
+      list.scrollTop = 0
+      return
+    }
+    if (suggestIndex === filteredSuggestions.length - 1) {
+      list.scrollTop = list.scrollHeight
+      return
+    }
+    // Scrolled by hand rather than `scrollIntoView`: the panel lives in a body
+    // portal, so the browser would happily scroll the page behind it too.
+    const listBox = list.getBoundingClientRect()
+    const itemBox = item.getBoundingClientRect()
+    if (itemBox.top < listBox.top) {
+      list.scrollTop -= listBox.top - itemBox.top
+    } else if (itemBox.bottom > listBox.bottom) {
+      list.scrollTop += itemBox.bottom - listBox.bottom
+    }
+  }, [suggestIndex, filteredSuggestions.length])
+
+  // Editing the query reshuffles the list, so an index carried over from the
+  // previous set can point past its end (Enter would then pick nothing). Snap
+  // the selection — and the scroll position — back to the top.
+  useEffect(() => {
+    setSuggestIndex(0)
+    if (suggestListRef.current) suggestListRef.current.scrollTop = 0
+  }, [filteredSuggestions])
+
   const selectSuggestion = useCallback(
     (item: { id: string; name: string; value: string }) => {
       // Replace the trailing `/query` the user was typing with an inline tag
@@ -455,20 +494,25 @@ export function Composer({
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault()
+          suggestKeyNavRef.current = true
           setSuggestIndex((i) => (i + 1) % filteredSuggestions.length)
           break
         case 'ArrowUp':
           e.preventDefault()
+          suggestKeyNavRef.current = true
           setSuggestIndex(
             (i) =>
               (i - 1 + filteredSuggestions.length) % filteredSuggestions.length
           )
           break
-        case 'Enter':
+        case 'Enter': {
+          const picked = filteredSuggestions[suggestIndex]
+          if (!picked) return
           e.preventDefault()
           e.stopPropagation()
-          selectSuggestion(filteredSuggestions[suggestIndex])
+          selectSuggestion(picked)
           break
+        }
         case 'Escape':
           e.preventDefault()
           closeSuggestions()
@@ -1033,12 +1077,15 @@ export function Composer({
             <Dropdown
               open={suggestOpen && filteredSuggestions.length > 0}
               placement="top"
-              autoAdjustOverflow={false}
               popupRender={() => (
-                <div className="max-h-52 w-fit max-w-[min(420px,80cqw)] overflow-y-auto rounded-2xl border border-msa-line-1 bg-msa-bg-1 p-2 shadow-msa-m">
+                <div
+                  ref={suggestListRef}
+                  className="max-h-52 w-fit max-w-[min(420px,80cqw)] overflow-y-auto rounded-2xl border border-msa-line-1 bg-msa-bg-1 p-2 shadow-msa-m"
+                >
                   {filteredSuggestions.map((item, idx) => (
                     <div
                       key={item.value}
+                      ref={idx === suggestIndex ? activeSuggestRef : undefined}
                       className={`flex cursor-pointer items-baseline gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                         idx === suggestIndex
                           ? 'bg-msa-fill-4 text-msa-text-brand1'
