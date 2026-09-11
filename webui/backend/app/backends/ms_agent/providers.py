@@ -107,8 +107,10 @@ def update_provider(pid: str, body: ProviderUpdate) -> Provider:
             msm.add_provider(
                 pid,
                 name=name or _default_name(pid),
+                # A partial edit retains the effective protocol, including
+                # the registry default when no override has been saved yet.
                 protocol=(body.protocol if body.protocol is not None else
-                          cur.get("protocol")) or "openai",
+                          get_provider(pid).protocol),
                 api_key=body.api_key
                 if body.api_key is not None else cur.get("api_key"),
                 base_url=body.base_url
