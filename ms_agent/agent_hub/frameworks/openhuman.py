@@ -20,33 +20,24 @@ class OpenhumanWorkspace(WorkspaceSpec):
     """Workspace spec for the OpenHuman agent framework (root-per-agent).
 
     OpenHuman is a Rust/Tauri desktop app whose brain is a local Memory Tree
-    (SQLite at ``memory_tree/chunks.db``).  The portable, human-authored
-    state is: the persona files ``SOUL.md`` / ``IDENTITY.md`` /
-    ``HEARTBEAT.md``, the curated ``MEMORY.md`` (+ ``MEMORY_GOALS.md``), the
-    ``config.toml`` settings (models / providers / routing / autonomy) and
-    the skill tree.
+    (SQLite at ``memory_tree/chunks.db``).  The portable human-authored state
+    is the persona files (``SOUL.md`` / ``IDENTITY.md`` / ``HEARTBEAT.md``),
+    the curated ``MEMORY.md`` (+ the workspace-wide ``MEMORY_GOALS.md``),
+    ``config.toml`` and the skill tree.  ``MEMORY.md`` is injected into the
+    system prompt every session and is the only memory file the agent may
+    write.
 
-    ``MEMORY.md`` is injected into the system prompt every session (under a
-    char cap) and is the only memory file the agent itself may write -- the
-    direct counterpart of the other products' ``MEMORY.md``.
+    Files live in a per-device workspace
+    ``~/.openhuman/users/<user-id>/workspace/`` (the id differs on every
+    machine, so the root is probed at runtime, BUG-033); ``config.toml``
+    lives ONE LEVEL ABOVE it. Sub-agents are Profile personas
+    (``personalities/<Profile>/``, root-per-agent). The app's lookup treats
+    an EMPTY file as absent and falls back to the workspace copy -- mirrored
+    by :meth:`_with_workspace_fallbacks`.
 
-    On-disk layout: files live in a per-device user workspace
-    ``~/.openhuman/users/<user-id>/workspace/``, where ``<user-id>`` differs
-    on every machine, so the data root is probed at runtime rather than
-    hardcoded (BUG-033). ``config.toml`` lives ONE LEVEL ABOVE the workspace
-    (``users/<id>/``) and is collected/written through a special case.
-
-    Sub-agents are Profile personas: ``personalities/<Profile>/`` maps 1:1 to
-    an agent (root-per-agent); the workspace-level persona is the ``default``
-    agent. Every level of the app's lookup treats an EMPTY file as absent and
-    falls back to the workspace copy (mirrored by
-    :meth:`_with_workspace_fallbacks`).
-
-    Deliberately *not* collected: the SQLite stores, the KV memory docs
-    (machine-extracted chat derivatives), the Memory Tree chunk mirrors, the
-    derived wiki vault (``memory_tree/content/wiki/`` -- regenerable summary
-    output), and the session history: binary / run-time / derived state that
-    does not migrate across frameworks.
+    Not collected: the SQLite stores, KV memory docs (machine-extracted chat
+    derivatives), Memory Tree chunk mirrors, the derived wiki vault
+    (regenerable summary output) and session history.
     """
 
     # Per-device user workspace: ``users/<user-id>/workspace``. The id segment
@@ -69,13 +60,16 @@ class OpenhumanWorkspace(WorkspaceSpec):
         ('SOUL.md', 1),
     )
 
-    # Persona files that fall back to the workspace-level copy when a Profile
-    # does not carry its own -- the app's own lookup order (Profile file >
-    # workspace-level default). Deliberately limited to these four:
-    # ``config.toml`` is machine-local, and ``wiki/`` / ``skills/`` are large
-    # trees whose per-profile duplication would bloat upload/sync.
-    _WORKSPACE_FALLBACK_FILES = frozenset(
-        ['SOUL.md', 'IDENTITY.md', 'HEARTBEAT.md', 'MEMORY.md'])
+    # Files that fall back to the workspace-level copy when a Profile does
+    # not carry its own -- the app's own lookup order, where an EMPTY file
+    # counts as absent. MEMORY_GOALS.md is a workspace-wide singleton (every
+    # Profile reads it from the root), so it always falls back. config.toml
+    # is handled separately (it lives above the workspace); wiki/skills are
+    # large trees whose per-profile duplication would bloat upload/sync.
+    _WORKSPACE_FALLBACK_FILES = frozenset([
+        'SOUL.md', 'IDENTITY.md', 'HEARTBEAT.md', 'MEMORY.md',
+        'MEMORY_GOALS.md'
+    ])
 
     @property
     def product_name(self) -> str:
@@ -163,15 +157,10 @@ class OpenhumanWorkspace(WorkspaceSpec):
 
     @property
     def patterns(self) -> list[str]:
-        # Entries are relative to :attr:`workspace_root`, which resolves to
-        # ``personalities/<Profile>/`` for a named agent, so one list covers
-        # both scopes with no per-profile duplicates (fnmatch ``*`` spans
-        # ``/``, so ``skills/*`` recurses the whole tree).
-        #
-        # ``config.toml`` really lives one level ABOVE the workspace
-        # (``users/<id>/``); the pattern stays as the resources key while the
-        # read/write is special-cased in :meth:`collect` / :meth:`apply`. The
-        # wiki vault (derived, regenerable summary output) is not collected.
+        # Relative to :attr:`workspace_root` (``personalities/<Profile>/``
+        # for a named agent), so one list covers both scopes. ``config.toml``
+        # really lives one level above; the pattern is just the resources
+        # key -- the read/write is special-cased in collect/apply.
         return [
             'SOUL.md',
             'IDENTITY.md',
@@ -264,25 +253,18 @@ class OpenhumanWorkspace(WorkspaceSpec):
         return resources
 
     def _parent_config_path(self) -> Path | None:
-        """``users/<id>/config.toml`` -- one level above the workspace.
-
-        Only resolved for the real install layout (the workspace directory is
-        literally named ``workspace/``), so an explicit ``local_dir`` never
-        reaches outside the pointed-at folder. ``None`` in all-mode, where
-        per-Profile copies would duplicate the shared config.
-        """
+        """``users/<id>/config.toml`` -- one level above the workspace. Only
+        resolved for the real install layout (workspace dir literally named
+        ``workspace/``) so ``local_dir`` never reaches outside the pointed-at
+        folder; ``None`` in all-mode (the config is shared per user)."""
         if self._is_all() or self.root.name != self._WORKSPACE_DIRNAME:
             return None
         candidate = self.root.parent / 'config.toml'
         return candidate if candidate.is_file() else None
 
     def _add_parent_config(self, resources: dict, *, text: bool) -> None:
-        """Collect the user-level ``config.toml``, keyed workspace-relative.
-
-        The patterns are workspace-relative but the file lives one level up;
-        without this special case it is never collected and its TOML scrubber
-        never runs. Symmetric with :meth:`apply`.
-        """
+        """Collect the user-level ``config.toml`` (one level above the
+        patterns' reach), keyed workspace-relative; symmetric with apply."""
         path = self._parent_config_path()
         if path is None or 'config.toml' in resources:
             return
@@ -298,33 +280,39 @@ class OpenhumanWorkspace(WorkspaceSpec):
             logger.warning('Skip %s: %s', path, e)
 
     def apply(self, resources: dict) -> list[str]:
-        """Write resources back; ``config.toml`` returns to the user dir
-        (symmetric with collection) instead of spawning a copy inside the
-        workspace that the app never reads."""
-        if 'config.toml' not in resources or self._is_all() \
-                or self.root.name != self._WORKSPACE_DIRNAME:
+        """Write resources back; shared files return to where the app reads
+        them: ``config.toml`` to the user dir (one level above) and
+        ``MEMORY_GOALS.md`` to the workspace root (goals are workspace-wide,
+        a per-Profile copy would never be read)."""
+        resources = dict(resources)
+        relocated: dict[str, Path] = {}
+        if not self._is_all():
+            if 'config.toml' in resources \
+                    and self.root.name == self._WORKSPACE_DIRNAME:
+                relocated['config.toml'] = self.root.parent / 'config.toml'
+            if 'MEMORY_GOALS.md' in resources \
+                    and self.workspace_root != self.root:
+                relocated['MEMORY_GOALS.md'] = self.root / 'MEMORY_GOALS.md'
+        if not relocated:
             return super().apply(resources)
-        rest = {k: v for k, v in resources.items() if k != 'config.toml'}
+        rest = {k: v for k, v in resources.items() if k not in relocated}
         written = super().apply(rest)
-        config_target = self.root.parent / 'config.toml'
-        raw = resources['config.toml']
-        raw = raw if isinstance(raw, bytes) else raw.encode('utf-8')
-        sanitized = self.sanitize_inbound_file('config.toml', raw)
-        config_target.parent.mkdir(parents=True, exist_ok=True)
-        config_target.write_bytes(sanitized)
-        written.append(str(config_target))
+        for rel, target in relocated.items():
+            raw = resources[rel]
+            raw = raw if isinstance(raw, bytes) else raw.encode('utf-8')
+            sanitized = self.sanitize_inbound_file(rel, raw)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(sanitized)
+            written.append(str(target))
         return written
 
     def _with_workspace_fallbacks(self, resources: dict, *,
                                   text: bool) -> dict:
-        """Fill missing OR BLANK Profile files from the workspace-level copies.
-
-        The app treats an empty persona/memory file as absent and falls back
-        to the workspace copy, so a 0-byte Profile ``MEMORY.md`` must not
-        shadow the real workspace memory. A Profile copy with substance
-        always wins; all-mode is exempt (each Profile mirrors to its own repo
-        and workspace files would duplicate across every Profile).
-        """
+        """Fill missing OR BLANK Profile files from the workspace copies --
+        the app treats an empty file as absent and falls back, so a 0-byte
+        Profile file must not shadow the real workspace content. A Profile
+        copy with substance wins; all-mode is exempt (shared files would
+        duplicate across every Profile repo)."""
         if self._is_all() or self.workspace_root == self.root:
             return resources
         workspace_spec = copy.copy(self)

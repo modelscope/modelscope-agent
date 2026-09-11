@@ -671,13 +671,12 @@ def _resolve_target_path(source_product: str, source_path: str,
     return source_path
 
 
-# Where UNMAPPED loose memory files (the detail files that travel beside the
-# canonical ``MEMORY.md`` index) land on each target. ``None`` = the target
-# reads a single memory file (:data:`_SINGLE_FILE_MEMORY_SLOTS`) and the
-# detail is inlined into it -- a file the runtime never reads is not a
-# migration. openclaw routes imports to its own ``memory/imports/<source>/``
-# location; qwenpaw / qoder keep detail beside the index; ms-agent has no
-# home-level memory slot (the target-spec filter drops the payload).
+# Where UNMAPPED loose memory files (detail beside the canonical MEMORY.md
+# index) land per target. ``None`` = the target reads a single memory file
+# (:data:`_SINGLE_FILE_MEMORY_SLOTS`) and detail is inlined into it -- a file
+# the runtime never reads is not a migration. openclaw uses its own
+# ``memory/imports/<source>/`` convention; targets without an entry (ms-agent
+# has no home-level memory) keep the source path for the spec filter to drop.
 _MEMORY_LOOSE_HOME = {
     'hermes': None,
     'openclaw': 'memory/',
@@ -727,12 +726,9 @@ def _strip_yaml_frontmatter(text: str) -> str:
 
 
 def _markdown_to_hermes_entries(text: str) -> list[str]:
-    """Split a Markdown memory document into hermes entries.
-
-    Headings become context prefixes, bullets become one entry each,
-    consecutive prose lines merge into one entry, code blocks and table rows
-    are skipped, and duplicates are dropped.
-    """
+    """Split a Markdown memory document into hermes entries: headings become
+    context prefixes, bullets and paragraphs become entries, code blocks and
+    table rows are skipped, duplicates dropped."""
     entries: list[str] = []
     headings: list[str] = []
     paragraph: list[str] = []
@@ -788,11 +784,8 @@ def _markdown_to_hermes_entries(text: str) -> list[str]:
 
 def _merge_hermes_entries(existing: list[str], incoming: list[str],
                           limit: int) -> tuple[list[str], dict]:
-    """Dedupe *incoming* against *existing* under a cumulative char *limit*.
-
-    Entries that would bust *limit* are skipped (never truncated) and
-    counted, keeping the result within hermes' write-acceptance budget.
-    """
+    """Dedupe *incoming* against *existing* under a cumulative char *limit*;
+    entries that would bust it are skipped (never truncated) and counted."""
     merged = list(existing)
     seen = {_normalize_entry_text(e) for e in existing if e.strip()}
     stats = {'added': 0, 'duplicates': 0, 'overflowed': 0}
@@ -817,11 +810,8 @@ def _merge_hermes_entries(existing: list[str], incoming: list[str],
 
 
 def _hermes_entries_to_markdown(text: str) -> str:
-    """Render a ``§``-delimited hermes store as plain Markdown paragraphs.
-
-    Used when hermes is the SOURCE: other frameworks' memory slots are
-    Markdown documents. Content without the delimiter is returned unchanged.
-    """
+    """Render a ``§``-delimited hermes store as Markdown paragraphs (hermes
+    as SOURCE); text without the delimiter is returned unchanged."""
     if _HERMES_ENTRY_DELIM not in text:
         return text
     entries = [e.strip() for e in text.split(_HERMES_ENTRY_DELIM) if e.strip()]
@@ -830,13 +820,10 @@ def _hermes_entries_to_markdown(text: str) -> str:
 
 def _rehome_loose_memory(path: str, source_product: str,
                          target_product: str) -> str | None:
-    """Relocate one loose memory file onto the target's memory layout.
-
-    Returns the new relative path, or ``None`` when the target reads a
-    single memory file and the content must be inlined into it instead.
-    Non-``.md`` payloads and targets without a table entry keep the original
-    path, so the downstream target-spec filter decides their fate.
-    """
+    """Relocate one loose memory .md onto the target's layout; ``None`` means
+    inline it into the target's single memory file. Non-``.md`` payloads and
+    targets without a table entry keep the original path (the downstream
+    target-spec filter decides their fate)."""
     if not path.endswith('.md'):
         return path
     if target_product not in _MEMORY_LOOSE_HOME:
@@ -862,21 +849,32 @@ _MEMORY_INDEX_PATHS = _memory_index_paths()
 _MD_LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]+)\)')
 
 
+def _is_memory_slot(target_product: str, target_path: str) -> bool:
+    """Whether *target_path* is one of the target's canonical memory files.
+
+    Memory is user data: never rebase it onto a target default template --
+    the template's placeholder lines would be read back as real memories
+    (a single-file reader like nanobot injects them verbatim).
+    """
+    if target_path == _MEMORY_INDEX_PATHS.get(target_product):
+        return True
+    return (target_product == 'hermes'
+            and target_path.startswith('memories/')
+            and target_path.endswith('.md'))
+
+
 def _rewrite_memory_index(content: str, src_index_dir: str,
                           moves: dict, tgt_index_dir: str,
                           target_product: str) -> str:
-    """Keep index links resolvable after loose files moved or were inlined.
-
-    Links to moved files are rewritten to the new relative location; links
-    to inlined files are de-linked to plain text. For qoder -- whose runtime
-    discovers detail files only through index references -- moved files not
-    yet mentioned get a reference line appended, and a minimal index is
-    created when the source had none.
-    """
+    """Keep index links resolvable after loose files moved or were inlined:
+    moved links are rewritten to the new relative location, inlined ones
+    de-linked. qoder discovers detail only through index references, so
+    unreferenced moves get a line appended (a minimal index is created when
+    the source had none)."""
     import posixpath
 
-    # Old link forms (relative to the source index dir, plus unambiguous
-    # basenames) -> new relative link, or None to de-link.
+    # Old link forms (source-relative + unambiguous basenames) -> new link,
+    # or None to de-link.
     forms: dict[str, str | None] = {}
     basenames: dict[str, list[str]] = {}
     for src_path, new_path in moves.items():
@@ -1023,11 +1021,10 @@ def merge_resources(
 
     handled_target_paths = set()
     overflow_blocks: list[tuple[str, str]] = []
-    # Loose memory detail deferred for inlining into a single-file target
-    # slot; applied after the loop so the canonical index forms the base.
+    # Loose detail deferred for inlining into single-file target slots;
+    # applied after the loop so the canonical index forms the base.
     loose_inline: list[tuple[str, str]] = []
-    # Source path -> moved target path (None = inlined); drives the index
-    # link rewrite so links keep resolving after the move.
+    # Source -> moved target path (None = inlined); drives the index rewrite.
     loose_moves: dict[str, str | None] = {}
 
     for path, content in incoming.items():
@@ -1127,9 +1124,8 @@ def merge_resources(
                     ))
                 continue
             if path.startswith('memory/') or path.startswith('memories/'):
-                # Unmapped memory file: re-home it onto the target's memory
-                # layout (or inline it) instead of passing it through verbatim
-                # only to die on the target-spec filter.
+                # Unmapped memory file: re-home (or inline) onto the target's
+                # layout instead of dying on its spec filter.
                 new_path = _rehome_loose_memory(path, source_product,
                                                 target_product)
                 slot = _SINGLE_FILE_MEMORY_SLOTS.get(target_product, '')
@@ -1220,12 +1216,7 @@ def merge_resources(
             continue
 
         # ---- Cross-product logic ----
-        # hermes memory slots are entry stores, not template-driven Markdown:
-        # never rebase them onto a default template (boilerplate would become
-        # junk entries). The entry conversion runs after the loop.
-        if (target_product == 'hermes'
-                and target_path.startswith('memories/')
-                and target_path.endswith('.md')):
+        if _is_memory_slot(target_product, target_path):
             result.merged_files[target_path] = content
             result.actions.append(
                 MergeAction(
@@ -1306,10 +1297,8 @@ def merge_resources(
             continue
 
         if path.startswith('memory/') or path.startswith('memories/'):
-            # Explicitly mapped canonical files (MEMORY.md / USER.md groups)
-            # travel verbatim; unmapped loose files re-home onto the target's
-            # memory layout (or inline) so they never die silently on the
-            # target-spec filter.
+            # Mapped canonical files travel verbatim; unmapped loose files
+            # re-home/inline onto the target's layout (never die silently).
             if PATH_MAP.get((source_product, path), {}).get(
                     target_product) is not None:
                 result.merged_files[target_path] = content
@@ -1400,10 +1389,9 @@ def merge_resources(
                 if created.strip():
                     result.merged_files[tgt_idx] = created
 
-    # Inline loose detail into a single-file target slot: the canonical index
-    # forms the base, detail files append as sourced sections in a
-    # deterministic order. openhuman sections beyond its prompt-injection cap
-    # are skipped and reported instead of landing where they are never read.
+    # Inline loose detail into single-file target slots: index as base,
+    # sourced sections in deterministic order; openhuman's injection cap
+    # skips and reports what would never be read.
     if loose_inline:
         slot = _SINGLE_FILE_MEMORY_SLOTS.get(target_product, '')
         cap = (_OPENHUMAN_MEMORY_INJECT_CAP
@@ -1413,9 +1401,8 @@ def merge_resources(
         for src_path, detail in sorted(loose_inline):
             body = detail.strip()
             if target_product == 'hermes':
-                # The extractor only strips frontmatter at the document head;
-                # inlined files sit mid-document, so strip per file here or
-                # their metadata becomes junk entries.
+                # Inlined files sit mid-document, beyond the extractor's
+                # head-only frontmatter strip.
                 body = _strip_yaml_frontmatter(body).strip()
             block = (f'## Imported from {source_product} {src_path}\n\n'
                      f'{body}')
@@ -1438,9 +1425,8 @@ def merge_resources(
         if base:
             result.merged_files[slot] = base + '\n'
 
-    # Convert hermes memory files from Markdown into ``§`` entry stores:
-    # extract entries, dedupe, and skip entries over the per-file char budget
-    # so the result stays acceptable to hermes' memory tools.
+    # Convert hermes memory files to ``§`` entry stores; entries over the
+    # per-file budget are skipped so the store stays write-acceptable.
     if is_cross_product and target_product == 'hermes':
         for slot, limit in _HERMES_CHAR_LIMITS.items():
             markdown = result.merged_files.get(slot)

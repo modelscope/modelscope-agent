@@ -461,42 +461,45 @@ class TestOpenhumanRealLayout(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def test_config_toml_collected_from_parent_level(self):
-        spec = build_spec("openhuman", "default",
-                          str(self.user_dir.parent.parent))
-        files = spec.collect()
-        self.assertIn("config.toml", files)
-        self.assertIn("sk-secret-value", files["config.toml"])
-        # A named profile agent carries the shared user config too.
-        p1 = build_spec("openhuman", "p1", str(self.user_dir.parent.parent))
-        self.assertIn("config.toml", p1.collect())
-
-    def test_all_mode_does_not_duplicate_config(self):
-        spec = build_spec("openhuman", "all", str(self.user_dir.parent.parent))
-        self.assertNotIn("config.toml", spec.collect())
-
-    def test_memory_goals_collected(self):
-        spec = build_spec("openhuman", "default",
-                          str(self.user_dir.parent.parent))
-        self.assertEqual(spec.collect()["MEMORY_GOALS.md"],
+    def test_collect_shared_files(self):
+        """config.toml (one level up) and the workspace-wide MEMORY_GOALS.md
+        reach the default agent AND a named profile; all-mode duplicates
+        neither across profiles."""
+        root = str(self.user_dir.parent.parent)
+        files = build_spec("openhuman", "default", root).collect()
+        self.assertIn("sk-secret-value", files.get("config.toml", ""))
+        self.assertEqual(files["MEMORY_GOALS.md"],
                          "[g1] keep the lab running\n")
+        p1 = build_spec("openhuman", "p1", root).collect()
+        self.assertIn("config.toml", p1)
+        self.assertEqual(p1["MEMORY_GOALS.md"],
+                         "[g1] keep the lab running\n")
+        all_files = build_spec("openhuman", "all", root).collect()
+        self.assertNotIn("config.toml", all_files)
+        self.assertFalse(any("MEMORY_GOALS" in k for k in all_files))
 
-    def test_apply_redirects_config_to_parent_and_scrubs(self):
-        spec = build_spec("openhuman", "default",
-                          str(self.user_dir.parent.parent))
-        written = spec.apply({
+    def test_apply_redirects_shared_files(self):
+        """Shared files write back to where the app reads them: config.toml
+        to users/<id>/ (scrubbed), MEMORY_GOALS.md to the workspace root --
+        a per-profile copy of either would never be read."""
+        p1 = build_spec("openhuman", "p1", str(self.user_dir.parent.parent))
+        written = p1.apply({
             "SOUL.md": "# imported soul\n",
             "config.toml": '[model]\napi_key = "sk-inbound"\n',
+            "MEMORY_GOALS.md": "[g1] restored\n",
         })
-        # config lands beside the workspace (where the app reads it), NOT
-        # inside it, and the secret is scrubbed on the inbound write.
         self.assertFalse((self.ws / "config.toml").exists())
         restored = (self.user_dir / "config.toml").read_text()
         self.assertIn('api_key = ""', restored)
         self.assertNotIn("sk-inbound", restored)
+        self.assertEqual((self.ws / "MEMORY_GOALS.md").read_text(),
+                         "[g1] restored\n")
+        self.assertFalse((self.ws / "personalities" / "p1" /
+                          "MEMORY_GOALS.md").exists())
+        self.assertEqual(
+            (self.ws / "personalities" / "p1" / "SOUL.md").read_text(),
+            "# imported soul\n")
         self.assertTrue(any(w.endswith("config.toml") for w in written))
-        self.assertEqual((self.ws / "SOUL.md").read_text(),
-                         "# imported soul\n")
 
     def test_blank_profile_memory_falls_back_to_workspace(self):
         """An EMPTY profile MEMORY.md must not shadow the real workspace

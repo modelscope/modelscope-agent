@@ -1025,9 +1025,8 @@ def convert_workspace(
         dst_patterns = dst_spec.resolved_patterns()
         dropped = sorted(
             k for k in converted if not dst_spec.matches(k, dst_patterns))
-        # Non-Markdown memory payloads get their own explicit report: they
-        # are user memory the target's Markdown-only memory system cannot
-        # host, and deserve a clearer note than the generic drop line.
+        # Non-Markdown memory payloads cannot be hosted by any target's
+        # Markdown-only memory: report them separately from generic drops.
         dropped_memory_payloads = [
             k for k in dropped
             if k.startswith(('memory/', 'memories/'))

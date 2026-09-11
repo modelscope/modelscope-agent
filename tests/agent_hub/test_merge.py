@@ -433,15 +433,14 @@ class TestMergeResources(unittest.TestCase):
                              for k in result.merged_files))
 
     def test_loose_memory_inlined_for_nanobot(self):
-        """nanobot's runtime reads ONLY ``memory/MEMORY.md`` (fixed file
-        list, no directory scan), so loose detail is inlined into it --
-        writing files beside the index would be a false promise of
-        migration. The index forms the base, details append as sourced
-        sections, and each merge is recorded for the CLI hint table."""
+        """nanobot reads ONLY ``memory/MEMORY.md``: loose detail inlines as
+        sourced sections (index as base, links to inlined files de-linked,
+        merges recorded for the CLI hint table); with no source index the
+        inlined sections alone form the file."""
         result = merge_resources(
             incoming={
-                "memory/MEMORY.md": "# Memory Index\n",
-                "memory/t.md": "topic body\n",
+                "memory/MEMORY.md": "# idx\n\n- [pref](pref.md) — zh\n",
+                "memory/pref.md": "prefers Chinese\n",
             },
             source_product="qoder",
             target_product="nanobot",
@@ -449,38 +448,23 @@ class TestMergeResources(unittest.TestCase):
             target_defaults={},
         )
         merged = result.merged_files["memory/MEMORY.md"]
-        self.assertTrue(merged.startswith("# Memory Index\n"))
-        self.assertIn("## Imported from qoder memory/t.md", merged)
-        self.assertIn("topic body", merged)
-        self.assertNotIn("memory/t.md", result.merged_files)
-        self.assertIn(("memory/t.md", "memory/MEMORY.md"),
+        self.assertTrue(merged.startswith("# idx"))
+        self.assertIn("## Imported from qoder memory/pref.md", merged)
+        self.assertIn("prefers Chinese", merged)
+        self.assertNotIn("](pref.md)", merged)
+        self.assertNotIn("memory/pref.md", result.merged_files)
+        self.assertIn(("memory/pref.md", "memory/MEMORY.md"),
                       merged_away_pairs(result))
 
-    def test_loose_memory_inlined_without_index(self):
-        """With no canonical index on the source, the inlined sections alone
-        form nanobot's MEMORY.md."""
-        result = merge_resources(
+        orphan = merge_resources(
             incoming={"memory/t.md": "topic body\n"},
             source_product="qoder",
             target_product="nanobot",
             source_defaults={},
             target_defaults={},
         )
-        merged = result.merged_files["memory/MEMORY.md"]
-        self.assertIn("## Imported from qoder memory/t.md", merged)
-        self.assertIn("topic body", merged)
-
-    def test_loose_memory_rehomed_from_hermes_source(self):
-        """The re-home is source-agnostic: hermes ``memories/*.md`` detail
-        lands in the target's ``memory/`` layout (qoder)."""
-        result = merge_resources(
-            incoming={"memories/note.md": "note body\n"},
-            source_product="hermes",
-            target_product="qoder",
-            source_defaults={},
-            target_defaults={},
-        )
-        self.assertEqual(result.merged_files["memory/note.md"], "note body\n")
+        self.assertIn("## Imported from qoder memory/t.md",
+                      orphan.merged_files["memory/MEMORY.md"])
 
     def test_loose_non_md_memory_not_rehomed(self):
         """Non-Markdown payloads (openclaw ``memory/*.json``, nanobot
@@ -558,23 +542,34 @@ class TestMergeResources(unittest.TestCase):
         self.assertEqual(result.merged_files["memory/note.md"], "note body\n")
         self.assertIn("](note.md)", index)
 
-    def test_nanobot_inlined_index_links_stripped(self):
-        """Inline targets leave no file on disk for the index links to point
-        at, so the links are de-linked to plain text (no dangling index)."""
-        result = merge_resources(
-            incoming={
-                "memory/MEMORY.md": "# idx\n\n- [pref](pref.md) — zh\n",
-                "memory/pref.md": "prefers Chinese\n",
-            },
-            source_product="qoder",
-            target_product="nanobot",
+        # Index-less source: the loose file re-homes and a minimal index is
+        # created referencing it.
+        flat = merge_resources(
+            incoming={"memories/note.md": "note body\n"},
+            source_product="hermes",
+            target_product="qoder",
             source_defaults={},
             target_defaults={},
         )
-        merged = result.merged_files["memory/MEMORY.md"]
-        self.assertNotIn("](pref.md)", merged)
-        self.assertIn("pref", merged)
-        self.assertIn("prefers Chinese", merged)
+        self.assertEqual(flat.merged_files["memory/note.md"], "note body\n")
+        self.assertIn("](note.md)", flat.merged_files["memory/MEMORY.md"])
+
+    def test_memory_index_not_rebased_onto_target_default(self):
+        """Memory is user data: a target default template for the memory slot
+        (nanobot ships one) must never be merged under the incoming index --
+        the placeholder boilerplate would be read back as real memories."""
+        result = merge_resources(
+            incoming={"MEMORY.md": "# real memory\nREAL-MARKER\n"},
+            source_product="openclaw",
+            target_product="nanobot",
+            source_defaults={},
+            target_defaults={
+                "memory/MEMORY.md":
+                "# Long-term Memory\n\n(Important facts about the user)\n"
+            },
+        )
+        self.assertEqual(result.merged_files["memory/MEMORY.md"],
+                         "# real memory\nREAL-MARKER\n")
 
     def test_user_content_folds_into_qwenpaw_catch_all(self):
         """USER content for a target with no USER slot (qwenpaw) folds into
