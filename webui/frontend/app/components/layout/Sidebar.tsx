@@ -28,7 +28,10 @@ import AddIcon from '~/assets/icons/add.svg?react'
 import NewProjectIcon from '~/assets/icons/new-project.svg?react'
 import MoreIcon from '~/assets/icons/more.svg?react'
 import ExpandIcon from '~/assets/icons/expand.svg?react'
+import GithubIcon from '~/assets/icons/github.svg?react'
 import SpinnerIcon from '~/assets/icons/generating.svg?react'
+
+const REPO_URL = 'https://github.com/modelscope/ms-agent'
 
 interface AppLoaderData {
   projects: Project[]
@@ -139,7 +142,7 @@ export function Sidebar({
 
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/sidebar:opacity-100">
                     <IconButton
-                      variant="outlined"
+                      variant="filled"
                       size="lg"
                       stopPropagation={false}
                       icon={
@@ -205,22 +208,33 @@ export function Sidebar({
             {/* Spacer pushes settings to the bottom */}
             <div className="min-h-0 flex-1" />
 
-            {/* Settings */}
-
-            <Tooltip title={t.nav.agentSettings} placement="right">
-              <NavLink
-                to="/settings"
-                onClick={onNavigate}
-                className="flex shrink-0 flex-col items-center rounded-[12px] bg-msa-fill-0.5 w-[40px] h-[40px] bg-msa-fill-0 hover:bg-msa-fill-3"
-              >
-                <IconButton
-                  variant="ghost"
-                  stopPropagation={false}
-                  icon={<SettingsIcon className="h-5 w-5" />}
-                  className="w-full h-full"
-                />
-              </NavLink>
-            </Tooltip>
+            {/* Settings + repo credit: one card, same as expanded mode */}
+            <div className="shrink-0 rounded-[12px] bg-msa-fill-3 w-[40px]">
+              <Tooltip title={t.nav.agentSettings} placement="right">
+                <NavLink
+                  to="/settings"
+                  onClick={onNavigate}
+                  className="flex flex-col items-center w-[40px] h-[40px] rounded-[12px] bg-msa-fill-0 hover:bg-msa-fill-3"
+                >
+                  <IconButton
+                    variant="ghost"
+                    stopPropagation={false}
+                    icon={<SettingsIcon className="h-5 w-5" />}
+                    className="w-full h-full"
+                  />
+                </NavLink>
+              </Tooltip>
+              <Tooltip title={t.nav.github} placement="right">
+                <a
+                  href={REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-10 w-full items-center justify-center text-msa-text-3 transition-colors hover:text-msa-text-1"
+                >
+                  <GithubIcon className="h-4 w-4" />
+                </a>
+              </Tooltip>
+            </div>
           </>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -274,7 +288,7 @@ export function Sidebar({
             </div>
 
             {/* Projects card */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-msa-line-1 bg-msa-fill-0 p-1.5">
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-msa-fill-0 p-1.5">
               <div className="flex shrink-0 items-center justify-between px-2 py-1">
                 <span className="text-sm font-medium text-msa-text-2">
                   {t.nav.projectsTitle}
@@ -318,15 +332,27 @@ export function Sidebar({
               </div>
             </div>
 
-            {/* Settings card */}
-
-            <SidebarNavItem
-              to="/settings"
-              label={t.nav.agentSettings}
-              icon={<SettingsIcon className="h-5 w-5" />}
-              onNavigate={onNavigate}
-              className="bg-msa-fill-0 rounded-[12px] !text-sm !font-normal hover:bg-msa-fill-4 hover:!text-msa-text-brand1"
-            />
+            {/* One card wrapping both: the settings row keeps its own rounded
+                corners and the credit row shows the wrapper's fill. */}
+            <div className="shrink-0 rounded-[12px] bg-msa-fill-3">
+              <SidebarNavItem
+                to="/settings"
+                label={t.nav.agentSettings}
+                icon={<SettingsIcon className="h-5 w-5" />}
+                onNavigate={onNavigate}
+                className="bg-msa-fill-0 rounded-[12px] !text-sm !font-normal hover:bg-msa-fill-4 hover:!text-msa-text-brand1"
+              />
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-10 items-center justify-center gap-1.5 whitespace-nowrap text-xs text-msa-text-3! transition-colors hover:text-msa-text-1!"
+              >
+                <span>{t.nav.poweredBy}</span>
+                <GithubIcon className="h-3.5 w-3.5 shrink-0" />
+                <span>MS-Agent</span>
+              </a>
+            </div>
           </div>
         )}
       </aside>
