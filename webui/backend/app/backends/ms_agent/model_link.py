@@ -105,7 +105,8 @@ def set_active_model(provider: str, model: str) -> None:
         data["default_model"] = f"{provider}/{model}"
 
         prov = data.setdefault("providers", {}).setdefault(provider, {})
-        prov.setdefault("protocol", "openai")
+        # Selecting a model must not create a protocol override. Without one,
+        # the SDK registry remains authoritative (e.g. Anthropic Messages).
         if api_key and not prov.get("api_key"):
             prov["api_key"] = api_key
         if base_url and not prov.get("base_url"):
