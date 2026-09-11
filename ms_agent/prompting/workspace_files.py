@@ -32,6 +32,7 @@ from typing import Dict, Optional, Tuple
 
 from ms_agent.prompting.builtin import (HOME_FILE_TEMPLATES, TEMPLATE_VERSION)
 from ms_agent.project.paths import global_home, local_internal_dir
+from ms_agent.utils.atomic_file import atomic_write_text
 from ms_agent.utils.logger import get_logger
 
 logger = get_logger()
@@ -122,13 +123,6 @@ def _capped(body: str, path: Path) -> str:
     return body[:MAX_FILE_CHARS] + '\n\n[...truncated: file exceeds limit...]'
 
 
-def _atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + '.tmp')
-    tmp.write_text(text, encoding='utf-8')
-    tmp.replace(path)
-
-
 # ── sidecar bookkeeping ──────────────────────────────────────────────────────
 
 
@@ -149,7 +143,8 @@ def _load_sidecar(home: Path, name: str) -> Optional[dict]:
 
 def _save_sidecar(home: Path, name: str, data: dict) -> None:
     try:
-        _atomic_write(_sidecar_path(home, name), json.dumps(data, indent=1))
+        atomic_write_text(
+            _sidecar_path(home, name), json.dumps(data, indent=1))
     except OSError as e:  # sidecar failures must never break the agent
         logger.warning(f'[workspace_files] cannot write sidecar for {name}: {e}')
 
@@ -164,7 +159,7 @@ def _ensure_one(home: Path, name: str, template: str) -> None:
         if sidecar is not None:
             return  # user deleted it — respect the deletion, never re-seed
         try:
-            _atomic_write(path, template)
+            atomic_write_text(path, template)
         except OSError as e:
             logger.warning(f'[workspace_files] cannot materialize {name}: {e}')
             return
@@ -181,8 +176,8 @@ def _ensure_one(home: Path, name: str, template: str) -> None:
             and sidecar.get('template_version', 0) < TEMPLATE_VERSION
             and _sha256(_read_raw(path)) == sidecar.get('sha256')):
         try:
-            _atomic_write(path.with_name(name + '.bak'), _read_raw(path))
-            _atomic_write(path, template)
+            atomic_write_text(path.with_name(name + '.bak'), _read_raw(path))
+            atomic_write_text(path, template)
         except OSError as e:
             logger.warning(f'[workspace_files] cannot upgrade {name}: {e}')
             return
@@ -223,8 +218,8 @@ def _rebuild_legacy_profile(home: Path) -> None:
     if raw.strip():
         rebuilt += '\n' + raw.strip() + '\n'
     try:
-        _atomic_write(target.with_name('PROFILE.md.bak'), raw)
-        _atomic_write(target, rebuilt)
+        atomic_write_text(target.with_name('PROFILE.md.bak'), raw)
+        atomic_write_text(target, rebuilt)
         # On case-sensitive filesystems the legacy lowercase file is a distinct
         # entry; drop it (its content lives in the .bak and in the new file).
         # On case-insensitive filesystems (macOS/Windows default) they are the
@@ -413,7 +408,7 @@ def read_home_file(name: str) -> str:
 def write_home_file(name: str, text: str) -> None:
     """Atomic write of a home workspace file. The mtime bump makes the next
     agent round pick the change up through the content compare."""
-    _atomic_write(global_home() / name, text)
+    atomic_write_text(global_home() / name, text)
 
 
 #: AGENTS.md has no managed block; the same splitter degrades to (R0, '', R2).

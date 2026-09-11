@@ -518,13 +518,18 @@ function ProviderDetail({
           ))
         )}
 
-        {/* Add model button - inline with model items */}
-        <div
-          className="flex cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-msa-line-1 px-4 py-[18px] text-sm text-msa-text-brand1 transition-colors hover:border-msa-line-3"
-          onClick={onAddModel}
-        >
-          <AddIcon className="h-4 w-4" />
-          <span>{t.modelsAdmin.addModel}</span>
+        {/* Sticky instead of antd Affix: no scroll target to wire up, and a
+            short list never scrolls so it just sits inline. The wrapper pulls
+            the pane background over the list gap above it (-mt-3 + pt-3 cancel
+            out) so rows slide out of sight behind the button. */}
+        <div className="sticky bottom-0 -mt-3 bg-msa-fill-0 pt-3">
+          <div
+            className="flex cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-msa-line-1 px-4 py-[18px] text-sm text-msa-text-brand1 transition-colors hover:border-msa-line-3"
+            onClick={onAddModel}
+          >
+            <AddIcon className="h-4 w-4" />
+            <span>{t.modelsAdmin.addModel}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -671,6 +671,17 @@ export const api = {
     json<{ running: string[] }>('/api/presence', { method: 'POST' })
 }
 
+/** Status a loader failure reaches the error page as.
+ *
+ * `Response` rejects anything outside 200-599, and an `ApiError` may carry no
+ * HTTP status (0 when the backend is unreachable) or a 2xx for a body-declared
+ * rejection. 502 stands for "no answer from the backend"; the error page turns
+ * it back into the network message. */
+function errorPageStatus(status: number): number {
+  if (status === 0) return 502
+  return status >= 400 && status <= 599 ? status : 500
+}
+
 /**
  * Turn an API failure inside a route loader into a thrown `Response`.
  *
@@ -678,14 +689,15 @@ export const api = {
  * loader error to the client as a plain Error, dropping both the class and the
  * `status`. The error page would then render 404 on the server and "unexpected
  * error" after hydration — a visible downgrade. A thrown Response carries its
- * status across intact, so both sides agree.
+ * status across intact, so both sides agree. Every server-side loader must go
+ * through here, `Promise.all` batches included.
  */
 export async function orThrow<T>(promise: Promise<T>): Promise<T> {
   try {
     return await promise
   } catch (err) {
     if (err instanceof ApiError)
-      throw new Response(err.message, { status: err.status })
+      throw new Response(err.message, { status: errorPageStatus(err.status) })
     throw err
   }
 }

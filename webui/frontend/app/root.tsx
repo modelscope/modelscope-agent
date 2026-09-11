@@ -258,29 +258,27 @@ export function ErrorBoundary() {
   const error = useRouteError()
   const { t } = useT()
   const routeError = isRouteErrorResponse(error)
-  // A loader that let an API failure propagate carries the real HTTP status on
-  // the ApiError — without reading it, a missing project/session would show no
-  // status at all when it is plainly a 404.
-  const apiStatus = error instanceof ApiError ? error.status : undefined
-  const status = routeError ? error.status : apiStatus
-  // The status code IS the headline. A client-side exception carries no status,
-  // so it falls back to the error's OWN name (`TypeError`) rather than a phrase
-  // we made up — same principle as the description below.
-  const code = status
-    ? String(status)
-    : error instanceof Error
-      ? error.name
-      : undefined
+  // Read nothing off the error object but its message: a server-rendered error
+  // arrives here as a plain `Error`, so `status` and the class are gone and
+  // reading them broke hydration. Loaders carry status via `orThrow` instead.
+  const status = routeError ? error.status : undefined
+  // No status means a client-side exception; its own name is unavailable (see
+  // above), so use a fixed phrase and let the message explain.
+  const code = status ? String(status) : t.errors.unexpected
   // The server's own message is the explanation — it is the only text that knows
   // what actually failed. Inventing a per-status sentence here would replace
   // "project not found" with something vaguer.
-  const description = routeError
+  const reported = routeError
     ? typeof error.data === 'string' && error.data
       ? error.data
       : error.statusText
     : error instanceof Error
       ? error.message
       : String(error ?? '')
+  // Some failures carry no words at all (backend never answered, or an empty
+  // gateway body), which left the headline over an empty paragraph.
+  const description =
+    reported || (status === 502 ? t.errors.network : t.errors.requestFailed)
 
   return (
     <ErrorState

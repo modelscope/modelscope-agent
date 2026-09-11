@@ -495,6 +495,7 @@
   "errors": {
     "requestFailed": "Request failed",
     "network": "Network error — please check your connection",
+    "unexpected": "Something went wrong",
     "backHome": "Back to home"
   },
   "pageTitle": {
