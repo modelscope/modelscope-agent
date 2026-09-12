@@ -386,9 +386,12 @@ class TestOpenhumanUserWorkspace(unittest.TestCase):
     def test_resolves_per_device_user_workspace(self):
         spec = build_spec("openhuman", "default", str(self.root))
         self.assertEqual(spec.workspace_root, self.ws)
-        self.assertEqual(
-            sorted(spec.collect_bytes()),
-            ["IDENTITY.md", "SOUL.md", "config.toml", "wiki/note.md"])
+        collected = sorted(spec.collect_bytes())
+        # wiki/ is derived Memory Tree output (its real location is
+        # memory_tree/content/wiki/ anyway) and is no longer collected.
+        self.assertEqual(collected,
+                         ["IDENTITY.md", "SOUL.md", "config.toml"])
+        self.assertNotIn("wiki/note.md", collected)
 
     def test_default_root_probes_users_dir(self):
         from ms_agent.agent_hub.frameworks.openhuman import OpenhumanWorkspace
@@ -426,6 +429,88 @@ class TestOpenhumanUserWorkspace(unittest.TestCase):
         fresh.mkdir()
         spec = build_spec("openhuman", "default", str(fresh))
         self.assertEqual(spec.collect_bytes(), {})
+
+
+class TestOpenhumanRealLayout(unittest.TestCase):
+    """openhuman's REAL install layout:
+
+    * ``config.toml`` lives at ``users/<id>/config.toml`` -- ONE LEVEL ABOVE
+      the workspace -- so workspace-relative patterns never match it;
+    * a 0-byte Profile ``MEMORY.md`` must NOT shadow the workspace-level
+      copy (the app's resolvers treat an empty file as absent);
+    * ``MEMORY_GOALS.md`` (human-authored long-term goals) is collected.
+    """
+
+    USER_ID = "local-u-real"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.user_dir = Path(self.tmp.name) / ".openhuman" / "users" / self.USER_ID
+        self.ws = self.user_dir / "workspace"
+        (self.ws / "personalities" / "p1").mkdir(parents=True)
+        (self.ws / "SOUL.md").write_text("# global soul\n")
+        (self.ws / "MEMORY.md").write_text("# root memory REAL-ROOT-MEM\n")
+        (self.ws / "MEMORY_GOALS.md").write_text("[g1] keep the lab running\n")
+        (self.ws / "personalities" / "p1" / "SOUL.md").write_text("# p1 soul\n")
+        # 0-byte profile memory: the runtime falls back to the workspace copy.
+        (self.ws / "personalities" / "p1" / "MEMORY.md").write_text("")
+        # The real config location: one level above the workspace.
+        (self.user_dir / "config.toml").write_text(
+            '[model]\napi_key = "sk-secret-value"\nname = "bot"\n')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_collect_shared_files(self):
+        """config.toml (one level up) and the workspace-wide MEMORY_GOALS.md
+        reach the default agent AND a named profile; all-mode duplicates
+        neither across profiles."""
+        root = str(self.user_dir.parent.parent)
+        files = build_spec("openhuman", "default", root).collect()
+        self.assertIn("sk-secret-value", files.get("config.toml", ""))
+        self.assertEqual(files["MEMORY_GOALS.md"],
+                         "[g1] keep the lab running\n")
+        p1 = build_spec("openhuman", "p1", root).collect()
+        self.assertIn("config.toml", p1)
+        self.assertEqual(p1["MEMORY_GOALS.md"],
+                         "[g1] keep the lab running\n")
+        all_files = build_spec("openhuman", "all", root).collect()
+        self.assertNotIn("config.toml", all_files)
+        self.assertFalse(any("MEMORY_GOALS" in k for k in all_files))
+
+    def test_apply_redirects_shared_files(self):
+        """Shared files write back to where the app reads them: config.toml
+        to users/<id>/ (scrubbed), MEMORY_GOALS.md to the workspace root --
+        a per-profile copy of either would never be read."""
+        p1 = build_spec("openhuman", "p1", str(self.user_dir.parent.parent))
+        written = p1.apply({
+            "SOUL.md": "# imported soul\n",
+            "config.toml": '[model]\napi_key = "sk-inbound"\n',
+            "MEMORY_GOALS.md": "[g1] restored\n",
+        })
+        self.assertFalse((self.ws / "config.toml").exists())
+        restored = (self.user_dir / "config.toml").read_text()
+        self.assertIn('api_key = ""', restored)
+        self.assertNotIn("sk-inbound", restored)
+        self.assertEqual((self.ws / "MEMORY_GOALS.md").read_text(),
+                         "[g1] restored\n")
+        self.assertFalse((self.ws / "personalities" / "p1" /
+                          "MEMORY_GOALS.md").exists())
+        self.assertEqual(
+            (self.ws / "personalities" / "p1" / "SOUL.md").read_text(),
+            "# imported soul\n")
+        self.assertTrue(any(w.endswith("config.toml") for w in written))
+
+    def test_blank_profile_memory_falls_back_to_workspace(self):
+        """An EMPTY profile MEMORY.md must not shadow the real workspace
+        memory (openhuman's resolver treats blank as absent)."""
+        spec = build_spec("openhuman", "p1", str(self.user_dir.parent.parent))
+        files = spec.collect()
+        self.assertEqual(files["MEMORY.md"], "# root memory REAL-ROOT-MEM\n")
+        # A profile file WITH substance still wins.
+        (self.ws / "personalities" / "p1" / "MEMORY.md").write_text(
+            "# p1 own memory\n")
+        self.assertEqual(spec.collect()["MEMORY.md"], "# p1 own memory\n")
 
 
 class TestOpenhumanWorkspaceLiveness(unittest.TestCase):
