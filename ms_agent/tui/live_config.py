@@ -71,6 +71,128 @@ async def _sync_llm(agent) -> None:
             set_llm(agent.llm)
 
 
+def _emit_once(agent, key: str, text: str) -> None:
+    seen = getattr(agent, '_live_notice_keys', None)
+    if seen is None:
+        seen = set()
+        agent._live_notice_keys = seen
+    if key in seen:
+        return
+    seen.add(key)
+    emit = getattr(agent, '_emit_user_notice', None)
+    if emit is not None:
+        emit(text)
+        return
+    logger.error(text)
+
+
+def _note_unreadable_config(agent) -> None:
+    """One sentence per broken ledger file or unreadable skill directory."""
+    from pathlib import Path
+
+    from ms_agent.project.paths import global_home
+
+    roots = [Path(global_home())]
+    work = _work_dir(agent)
+    if work:
+        roots.append(Path(work) / '.ms_agent')
+    names = ('mcp.json', 'skills.json', 'settings.json')
+    for root in roots:
+        for name in names:
+            path = root / name
+            if not path.is_file():
+                continue
+            try:
+                json.loads(path.read_text(encoding='utf-8'))
+            except json.JSONDecodeError:
+                _emit_once(
+                    agent, f'json:{path}', f'{name} 读不进去。请检查格式。')
+            except OSError:
+                continue
+        skills = root / 'skills'
+        if not skills.is_dir():
+            continue
+        try:
+            next(skills.iterdir(), None)
+        except OSError:
+            _emit_once(
+                agent, f'skills:{skills}',
+                '技能目录读不了。请检查这个目录的权限。')
+
+
+def _search_in_sync(tool, block: dict) -> bool:
+    engines = block.get('engines')
+    if engines and not isinstance(engines, str):
+        wanted = [str(item).lower().strip() for item in engines]
+    else:
+        wanted = [str(block.get('engine') or 'arxiv').lower().strip()]
+    live = [
+        str(item).lower().strip()
+        for item in (getattr(tool, '_engine_types', None) or [])
+    ]
+    if live != wanted:
+        return False
+    keys = getattr(tool, '_api_keys', None) or {}
+    fields = {
+        'tavily': 'tavily_api_key',
+        'exa': 'exa_api_key',
+        'serpapi': 'serpapi_api_key',
+    }
+    for engine in wanted:
+        field = fields.get(engine)
+        if field and field in block:
+            if str(block.get(field) or '') != str(keys.get(engine) or ''):
+                return False
+    return True
+
+
+def _find_search_tool(agent):
+    manager = getattr(agent, 'tool_manager', None)
+    if manager is None:
+        return None
+    for tool in getattr(manager, 'extra_tools', None) or []:
+        if getattr(tool, 'SERVER_NAME', None) == 'web_search':
+            return tool
+    return None
+
+
+async def _sync_search(agent) -> None:
+    from ms_agent.config.search_settings import SearchSettingsManager
+    from ms_agent.project.paths import global_home
+
+    block = SearchSettingsManager(global_home()).raw_block()
+    token = _token(block)
+    if getattr(agent, '_search_fp', None) == token:
+        return
+    try:
+        OmegaConf.update(agent.config, 'tools.web_search', block, merge=True)
+    except Exception:
+        logger.debug('live search config update failed', exc_info=True)
+        return
+    tool = _find_search_tool(agent)
+    if tool is None or not getattr(tool, '_engines', None):
+        agent._search_fp = token
+        return
+    if getattr(agent, '_search_fp', None) is None and _search_in_sync(tool, block):
+        agent._search_fp = token
+        return
+    reload = getattr(tool, 'reload_from_config', None)
+    if reload is None:
+        agent._search_fp = token
+        return
+    try:
+        await reload()
+    except Exception:
+        logger.debug('live search reload failed', exc_info=True)
+        return
+    agent._search_fp = token
+
+
+def _say_mcp_still_down(agent, names) -> None:
+    for name in names:
+        _emit_once(agent, f'mcp-down:{name}', f'MCP 服务器 {name} 还是连不上。')
+
+
 async def _sync_mcp(agent) -> None:
     runtime = getattr(agent, 'mcp_runtime', None)
     if runtime is None:
@@ -90,13 +212,26 @@ async def _sync_mcp(agent) -> None:
         for name, entry in loaded.items():
             servers.setdefault(name, entry)
     token = _token(servers)
-    if getattr(agent, '_mcp_fp', None) == token:
+    pending = set(getattr(agent, '_mcp_reconnect_names', None) or ())
+    if getattr(agent, '_mcp_fp', None) == token and not pending:
         return
     try:
         await runtime.apply_config(ResolvedMCPConfig(mcp_servers=servers))
     except Exception:
         logger.debug('live mcp apply failed', exc_info=True)
+        if pending:
+            _say_mcp_still_down(agent, pending)
+            agent._mcp_reconnect_names = set()
+            agent._mcp_fp = token
         return
+    still = []
+    for name in pending:
+        state = runtime.get_server(name) if hasattr(runtime, 'get_server') else None
+        if state is None or getattr(state, 'status', None) != 'connected':
+            still.append(name)
+    if pending:
+        agent._mcp_reconnect_names = set()
+        _say_mcp_still_down(agent, still)
     agent._mcp_fp = token
 
 
@@ -141,6 +276,8 @@ def _unregister_memory(agent) -> None:
 
 
 async def _sync_memory(agent) -> None:
+    runtime = getattr(agent, 'runtime', None)
+    pending = bool(getattr(runtime, '_memory_pending', False))
     work = _work_dir(agent)
     if not work:
         return
@@ -154,6 +291,8 @@ async def _sync_memory(agent) -> None:
     want = kind == 'file'
     have = bool(getattr(agent, 'memory_tools', None))
     if want == have:
+        if pending and runtime is not None:
+            runtime._memory_pending = False
         return
     if have:
         _unregister_memory(agent)
@@ -167,6 +306,11 @@ async def _sync_memory(agent) -> None:
         load = getattr(agent, 'load_memory', None)
         if load is not None:
             await load()
+        if pending:
+            if not getattr(agent, 'memory_tools', None):
+                _emit_once(agent, 'memory-start', '记忆没有启动。请检查记忆目录。')
+            if runtime is not None:
+                runtime._memory_pending = False
 
 
 async def apply_live_config(agent, messages=None) -> None:
@@ -178,8 +322,10 @@ async def apply_live_config(agent, messages=None) -> None:
     made at the opening prompt.
     """
     try:
+        _note_unreadable_config(agent)
         _sync_skills(agent, messages)
         await _sync_mcp(agent)
+        await _sync_search(agent)
         await _sync_llm(agent)
         await _sync_memory(agent)
     except Exception:

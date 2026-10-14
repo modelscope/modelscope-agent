@@ -267,7 +267,10 @@ class FileBasedBackend(BaseMemoryBackend):
                 notice = self._file_storage.user_notice
                 result = '已更新' if ok else (notice or '更新失败')
         elif action == 'remove':
-            ok = self._file_storage.remove_entry(content)
+            try:
+                ok = self._file_storage.remove_entry(content)
+            except OSError:
+                return self._file_storage.user_notice or ''
             result = '已删除' if ok else '删除失败'
         else:
             result = f'未知操作: {action}'

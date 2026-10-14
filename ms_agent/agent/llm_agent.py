@@ -1042,7 +1042,7 @@ class LLMAgent(Agent):
             permission_config=perm_config,
             trust_remote_code=self.trust_remote_code,
             mcp_callable_check=mcp_rt.is_callable if mcp_rt else None,
-            mcp_failure_handler=mcp_rt.record_failure if mcp_rt else None,
+            mcp_failure_handler=self._on_mcp_failure if mcp_rt else None,
             mcp_unavailable_detail=mcp_rt.unavailable_detail
             if mcp_rt else None,
             mcp_success_handler=mcp_rt.record_success if mcp_rt else None,
@@ -2412,6 +2412,38 @@ class LLMAgent(Agent):
             self._event_sink.emit(Notice(level='warning', text=text))
             return
         logger.error(text)
+
+    async def _on_mcp_failure(
+        self,
+        name: str,
+        phase: str,
+        message: str,
+        *,
+        tool_name: str | None = None,
+        exc: BaseException | None = None,
+    ) -> None:
+        """Count an MCP failure and, the moment it becomes unusable, say so.
+
+        Quit still cleans up quietly. The sentence belongs on the call that
+        finds the server gone, once per server.
+        """
+        runtime = self.mcp_runtime
+        if runtime is None:
+            return
+        degraded = await runtime.record_failure(
+            name, phase, message, tool_name=tool_name, exc=exc)
+        if not degraded:
+            return
+        # Config is unchanged, so the next turn would skip MCP apply.
+        # Clear the fingerprint and name the server so that turn reconnects.
+        self._mcp_fp = None
+        pending = getattr(self, '_mcp_reconnect_names', None)
+        if pending is None:
+            pending = set()
+            self._mcp_reconnect_names = pending
+        pending.add(name)
+        from ms_agent.mcp.runtime import degraded_user_notice
+        self._emit_user_notice(degraded_user_notice(name, exc, message))
 
     def prepare_llm(self):
         """Initialize the LLM model from the configuration."""

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from ms_agent.command.router import CommandRouter
-from ms_agent.command.scope import parse_optional_scope, work_dir_of
+from ms_agent.command.scope import (
+    SCOPE_CHOICES, parse_optional_scope, pick_scope, work_dir_of)
 from ms_agent.command.types import (CommandContext, CommandDef, CommandResult,
                                     CommandResultType)
 from ms_agent.command.usage import (arg_error, ledger_dir, ledger_file,
@@ -26,6 +27,7 @@ def _mcp_usage() -> str:
     return (
         'usage:\n'
         '  /mcp list [global|project]\n'
+        '  /mcp get <name> [global|project]\n'
         '  /mcp add <name> [global|project] command=<cmd>\n'
         '  /mcp add <name> [global|project] url=<url>\n'
         '  /mcp update <name> [global|project] command=<cmd>|url=<url>\n'
@@ -34,8 +36,7 @@ def _mcp_usage() -> str:
         'Omitting scope on add writes this folder (project). '
         '`global` is every folder on this machine.\n'
         f'This machine: {ledger_file("mcp.json")}. '
-        'This folder: <work>/.ms_agent/mcp.json. '
-        'New servers connect this session when possible; otherwise /new or restart.'
+        'This folder: <work>/.ms_agent/mcp.json.'
     )
 
 
@@ -48,10 +49,10 @@ def _skill_usage() -> str:
         '  /skills remove <id> [global|project]\n'
         f'Directory drop-in: global → {ledger_dir()}/skills, '
         'project → <work>/.ms_agent/skills. '
-        'Omit scope on add: this folder (project) when a work dir is open, '
-        'otherwise this machine (global). '
+        'Omit scope on add: this machine (global). The TUI menu can also '
+        'place it in this folder. '
         'Omit scope on enable, disable, or remove: the copy that already '
-        'exists; if both exist, write global or project. '
+        'exists. If both exist, the TUI menu asks which one. '
         'remove only deletes a managed copy, not auto-discovered skills.'
     )
 
@@ -139,6 +140,110 @@ def _mcp_list_text(mgr, scope: str) -> str:
     return '\n'.join(lines)
 
 
+_MCP_GET_SKIP = frozenset({
+    'enabled',
+    'source',
+    'meta',
+    'session_kwargs',
+    'httpx_client_factory',
+    'encoding',
+    'encoding_error_handler',
+    'sse_read_timeout',
+    '_removed',
+})
+
+_MCP_GET_ORDER = (
+    'type',
+    'transport',
+    'url',
+    'command',
+    'args',
+    'timeout',
+    'headers',
+    'env',
+    'include',
+    'exclude',
+)
+
+
+def _mcp_display_scalar(key: str, value, *, bag: bool = False) -> str:
+    """Show a config value, masking a credential and leaving the rest.
+
+    A secret key name becomes ``***``. Inside ``headers`` / ``env``, a value
+    that itself looks like a credential does too. An ordinary field such as
+    ``url`` keeps the host and only replaces the credential inside it.
+    """
+    from ms_agent.agent_hub._secrets import redact_text
+    from ms_agent.agent_hub._workspace import is_secret_key
+    from ms_agent.command.usage import contains_secret
+
+    if value is None:
+        return ''
+    if isinstance(value, list):
+        text = ' '.join(str(item) for item in value)
+    else:
+        text = str(value)
+    if text == '':
+        return ''
+    if is_secret_key(key) or (bag and contains_secret(text)):
+        return '***'
+    cleaned, hits = redact_text(text)
+    return cleaned if hits else text
+
+
+def _mcp_get_lines(name: str, scope: str, entry: dict) -> list[str]:
+    on = 'on' if entry.get('enabled', True) is not False else 'off'
+    lines = [f'{name} ({scope}):', f'  enabled: {on}']
+    keys = [key for key in _MCP_GET_ORDER if key in entry]
+    keys.extend(
+        key for key in entry if key not in _MCP_GET_SKIP and key not in keys)
+    for key in keys:
+        value = entry.get(key)
+        if isinstance(value, dict):
+            lines.append(f'  {key}:')
+            for inner, inner_val in value.items():
+                shown = _mcp_display_scalar(str(inner), inner_val, bag=True)
+                lines.append(f'    {inner}: {shown}')
+            continue
+        lines.append(f'  {key}: {_mcp_display_scalar(key, value)}')
+    return lines
+
+
+def _mcp_get(ctx, tokens: list[str], mgr, work: str | None) -> CommandResult:
+    """One server's saved config. Both copies are shown when the name is in each."""
+    scope, rest = parse_optional_scope(tokens)
+    if not rest:
+        return arg_error('/mcp get <name> [global|project]', ctx=ctx)
+    if scope == 'project':
+        miss = _need_work(scope, work)
+        if miss:
+            return miss
+    name = ' '.join(rest)
+    scopes = (scope, ) if scope else ('global', 'project')
+    blocks: list[str] = []
+    for item_scope in scopes:
+        if item_scope == 'project' and not work:
+            continue
+        try:
+            rows = mgr.list(item_scope)
+        except Exception:  # noqa: BLE001 - missing root is an empty list
+            rows = {}
+        entry = rows.get(name)
+        if entry:
+            blocks.append('\n'.join(_mcp_get_lines(name, item_scope, entry)))
+    if not blocks:
+        where = f' in {scope}' if scope else ''
+        return arg_error(
+            '/mcp get <name> [global|project]',
+            reason=f'No MCP server named {name}{where}',
+            ctx=ctx,
+        )
+    return CommandResult(
+        type=CommandResultType.MESSAGE,
+        content='\n\n'.join(blocks),
+    )
+
+
 async def cmd_mcp(ctx: CommandContext) -> CommandResult:
     arg = (ctx.args or '').strip()
     home, work = _home_work(ctx)
@@ -160,26 +265,45 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
     tokens = parts[1:]
 
     if action == 'list':
-        scope, _ = _parse_scope(tokens, default='merged')
+        scope, rest = _parse_scope(tokens, default='merged')
+        if rest:
+            return arg_error(
+                '/mcp list [global|project]',
+                reason='Unknown list option',
+                ctx=ctx,
+            )
         if scope not in ('global', 'project', 'merged'):
             scope = 'merged'
+        note = ''
         if scope == 'project':
             miss = _need_work(scope, work)
             if miss:
                 return miss
+        if scope in ('global', 'project'):
+            other = 'global' if scope == 'project' else 'project'
+            try:
+                here = mgr.list(scope)
+                other_rows = mgr.list(other)
+            except Exception:  # noqa: BLE001 - missing root is an empty list
+                here, other_rows = {}, {}
+            if scope not in here and scope in other_rows:
+                note = f'名叫 {scope} 的服务器不在这份清单里。\n'
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=_mcp_list_text(mgr, scope),
+            content=note + _mcp_list_text(mgr, scope),
         )
+
+    if action == 'get':
+        return _mcp_get(ctx, tokens, mgr, work)
 
     if action == 'json':
         if not tokens:
             return arg_error('/mcp json <file.json>', ctx=ctx)
         n = mgr.import_cursor_format(tokens[0])
-        note = await _reload_mcp(ctx)
+        await _reload_mcp(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'Imported {n} server(s). {note}',
+            content=f'Imported {n} server(s).',
         )
 
     if action in ('enable', 'disable', 'remove'):
@@ -202,10 +326,10 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
         except KeyError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        note = await _reload_mcp(ctx)
+        await _reload_mcp(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'{action} {name} ({scope}). {note}',
+            content=f'{action} {name} ({scope}).',
         )
 
     if action == 'add':
@@ -226,8 +350,8 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
                 content='Need command=<cmd> or url=<url>.',
             )
         mgr.add(name, _stdio_fields(fields), scope=scope)
-        note = await _reload_mcp(ctx)
-        lines = [f'Added {name} ({scope}). {note}']
+        await _reload_mcp(ctx)
+        lines = [f'Added {name} ({scope}).']
         if scope == 'project' and not explicit:
             lines.append(_PROJECT_MCP_NOT_ON_SETTINGS)
         return CommandResult(
@@ -252,14 +376,14 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
         except KeyError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        note = await _reload_mcp(ctx)
+        await _reload_mcp(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'Updated {name} ({scope}). {note}',
+            content=f'Updated {name} ({scope}).',
         )
 
     return arg_error(
-        '/mcp list|add|update|json|enable|disable|remove ...',
+        '/mcp list|get|add|update|json|enable|disable|remove ...',
         reason=f'Unknown mcp action {action!r}',
         note='Type /mcp for all commands',
         ctx=ctx,
@@ -267,9 +391,9 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
 
 
 async def _reload_mcp(ctx: CommandContext) -> str:
-    """Ledger is already written. The live runtime applies it next message."""
+    """Ledger is already written. The next user message applies it."""
     del ctx
-    return '下一条消息生效。'
+    return ''
 
 
 async def cmd_skills(ctx: CommandContext) -> CommandResult:
@@ -303,7 +427,7 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
         return _list_skills_from_disk(mgr, work)
 
     if action in ('enable', 'disable'):
-        resolved = _resolve_skill_scope(
+        resolved = await _resolve_skill_scope(
             tokens,
             work,
             syntax=f'/skills {action} <id> [global|project]',
@@ -323,11 +447,12 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
         )
 
     if action == 'add':
-        resolved = _resolve_skill_scope(
+        resolved = await _resolve_skill_scope(
             tokens,
             work,
             syntax='/skills add <path> [global|project]',
-            ctx=ctx)
+            ctx=ctx,
+            action='add')
         if isinstance(resolved, CommandResult):
             return resolved
         scope, rest = resolved
@@ -345,13 +470,11 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
         _resync_skills(ctx, mgr, home, work)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=(
-                'Imported: ' + ', '.join(names)
-                + f' ({scope}). Available this session.'),
+            content='Imported: ' + ', '.join(names) + f' ({scope}).',
         )
 
     if action == 'remove':
-        resolved = _resolve_skill_scope(
+        resolved = await _resolve_skill_scope(
             tokens,
             work,
             syntax='/skills remove <id> [global|project]',
@@ -380,10 +503,6 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
         note='Type /skills for all commands',
         ctx=ctx,
     )
-
-
-def _default_skill_scope(work: str | None) -> str:
-    return 'project' if work else 'global'
 
 
 def _managed_skill_scopes(mgr, skill_id: str, work: str | None) -> list[str]:
@@ -427,7 +546,7 @@ def _pick_existing_skill_scope(mgr, skill_id: str, work: str | None,
     return None
 
 
-def _resolve_skill_scope(
+async def _resolve_skill_scope(
     tokens: list[str],
     work: str | None,
     *,
@@ -446,16 +565,35 @@ def _resolve_skill_scope(
         skill_id = ' '.join(rest)
         picked = _pick_existing_skill_scope(mgr, skill_id, work, action)
         if picked == 'both':
-            return arg_error(
-                syntax,
+            # Leave both copies where they are. The menu picks which one.
+            chosen = await pick_scope(
+                ctx,
+                syntax=syntax,
+                header=f'{skill_id} 在两处都有。改哪一处？',
                 reason=f'{skill_id} exists in both global and project',
                 note='Pass global or project.',
-                ctx=ctx,
             )
-        if picked:
+            if isinstance(chosen, CommandResult):
+                return chosen
+            scope = chosen
+        elif picked:
             scope = picked
+    if scope is None and action == 'add':
+        # A new slash-command skill lands on this machine unless the menu
+        # (or an explicit scope) places it in this folder.
+        choices = list(SCOPE_CHOICES) if work else (('global', '这台机器'), )
+        chosen = await pick_scope(
+            ctx,
+            syntax=syntax,
+            header='新技能放到哪里？',
+            choices=choices,
+            silent_default='global',
+        )
+        if isinstance(chosen, CommandResult):
+            return chosen
+        scope = chosen
     if scope is None:
-        scope = _default_skill_scope(work)
+        scope = 'global'
     miss = _need_work(scope, work)
     if miss:
         return miss

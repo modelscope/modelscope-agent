@@ -294,6 +294,7 @@ class MemoryOrchestrator(Memory):
                 delta = self._ledger_delta(msg_dicts)
                 if not delta:
                     self._set_status('ok', count=0)
+                    self.user_notice = None
                     return 0
                 self._set_status('running')
                 result = await backend.on_messages(delta, **kwargs)
@@ -303,20 +304,23 @@ class MemoryOrchestrator(Memory):
                 self._ledger_mark(delta)
                 count = result if isinstance(result, int) else len(delta)
                 self._set_status('ok', count=count)
+                self.user_notice = None
                 return count
         except asyncio.CancelledError:
             self._set_status('error', error='cancelled')
             raise
-        except OSError:
-            from ms_agent.memory.unified.user_notice import DISK_NOTICE
-            self.user_notice = DISK_NOTICE
-            logger.error(DISK_NOTICE)
+        except OSError as exc:
+            from ms_agent.memory.unified.user_notice import disk_notice
+            self.user_notice = disk_notice(exc)
+            logger.error(self.user_notice)
             self._set_status('error', error='disk')
             return 0
         except Exception as e:  # noqa: BLE001 - reported via status
-            logger.debug('[orchestrator] memory ingest failed, nothing was '
-                         'persisted for this turn: %s: %s',
-                         type(e).__name__, e)
+            # Background extract/backend failures retry next turn. The user
+            # has nothing to do with the file, so this stays off the screen.
+            logger.error(
+                '[orchestrator] memory ingest failed, nothing was persisted '
+                'for this turn: %s: %s', type(e).__name__, e)
             self._set_status('error', error=f'{type(e).__name__}: {e}')
             return 0
         finally:

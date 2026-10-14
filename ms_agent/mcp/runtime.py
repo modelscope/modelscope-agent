@@ -60,6 +60,16 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _exception_group_members(exc: BaseException):
+    """Nested exceptions of an ExceptionGroup, on 3.11 and the 3.10 backport."""
+    if type(exc).__name__ not in ('ExceptionGroup', 'BaseExceptionGroup'):
+        return None
+    members = getattr(exc, 'exceptions', None)
+    if isinstance(members, tuple):
+        return members
+    return None
+
+
 def classify_mcp_failure(exc: BaseException) -> MCPFailureKind:
     """Classify transport failures for degraded policy.
 
@@ -68,11 +78,22 @@ def classify_mcp_failure(exc: BaseException) -> MCPFailureKind:
       after ``DEGRADED_FAILURE_THRESHOLD`` consecutive failures.
     - ``none``: business / argument errors — do not change ``status``.
     """
+    members = _exception_group_members(exc)
+    if members is not None:
+        kinds = [classify_mcp_failure(item) for item in members]
+        if 'hard' in kinds:
+            return 'hard'
+        if 'transient' in kinds:
+            return 'transient'
+        return 'none'
     if isinstance(exc, asyncio.TimeoutError):
         return 'transient'
     if isinstance(exc, (BrokenPipeError, ConnectionResetError)):
         return 'hard'
     if isinstance(exc, ConnectionError):
+        return 'hard'
+    type_name = type(exc).__name__.lower()
+    if type_name in ('closedresourceerror', 'brokenresourceerror'):
         return 'hard'
     msg = str(exc).lower()
     hard_markers = (
@@ -103,6 +124,20 @@ def classify_failure_message(message: str) -> MCPFailureKind:
 def is_connection_error(exc: BaseException) -> bool:
     """Whether a tool exception should be reported to MCP failure tracking."""
     return classify_mcp_failure(exc) in ('transient', 'hard')
+
+
+def degraded_user_notice(
+    server_name: str,
+    exc: BaseException | None = None,
+    message: str = '',
+) -> str:
+    """One sentence when a server has just become unusable.
+
+    A second failure uses a different sentence, sent from the live-config
+    sync, not from here.
+    """
+    del exc, message
+    return f'MCP 服务器 {server_name} 连接断开，本轮对话无法使用。自动尝试重连中。'
 
 
 class MCPRuntime:
@@ -334,6 +369,12 @@ class MCPRuntime:
             for name, state in self._states.items():
                 if not state.enabled:
                     continue
+                # A degraded server may still hold a dead session. Drop it
+                # so this apply reconnects instead of keeping the stale one.
+                if (state.status == 'degraded'
+                        and self._client.is_connected(name)):
+                    await self._client.disconnect_server(name)
+                    state.status = 'registered'
                 if not self._client.is_connected(name):
                     try:
                         await self._connect_server(name, state)
@@ -392,12 +433,14 @@ class MCPRuntime:
         *,
         tool_name: str | None = None,
         exc: BaseException | None = None,
-    ) -> None:
+    ) -> bool:
+        """Record one failure. Return True only when status just became degraded."""
         async with self._sync_lock:
             degraded = self._apply_failure_state(
                 name, phase, message, tool_name=tool_name, exc=exc)
             if degraded:
                 await self._sync_tools_unlocked()
+            return degraded
 
     def _apply_failure_state(
         self,

@@ -153,6 +153,97 @@ class TestMcpCommand:
         assert 'docs' in result.content
 
     @pytest.mark.asyncio
+    async def test_list_rejects_an_extra_name(self, isolate_home):
+        await make_router().dispatch(
+            make_ctx(
+                '/mcp add docs global url=https://example/mcp',
+                MockRuntime()))
+        result = await make_router().dispatch(
+            make_ctx('/mcp list mem1', MockRuntime()))
+        assert 'Unknown list option.' in result.content
+        assert 'Need: /mcp list [global|project]' in result.content
+        assert 'Got:  /mcp list mem1' in result.content
+        assert 'docs' not in result.content
+        assert 'https://example/mcp' not in result.content
+
+    @pytest.mark.asyncio
+    async def test_list_scope_word_names_the_other_copy(
+            self, tmp_path, isolate_home):
+        work = tmp_path / 'repo'
+        work.mkdir()
+        runtime = MockRuntime(
+            config=OmegaConf.create({'output_dir': str(work)}))
+        await make_router().dispatch(
+            make_ctx(
+                '/mcp add project global url=https://example/mcp',
+                runtime))
+        listed = await make_router().dispatch(
+            make_ctx('/mcp list project', runtime))
+        assert listed.content.startswith('名叫 project 的服务器不在这份清单里。')
+        assert 'https://example/mcp' not in listed.content
+
+    @pytest.mark.asyncio
+    async def test_get_shows_one_server(self, tmp_path, isolate_home):
+        work = tmp_path / 'repo'
+        work.mkdir()
+        runtime = MockRuntime(
+            config=OmegaConf.create({'output_dir': str(work)}))
+        mgr = MCPConfigManager(str(isolate_home), str(work))
+        mgr.add(
+            'docs',
+            {
+                'url': 'https://sk-THIS-IS-A-REAL-KEY-99@example/mcp',
+                'headers': {
+                    'Authorization': 'Bearer sk-THIS-IS-A-REAL-KEY-99',
+                    'Content-Type': 'application/json',
+                },
+                'env': {
+                    'PATH': '/usr/bin',
+                    'API_KEY': 'sk-THIS-IS-A-REAL-KEY-99',
+                },
+            },
+            scope='global',
+        )
+        mgr.add(
+            'docs',
+            {'command': 'npx', 'args': ['-y', 'server']},
+            scope='project',
+        )
+        result = await make_router().dispatch(
+            make_ctx('/mcp get docs', runtime))
+        assert 'docs (global):' in result.content
+        assert 'docs (project):' in result.content
+        assert 'enabled: on' in result.content
+        assert 'url: https://[REDACTED:api_key]@example/mcp' in result.content
+        assert 'Content-Type: application/json' in result.content
+        assert 'PATH: /usr/bin' in result.content
+        assert 'command: npx' in result.content
+        assert 'args: -y server' in result.content
+        assert 'sk-THIS-IS-A-REAL-KEY-99' not in result.content
+        assert 'Authorization: ***' in result.content
+        assert 'API_KEY: ***' in result.content
+
+    @pytest.mark.asyncio
+    async def test_get_one_scope_and_a_missing_name(self, tmp_path, isolate_home):
+        work = tmp_path / 'repo'
+        work.mkdir()
+        runtime = MockRuntime(
+            config=OmegaConf.create({'output_dir': str(work)}))
+        await make_router().dispatch(
+            make_ctx(
+                '/mcp add project global url=https://example/mcp',
+                runtime))
+        one = await make_router().dispatch(
+            make_ctx('/mcp get project global', runtime))
+        assert 'project (global):' in one.content
+        assert 'url: https://example/mcp' in one.content
+        assert 'project (project):' not in one.content
+        missing = await make_router().dispatch(
+            make_ctx('/mcp get mem1', runtime))
+        assert 'No MCP server named mem1.' in missing.content
+        assert 'Need: /mcp get <name> [global|project]' in missing.content
+
+    @pytest.mark.asyncio
     async def test_update_changes_url(self, isolate_home):
         runtime = MockRuntime()
         router = make_router()
@@ -233,7 +324,7 @@ class TestSkillsCommand:
         assert 'demo' in data.get('disabled', [])
 
     @pytest.mark.asyncio
-    async def test_add_without_scope_uses_project_when_work_dir(
+    async def test_add_without_scope_lands_on_this_machine(
             self, tmp_path, isolate_home):
         src = tmp_path / 'ask-skill'
         src.mkdir()
@@ -244,6 +335,31 @@ class TestSkillsCommand:
             config=OmegaConf.create({'output_dir': str(work)}))
         result = await make_router().dispatch(
             make_ctx(f'/skills add {src}', runtime))
+        assert 'Imported: ask-skill (global)' in result.content
+        assert (isolate_home / 'skills' / 'ask-skill' / 'SKILL.md').is_file()
+        assert not (work / '.ms_agent' / 'skills' / 'ask-skill').exists()
+
+    @pytest.mark.asyncio
+    async def test_add_menu_can_place_the_skill_in_this_folder(
+            self, tmp_path, isolate_home):
+        src = tmp_path / 'ask-skill'
+        src.mkdir()
+        (src / 'SKILL.md').write_text('# ask\n')
+        work = tmp_path / 'repo'
+        work.mkdir()
+        runtime = MockRuntime(
+            config=OmegaConf.create({'output_dir': str(work)}))
+
+        def choose(labels, header):
+            assert labels == ['这台机器', '这个文件夹']
+            assert header == '新技能放到哪里？'
+            return '这个文件夹'
+
+        result = await make_router().dispatch(
+            make_ctx(
+                f'/skills add {src}',
+                runtime,
+                extra={'choose_scope': choose}))
         assert 'Imported: ask-skill (project)' in result.content
         assert (work / '.ms_agent' / 'skills' / 'ask-skill' / 'SKILL.md').is_file()
         assert not (isolate_home / 'skills' / 'ask-skill').exists()
@@ -261,7 +377,7 @@ class TestSkillsCommand:
         assert (dest / 'solo-skill' / 'SKILL.md').is_file()
 
     @pytest.mark.asyncio
-    async def test_enable_without_scope_uses_same_default_as_add(
+    async def test_disable_without_scope_follows_the_added_copy(
             self, tmp_path, isolate_home):
         src = tmp_path / 'only-here'
         src.mkdir()
@@ -275,11 +391,11 @@ class TestSkillsCommand:
             make_ctx(f'/skills add {src}', runtime))
         result = await router.dispatch(
             make_ctx('/skills disable only-here', runtime))
-        assert 'disable only-here (project)' in result.content
-        proj = SkillsConfigManager(str(isolate_home)).load_project(str(work))
-        assert 'only-here' in proj.get('disabled', [])
+        assert 'disable only-here (global)' in result.content
         glob = SkillsConfigManager(str(isolate_home)).load_global()
-        assert 'only-here' not in glob.get('disabled', [])
+        assert 'only-here' in glob.get('disabled', [])
+        proj = SkillsConfigManager(str(isolate_home)).load_project(str(work))
+        assert 'only-here' not in proj.get('disabled', [])
 
     @pytest.mark.asyncio
     async def test_list_without_runtime_shows_live_tree_ids(
@@ -317,6 +433,25 @@ class TestSkillsCommand:
         assert 'disable project (project)' in result.content
         proj = SkillsConfigManager(str(isolate_home)).load_project(str(work))
         assert 'project' in proj.get('disabled', [])
+
+    @pytest.mark.asyncio
+    async def test_disable_without_scope_follows_a_folder_copy(
+            self, tmp_path, isolate_home):
+        mgr = SkillsConfigManager(str(isolate_home))
+        work = tmp_path / 'repo'
+        work.mkdir()
+        skill = mgr.project_skills_tree(str(work)) / 'folder-only'
+        skill.mkdir(parents=True)
+        (skill / 'SKILL.md').write_text('# folder\n')
+        runtime = MockRuntime(
+            config=OmegaConf.create({'output_dir': str(work)}))
+        result = await make_router().dispatch(
+            make_ctx('/skills disable folder-only', runtime))
+        assert 'disable folder-only (project)' in result.content
+        project = mgr.load_project(str(work))
+        assert 'folder-only' in (project.get('disabled') or [])
+        assert 'folder-only' not in (mgr.load_global().get('disabled') or [])
+        assert not (mgr.global_skills_tree() / 'folder-only').exists()
 
     @pytest.mark.asyncio
     async def test_enable_without_scope_uses_existing_global_copy(
@@ -375,6 +510,41 @@ class TestSkillsCommand:
         result = await make_router().dispatch(
             make_ctx('/skills enable g-only', runtime))
         assert 'both global and project' in result.content
+        assert 'Pass global or project.' in result.content
+        assert 'g-only' not in (mgr.load_global().get('disabled') or [])
+        project = mgr.load_project(str(work))
+        assert 'g-only' not in (project.get('disabled') or [])
+
+    @pytest.mark.asyncio
+    async def test_both_copies_menu_changes_only_the_chosen_one(
+            self, tmp_path, isolate_home):
+        mgr = SkillsConfigManager(str(isolate_home))
+        work = tmp_path / 'repo'
+        work.mkdir()
+        for root in (
+                mgr.global_skills_tree(),
+                mgr.project_skills_tree(str(work)),
+        ):
+            skill = root / 'g-only'
+            skill.mkdir(parents=True)
+            (skill / 'SKILL.md').write_text('# G\n')
+        runtime = MockRuntime(
+            config=OmegaConf.create({'output_dir': str(work)}))
+
+        def choose(labels, header):
+            assert labels == ['这台机器', '这个文件夹']
+            assert '两处都有' in header
+            return '这个文件夹'
+
+        result = await make_router().dispatch(
+            make_ctx(
+                '/skills disable g-only',
+                runtime,
+                extra={'choose_scope': choose}))
+        assert 'disable g-only (project)' in result.content
+        assert 'g-only' not in (mgr.load_global().get('disabled') or [])
+        project = mgr.load_project(str(work))
+        assert 'g-only' in (project.get('disabled') or [])
 
     @pytest.mark.asyncio
     async def test_mcp_add_server_named_project(self, tmp_path, isolate_home):

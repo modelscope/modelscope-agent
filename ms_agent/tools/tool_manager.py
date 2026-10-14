@@ -38,6 +38,23 @@ from ms_agent.utils.constants import TOOL_PLUGIN_NAME
 
 logger = get_logger()
 
+
+def _must_propagate(exc: BaseException) -> bool:
+    """Cancellation and unknown base exceptions still leave the tool call.
+
+    An ExceptionGroup from a dead MCP transport is not one of those: it used
+    to escape ``except Exception`` and end the turn as a generic failure.
+    """
+    if isinstance(exc, (asyncio.CancelledError, KeyboardInterrupt, SystemExit,
+                        GeneratorExit)):
+        return True
+    if type(exc).__name__ in ('ExceptionGroup', 'BaseExceptionGroup'):
+        members = getattr(exc, 'exceptions', None)
+        if isinstance(members, tuple) and members:
+            return all(_must_propagate(item) for item in members)
+        return False
+    return not isinstance(exc, Exception)
+
 MAX_TOOL_NAME_LEN = int(os.getenv('MAX_TOOL_NAME_LEN', 64))
 # Default wait around each tool invocation (seconds). Override via config.tool_call_timeout or TOOL_CALL_TIMEOUT.
 TOOL_CALL_TIMEOUT = int(os.getenv('TOOL_CALL_TIMEOUT', 120))
@@ -831,7 +848,9 @@ class ToolManager:
                     'is_error':
                     True,
                 }
-            except Exception as e:
+            except BaseException as e:
+                if _must_propagate(e):
+                    raise
                 import traceback
                 tb_str = traceback.format_exc()
                 logger.warning(tb_str)

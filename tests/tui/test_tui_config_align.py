@@ -379,7 +379,15 @@ async def test_serve_keeps_repl_after_turn_api_error():
                 "'The product is not activated'}}")
         raise EOFError()
 
-    app.agent = SimpleNamespace(run=fake_run)
+    app.agent = SimpleNamespace(
+        run=fake_run,
+        config=OmegaConf.create({
+            'llm': {
+                'service': 'openai',
+                'model': 'm',
+            },
+        }),
+    )
 
     await app._serve()
     out = buf.getvalue()
@@ -423,10 +431,113 @@ async def test_serve_stays_open_on_cancel_scope_error():
                 'Attempted to exit cancel scope in a different task')
         raise EOFError()
 
-    app.agent = SimpleNamespace(run=fake_run)
+    app.agent = SimpleNamespace(
+        run=fake_run,
+        config=OmegaConf.create({
+            'llm': {
+                'service': 'openai',
+                'model': 'm',
+            },
+        }),
+        runtime=SimpleNamespace(should_stop=False),
+    )
 
     await app._serve()
     out = buf.getvalue()
     assert runs['n'] == 2
     assert 'session still open' in out
+    assert 'bye' in out
+
+
+@pytest.mark.asyncio
+async def test_serve_stays_open_on_cancelled_error_that_is_not_quit():
+    from unittest.mock import MagicMock
+
+    app = TuiApp.__new__(TuiApp)
+    buf = io.StringIO()
+    app.console = Console(file=buf, force_terminal=False, width=100)
+    app.renderer = MagicMock()
+    app._queued_query = None
+    app._pending_switch = None
+    app._model = 'm'
+    app.state = TuiState(model='m')
+    app._owned_session_ids = set()
+    session = SimpleNamespace(id='s1', name='Session 1')
+    app._sm = MagicMock()
+    app._sm.create.return_value = session
+    app.session = None
+    app._banner = lambda: None
+    app._apply_session = lambda sess, resume=False: setattr(app, 'session', sess)
+    app._name_session_from_log = lambda: None
+    app._prune_if_empty = lambda s: None
+
+    runs = {'n': 0}
+
+    async def fake_run(query=None, stream=True):
+        runs['n'] += 1
+        if runs['n'] == 1:
+            raise asyncio.CancelledError()
+        raise EOFError()
+
+    app.agent = SimpleNamespace(
+        run=fake_run,
+        config=OmegaConf.create({
+            'llm': {
+                'service': 'openai',
+                'model': 'm',
+            },
+        }),
+        runtime=SimpleNamespace(should_stop=False),
+    )
+
+    await app._serve()
+    out = buf.getvalue()
+    assert runs['n'] == 2
+    assert 'session still open' in out
+
+
+@pytest.mark.asyncio
+async def test_serve_exits_when_quit_cancels_the_turn():
+    from unittest.mock import MagicMock
+
+    app = TuiApp.__new__(TuiApp)
+    buf = io.StringIO()
+    app.console = Console(file=buf, force_terminal=False, width=100)
+    app.renderer = MagicMock()
+    app._queued_query = None
+    app._pending_switch = None
+    app._model = 'm'
+    app.state = TuiState(model='m')
+    app._owned_session_ids = set()
+    session = SimpleNamespace(id='s1', name='Session 1')
+    app._sm = MagicMock()
+    app._sm.create.return_value = session
+    app.session = None
+    app._banner = lambda: None
+    app._apply_session = lambda sess, resume=False: setattr(app, 'session', sess)
+    app._name_session_from_log = lambda: None
+    app._prune_if_empty = lambda s: None
+
+    runs = {'n': 0}
+    runtime = SimpleNamespace(should_stop=True)
+
+    async def fake_run(query=None, stream=True):
+        runs['n'] += 1
+        raise asyncio.CancelledError()
+
+    app.agent = SimpleNamespace(
+        run=fake_run,
+        config=OmegaConf.create({
+            'llm': {
+                'service': 'openai',
+                'model': 'm',
+            },
+        }),
+        runtime=runtime,
+    )
+
+    await app._serve()
+    out = buf.getvalue()
+    assert runs['n'] == 1
+    assert 'session still open' not in out
     assert 'bye' in out

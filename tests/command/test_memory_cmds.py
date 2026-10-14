@@ -76,7 +76,7 @@ class TestMemoryCommand:
         node = OmegaConf.select(runtime.config, 'memory.unified_memory')
         assert node is not None
         assert node.storage.backend == 'file'
-        assert '下一条消息生效' in result.content
+        assert '下一条消息生效' not in result.content
         assert runtime.memory_tools == []
 
     @pytest.mark.asyncio

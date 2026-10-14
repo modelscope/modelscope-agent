@@ -53,8 +53,8 @@ TUI_RESOLVER_DEFAULTS = {
             'mcp': False,
         },
     },
-    # Non-empty so LLMAgent.prepare_skills runs and loads bundled skills
-    # (update-config, …). An empty ``{}`` is falsy under OmegaConf.
+    # Non-empty so LLMAgent.prepare_skills runs. An empty ``{}`` is falsy
+    # under OmegaConf. User and project skills still load.
     'skills': {
         'prompt_injection': 'all',
         # Freeze the skill section for the session. Changes are announced
@@ -780,7 +780,26 @@ class TuiApp:
             except EOFError:
                 break  # Ctrl-D at the prompt exits
             except asyncio.CancelledError:
-                break  # generator/teardown cancel on /quit — not a crash
+                task = asyncio.current_task()
+                quitting = bool(
+                    getattr(
+                        getattr(getattr(self, 'agent', None), 'runtime', None),
+                        'should_stop',
+                        False))
+                # A cancelled task (/quit teardown, or this task itself) leaves.
+                # Any other CancelledError stays in the session.
+                # Task.cancelling() exists on Python 3.11+.
+                cancelling = getattr(task, 'cancelling', None)
+                if callable(cancelling) and cancelling():
+                    raise
+                if quitting:
+                    break
+                self.renderer.finalize()
+                self.console.print(
+                    '[dim](turn failed — session still open, '
+                    '/model to switch, /quit to exit)[/]')
+                resume = True
+                continue
             except KeyboardInterrupt:
                 # Ctrl-C interrupts the running turn but keeps the REPL alive.
                 # Cap the turn with an assistant marker so the resume below

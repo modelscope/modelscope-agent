@@ -111,8 +111,7 @@ def test_it_reaches_the_system_prompt(tmp_path):
 
 
 def test_system_prompt_does_not_dump_config_playbook(tmp_path, monkeypatch):
-    """86119007: architecture belongs in the update-config skill, not the
-    always-on system prompt (Claude Code SkillTool pattern)."""
+    """86119007: the memory/MCP playbook stays out of the always-on system prompt."""
     home = tmp_path / 'ms_home'
     home.mkdir()
     monkeypatch.setenv('MS_AGENT_HOME', str(home))

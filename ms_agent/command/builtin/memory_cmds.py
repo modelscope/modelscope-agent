@@ -85,18 +85,26 @@ def _parse_bool(token: str) -> bool | None:
     return None
 
 
+def _arm_memory(ctx: CommandContext) -> None:
+    """The next user message should try to start file memory."""
+    runtime = getattr(ctx, 'runtime', None)
+    if runtime is not None:
+        runtime._memory_pending = True
+
+
 async def _apply_live(ctx: CommandContext, project) -> str:
     from ms_agent.personalization.memory_apply import apply_project_memory
+    _arm_memory(ctx)
     agent = ctx.runtime
     cfg = getattr(agent, 'config', None) if agent is not None else None
     if cfg is None:
-        return '已保存。下一条消息生效。'
+        return '已保存。'
     kind = apply_project_memory(cfg, project)
     if kind == 'vector-unavailable':
         return (
             '已保存 vector。当前会话不会启动它。'
             '要用文件记忆：/memory project backend file')
-    return '下一条消息生效。'
+    return ''
 
 
 async def cmd_memory(ctx: CommandContext) -> CommandResult:
@@ -167,9 +175,12 @@ async def _cmd_toggle(ctx: CommandContext, action: str,
     updated = _pm().update(project.id, memory_enabled=enabled)
     note = await _apply_live(ctx, updated)
     state = 'on' if enabled else 'off'
+    content = f'Project memory → {state}.'
+    if note:
+        content = f'{content} {note}'
     return CommandResult(
         type=CommandResultType.MESSAGE,
-        content=f'Project memory → {state}. {note}',
+        content=content,
     )
 
 
@@ -202,10 +213,11 @@ def _cmd_backend(
                 content='Project backend needs a work dir (TUI --work-dir).',
             )
         _pm().update(project.id, memory_backend=backend)
+        _arm_memory(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=_backend_saved(
-                f'Project memory backend → {backend}. 下一条消息生效。',
+                f'Project memory backend → {backend}.',
                 backend),
         )
 

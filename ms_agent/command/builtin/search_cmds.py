@@ -22,8 +22,7 @@ def _usage() -> str:
         '  /search key <value>\n'
         '  /search key clear\n'
         '  /search enable|disable\n'
-        f'Saved in {ledger_file("settings.json")}. '
-        'Takes effect on the next turn, or /new if search was already connected.'
+        f'Saved in {ledger_file("settings.json")}.'
     )
 
 
@@ -52,18 +51,17 @@ def _status_text(mgr) -> str:
     return '\n'.join(lines)
 
 
-def _apply_runtime(ctx: CommandContext, mgr) -> str:
+def _apply_runtime(ctx: CommandContext, mgr) -> None:
+    """Write the saved block onto the live config. The next message reconnects."""
     agent = ctx.runtime
     cfg = getattr(agent, 'config', None) if agent is not None else None
     if cfg is None:
-        return 'Takes effect on /new or restart.'
+        return
     try:
         from omegaconf import OmegaConf
-        OmegaConf.update(
-            cfg, 'tools.web_search', mgr.raw_block(), merge=True)
-        return 'Next turn uses this setting (or /new if search was already connected).'
+        OmegaConf.update(cfg, 'tools.web_search', mgr.raw_block(), merge=True)
     except Exception:
-        return 'Saved; /new or restart to apply in this session.'
+        return
 
 
 async def cmd_search(ctx: CommandContext) -> CommandResult:
@@ -98,17 +96,17 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
 
     if action in ('enable', 'on'):
         mgr.set_enabled(True)
-        note = _apply_runtime(ctx, mgr)
+        _apply_runtime(ctx, mgr)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'Search enabled. {note}',
+            content='Search enabled.',
         )
     if action in ('disable', 'off'):
         mgr.set_enabled(False)
-        note = _apply_runtime(ctx, mgr)
+        _apply_runtime(ctx, mgr)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'Search disabled. {note}',
+            content='Search disabled.',
         )
 
     if action == 'engine':
@@ -120,10 +118,10 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
         except ValueError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        note = _apply_runtime(ctx, mgr)
+        _apply_runtime(ctx, mgr)
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'Engine → {cur.engine}. {note}',
+            content=f'Engine → {cur.engine}.',
         )
 
     if action == 'key':
@@ -136,11 +134,11 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
         except ValueError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        note = _apply_runtime(ctx, mgr)
+        _apply_runtime(ctx, mgr)
         verb = 'cleared' if clear else 'saved'
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=f'API key {verb} for {mgr.get().engine}. {note}',
+            content=f'API key {verb} for {mgr.get().engine}.',
         )
 
     return arg_error(

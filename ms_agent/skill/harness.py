@@ -1,18 +1,16 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
 """Live path substitution for bundled harness skills.
 
-Claude Code keeps settings.json / MCP playbooks out of the always-on system
-prompt: the Skill listing is name + a short when-to-use description, and the
-full guide (with live paths) is produced only when the skill is invoked.
-``update-config`` follows that pattern — placeholders in SKILL.md are filled
-here at ``skill_view`` / slash-expand time, not at prompt assembly.
+No harness skill is bundled right now. Ids in ``HARNESS_SKILL_IDS`` get
+``{home}`` / ``{work}`` / … filled at ``skill_view`` and slash-expand time.
+Every other skill is left unchanged.
 """
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-HARNESS_SKILL_IDS = frozenset({'update-config'})
+HARNESS_SKILL_IDS: frozenset[str] = frozenset()
 
 
 def harness_placeholders(config: Any = None) -> Dict[str, str]:

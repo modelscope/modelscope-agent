@@ -104,7 +104,7 @@ class FileMemoryStorage:
         if len(new_content) > self.char_limit:
             from ms_agent.memory.unified.user_notice import CHAR_LIMIT_NOTICE
             self.user_notice = CHAR_LIMIT_NOTICE
-            logger.debug(
+            logger.warning(
                 '[file_storage] MEMORY.md would exceed char limit '
                 '(%s > %s), skipping add', len(new_content), self.char_limit)
             return False
@@ -126,12 +126,13 @@ class FileMemoryStorage:
         if len(updated) > self.char_limit:
             from ms_agent.memory.unified.user_notice import CHAR_LIMIT_NOTICE
             self.user_notice = CHAR_LIMIT_NOTICE
-            logger.debug('[file_storage] Replace would exceed char limit')
+            logger.warning('[file_storage] Replace would exceed char limit')
             return False
         self._write(updated)
         return True
 
     def remove_entry(self, content: str) -> bool:
+        self.user_notice = None
         current = self._read()
         target = content.strip()
         lines = current.splitlines()
@@ -198,9 +199,9 @@ class FileMemoryStorage:
     def _write(self, content: str) -> None:
         try:
             atomic_write_text(self.memory_path, content)
-        except OSError:
-            from ms_agent.memory.unified.user_notice import DISK_NOTICE
-            self.user_notice = DISK_NOTICE
+        except OSError as exc:
+            from ms_agent.memory.unified.user_notice import disk_notice
+            self.user_notice = disk_notice(exc)
             raise
         else:
             self.user_notice = None

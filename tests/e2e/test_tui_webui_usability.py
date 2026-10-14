@@ -100,9 +100,9 @@ class TestBareCommandShape:
 class TestDefaultScopeFootgun:
     """``/mcp add`` omits to this folder (project) and says so.
 
-    ``global`` is every folder on this machine. ``/skills add`` and
-    ``/skills enable`` share one default: project when a work dir is open,
-    otherwise global.
+    ``global`` is every folder on this machine. A new ``/skills add`` lands
+    on this machine; enable, disable, and remove follow the copy that
+    already exists.
     """
 
     @pytest.mark.usability
@@ -137,9 +137,9 @@ class TestDefaultScopeFootgun:
         assert 'webui' not in lowered
 
     @pytest.mark.usability
-    def test_skills_add_and_enable_share_project_default_when_work_dir(
+    def test_skills_add_lands_on_this_machine_and_disable_follows_it(
             self, isolated_home, work_dir):
-        """Same command family, one default: this folder if TUI has --work-dir."""
+        """A new slash skill is global. Later commands follow that copy."""
         TuiApp._open_project(str(work_dir))
         rt = runtime_for(work_dir)
         src = work_dir / 'scoped-skill'
@@ -147,11 +147,11 @@ class TestDefaultScopeFootgun:
         (src / 'SKILL.md').write_text('# scoped\n', encoding='utf-8')
         added = run_slash(f'/skills add {src}', rt)
         assert 'Imported' in added.content
-        assert '(project)' in added.content
-        assert (work_dir / '.ms_agent' / 'skills' / 'scoped-skill').is_dir()
-        assert not (isolated_home / 'skills' / 'scoped-skill').exists()
+        assert '(global)' in added.content
+        assert (isolated_home / 'skills' / 'scoped-skill').is_dir()
+        assert not (work_dir / '.ms_agent' / 'skills' / 'scoped-skill').exists()
         disabled = run_slash('/skills disable scoped-skill', rt)
-        assert 'disable scoped-skill (project)' in disabled.content
+        assert 'disable scoped-skill (global)' in disabled.content
 
 
 class TestModelSwitchShadowsWebuiDefault:

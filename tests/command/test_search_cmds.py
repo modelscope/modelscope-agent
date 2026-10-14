@@ -57,6 +57,8 @@ class TestSearchCommand:
         result = await make_router().dispatch(
             make_ctx('/search engine arxiv'))
         assert 'Engine → arxiv' in result.content
+        assert '/new' not in result.content
+        assert 'restart' not in result.content
         data = json.loads((isolate_home / 'settings.json').read_text())
         assert data['tools']['web_search']['engine'] == 'arxiv'
 

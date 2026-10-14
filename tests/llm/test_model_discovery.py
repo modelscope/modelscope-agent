@@ -119,6 +119,21 @@ def test_fetch_model_ids_ok():
     assert kwargs['headers']['Authorization'] == 'Bearer sk'
 
 
+def test_probe_405_and_404_are_no_catalog():
+    from ms_agent.llm.model_discovery import probe_model_catalog
+    client = MagicMock()
+    client.__enter__.return_value = client
+    client.__exit__.return_value = False
+    with patch('ms_agent.llm.model_discovery.httpx.Client', return_value=client):
+        for code in (404, 405):
+            client.get.return_value = MagicMock(status_code=code)
+            probe = probe_model_catalog(
+                'https://example.invalid/v1', 'openai', 'sk')
+            assert probe.outcome == 'no_catalog'
+            assert probe.status == code
+            assert probe.ids == []
+
+
 def test_probe_keeps_auth_status():
     from ms_agent.llm.model_discovery import probe_model_catalog
     resp = MagicMock(status_code=401)

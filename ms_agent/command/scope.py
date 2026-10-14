@@ -17,10 +17,10 @@ from ms_agent.command.usage import arg_error
 
 SCOPE_TOKENS = frozenset({'global', 'project'})
 
-# (scope, label) — labels match the Claude plugin install picker tone.
+# (scope, label). The TUI arrow menu shows these two rows.
 SCOPE_CHOICES: tuple[tuple[str, str], ...] = (
-    ('global', 'This machine (global)'),
-    ('project', 'This folder (project)'),
+    ('global', '这台机器'),
+    ('project', '这个文件夹'),
 )
 
 
@@ -86,12 +86,15 @@ async def pick_scope(
     header: str,
     choices: Sequence[tuple[str, str]] | None = None,
     note: str = 'Pass global or project — there is no default.',
+    reason: str = '',
+    silent_default: str | None = None,
 ) -> str | CommandResult:
     """Return a scope, or a CommandResult (Need: / Cancelled).
 
-    One remaining choice is taken without asking. Tests may inject
-    ``extra['choose_scope']`` (sync or async callable) returning an index,
-    a scope id, or a label.
+    One remaining choice is taken without asking. A live TUI uses the same
+    arrow menu as permissions (``select_async``). ``silent_default`` is used
+    only when nobody is there to answer, so a script still writes the new
+    skill onto this machine. Tests may inject ``extra['choose_scope']``.
     """
     rows = list(choices) if choices is not None else list(SCOPE_CHOICES)
     if len(rows) == 1:
@@ -103,6 +106,7 @@ async def pick_scope(
     picked = await _invoke_test_picker(ctx, labels, header)
     if picked is None and can_pick_interactively(ctx):
         from ms_agent.tui.select import select_async
+        # First row is 这台机器, so Enter keeps a new skill on this machine.
         picked = await select_async(labels, header=header)
         if picked is None:
             return CommandResult(
@@ -111,7 +115,9 @@ async def pick_scope(
     scope = _coerce_pick(picked, rows)
     if scope is not None:
         return scope
-    return arg_error(syntax, note=note, ctx=ctx)
+    if silent_default in ('global', 'project'):
+        return silent_default
+    return arg_error(syntax, reason=reason, note=note, ctx=ctx)
 
 
 async def _invoke_test_picker(

@@ -126,7 +126,13 @@ def _unknown_provider_prefix(arg: str) -> str | None:
         return None
     head, rest = text.split('/', 1)
     head, rest = head.strip(), rest.strip()
-    if not head or not rest or head != head.lower():
+    if not head or not rest or any(ch.isspace() for ch in head):
+        return None
+    # A capitalized head is a model id when it case-folds to a real provider
+    # (MiniMax → minimax). A capitalized typo (Dashcope) does not.
+    if head != head.lower():
+        if _canonical_provider(head) is None:
+            return head
         return None
     if _canonical_provider(head):
         return None
@@ -373,11 +379,10 @@ def _runtime_api_key(config, pid: str) -> str:
     from ms_agent.llm.credentials import CredentialResolver
     from ms_agent.llm.spec import get_registry
     spec = get_registry().get(pid)
-    llm = getattr(config, 'llm', None)
-    if spec is None or llm is None:
+    if spec is None or getattr(config, 'llm', None) is None:
         return ''
     try:
-        return str(CredentialResolver.resolve_api_key(spec, llm) or '').strip()
+        return str(CredentialResolver.resolve_api_key(spec, config) or '').strip()
     except Exception:
         return ''
 
@@ -486,28 +491,6 @@ def _install_rebuilt_llm(target, rebuilt) -> bool:
         return False
 
 
-def _rebuild_llm(ctx: CommandContext) -> bool:
-    if not ctx.runtime or not ctx.runtime.llm:
-        return False
-    from ms_agent.llm import LLM
-    target = ctx.runtime.llm
-    config = target.config
-    try:
-        rebuilt = LLM.from_config(config)
-    except Exception:  # noqa: BLE001 - missing key / bad endpoint
-        rebuilt = None
-    if rebuilt is None:
-        return False
-    if _install_rebuilt_llm(target, rebuilt):
-        return True
-    ctx.runtime.llm = rebuilt
-    extra = ctx.extra or {}
-    agent = extra.get('agent')
-    if agent is not None:
-        agent.llm = rebuilt
-    return True
-
-
 def _push_provider_to_runtime(ctx: CommandContext, provider_id: str) -> str:
     if not ctx.runtime or not ctx.runtime.llm:
         return ''
@@ -520,7 +503,7 @@ def _push_provider_to_runtime(ctx: CommandContext, provider_id: str) -> str:
             f' Switch with /model {provider_id} <model> to use this '
             'provider live.')
     TuiApp._apply_provider_credentials(config, overwrite=True)
-    return ' 下一条消息生效。'
+    return ''
 
 
 def _split_kv(tokens: list[str]) -> tuple[list[str], dict[str, str]]:
@@ -609,14 +592,36 @@ def _secret_model_error(ctx: CommandContext) -> CommandResult:
 
 
 _NO_CATALOG = '已保存。这个地址没有返回模型列表，下一次对话才会确认模型名。'
+_UNREACHABLE = '这个地址现在连不上，密钥还没向供应商确认。'
 
 
-def _probe_saved_provider(pid: str):
-    """Catalog probe for the provider as currently saved. None without key+url."""
+def _runtime_base_url(config, pid: str) -> str:
+    """URL already on the live agent config, when settings and env have none."""
+    llm = getattr(config, 'llm', None)
+    if llm is None:
+        return ''
+    for attr in ('base_url', f'{pid}_base_url'):
+        value = str(getattr(llm, attr, '') or '').strip()
+        if value:
+            return value
+    return ''
+
+
+def _probe_saved_provider(pid: str, config=None):
+    """Catalog probe for the provider as currently saved. None without key+url.
+
+    A key or URL that exists only on the running agent still counts, so a
+    fake model name is not saved with a plain success line.
+    """
     from ms_agent.llm.model_discovery import probe_model_catalog
     override = _mgr().list_custom_providers().get(pid) or {}
     key = _effective_api_key(pid, override)
     url = _effective_base_url(pid, override)
+    if config is not None:
+        if not key:
+            key = _runtime_api_key(config, pid)
+        if not url:
+            url = _runtime_base_url(config, pid)
     if not key or not url:
         return None
     proto = _effective_protocol(pid, {}, override)
@@ -673,18 +678,21 @@ def _probe_reject_text(pid: str, outcome: str, fields: set[str],
 
 def _gate_provider_write(pid: str, before: dict,
                          fields: set[str]) -> tuple[str | None, str]:
-    """Probe after a key or URL write.
+    """Probe after a new key is written. A URL-only write makes no request.
 
     Returns ``(reject_text, saved_note)``. ``reject_text`` is set only when
-    the write was rolled back. ``saved_note`` is the no-catalog sentence.
+    the write was rolled back. 401/403 rolls back. A connection failure keeps
+    the write and returns the unreachable note.
     """
-    if not fields:
+    if not fields or 'api_key' not in fields:
         return None, ''
     probe = _probe_saved_provider(pid)
     if probe is None or probe.outcome == 'ok':
         return None, ''
     if probe.outcome == 'no_catalog':
         return None, _NO_CATALOG
+    if probe.outcome == 'unreachable':
+        return None, _UNREACHABLE
     _restore_provider_fields(pid, before, fields)
     return _probe_reject_text(pid, probe.outcome, fields, before), ''
 
@@ -756,7 +764,7 @@ def _cmd_model_switch(ctx: CommandContext, arg: str) -> CommandResult:
         )
 
     from ms_agent.llm.model_discovery import nearby_model_ids
-    probe = _probe_saved_provider(pid)
+    probe = _probe_saved_provider(pid, config)
     if probe is not None and probe.outcome in ('auth', 'unreachable'):
         _revert_switch()
         return CommandResult(
@@ -1036,24 +1044,37 @@ def _cmd_model_catalog(ctx: CommandContext,
 
 
 def _mask_config_secrets(node) -> None:
-    """Blank secret-shaped keys and entire ``headers`` / ``env`` bags.
+    """Blank secret-shaped keys, and secret values inside ``headers`` / ``env``.
 
-    Same vocabulary as convert upload (``is_secret_key``), so ``/config``
-    masks search keys and MCP header tokens the way it already masks
-    ``llm`` API keys.
+    Non-secrets in those bags stay visible (``Content-Type``, ``PATH``).
+    A secret embedded in an ordinary string, such as ``sk-…`` in a URL, is
+    replaced in place and the rest of the value stays. Upload scrubbing still
+    blanks the whole bag; this is display only.
     """
+    from ms_agent.agent_hub._secrets import redact_text
     from ms_agent.agent_hub._workspace import SECRET_BAG_KEYS, is_secret_key
+    from ms_agent.command.usage import contains_secret
 
     if isinstance(node, dict):
         for key, val in list(node.items()):
             if key in SECRET_BAG_KEYS and isinstance(val, dict):
-                node[key] = {
-                    inner: '***' if inner_val not in (None, '') else inner_val
-                    for inner, inner_val in val.items()
-                }
+                masked = {}
+                for inner, inner_val in val.items():
+                    if inner_val in (None, ''):
+                        masked[inner] = inner_val
+                    elif is_secret_key(str(inner)) or contains_secret(
+                            str(inner_val)):
+                        masked[inner] = '***'
+                    else:
+                        masked[inner] = inner_val
+                node[key] = masked
             elif is_secret_key(str(key)) and not isinstance(val, (dict, list)):
                 if val not in (None, ''):
                     node[key] = '***'
+            elif isinstance(val, str) and val:
+                cleaned, hits = redact_text(val)
+                if hits:
+                    node[key] = cleaned
             else:
                 _mask_config_secrets(val)
     elif isinstance(node, list):

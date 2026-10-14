@@ -714,6 +714,40 @@ class TestModel:
             assert 'dashcope' not in settings.read_text()
 
     @pytest.mark.asyncio
+    async def test_capitalized_provider_typo_is_rejected(self, tmp_path):
+        runtime = MockRuntime()
+        result = await make_router().dispatch(
+            make_ctx('/model Dashcope/qwen-max', runtime=runtime))
+        assert 'No provider named Dashcope' in result.content
+        assert runtime.llm.config.llm.model == 'qwen3.7-plus'
+        settings = tmp_path / 'ms_home' / 'settings.json'
+        if settings.exists():
+            assert 'Dashcope' not in settings.read_text()
+
+    @pytest.mark.asyncio
+    async def test_runtime_only_key_still_checks_the_catalog(self, monkeypatch):
+        monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+        _catalog_ok(monkeypatch, ['gpt-4o'])
+        runtime = MockRuntime()
+        result = await make_router().dispatch(
+            make_ctx('/model not-a-real-model', runtime=runtime))
+        assert '列表里没有 not-a-real-model' in result.content
+        assert runtime.llm.config.llm.model == 'qwen3.7-plus'
+
+    @pytest.mark.asyncio
+    async def test_runtime_only_key_notes_a_missing_catalog(self, monkeypatch):
+        from ms_agent.llm.model_discovery import CatalogProbe
+        monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+        monkeypatch.setattr(
+            'ms_agent.llm.model_discovery.probe_model_catalog',
+            lambda *_a, **_k: CatalogProbe('no_catalog', 404, []))
+        runtime = MockRuntime()
+        result = await make_router().dispatch(
+            make_ctx('/model some-model', runtime=runtime))
+        assert '没有返回模型列表' in result.content
+        assert 'Switched to' in result.content
+
+    @pytest.mark.asyncio
     async def test_catalog_add_rejects_secret_shaped_model(self, tmp_path):
         runtime = MockRuntime()
         secret = 'sk-THIS-IS-MY-SECRET'
@@ -784,6 +818,10 @@ class TestConfig:
                 'service': 'openai',
                 'model': 'gpt-4o',
                 'openai_api_key': 'sk-real-key-value',
+                'base_url':
+                'https://user:sk-THIS-IS-A-REAL-KEY-99@gateway.example/v1',
+                'openai_base_url':
+                'https://sk-THIS-IS-A-REAL-KEY-99@gateway.example/v1',
             },
             'tools': {
                 'web_search': {
@@ -795,6 +833,11 @@ class TestConfig:
                     'url': 'https://example.invalid/mcp',
                     'headers': {
                         'Authorization': 'Bearer THIS-IS-MY-TOKEN',
+                        'Content-Type': 'application/json',
+                        'X-Custom': 'keep-me',
+                    },
+                    'env': {
+                        'PATH': '/usr/bin',
                     },
                 },
             },
@@ -808,6 +851,14 @@ class TestConfig:
         assert 'sk-real-key-value' not in result.content
         assert 'tavily_api_key' in result.content
         assert 'Authorization' in result.content
+        assert 'application/json' in result.content
+        assert 'keep-me' in result.content
+        assert '/usr/bin' in result.content
+        assert 'sk-THIS-IS-A-REAL-KEY-99' not in result.content
+        assert 'gateway.example/v1' in result.content
+        assert 'https://user:[REDACTED:api_key]@gateway.example/v1' in (
+            result.content)
+        assert 'https://[REDACTED:api_key]@gateway.example/v1' in result.content
 
 
 class TestQuit:
@@ -1003,6 +1054,124 @@ class TestModelProbe:
         assert '可复制' in result.content
         data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
         assert data['providers']['acme']['api_key'] == 'sk-test'
+
+    @pytest.mark.asyncio
+    async def test_url_change_does_not_send_the_saved_key(
+            self, tmp_path, monkeypatch):
+        from ms_agent.llm.model_discovery import CatalogProbe
+        calls = []
+
+        def spy(url, protocol, api_key):
+            calls.append((url, protocol, api_key))
+            return CatalogProbe('ok', 200, ['m'])
+
+        monkeypatch.setattr(
+            'ms_agent.llm.model_discovery.probe_model_catalog', spy)
+        _keyed('acme')
+        calls.clear()
+        result = await make_router().dispatch(
+            make_ctx(
+                '/model provider url acme https://other.example/v1',
+                runtime=MockRuntime()))
+        assert calls == []
+        assert 'Saved base URL for acme.' in result.content
+        data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
+        assert data['providers']['acme']['base_url'] == (
+            'https://other.example/v1')
+        assert data['providers']['acme']['api_key'] == 'sk-test'
+
+    @pytest.mark.asyncio
+    async def test_set_url_only_does_not_probe(self, tmp_path, monkeypatch):
+        from ms_agent.llm.model_discovery import CatalogProbe
+        calls = []
+
+        def spy(url, protocol, api_key):
+            calls.append(api_key)
+            return CatalogProbe('ok', 200, ['m'])
+
+        monkeypatch.setattr(
+            'ms_agent.llm.model_discovery.probe_model_catalog', spy)
+        _keyed('acme')
+        calls.clear()
+        await make_router().dispatch(
+            make_ctx(
+                '/model provider set acme url=https://set.example/v1',
+                runtime=MockRuntime()))
+        assert calls == []
+        data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
+        assert data['providers']['acme']['base_url'] == 'https://set.example/v1'
+        assert data['providers']['acme']['api_key'] == 'sk-test'
+
+    @pytest.mark.asyncio
+    async def test_new_key_is_sent_only_to_the_saved_url(
+            self, monkeypatch):
+        from ms_agent.llm.model_discovery import CatalogProbe
+        calls = []
+
+        def spy(url, protocol, api_key):
+            calls.append((url, api_key))
+            return CatalogProbe('ok', 200, ['m'])
+
+        monkeypatch.setattr(
+            'ms_agent.llm.model_discovery.probe_model_catalog', spy)
+        _keyed('acme')
+        calls.clear()
+        await make_router().dispatch(
+            make_ctx(
+                '/model provider key acme sk-new-key', runtime=MockRuntime()))
+        assert calls == [('https://example.invalid/v1', 'sk-new-key')]
+
+    @pytest.mark.asyncio
+    async def test_unreachable_keeps_the_new_key(self, tmp_path, monkeypatch):
+        from ms_agent.llm.model_discovery import CatalogProbe
+        monkeypatch.setattr(
+            'ms_agent.llm.model_discovery.probe_model_catalog',
+            lambda *_a, **_k: CatalogProbe('unreachable', None, []))
+        _keyed('acme')
+        result = await make_router().dispatch(
+            make_ctx(
+                '/model provider key acme sk-offline', runtime=MockRuntime()))
+        assert 'Saved API key for acme.' in result.content
+        assert '这个地址现在连不上，密钥还没向供应商确认。' in result.content
+        assert '没有保存' not in result.content
+        assert '没有换成它' not in result.content
+        data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
+        assert data['providers']['acme']['api_key'] == 'sk-offline'
+
+    @pytest.mark.asyncio
+    async def test_unreachable_keeps_a_key_and_url_written_together(
+            self, tmp_path, monkeypatch):
+        from ms_agent.llm.model_discovery import CatalogProbe
+        calls = []
+
+        def spy(url, protocol, api_key):
+            calls.append((url, api_key))
+            return CatalogProbe('unreachable', None, [])
+
+        monkeypatch.setattr(
+            'ms_agent.llm.model_discovery.probe_model_catalog', spy)
+        result = await make_router().dispatch(
+            make_ctx(
+                '/model provider add gate '
+                'key=sk-together url=https://gate.example/v1',
+                runtime=MockRuntime()))
+        assert calls == [('https://gate.example/v1', 'sk-together')]
+        assert '这个地址现在连不上，密钥还没向供应商确认。' in result.content
+        data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
+        assert data['providers']['gate']['api_key'] == 'sk-together'
+        assert data['providers']['gate']['base_url'] == 'https://gate.example/v1'
+
+    @pytest.mark.asyncio
+    async def test_clear_key_does_not_claim_it_applied(self, tmp_path):
+        _keyed('acme')
+        result = await make_router().dispatch(
+            make_ctx(
+                '/model provider key acme clear', runtime=MockRuntime()))
+        assert result.content.startswith('Cleared API key for acme.')
+        assert '已生效' not in result.content
+        assert 'Live credentials' not in result.content
+        data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
+        assert 'api_key' not in data['providers']['acme']
 
     @pytest.mark.asyncio
     async def test_missing_id_does_not_change_the_default(self, monkeypatch):
