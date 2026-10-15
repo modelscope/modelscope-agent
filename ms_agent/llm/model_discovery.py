@@ -82,6 +82,22 @@ _CHAT_UNSUPPORTED_MARKERS = (
     'image generation model',
 )
 
+#: Shown when this address rejects the model id. A typo and a non-chat id
+#: look the same here, so this is not the "cannot chat" sentence.
+MODEL_ID_REJECTED = '这个模型名在当前地址上不可用。请换一个对话模型。'
+
+_MODEL_ID_REJECTED_MARKERS = (
+    'invalid model id',
+    'model_not_supported',
+)
+
+# "Model does not exist" and "The model `x` does not exist", not a bare
+# "does not exist".
+_MODEL_GONE_RE = re.compile(
+    r'model\b.{0,60}does not exist',
+    re.IGNORECASE | re.DOTALL,
+)
+
 
 @dataclass
 class CatalogProbe:
@@ -163,6 +179,17 @@ def chat_failed_because_unsupported(model_id: str, error: str = '') -> bool:
         return True
     low = (error or '').lower()
     return any(marker in low for marker in _CHAT_UNSUPPORTED_MARKERS)
+
+
+def model_id_rejected(error: str = '') -> bool:
+    """Whether this address refused the model id.
+
+    ``401`` / ``403`` stay out: those are credentials, not the model name.
+    """
+    low = (error or '').lower()
+    if any(marker in low for marker in _MODEL_ID_REJECTED_MARKERS):
+        return True
+    return bool(_MODEL_GONE_RE.search(error or ''))
 
 
 def format_id_list(ids: Iterable[str], *, limit: int = 40) -> str:

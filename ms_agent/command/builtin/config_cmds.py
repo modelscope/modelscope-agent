@@ -455,18 +455,14 @@ def _provider_status_lines(mgr, *, live: bool = False,
         url = override.get('base_url') or '(default)'
         proto = _effective_protocol(pid, provider, override)
         if live:
-            live_ids, dropped, skip = _live_fetch_note(pid, override, provider)
+            live_ids, _dropped, skip = _live_fetch_note(pid, override, provider)
             lines.append(f'  {pid} ({kind}):')
             lines.append(
                 f'    catalog: {format_id_list(catalog) if catalog else "(none listed)"}')
             if skip:
                 lines.append(f'    {skip}')
             else:
-                drop_note = ''
-                if dropped:
-                    drop_note = (
-                        f'  (dropped {dropped} image/video/embedding)')
-                lines.append(f'    live: {len(live_ids)} chat{drop_note}')
+                lines.append(f'    live: {len(live_ids)} chat')
                 lines.extend(format_live_model_lines(live_ids, indent='      '))
             lines.append(f'    protocol={proto}  key={key}  url={url}')
         else:

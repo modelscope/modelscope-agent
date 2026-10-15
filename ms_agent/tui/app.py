@@ -844,11 +844,16 @@ class TuiApp:
                 # the sealed failed turn instead of resending it.
                 from ms_agent.llm.model_discovery import (
                     CHAT_UNSUPPORTED,
+                    MODEL_ID_REJECTED,
                     chat_failed_because_unsupported,
+                    model_id_rejected,
                 )
                 model = self.state.model or ''
-                if chat_failed_because_unsupported(model, str(e)):
+                err = str(e)
+                if chat_failed_because_unsupported(model, err):
                     self.console.print(CHAT_UNSUPPORTED)
+                if model_id_rejected(err):
+                    self.console.print(MODEL_ID_REJECTED)
                 self.console.print(
                     '[dim](turn failed — session still open, '
                     '/model to switch, /quit to exit)[/]')

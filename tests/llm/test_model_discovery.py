@@ -175,6 +175,54 @@ def test_probe_timeout_is_unreachable():
     assert probe.status is None
 
 
+def test_chat_unsupported_stays_on_modality_phrases():
+    from ms_agent.llm.model_discovery import chat_failed_because_unsupported
+    missed = (
+        'gemini-2.5-flash-image-preview',
+        'lumina-image-2.0',
+        'ideogram-v3',
+        'midjourney-v7',
+        'recraft-v3',
+        'playground-v2.5-1024px-aesthetic',
+        'hidream-i1-full',
+        'seedream-4.0',
+        'nano-banana',
+        'veo3',
+        'luma-dream-machine',
+        'runway-gen4',
+        'pika-2.2',
+        'minimax-hailuo-02',
+        'z-image-turbo',
+        'unisound-u2',
+        'chattts',
+        'bge-m3',
+        'm3e-base',
+    )
+    for name in missed:
+        assert not chat_failed_because_unsupported(name, '')
+    invalid = "Error code: 400 - {'error':{'message':'Invalid model id'}}"
+    assert not chat_failed_because_unsupported('z-image-turbo', invalid)
+    assert not chat_failed_because_unsupported('qwen-vl-max', invalid)
+    assert not chat_failed_because_unsupported('qwen-plus', '401 Unauthorized')
+    assert chat_failed_because_unsupported(
+        'qwen-plus', 'This endpoint only supports embeddings')
+    assert chat_failed_because_unsupported('wanx-v1', '')
+
+
+def test_rejected_model_id_is_separate_from_cannot_chat():
+    from ms_agent.llm.model_discovery import model_id_rejected
+    assert model_id_rejected(
+        "Error code: 400 - {'error':{'message':'Invalid model id'}}")
+    assert model_id_rejected('Error code: 400 - Model does not exist')
+    assert model_id_rejected('Error code: 404 - The model `x` does not exist')
+    assert model_id_rejected('model_not_supported')
+    assert not model_id_rejected('401 Unauthorized')
+    assert not model_id_rejected('403 Forbidden')
+    assert not model_id_rejected('does not exist')
+    assert not model_id_rejected('This endpoint only supports embeddings')
+    assert not model_id_rejected('')
+
+
 def test_fetch_model_ids_non_2xx():
     resp = MagicMock(status_code=401)
     client = MagicMock()

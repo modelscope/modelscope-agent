@@ -540,7 +540,7 @@ class TestModel:
         assert '      qwen-vl-max' in result.content
         assert 'wanx-v1' not in result.content
         assert 'text-embedding-v3' not in result.content
-        assert 'dropped 2' in result.content
+        assert 'dropped' not in result.content
         data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())
         assert data['providers']['acme']['models'] == ['catalog-only']
 
