@@ -48,27 +48,65 @@ def _install_llm(agent, rebuilt) -> None:
         agent.runtime.llm = rebuilt
 
 
+def _drop_live_llm(agent) -> None:
+    """Remove the client that was built with a key the config no longer has.
+
+    The agent stays. Slash commands still read ``config`` off the placeholder.
+    Memory tools must not keep the old client either.
+    """
+    from types import SimpleNamespace
+    model = str(OmegaConf.select(agent.config, 'llm.model', default='') or '')
+    stub = SimpleNamespace(config=agent.config, model=model, _setup_stub=True)
+    agent.llm = stub
+    runtime = getattr(agent, 'runtime', None)
+    if runtime is not None:
+        runtime.llm = stub
+    for orch in list(getattr(agent, 'memory_tools', None) or []):
+        set_llm = getattr(orch, 'set_llm', None)
+        if set_llm is None:
+            continue
+        try:
+            set_llm(None)
+        except Exception:
+            logger.debug('live llm release skipped', exc_info=True)
+
+
+def _point_memory_at_llm(agent) -> None:
+    for orch in list(getattr(agent, 'memory_tools', None) or []):
+        set_llm = getattr(orch, 'set_llm', None)
+        if set_llm is not None and agent.llm is not None:
+            set_llm(agent.llm)
+
+
 async def _sync_llm(agent) -> None:
     from ms_agent.llm import LLM
+    from ms_agent.llm.credentials import client_rejected_missing_key
     from ms_agent.llm.runtime_token import llm_runtime_token
-    if agent.llm is None or getattr(agent.llm, '_setup_stub', False):
+    if agent.llm is None:
         return
     token = llm_runtime_token(agent.config)
     if getattr(agent, '_llm_fp', None) == token:
         return
+    # A placeholder with no fingerprint is startup. The setup prompt owns it.
+    # A placeholder that already has a fingerprint was installed because the
+    # key was cleared; a later edit must be allowed to build a client again.
+    if (getattr(agent.llm, '_setup_stub', False)
+            and getattr(agent, '_llm_fp', None) is None):
+        return
     try:
         rebuilt = LLM.from_config(agent.config)
-    except Exception:
+    except Exception as exc:
+        if client_rejected_missing_key(exc):
+            _drop_live_llm(agent)
+            agent._llm_fp = token
+            return
         logger.debug('live llm rebuild skipped', exc_info=True)
         return
     if rebuilt is None:
         return
     _install_llm(agent, rebuilt)
     agent._llm_fp = token
-    for orch in list(getattr(agent, 'memory_tools', None) or []):
-        set_llm = getattr(orch, 'set_llm', None)
-        if set_llm is not None and agent.llm is not None:
-            set_llm(agent.llm)
+    _point_memory_at_llm(agent)
 
 
 def _emit_once(agent, key: str, text: str) -> None:

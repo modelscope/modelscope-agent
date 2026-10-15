@@ -742,8 +742,9 @@ class TuiApp:
                 return None
             try:
                 rebuilt = LLM.from_config(self.agent.config)
-            except ValueError as exc:
-                if self._is_missing_api_key(exc):
+            except Exception as exc:
+                from ms_agent.llm.credentials import client_rejected_missing_key
+                if client_rejected_missing_key(exc):
                     self.console.print(
                         Panel(
                             self._credential_setup_text(exc),

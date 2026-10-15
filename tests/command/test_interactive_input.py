@@ -319,3 +319,85 @@ class TestEnsureLlmReady:
         agent.prepare_llm = boom
         with pytest.raises(ValueError, match='No API key found'):
             await agent._ensure_llm_ready('hi')
+
+    @pytest.mark.asyncio
+    async def test_cleared_key_keeps_the_next_line_not_the_one_that_arrived(self):
+        # Same wait as a session that never had a key: the line that found
+        # no client is dropped, the setup notice is emitted, and the next
+        # submitted line is what will be sent.
+        from types import SimpleNamespace
+        from ms_agent.llm.utils import Message
+        agent = self._agent()
+        notices = []
+        agent._emit_credential_setup = lambda exc: notices.append(str(exc))
+        attempts = {'n': 0}
+
+        def maybe():
+            attempts['n'] += 1
+            if attempts['n'] < 2:
+                raise ValueError(
+                    'No API key found for provider "modelscope"')
+            agent.llm = SimpleNamespace(config=agent.config, model='m')
+
+        agent.prepare_llm = maybe
+        bound = {}
+
+        class _Mem:
+            def set_llm(self, llm):
+                bound['llm'] = llm
+
+        agent.memory_tools = [_Mem()]
+        messages = [
+            Message(role='assistant', content='earlier'),
+            Message(role='user', content='hi'),
+        ]
+        with patch('builtins.input', return_value='ping'):
+            await agent._hold_turn_until_llm_ready(messages, 1)
+        assert [m.content for m in messages] == ['earlier', 'ping']
+        assert notices and 'No API key found' in notices[0]
+        assert agent.runtime.should_stop is False
+        assert bound['llm'] is agent.llm
+        assert not getattr(agent.llm, '_setup_stub', False)
+
+    @pytest.mark.asyncio
+    async def test_cleared_key_quit_drops_the_unsent_line(self):
+        from ms_agent.llm.utils import Message
+        agent = self._agent()
+
+        def boom():
+            raise ValueError('No API key found for provider "modelscope"')
+
+        agent.prepare_llm = boom
+        messages = [
+            Message(role='assistant', content='earlier'),
+            Message(role='user', content='hi'),
+        ]
+        with patch('builtins.input', return_value='/quit'):
+            await agent._hold_turn_until_llm_ready(messages, 1)
+        assert [m.content for m in messages] == ['earlier']
+        assert agent.runtime.should_stop is True
+
+    @pytest.mark.asyncio
+    async def test_hold_sends_the_arrived_line_when_a_client_builds(self):
+        from types import SimpleNamespace
+        from ms_agent.llm.utils import Message
+        agent = self._agent()
+        original = Message(role='user', content='hi')
+        messages = [Message(role='assistant', content='earlier'), original]
+
+        def ok():
+            agent.llm = SimpleNamespace(config=agent.config, model='m')
+
+        agent.prepare_llm = ok
+        await agent._hold_turn_until_llm_ready(messages, 1)
+        assert messages[-1] is original
+
+    @pytest.mark.asyncio
+    async def test_hold_leaves_a_live_turn_alone(self):
+        from types import SimpleNamespace
+        from ms_agent.llm.utils import Message
+        agent = self._agent()
+        agent.llm = SimpleNamespace(model='m')
+        messages = [Message(role='user', content='hi')]
+        await agent._hold_turn_until_llm_ready(messages, 0)
+        assert messages[0].content == 'hi'

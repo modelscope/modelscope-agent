@@ -35,6 +35,30 @@ def is_missing_api_key_error(exc: BaseException) -> bool:
     return isinstance(exc, ValueError) and 'No API key found' in str(exc)
 
 
+def client_rejected_missing_key(exc: BaseException) -> bool:
+    """True when a client cannot be built because no key is configured.
+
+    The provider router raises ``ValueError``. The legacy ModelScope and
+    OpenAI constructors reach ``openai.OpenAI`` with an empty key, which
+    raises ``OpenAIError`` instead.
+    """
+    if is_missing_api_key_error(exc):
+        return True
+    return type(exc).__name__ == 'OpenAIError' and 'api_key' in str(exc).lower()
+
+
+def missing_api_key_error(config) -> ValueError:
+    """The error a turn raises when the live client was dropped for no key."""
+    from omegaconf import OmegaConf
+    service = str(OmegaConf.select(config, 'llm.service', default='') or '')
+    if not service:
+        return ValueError(
+            'No API key found for provider. Set config.llm.api_key.')
+    return ValueError(
+        f'No API key found for provider "{service}". '
+        f'Set config.llm.{service}_api_key.')
+
+
 def missing_api_key_setup_text(exc: BaseException) -> str:
     return (
         f'{exc}\n\n'

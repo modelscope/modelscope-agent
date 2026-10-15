@@ -70,6 +70,144 @@ async def test_unchanged_token_does_not_rebuild():
     rebuild.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_startup_stub_is_left_alone():
+    config = OmegaConf.create({
+        'llm': {
+            'service': 'modelscope',
+            'model': 'Qwen/Qwen3.8-Flash-Next',
+        },
+    })
+    live = SimpleNamespace(config=config, model='Qwen/Qwen3.8-Flash-Next',
+                           _setup_stub=True)
+    agent = SimpleNamespace(
+        config=config,
+        llm=live,
+        runtime=SimpleNamespace(llm=live),
+        memory_tools=[],
+        _skill_runtime=None,
+        mcp_runtime=None,
+        _llm_fp=None,
+    )
+    with patch('ms_agent.llm.LLM.from_config') as rebuild:
+        await apply_live_config(agent, None)
+    rebuild.assert_not_called()
+    assert agent.llm is live
+
+
+@pytest.mark.asyncio
+async def test_cleared_key_drops_the_live_client_and_a_new_key_rebuilds(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv('MS_AGENT_HOME', str(tmp_path))
+    config = OmegaConf.create({
+        'llm': {
+            'service': 'modelscope',
+            'model': 'Qwen/Qwen3.8-Flash-Next',
+            'modelscope_api_key': 'sk-SENTINEL-OLD',
+            'api_key': 'sk-SENTINEL-OLD',
+        },
+    })
+    live = SimpleNamespace(
+        config=config,
+        model='Qwen/Qwen3.8-Flash-Next',
+        client=SimpleNamespace(api_key='sk-SENTINEL-OLD'),
+        _setup_stub=False,
+    )
+    memory = SimpleNamespace(llm=live, set_llm=lambda llm: setattr(
+        memory, 'seen', llm))
+    agent = SimpleNamespace(
+        config=config,
+        llm=live,
+        runtime=SimpleNamespace(llm=live),
+        memory_tools=[memory],
+        _skill_runtime=None,
+        mcp_runtime=None,
+        _llm_fp='stale',
+    )
+
+    class _KeyError(Exception):
+        pass
+
+    _KeyError.__name__ = 'OpenAIError'
+
+    class Rebuilt:
+        def __init__(self):
+            self.model = 'Qwen/Qwen3.8-Flash-Next'
+            self.config = config
+            self.client = SimpleNamespace(api_key='sk-SENTINEL-NEW')
+            self._setup_stub = False
+
+    with patch('ms_agent.llm.LLM.from_config',
+               side_effect=_KeyError(
+                   'The api_key client option must be set')):
+        await apply_live_config(agent, None)
+    assert agent.llm is not live
+    assert agent.llm._setup_stub is True
+    assert agent.runtime.llm is agent.llm
+    assert agent.llm.config is config
+    assert not hasattr(agent.llm, 'client')
+    assert memory.seen is None
+
+    config.llm.modelscope_api_key = 'sk-SENTINEL-NEW'
+    config.llm.api_key = 'sk-SENTINEL-NEW'
+    with patch('ms_agent.llm.LLM.from_config', return_value=Rebuilt()):
+        await apply_live_config(agent, None)
+    assert agent.llm.client.api_key == 'sk-SENTINEL-NEW'
+    assert agent.runtime.llm.client.api_key == 'sk-SENTINEL-NEW'
+    assert memory.seen is agent.llm
+
+
+@pytest.mark.asyncio
+async def test_unrelated_rebuild_error_keeps_the_live_client(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv('MS_AGENT_HOME', str(tmp_path))
+    config = OmegaConf.create({
+        'llm': {
+            'service': 'modelscope',
+            'model': 'Qwen/Qwen3.8-Flash-Next',
+            'modelscope_api_key': 'sk-SENTINEL-OLD',
+        },
+    })
+    live = SimpleNamespace(
+        config=config,
+        client=SimpleNamespace(api_key='sk-SENTINEL-OLD'),
+        _setup_stub=False,
+    )
+    agent = SimpleNamespace(
+        config=config,
+        llm=live,
+        runtime=SimpleNamespace(llm=live),
+        memory_tools=[],
+        _skill_runtime=None,
+        mcp_runtime=None,
+        _llm_fp='stale',
+    )
+    with patch('ms_agent.llm.LLM.from_config',
+               side_effect=RuntimeError('catalog down')):
+        await apply_live_config(agent, None)
+    assert agent.llm is live
+    assert agent.llm.client.api_key == 'sk-SENTINEL-OLD'
+
+
+def test_missing_key_error_is_the_setup_sentence():
+    from ms_agent.llm.credentials import (
+        client_rejected_missing_key, is_missing_api_key_error,
+        missing_api_key_error)
+    config = OmegaConf.create({'llm': {'service': 'modelscope'}})
+    err = missing_api_key_error(config)
+    assert is_missing_api_key_error(err)
+    assert 'modelscope' in str(err)
+
+    class _KeyError(Exception):
+        pass
+
+    _KeyError.__name__ = 'OpenAIError'
+    assert client_rejected_missing_key(
+        _KeyError('The api_key client option must be set'))
+    assert not client_rejected_missing_key(RuntimeError('api_key'))
+    assert not client_rejected_missing_key(_KeyError('connection reset'))
+
+
 def _quiet_agent(tmp_path, **extra):
     config = OmegaConf.create({'output_dir': str(tmp_path)})
     agent = SimpleNamespace(

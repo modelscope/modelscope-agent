@@ -2467,19 +2467,32 @@ class LLMAgent(Agent):
         else:
             logger.warning(text)
 
+    def _bind_memory_llm(self) -> None:
+        """Point memory tools at the client that was just built."""
+        for orch in list(getattr(self, 'memory_tools', None) or []):
+            set_llm = getattr(orch, 'set_llm', None)
+            if set_llm is None or self.llm is None:
+                continue
+            try:
+                set_llm(self.llm)
+            except Exception:
+                logger.debug('memory llm rebind skipped', exc_info=True)
+
     async def _ensure_llm_ready(self, messages):
         """Build a real LLM after the first prompt, looping on missing keys."""
-        from ms_agent.llm.credentials import is_missing_api_key_error
+        from ms_agent.llm.credentials import client_rejected_missing_key
         if not getattr(self.llm, '_setup_stub', False) and self.llm is not None:
             return messages
+        self._credential_reprompted = False
         while True:
             try:
                 self.prepare_llm()
                 if self.runtime is not None:
                     self.runtime.llm = self.llm
+                self._bind_memory_llm()
                 return messages
-            except ValueError as e:
-                if not (self._interactive and is_missing_api_key_error(e)):
+            except Exception as e:
+                if not (self._interactive and client_rejected_missing_key(e)):
                     raise
                 self._stub_llm_for_setup()
                 if self.runtime is not None:
@@ -2500,6 +2513,48 @@ class LLMAgent(Agent):
                 if turn.text:
                     messages = turn.text
                     self._pending_attachments = turn.attachments
+                    self._credential_reprompted = True
+
+    async def _hold_turn_until_llm_ready(self, messages, step_end_len) -> None:
+        """A cleared key waits the same way a session that never had one does.
+
+        The line that arrived with no client is not sent and not logged.
+        The next line the user submits is, once a client can be built.
+        Slash commands keep working. Quit ends the session. The turn is
+        not failed, and the yellow setup panel is not used.
+        """
+        if not getattr(self.llm, '_setup_stub', False):
+            return
+        pending = None
+        query = ''
+        if (len(messages) > step_end_len
+                and getattr(messages[-1], 'role', None) == 'user'):
+            pending = messages[step_end_len:]
+            content = pending[-1].content
+            query = content if isinstance(content, str) else ''
+            self._pending_attachments = getattr(
+                pending[-1], 'attachments', None)
+            del messages[step_end_len:]
+        try:
+            ready = await self._ensure_llm_ready(query)
+        except Exception:
+            if pending is not None:
+                messages.extend(pending)
+            raise
+        if self.runtime.should_stop or ready is None:
+            self.runtime.should_stop = True
+            return
+        if pending is not None and not getattr(
+                self, '_credential_reprompted', False):
+            messages.extend(pending)
+            return
+        if isinstance(ready, str) and ready:
+            messages.append(
+                Message(
+                    role='user',
+                    content=ready,
+                    attachments=getattr(self, '_pending_attachments', None)
+                    or []))
 
     def prepare_runtime(self):
         """Initialize the runtime context."""
@@ -2766,11 +2821,11 @@ class LLMAgent(Agent):
             # prompt below and InputCallback registration just after.
             self._interactive = self._resolve_interactive(messages)
             self.register_callback_from_config()
-            from ms_agent.llm.credentials import is_missing_api_key_error
+            from ms_agent.llm.credentials import client_rejected_missing_key
             try:
                 self.prepare_llm()
-            except ValueError as e:
-                if not (self._interactive and is_missing_api_key_error(e)):
+            except Exception as e:
+                if not (self._interactive and client_rejected_missing_key(e)):
                     raise
                 self._stub_llm_for_setup()
                 self._emit_credential_setup(e)
@@ -2919,6 +2974,13 @@ class LLMAgent(Agent):
                     self.log_output('[' + message.role + ']:')
                     self.log_output(message.content)
             while not self.runtime.should_stop:
+                # A cleared key leaves a placeholder. Wait here, before
+                # step(), the same way a session that never had a key waits.
+                if getattr(self.llm, '_setup_stub', False):
+                    await self._hold_turn_until_llm_ready(
+                        messages, len(messages))
+                    if self.runtime.should_stop:
+                        break
                 # Rebuild context view from SessionLog (non-destructive
                 # compression). This is the canonical history for the round, so
                 # it must run before the per-round augmentations below.
@@ -3015,6 +3077,11 @@ class LLMAgent(Agent):
                 if (self._on_user_turn is not None
                         and len(messages) > step_end_len):
                     await self._on_user_turn(messages)
+                # Drop happened on this line. Hold before the line is logged,
+                # so a missing key matches a session that never had one.
+                await self._hold_turn_until_llm_ready(messages, step_end_len)
+                if self.runtime.should_stop:
+                    break
                 # New user turn (interactive multi-turn): attach the durable
                 # augmentations BEFORE the slice below persists them — same
                 # semantics as the round-0 attach. Order: state notice first
