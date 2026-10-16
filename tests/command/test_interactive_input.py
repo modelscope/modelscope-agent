@@ -321,6 +321,52 @@ class TestEnsureLlmReady:
             await agent._ensure_llm_ready('hi')
 
     @pytest.mark.asyncio
+    async def test_key_command_retries_the_sentence_that_asked(self):
+        from types import SimpleNamespace
+        agent = self._agent()
+        attempts = {'n': 0}
+
+        def maybe():
+            attempts['n'] += 1
+            if attempts['n'] < 2:
+                raise ValueError('No API key found for provider "modelscope"')
+            agent.llm = SimpleNamespace(config=agent.config, model='m')
+
+        agent.prepare_llm = maybe
+        agent._llm_credentials_present = lambda: True
+
+        def _input(prompt=''):
+            if attempts.get('reads', 0):
+                raise AssertionError('prompted for another line')
+            attempts['reads'] = 1
+            return '/help'
+
+        with patch('builtins.input', side_effect=_input):
+            result = await agent._ensure_llm_ready('hello')
+        assert result == 'hello'
+        assert attempts['n'] == 2
+
+    def test_setup_notice_is_printed_once_per_process(self):
+        import ms_agent.agent.llm_agent as mod
+        mod._credential_notice_sent = False
+        agent = self._agent()
+        seen = []
+
+        class _Sink:
+            def emit(self, event):
+                seen.append(event.text)
+
+        agent._event_sink = _Sink()
+        err = ValueError('No API key found for provider "modelscope"')
+        try:
+            agent._emit_credential_setup(err)
+            agent._emit_credential_setup(err)
+            assert len(seen) == 1
+            assert 'No API key found' in seen[0]
+        finally:
+            mod._credential_notice_sent = False
+
+    @pytest.mark.asyncio
     async def test_cleared_key_keeps_the_next_line_not_the_one_that_arrived(self):
         # Same wait as a session that never had a key: the line that found
         # no client is dropped, the setup notice is emitted, and the next

@@ -55,6 +55,7 @@ def _must_propagate(exc: BaseException) -> bool:
         return False
     return not isinstance(exc, Exception)
 
+
 MAX_TOOL_NAME_LEN = int(os.getenv('MAX_TOOL_NAME_LEN', 64))
 # Default wait around each tool invocation (seconds). Override via config.tool_call_timeout or TOOL_CALL_TIMEOUT.
 TOOL_CALL_TIMEOUT = int(os.getenv('TOOL_CALL_TIMEOUT', 120))
@@ -445,25 +446,44 @@ class ToolManager:
         """Map what the model asked for onto a registered tool.
 
         Some models reach for the server segment alone — ``code_executor``
-        instead of ``code_executor---shell_executor`` — and used to get an
-        AssertionError wrapped in a traceback, which says nothing about what
-        the name should have been. When the shorthand picks out exactly one
-        tool there is no ambiguity to resolve, so the call proceeds and the
-        result carries a note; otherwise it is reported as not found, with
-        candidates.
+        instead of ``code_executor---shell_executor`` — or for the tool
+        segment alone — ``skills_list`` instead of ``skills---skills_list``.
+        When that shorthand picks out exactly one registered name, the call
+        proceeds and the result carries a note. A fuzzy neighbour is not
+        renamed.
 
         Returns ``(resolved_name, note)``; ``resolved_name`` is ``None`` when
         nothing matched.
         """
         if tool_name in self._tool_index:
             return tool_name, ''
-        prefix = f'{tool_name}{self.TOOL_SPLITER}'
+        splitter = self.TOOL_SPLITER
+        prefix = f'{tool_name}{splitter}'
         matches = [key for key in self._tool_index if key.startswith(prefix)]
         if len(matches) == 1:
-            return matches[0], (
-                f'Note: "{tool_name}" was resolved to "{matches[0]}". '
-                'Use the exact tool name in subsequent calls.')
+            return matches[0], self._resolved_note(tool_name, matches[0])
+        # A unique prefix is the only shorthand that may have several tools
+        # under one server. A written name that is exactly one registered
+        # suffix (``skills_list`` → ``skills---skills_list``) is the same
+        # kind of correction. Anything else, including a fuzzy neighbour,
+        # stays an error.
+        if not matches:
+            # Same segment call_tool receives: everything after the first
+            # separator. A tool id may itself contain ``---``.
+            suffix_matches = [
+                key for key in self._tool_index
+                if splitter in key and self._registered_tool_suffix(
+                    key, splitter) == tool_name
+            ]
+            if len(suffix_matches) == 1:
+                return suffix_matches[0], self._resolved_note(
+                    tool_name, suffix_matches[0])
         return None, ''
+
+    @staticmethod
+    def _resolved_note(asked: str, resolved: str) -> str:
+        return (f'Note: "{asked}" was resolved to "{resolved}". '
+                'Use the exact tool name in subsequent calls.')
 
     def _unknown_tool_message(self, tool_name: str) -> str:
         """Say what to call instead, rather than how the lookup failed."""

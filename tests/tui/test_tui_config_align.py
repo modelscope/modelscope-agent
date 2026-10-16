@@ -336,34 +336,12 @@ def test_missing_api_key_is_classed_as_setup_not_fatal():
         missing_api_key_setup_text,
     )
     err = ValueError('No API key found for provider "modelscope"')
-    assert TuiApp._is_missing_api_key(err)
     assert is_missing_api_key_error(err)
-    assert not TuiApp._is_missing_api_key(ValueError('boom'))
+    assert not is_missing_api_key_error(ValueError('boom'))
     assert not is_missing_api_key_error(RuntimeError('No API key found'))
     text = missing_api_key_setup_text(err)
     assert '/model provider key' in text
     assert '/quit' in text
-
-
-@pytest.mark.asyncio
-async def test_setup_until_ready_quit_returns_none():
-    from ms_agent.command import CommandRouter, register_builtin_commands
-    from ms_agent.agent.runtime import Runtime
-
-    app = TuiApp.__new__(TuiApp)
-    cfg = OmegaConf.create({'llm': {'model': 'm', 'service': 'modelscope'}})
-    router = CommandRouter()
-    register_builtin_commands(router)
-    app.agent = SimpleNamespace(
-        config=cfg, llm=None, runtime=Runtime(llm=None))
-    app.router = router
-    app.input = None
-    app.renderer = None
-    app.console = Console(file=io.StringIO())
-
-    with patch('builtins.input', return_value='/quit'):
-        queued = await app._setup_until_ready()
-    assert queued is None
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,9 @@ _MISSING_ENABLE_SNAPSHOTS = object()
 # metadata (not this literal), so the placeholder never needs localization.
 INTERRUPTED_PLACEHOLDER = '[interrupted]'
 _INTERRUPTED_TOOL_RESULT = '[Interrupted: tool execution was cancelled]'
+# The missing-key paragraph is reached from startup and from the first
+# message. Print it once for the process.
+_credential_notice_sent = False
 
 
 def build_partial_round_records(
@@ -2464,12 +2467,26 @@ class LLMAgent(Agent):
             config=self.config, model=model, _setup_stub=True)
 
     def _emit_credential_setup(self, exc: BaseException) -> None:
+        # Startup and the first message both reach this. One process, one copy.
+        global _credential_notice_sent
+        if _credential_notice_sent:
+            return
+        _credential_notice_sent = True
         from ms_agent.llm.credentials import missing_api_key_setup_text
         text = missing_api_key_setup_text(exc)
         if self._event_sink is not None:
             self._event_sink.emit(Notice(level='warning', text=text))
         else:
             logger.warning(text)
+
+    def _llm_credentials_present(self) -> bool:
+        """True when a client can be built, so the waiting sentence can run."""
+        from ms_agent.llm.llm import LLM
+        try:
+            LLM.from_config(self.config)
+        except Exception:
+            return False
+        return True
 
     def _bind_memory_llm(self) -> None:
         """Point memory tools at the client that was just built."""
@@ -2510,7 +2527,9 @@ class LLMAgent(Agent):
                     input_source=self._input_source,
                     event_sink=self._event_sink)
                 turn = await session.run_turn(
-                    messages=None, runtime=self.runtime)
+                    messages=None,
+                    runtime=self.runtime,
+                    retry_when=self._llm_credentials_present)
                 if turn.action == 'quit':
                     self.runtime.should_stop = True
                     return None

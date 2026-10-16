@@ -89,6 +89,7 @@ MODEL_ID_REJECTED = '这个模型名在当前地址上不可用。请换一个�
 _MODEL_ID_REJECTED_MARKERS = (
     'invalid model id',
     'model_not_supported',
+    'has no provider supported',
 )
 
 # "Model does not exist" and "The model `x` does not exist", not a bare

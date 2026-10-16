@@ -216,6 +216,9 @@ def test_rejected_model_id_is_separate_from_cannot_chat():
     assert model_id_rejected('Error code: 400 - Model does not exist')
     assert model_id_rejected('Error code: 404 - The model `x` does not exist')
     assert model_id_rejected('model_not_supported')
+    assert model_id_rejected(
+        "Error code: 400 - {'error': {'message': "
+        "'Model id : Qwen/old , has no provider supported'}}")
     assert not model_id_rejected('401 Unauthorized')
     assert not model_id_rejected('403 Forbidden')
     assert not model_id_rejected('does not exist')

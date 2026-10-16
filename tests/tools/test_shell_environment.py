@@ -43,6 +43,35 @@ def test_shell_scope_skips_dependency_installation_and_kernel(tmp_path, monkeypa
     asyncio.run(run())
 
 
+def test_shell_call_ignores_unknown_description(tmp_path, monkeypatch):
+    monkeypatch.setattr(LocalCodeExecutionTool, '_check_dependencies',
+                        lambda self: {})
+    monkeypatch.setattr(
+        LocalKernelSession, 'start',
+        lambda self: pytest.fail('shell-only must not start a kernel'))
+    monkeypatch.setattr(LocalKernelSession, 'stop', lambda self: None)
+
+    async def run():
+        tool = LocalCodeExecutionTool(
+            config(tmp_path, include=['shell_executor']))
+        await tool.connect()
+        try:
+            raw = await tool.call_tool(
+                'code_executor',
+                tool_name='shell_executor',
+                tool_args={
+                    'command': 'echo shell-ready',
+                    'description': 'list the news',
+                })
+        finally:
+            await tool.cleanup()
+        assert 'unexpected keyword' not in raw
+        payload = json.loads(raw)
+        assert payload['success'] and 'shell-ready' in payload['output']
+
+    asyncio.run(run())
+
+
 def test_notebook_opt_in_retains_kernel_lifecycle(tmp_path, monkeypatch):
     events = []
     monkeypatch.setattr(LocalCodeExecutionTool, '_check_dependencies', lambda self: {})

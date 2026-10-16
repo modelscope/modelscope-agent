@@ -27,7 +27,6 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from types import SimpleNamespace
 from typing import Optional, Tuple
 
 from ms_agent.config import Config
@@ -701,69 +700,6 @@ class TuiApp:
         for h in lg.handlers:
             h.setLevel(logging.ERROR)
 
-    @staticmethod
-    def _is_missing_api_key(exc: BaseException) -> bool:
-        from ms_agent.llm.credentials import is_missing_api_key_error
-        return is_missing_api_key_error(exc)
-
-    @staticmethod
-    def _credential_setup_text(exc: BaseException) -> str:
-        from ms_agent.llm.credentials import missing_api_key_setup_text
-        return missing_api_key_setup_text(exc)
-
-    def _ensure_command_runtime(self) -> None:
-        """Let slash commands run after prepare_llm failed (no live LLM yet)."""
-        from ms_agent.agent.runtime import Runtime
-        cfg = self.agent.config
-        llm = getattr(self.agent, 'llm', None)
-        if llm is None:
-            llm = SimpleNamespace(
-                config=cfg,
-                model=str(
-                    OmegaConf.select(cfg, 'llm.model', default='') or ''),
-                _setup_stub=True,
-            )
-            self.agent.llm = llm
-        if getattr(self.agent, 'runtime', None) is None:
-            self.agent.runtime = Runtime(llm=llm)
-        elif getattr(self.agent.runtime, 'llm', None) is None:
-            self.agent.runtime.llm = llm
-
-    async def _setup_until_ready(self) -> Optional[str]:
-        """Prompt until credentials work or the user quits. Returns first chat."""
-        from ms_agent.command.interactive import InteractiveSession
-        from ms_agent.llm import LLM
-
-        self._ensure_command_runtime()
-        session = InteractiveSession(
-            self.router,
-            source='tui',
-            input_source=self.input,
-            event_sink=self.renderer,
-        )
-        while True:
-            turn = await session.run_turn(
-                messages=None, runtime=self.agent.runtime)
-            if turn.action == 'quit':
-                return None
-            try:
-                rebuilt = LLM.from_config(self.agent.config)
-            except Exception as exc:
-                from ms_agent.llm.credentials import client_rejected_missing_key
-                if client_rejected_missing_key(exc):
-                    self.console.print(
-                        Panel(
-                            self._credential_setup_text(exc),
-                            title='[yellow]still no API key[/]',
-                            border_style='yellow',
-                            expand=False))
-                    continue
-                raise
-            self.agent.llm = rebuilt
-            if self.agent.runtime is not None:
-                self.agent.runtime.llm = rebuilt
-            return turn.text or ''
-
     # -- main loop (route A: one lifecycle per session) --
 
     async def _serve(self) -> None:
@@ -829,20 +765,6 @@ class TuiApp:
                 # request to leave. cleanup_tools already swallows it on
                 # /quit; if it still surfaces mid-turn, stay in the session.
                 self.renderer.finalize()
-                if self._is_missing_api_key(e):
-                    logger.info('TUI waiting for API key: %s', e)
-                    self.console.print(
-                        Panel(
-                            self._credential_setup_text(e),
-                            title='[yellow]setup[/]',
-                            border_style='yellow',
-                            expand=False))
-                    queued = await self._setup_until_ready()
-                    if queued is None:
-                        break
-                    self._queued_query = queued
-                    resume = False
-                    continue
                 logger.warning('TUI turn error', exc_info=True)
                 # run_loop already emitted ErrorRaised; the renderer drew the
                 # panel. Reprinting it and then `break` looked like a crash

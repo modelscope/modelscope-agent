@@ -77,6 +77,8 @@ class InteractiveSession:
         self,
         messages: Optional[List[Any]] = None,
         runtime: Any = None,
+        *,
+        retry_when=None,
     ) -> InteractiveTurn:
         """Read input at ``>>>`` until a real prompt or a quit signal.
 
@@ -148,6 +150,15 @@ class InteractiveSession:
                 self._sync_model_label(runtime)
             if result.content:
                 self._emit(result.content)
+            # A key just saved can build a client. Hand the original sentence
+            # back instead of waiting for the user to type it again.
+            if retry_when is not None:
+                try:
+                    ready = bool(retry_when())
+                except Exception:  # noqa: BLE001 — a probe must not trap the prompt
+                    ready = False
+                if ready:
+                    return InteractiveTurn(action='submit', text='')
 
     def _sync_model_label(self, runtime) -> None:
         """Push the live model id into the TUI status bar, when one is attached."""
