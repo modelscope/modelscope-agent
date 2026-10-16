@@ -128,7 +128,27 @@ def _need_work(scope: str, work: str | None) -> CommandResult | None:
     return None
 
 
-def _mcp_list_text(mgr, scope: str) -> str:
+def _connect_failure_reason(ctx, name: str) -> str | None:
+    """Short reason already recorded for ``name``. Does not open a connection."""
+    runtime = getattr(getattr(ctx, 'runtime', None), '_mcp_runtime', None)
+    if runtime is None:
+        return None
+    getter = getattr(runtime, 'get_server', None)
+    if getter is None:
+        return None
+    state = getter(name)
+    if state is None or getattr(state, 'status', None) != 'error':
+        return None
+    reason = getattr(state, 'last_error', None)
+    if not reason:
+        return None
+    text = ' '.join(str(reason).split())
+    if len(text) > 80:
+        text = text[:79] + '…'
+    return text
+
+
+def _mcp_list_text(mgr, scope: str, ctx=None) -> str:
     rows = mgr.list(scope if scope != 'merged' else 'merged')
     if not rows:
         return 'No MCP servers.'
@@ -136,7 +156,13 @@ def _mcp_list_text(mgr, scope: str) -> str:
     for name, entry in rows.items():
         on = 'on' if entry.get('enabled', True) is not False else 'off'
         how = entry.get('command') or entry.get('url') or '?'
-        lines.append(f'  [{on}] {name}  {how}')
+        reason = None
+        if ctx is not None:
+            reason = _connect_failure_reason(ctx, name)
+        if reason:
+            lines.append(f'  [{on}] {name}  {how}  {reason}')
+        else:
+            lines.append(f'  [{on}] {name}  {how}')
     return '\n'.join(lines)
 
 
@@ -238,9 +264,14 @@ def _mcp_get(ctx, tokens: list[str], mgr, work: str | None) -> CommandResult:
             reason=f'No MCP server named {name}{where}',
             ctx=ctx,
         )
+    content = '\n\n'.join(blocks)
+    reason = _connect_failure_reason(ctx, name)
+    if reason:
+        from ms_agent.mcp.runtime import mcp_unreachable_notice
+        content = content + '\n' + mcp_unreachable_notice(name, reason)
     return CommandResult(
         type=CommandResultType.MESSAGE,
-        content='\n\n'.join(blocks),
+        content=content,
     )
 
 
@@ -252,7 +283,8 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
     if not arg:
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=status_then_usage(_mcp_list_text(mgr, 'merged'), _mcp_usage()),
+            content=status_then_usage(
+                _mcp_list_text(mgr, 'merged', ctx), _mcp_usage()),
         )
     if arg in ('help', '-h', '--help'):
         return CommandResult(type=CommandResultType.MESSAGE, content=_mcp_usage())
@@ -290,7 +322,7 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
                 note = f'名叫 {scope} 的服务器不在这份清单里。\n'
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=note + _mcp_list_text(mgr, scope),
+            content=note + _mcp_list_text(mgr, scope, ctx),
         )
 
     if action == 'get':

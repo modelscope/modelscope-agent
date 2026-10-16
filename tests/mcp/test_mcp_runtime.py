@@ -37,14 +37,15 @@ class FakeMCPClient:
     def list_connected_servers(self) -> list[str]:
         return list(self.sessions.keys())
 
-    async def connect_single_server(self, server_name: str, server_config: dict):
+    async def connect_single_server(self, server_name: str, server_config: dict,
+                                    **kwargs):
         self.connect_calls.append(server_name)
         if server_config.get('fail_connect') or server_config.get('command') == 'x':
             raise ConnectionError(f'connect failed: {server_name}')
         self.sessions[server_name] = object()
         return server_name
 
-    async def disconnect_server(self, server_name: str):
+    async def disconnect_server(self, server_name: str, **kwargs):
         self.sessions.pop(server_name, None)
 
     async def get_tools_for_server(self, server_name: str) -> List[Tool]:
@@ -696,6 +697,95 @@ def _make_tool_manager(client, runtime, hook_runtime=None):
     )
     tm._skip_mcp_reindex = True
     return tm
+
+
+@pytest.mark.asyncio
+async def test_start_probes_servers_together(monkeypatch):
+    monkeypatch.setattr('ms_agent.mcp.runtime.MCP_PROBE_TIMEOUT', 1)
+
+    class SlowClient(FakeMCPClient):
+
+        async def connect_single_server(self, server_name: str, server_config: dict,
+                                        **kwargs):
+            await asyncio.sleep(0.2)
+            return await super().connect_single_server(
+                server_name, server_config, **kwargs)
+
+    client = SlowClient()
+    runtime = MCPRuntime(
+        mcp_client=client,  # type: ignore[arg-type]
+        config=_resolved(
+            ('a', {'command': 'echo'}),
+            ('b', {'command': 'echo'}),
+        ),
+        owns_client=False,
+    )
+    started = asyncio.get_running_loop().time()
+    await runtime.start()
+    elapsed = asyncio.get_running_loop().time() - started
+    assert elapsed < 0.35
+    assert runtime.get_server('a').status == 'connected'
+    assert runtime.get_server('b').status == 'connected'
+
+
+@pytest.mark.asyncio
+async def test_start_skips_a_server_that_does_not_answer(monkeypatch):
+    monkeypatch.setattr('ms_agent.mcp.runtime.MCP_PROBE_TIMEOUT', 0.05)
+
+    class HungClient(FakeMCPClient):
+
+        async def connect_single_server(self, server_name: str, server_config: dict,
+                                        **kwargs):
+            if server_name == 'slow':
+                await asyncio.Event().wait()
+            return await super().connect_single_server(
+                server_name, server_config, **kwargs)
+
+    client = HungClient()
+    runtime = MCPRuntime(
+        mcp_client=client,  # type: ignore[arg-type]
+        config=_resolved(
+            ('slow', {'command': 'echo'}),
+            ('good', {'command': 'echo'}),
+        ),
+        owns_client=False,
+    )
+    started = asyncio.get_running_loop().time()
+    await runtime.start()
+    elapsed = asyncio.get_running_loop().time() - started
+    assert elapsed < 0.5
+    assert runtime.get_server('good').status == 'connected'
+    slow = runtime.get_server('slow')
+    assert slow.status == 'error'
+    assert slow.last_error == '0.05秒内没有连上'
+    assert client.is_connected('good')
+    assert not client.is_connected('slow')
+
+
+@pytest.mark.asyncio
+async def test_apply_config_does_not_reprobe_a_recorded_failure():
+    client = FakeMCPClient()
+    config = ResolvedMCPConfig(mcp_servers={
+        'bad': {'command': 'x'},
+        'good': {'command': 'echo'},
+    })
+    runtime = MCPRuntime(
+        mcp_client=client,  # type: ignore[arg-type]
+        config=config,
+        connect_policy='skip',
+        owns_client=False,
+    )
+    await runtime.start()
+    assert client.connect_calls.count('bad') == 1
+    await runtime.apply_config(ResolvedMCPConfig(mcp_servers={
+        'bad': {'command': 'x'},
+        'good': {'command': 'echo'},
+        'extra': {'command': 'echo'},
+    }))
+    assert client.connect_calls.count('bad') == 1
+    assert client.is_connected('extra')
+    assert runtime.get_server('bad').status == 'error'
+    assert runtime.get_server('bad').last_error == 'connect failed: bad'
 
 
 @pytest.mark.asyncio

@@ -1020,6 +1020,10 @@ class LLMAgent(Agent):
             hook_registries,
         )
         mcp_rt = self.mcp_runtime
+        if mcp_rt is not None and getattr(self, 'runtime', None) is not None:
+            # Slash commands only see this Runtime, not the agent. The failure
+            # record /mcp list and /mcp get read lives on the MCP runtime.
+            self.runtime._mcp_runtime = mcp_rt
         if mcp_rt is not None and plugin_mcp_servers:
             from ms_agent.config.mcp_schema import ResolvedMCPConfig
             merged_servers = {
@@ -2584,6 +2588,8 @@ class LLMAgent(Agent):
                 runtime = Runtime(llm=self.llm)
                 runtime.from_dict(config.runtime)
                 delattr(config, 'runtime')
+                if self.mcp_runtime is not None:
+                    runtime._mcp_runtime = self.mcp_runtime
             else:
                 runtime = self.runtime
             if _messages[-1].role == 'tool':

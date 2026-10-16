@@ -24,6 +24,21 @@ from ms_agent.utils import enhance_error, get_logger
 logger = get_logger()
 
 
+def _retrieve_future(fut) -> None:
+    """Mark a finished future's exception as retrieved.
+
+    ``ready.set_exception(CancelledError())`` inside a connect that quit
+    cancelled otherwise logs ``Future exception was never retrieved`` when the
+    loop later garbage-collects it — after the user has already seen bye.
+    """
+    if fut is None or not fut.done() or fut.cancelled():
+        return
+    try:
+        fut.exception()
+    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+        return
+
+
 def _is_teardown_noise(exc: BaseException) -> bool:
     """MCP SDK / anyio errors that fire when closing streamable_http."""
     text = f'{type(exc).__name__}: {exc}'
@@ -53,6 +68,11 @@ def _int_env(name: str, default: int) -> int:
 
 
 CONNECTION_TIMEOUT = _int_env('CONNECTION_TIMEOUT', 120)
+
+#: Per-server cap for the probe that runs before a turn. WebUI's health check
+#: uses the same 6 seconds (``mcp_health.filter_healthy``). A dead address must
+#: not sit on ``CONNECTION_TIMEOUT`` (120s) before the model is allowed to run.
+MCP_PROBE_TIMEOUT = 6
 
 #: How many servers may be started at once. Bounded because each stdio server
 #: is a child process and a large config would otherwise fork all of them
@@ -185,6 +205,12 @@ class MCPClient(ToolBase):
         # let go.
         self._server_tasks: Dict[str, 'asyncio.Task'] = {}
         self._server_shutdown: Dict[str, asyncio.Event] = {}
+        # The Future ``connect_to_server`` waits on. Kept so a cancelled
+        # connect can still retrieve the CancelledError it stored there.
+        self._server_ready: Dict[str, 'asyncio.Future'] = {}
+        # Every owner task, including ones already popped from ``_server_tasks``
+        # while their teardown is still running.
+        self._live_tasks: set['asyncio.Task'] = set()
         self.exit_stack = AsyncExitStack()
         self.mcp_config: Dict[str, Dict[str, Any]] = {'mcpServers': {}}
         if config is not None:
@@ -328,17 +354,26 @@ class MCPClient(ToolBase):
     def is_connected(self, server_name: str) -> bool:
         return server_name in self.sessions
 
-    async def disconnect_server(self, server_name: str) -> None:
+    def _track_task(self, task: 'asyncio.Task') -> None:
+        self._live_tasks.add(task)
+        task.add_done_callback(self._live_tasks.discard)
+        task.add_done_callback(_retrieve_future)
+
+    async def disconnect_server(self,
+                                server_name: str,
+                                *,
+                                graceful: bool = True) -> None:
         """Disconnect a single MCP server."""
         self.exclude_functions.pop(server_name, None)
         self.include_functions.pop(server_name, None)
-        await self._stop_server(server_name)
+        await self._stop_server(server_name, graceful=graceful)
 
     async def connect_single_server(
         self,
         server_name: str,
         server_config: Dict[str, Any],
         timeout: int = CONNECTION_TIMEOUT,
+        startup_timeout: Optional[float] = None,
     ) -> str:
         """Connect one server from a normalized config entry."""
         if self.is_connected(server_name):
@@ -359,6 +394,7 @@ class MCPClient(ToolBase):
             server_name=server_name,
             env=env_dict,
             timeout=timeout,
+            startup_timeout=startup_timeout,
             **server,
         )
 
@@ -523,12 +559,15 @@ class MCPClient(ToolBase):
     async def connect_to_server(self,
                                 server_name: str,
                                 timeout: int = CONNECTION_TIMEOUT,
-                                startup_timeout: Optional[int] = None,
+                                startup_timeout: Optional[float] = None,
                                 **kwargs):
         if self.is_connected(server_name):
             return server_name
         logger.info(f'connect to {server_name}')
         ready: 'asyncio.Future' = asyncio.get_running_loop().create_future()
+        # Retrieve as soon as the owner stores an exception, including the
+        # CancelledError a quit leaves behind after the waiter has moved on.
+        ready.add_done_callback(_retrieve_future)
         shutdown = asyncio.Event()
         task = asyncio.create_task(
             self._own_server(server_name, {
@@ -536,8 +575,10 @@ class MCPClient(ToolBase):
                 **kwargs
             }, ready, shutdown),
             name=f'mcp-server:{server_name}')
+        self._track_task(task)
         self._server_tasks[server_name] = task
         self._server_shutdown[server_name] = shutdown
+        self._server_ready[server_name] = ready
         try:
             if startup_timeout:
                 # Shield so a timeout stops US waiting without cancelling the
@@ -552,6 +593,7 @@ class MCPClient(ToolBase):
             # the startup timeout the caller already spent.
             await self._stop_server(server_name, graceful=False)
             raise
+        self._server_ready.pop(server_name, None)
         return server_name
 
     async def _stop_server(self,
@@ -560,31 +602,40 @@ class MCPClient(ToolBase):
         """Ask a server's owner task to close its transport, and wait for it."""
         shutdown = self._server_shutdown.pop(server_name, None)
         task = self._server_tasks.pop(server_name, None)
+        ready = self._server_ready.pop(server_name, None)
         self.sessions.pop(server_name, None)
         if shutdown is not None:
             shutdown.set()
         if task is None or task.done():
+            _retrieve_future(task)
+            _retrieve_future(ready)
             return
         if graceful:
             try:
                 await asyncio.wait_for(
                     asyncio.shield(task), timeout=SERVER_STOP_TIMEOUT)
+                _retrieve_future(ready)
                 return
             except asyncio.TimeoutError:
                 logger.debug('MCP server %s stop timed out', server_name)
+                _retrieve_future(ready)
             except asyncio.CancelledError:
                 # The TUI generator is closing. The owner already has the
                 # shutdown signal — wait it out. Cancelling it here would
                 # athrow() streamablehttp_client from the wrong task.
                 with suppress(BaseException):
                     await asyncio.shield(task)
+                _retrieve_future(ready)
                 return
             except BaseException as exc:  # noqa: BLE001
                 logger.debug('MCP server %s stopped with %s', server_name, exc)
+                _retrieve_future(ready)
                 return
         task.cancel()
         with suppress(BaseException):
             await task
+        _retrieve_future(task)
+        _retrieve_future(ready)
 
     def _plan_server(self, name: str, server: Dict[str, Any],
                      default_timeout: int) -> Dict[str, Any]:
@@ -697,16 +748,60 @@ class MCPClient(ToolBase):
                     server_name=name, env=env_dict, **server)
         self.mcp_config['mcpServers'].update(new_mcp_config)
 
+    async def _reap_live_tasks(self) -> None:
+        """Stop owner tasks that a cancelled connect did not finish awaiting.
+
+        Quit during a probe used to leave those tasks for the loop shutdown,
+        which then printed ``CancelledError`` after bye.
+        """
+        # A server nobody has signalled yet is still inside connect. Cancel
+        # it. One whose shutdown event is already set is closing itself;
+        # cancelling that owner exits its anyio scope in the wrong task.
+        for name, task in list(self._server_tasks.items()):
+            if task.done():
+                continue
+            shutdown = self._server_shutdown.get(name)
+            if shutdown is None or not shutdown.is_set():
+                task.cancel()
+        pending = [task for task in list(self._live_tasks) if not task.done()]
+        readies = list(self._server_ready.values())
+        self._server_tasks.clear()
+        self._server_shutdown.clear()
+        self._server_ready.clear()
+        self.sessions.clear()
+        try:
+            if pending:
+                await asyncio.shield(
+                    asyncio.gather(*pending, return_exceptions=True))
+        except asyncio.CancelledError:
+            return
+        finally:
+            for task in pending:
+                _retrieve_future(task)
+            for ready in readies:
+                _retrieve_future(ready)
+
     async def cleanup(self):
         """Clean up resources"""
-        for name in list(self._server_tasks):
-            try:
-                await self.disconnect_server(name)
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                logger.debug('MCP disconnect %s during cleanup', name,
-                             exc_info=True)
-        with suppress(BaseException):
-            await self.exit_stack.aclose()
+        try:
+            for name in list(self._server_tasks):
+                try:
+                    # Not initialized yet: there is no session to drain, and
+                    # the grace period would hang bye on the probe that just
+                    # timed out.
+                    established = name in self.sessions
+                    await self.disconnect_server(name, graceful=established)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:  # noqa: BLE001
+                    logger.debug(
+                        'MCP disconnect %s during cleanup',
+                        name,
+                        exc_info=True)
+        finally:
+            await self._reap_live_tasks()
+            with suppress(BaseException):
+                await self.exit_stack.aclose()
 
     async def __aenter__(self) -> 'MCPClient':
         try:

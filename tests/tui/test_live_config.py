@@ -303,6 +303,70 @@ async def test_failed_mcp_reconnect_is_said_once(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_unreachable_server_is_skipped_before_the_turn(
+        tmp_path, monkeypatch):
+    import asyncio
+    import json
+
+    monkeypatch.setenv('MS_AGENT_HOME', str(tmp_path))
+    monkeypatch.setattr('ms_agent.mcp.runtime.MCP_PROBE_TIMEOUT', 0.05)
+    (tmp_path / 'mcp.json').write_text(
+        json.dumps({
+            'mcpServers': {
+                'slow': {'command': 'sleep', 'args': ['30']},
+                'good': {'command': 'echo', 'args': ['hi']},
+            },
+        }),
+        encoding='utf-8',
+    )
+    from ms_agent.config.mcp_schema import ResolvedMCPConfig
+    from ms_agent.mcp.runtime import MCPRuntime
+
+    class Hung:
+        def __init__(self):
+            self.sessions = {}
+            self.connect_calls: list[str] = []
+
+        def is_connected(self, name):
+            return name in self.sessions
+
+        async def connect_single_server(self, server_name, server_config, **kwargs):
+            self.connect_calls.append(server_name)
+            if server_name == 'slow':
+                await asyncio.Event().wait()
+            self.sessions[server_name] = object()
+            return server_name
+
+        async def disconnect_server(self, server_name, **kwargs):
+            self.sessions.pop(server_name, None)
+
+        async def get_tools_for_server(self, server_name):
+            return []
+
+    client = Hung()
+    runtime = MCPRuntime(
+        mcp_client=client,  # type: ignore[arg-type]
+        config=ResolvedMCPConfig(mcp_servers={}),
+        owns_client=False,
+    )
+    agent = _quiet_agent(tmp_path, mcp_runtime=runtime)
+    started = asyncio.get_running_loop().time()
+    await apply_live_config(agent, None)
+    elapsed = asyncio.get_running_loop().time() - started
+    assert elapsed < 0.5
+    assert runtime.get_server('slow').status == 'error'
+    assert runtime.get_server('good').status == 'connected'
+    assert agent.notices == [
+        'MCP 服务器 slow 连不上（0.05秒内没有连上），本轮先不用。'
+    ]
+    await apply_live_config(agent, None)
+    assert client.connect_calls.count('slow') == 1
+    assert agent.notices == [
+        'MCP 服务器 slow 连不上（0.05秒内没有连上），本轮先不用。'
+    ]
+
+
+@pytest.mark.asyncio
 async def test_memory_toggle_applies_on_the_next_message(tmp_path, monkeypatch):
     home = tmp_path / 'home'
     monkeypatch.setenv('MS_AGENT_HOME', str(home))

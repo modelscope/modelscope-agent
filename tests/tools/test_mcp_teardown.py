@@ -93,6 +93,41 @@ async def test_cleanup_tools_swallows_mcp_runtimeerror():
 
 
 @pytest.mark.asyncio
+async def test_quit_during_connect_does_not_leave_a_cancelled_future():
+    import gc
+
+    loop = asyncio.get_running_loop()
+    logged: list[str] = []
+    previous = loop.get_exception_handler()
+
+    def _handler(_loop, context):
+        logged.append(str(context.get('message', '')))
+
+    loop.set_exception_handler(_handler)
+    client = MCPClient({'mcpServers': {}})
+
+    async def _hang(stack, server_name, **kwargs):
+        await asyncio.Event().wait()
+
+    client._open_session = _hang  # type: ignore[method-assign]
+    connect = asyncio.create_task(
+        client.connect_to_server('slow', startup_timeout=5))
+    await asyncio.sleep(0.02)
+    connect.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await connect
+    try:
+        await client.cleanup()
+        gc.collect()
+        await asyncio.sleep(0)
+        assert all(task.done() for task in client._live_tasks)
+        assert not any('never retrieved' in message for message in logged)
+    finally:
+        loop.set_exception_handler(previous)
+        await client.cleanup()
+
+
+@pytest.mark.asyncio
 async def test_kernel_session_stop_swallows_cancellederror():
     from ms_agent.tools.code.local_code_executor import LocalKernelSession
 

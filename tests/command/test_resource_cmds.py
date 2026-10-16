@@ -33,6 +33,28 @@ def make_ctx(text, runtime=None, extra=None):
     )
 
 
+class _Failure:
+    def __init__(self, status, last_error):
+        self.status = status
+        self.last_error = last_error
+        self.enabled = True
+
+
+class _FailureRuntime:
+    """In-memory connect result. Listing it must not open a connection."""
+
+    def __init__(self, states):
+        self._states = states
+        self.connects = []
+
+    def get_server(self, name):
+        return self._states.get(name)
+
+    async def connect_single_server(self, *args, **kwargs):
+        self.connects.append(args)
+        raise AssertionError('list/get must not connect')
+
+
 @dataclass
 class MockRuntime:
     config: object = field(default_factory=lambda: OmegaConf.create({}))
@@ -165,6 +187,45 @@ class TestMcpCommand:
         assert 'Got:  /mcp list mem1' in result.content
         assert 'docs' not in result.content
         assert 'https://example/mcp' not in result.content
+
+    @pytest.mark.asyncio
+    async def test_list_shows_a_recorded_failure_but_not_by_name(
+            self, isolate_home):
+        runtime = MockRuntime()
+        runtime._mcp_runtime = _FailureRuntime({
+            'slow': _Failure('error', '6秒内没有连上'),
+        })
+        router = make_router()
+        await router.dispatch(
+            make_ctx(
+                '/mcp add slow global url=http://10.255.255.1/mcp',
+                runtime))
+        listed = await router.dispatch(make_ctx('/mcp list', runtime))
+        assert '[on] slow  http://10.255.255.1/mcp  6秒内没有连上' in listed.content
+        by_name = await router.dispatch(make_ctx('/mcp list slow', runtime))
+        assert 'Unknown list option.' in by_name.content
+        assert '6秒内没有连上' not in by_name.content
+        assert '10.255.255.1' not in by_name.content
+        assert runtime._mcp_runtime.connects == []
+
+    @pytest.mark.asyncio
+    async def test_get_shows_the_skip_line_without_connecting(
+            self, isolate_home):
+        runtime = MockRuntime()
+        runtime._mcp_runtime = _FailureRuntime({
+            'slow': _Failure('error', '6秒内没有连上'),
+        })
+        await make_router().dispatch(
+            make_ctx(
+                '/mcp add slow global url=http://10.255.255.1/mcp',
+                runtime))
+        result = await make_router().dispatch(
+            make_ctx('/mcp get slow', runtime))
+        assert 'url: http://10.255.255.1/mcp' in result.content
+        sentence = 'MCP 服务器 slow 连不上（6秒内没有连上），本轮先不用。'
+        assert sentence in result.content
+        assert result.content.index(sentence) > result.content.index('url:')
+        assert runtime._mcp_runtime.connects == []
 
     @pytest.mark.asyncio
     async def test_list_scope_word_names_the_other_copy(
