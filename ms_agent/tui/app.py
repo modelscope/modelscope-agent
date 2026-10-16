@@ -161,7 +161,11 @@ class TuiApp:
         self.router = self.agent._get_command_router()
         self._register_session_commands()
         self.input = PromptToolkitInput(
-            self.state, self.router, self.theme, console=self.console)
+            self.state,
+            self.router,
+            self.theme,
+            console=self.console,
+            renderer=self.renderer)
         self.agent._input_source = self.input
 
         # Always inject the TUI handler — it is only *called* in interactive

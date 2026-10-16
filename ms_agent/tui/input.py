@@ -22,6 +22,35 @@ from ms_agent.tui.theme import DEFAULT_THEME, Theme
 if TYPE_CHECKING:
     from ms_agent.command.router import CommandRouter
 
+# Bracketed paste wraps the clipboard in these markers. If they leak into the
+# line (the terminal was not in paste mode) they must not become part of the
+# command. The caret form is how a cooked terminal echoes the same bytes.
+_PASTE_MARKERS = (
+    '\x1b[200~',
+    '\x1b[201~',
+    '^[[200~',
+    '^[[201~',
+)
+
+
+def split_prompt_lines(text: str) -> list:
+    """Split one paste into the lines the command loop should see.
+
+    prompt_toolkit returns a multiline paste as a single string. Fed through
+    whole, ``/model`` treats the next line as part of the model id. A trailing
+    empty line (the paste ended on Enter) is not itself a command.
+    """
+    cleaned = text or ''
+    for marker in _PASTE_MARKERS:
+        cleaned = cleaned.replace(marker, '')
+    cleaned = cleaned.replace('\r\n', '\n').replace('\r', '\n')
+    if '\n' not in cleaned:
+        return [cleaned]
+    lines = cleaned.split('\n')
+    if lines and lines[-1] == '':
+        lines.pop()
+    return lines or ['']
+
 
 def slash_matches(router, text: str):
     """Yield ``(name, description)`` for /command completions of ``text``.
@@ -49,11 +78,17 @@ class PromptToolkitInput:
                  state: TuiState,
                  router: Optional['CommandRouter'] = None,
                  theme: Theme = DEFAULT_THEME,
-                 console: object = None) -> None:
+                 console: object = None,
+                 renderer: object = None) -> None:
         self._state = state
         self._router = router
         self._theme = theme
         self._console = console  # rich Console, for the pre-prompt divider
+        # RichEventSink. Released before prompt_toolkit draws, so Live's
+        # refresh thread is not still writing when raw mode starts.
+        self._renderer = renderer
+        # Lines left over from a multiline paste. Each becomes its own prompt.
+        self._queued: list = []
         self._session = self._build_session()
 
     def _build_session(self):
@@ -108,6 +143,7 @@ class PromptToolkitInput:
                 history=InMemoryHistory(),
                 completer=_SlashCompleter(),
                 complete_while_typing=True,
+                # Up and down walk this history.
                 bottom_toolbar=self._toolbar,
                 placeholder=HTML(
                     '<ansibrightblack>Type a message'
@@ -138,15 +174,33 @@ class PromptToolkitInput:
         return HTML(
             f'<b><ansicyan>{self._theme.prompt_symbol}</ansicyan></b> ')
 
+    def _release_terminal(self) -> None:
+        renderer = self._renderer
+        if renderer is None:
+            return
+        release = getattr(renderer, 'release_terminal', None)
+        if release is not None:
+            release()
+
     async def read_prompt(self, prompt: str = '❯ ') -> str:
         # The TUI owns its prompt presentation; the caller's ``prompt`` arg is
         # only a fallback hint for the non-interactive path.
+        # Live must be fully stopped before prompt_toolkit enables raw mode
+        # and bracketed paste. A queued paste line skips the divider, but
+        # still waits out a region left up by the turn that just finished.
+        self._release_terminal()
+        if self._queued:
+            return self._queued.pop(0)
         if self._session is not None and sys.stdin.isatty():
             # A subtle full-width divider separates the input from the
             # conversation above (Claude Code style).
             if self._console is not None:
                 from rich.rule import Rule
                 self._console.print(Rule(style='grey30'))
-            return await self._session.prompt_async(self._message())
+            text = await self._session.prompt_async(self._message())
+            lines = split_prompt_lines(text)
+            if len(lines) > 1:
+                self._queued.extend(lines[1:])
+            return lines[0] if lines else ''
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, input, prompt)
