@@ -51,19 +51,6 @@ def _status_text(mgr) -> str:
     return '\n'.join(lines)
 
 
-def _apply_runtime(ctx: CommandContext, mgr) -> None:
-    """Write the saved block onto the live config. The next message reconnects."""
-    agent = ctx.runtime
-    cfg = getattr(agent, 'config', None) if agent is not None else None
-    if cfg is None:
-        return
-    try:
-        from omegaconf import OmegaConf
-        OmegaConf.update(cfg, 'tools.web_search', mgr.raw_block(), merge=True)
-    except Exception:
-        return
-
-
 async def cmd_search(ctx: CommandContext) -> CommandResult:
     arg = (ctx.args or '').strip()
     mgr = _mgr()
@@ -96,14 +83,12 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
 
     if action in ('enable', 'on'):
         mgr.set_enabled(True)
-        _apply_runtime(ctx, mgr)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content='Search enabled.',
         )
     if action in ('disable', 'off'):
         mgr.set_enabled(False)
-        _apply_runtime(ctx, mgr)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content='Search disabled.',
@@ -118,7 +103,6 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
         except ValueError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        _apply_runtime(ctx, mgr)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=f'Engine → {cur.engine}.',
@@ -134,7 +118,6 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
         except ValueError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        _apply_runtime(ctx, mgr)
         verb = 'cleared' if clear else 'saved'
         return CommandResult(
             type=CommandResultType.MESSAGE,

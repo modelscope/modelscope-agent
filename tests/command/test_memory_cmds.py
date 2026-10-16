@@ -73,9 +73,9 @@ class TestMemoryCommand:
         project = ProjectManager(base_dir=str(isolate_home)).find_by_path(
             str(work))
         assert project.memory_enabled is True
-        node = OmegaConf.select(runtime.config, 'memory.unified_memory')
-        assert node is not None
-        assert node.storage.backend == 'file'
+        assert runtime._memory_pending is True
+        assert OmegaConf.select(
+            runtime.config, 'memory.unified_memory', default=None) is None
         assert '下一条消息生效' not in result.content
         assert runtime.memory_tools == []
 

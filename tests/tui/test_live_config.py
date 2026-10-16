@@ -303,6 +303,28 @@ async def test_failed_mcp_reconnect_is_said_once(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_memory_toggle_applies_on_the_next_message(tmp_path, monkeypatch):
+    home = tmp_path / 'home'
+    monkeypatch.setenv('MS_AGENT_HOME', str(home))
+    work = tmp_path / 'work'
+    work.mkdir()
+    from ms_agent.project import ProjectManager
+    ProjectManager(base_dir=str(home)).open_folder(
+        str(work), memory_enabled=True, memory_backend='file')
+    agent = _quiet_agent(work)
+    agent.runtime._memory_pending = True
+
+    async def load_memory():
+        agent.memory_tools.append(object())
+
+    agent.load_memory = load_memory
+    await apply_live_config(agent, None)
+    assert agent.config.memory.unified_memory.storage.backend == 'file'
+    assert agent.memory_tools
+    assert agent.runtime._memory_pending is False
+
+
+@pytest.mark.asyncio
 async def test_search_engine_reloads_on_the_next_message(tmp_path, monkeypatch):
     monkeypatch.setenv('MS_AGENT_HOME', str(tmp_path))
     from ms_agent.config.search_settings import SearchSettingsManager

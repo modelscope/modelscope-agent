@@ -32,6 +32,7 @@ from typing import Optional, Tuple
 
 from ms_agent.config import Config
 from ms_agent.config.env import Env
+from ms_agent.config.search_settings import DEFAULT_WEB_SEARCH_BLOCK
 from ms_agent.tui.input import PromptToolkitInput
 from ms_agent.tui.renderer import RichEventSink
 from ms_agent.tui.state import TuiState
@@ -52,6 +53,7 @@ TUI_RESOLVER_DEFAULTS = {
             'enabled': True,
             'mcp': False,
         },
+        'web_search': dict(DEFAULT_WEB_SEARCH_BLOCK),
     },
     # Non-empty so LLMAgent.prepare_skills runs. An empty ``{}`` is falsy
     # under OmegaConf. User and project skills still load.

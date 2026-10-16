@@ -300,7 +300,6 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
         if not tokens:
             return arg_error('/mcp json <file.json>', ctx=ctx)
         n = mgr.import_cursor_format(tokens[0])
-        await _reload_mcp(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=f'Imported {n} server(s).',
@@ -326,7 +325,6 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
         except KeyError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        await _reload_mcp(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=f'{action} {name} ({scope}).',
@@ -350,7 +348,6 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
                 content='Need command=<cmd> or url=<url>.',
             )
         mgr.add(name, _stdio_fields(fields), scope=scope)
-        await _reload_mcp(ctx)
         lines = [f'Added {name} ({scope}).']
         if scope == 'project' and not explicit:
             lines.append(_PROJECT_MCP_NOT_ON_SETTINGS)
@@ -376,7 +373,6 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
         except KeyError as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        await _reload_mcp(ctx)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=f'Updated {name} ({scope}).',
@@ -388,12 +384,6 @@ async def cmd_mcp(ctx: CommandContext) -> CommandResult:
         note='Type /mcp for all commands',
         ctx=ctx,
     )
-
-
-async def _reload_mcp(ctx: CommandContext) -> str:
-    """Ledger is already written. The next user message applies it."""
-    del ctx
-    return ''
 
 
 async def cmd_skills(ctx: CommandContext) -> CommandResult:
@@ -440,7 +430,6 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
         skill_id = ' '.join(rest)
         mgr.set_skill_enabled(
             skill_id, action == 'enable', scope=scope, project_path=work)
-        _resync_skills(ctx, mgr, home, work)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=f'{action} {skill_id} ({scope}).',
@@ -467,7 +456,6 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
                 type=CommandResultType.MESSAGE,
                 content='No SKILL.md found under that path.',
             )
-        _resync_skills(ctx, mgr, home, work)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content='Imported: ' + ', '.join(names) + f' ({scope}).',
@@ -491,7 +479,6 @@ async def cmd_skills(ctx: CommandContext) -> CommandResult:
         except (FileNotFoundError, ValueError) as exc:
             return CommandResult(
                 type=CommandResultType.MESSAGE, content=str(exc))
-        _resync_skills(ctx, mgr, home, work)
         return CommandResult(
             type=CommandResultType.MESSAGE,
             content=f'Removed managed skill {skill_id} ({dest}).',
@@ -635,18 +622,6 @@ def _list_skills_from_disk(mgr, work: str | None) -> CommandResult:
         }
     rows = [by_id[sid] for sid in sorted(by_id)]
     return _format_skill_rows(rows)
-
-
-def _resync_skills(ctx, mgr, home: str, work: str | None) -> None:
-    agent = ctx.runtime
-    if agent is None:
-        return
-    from ms_agent.tui.managed_config import merge_skills_into_config
-    merge_skills_into_config(agent.config, home, work)
-    runtime = getattr(agent, '_skill_runtime', None)
-    if runtime is not None:
-        runtime.sync_with_config(getattr(agent.config, 'skills', None))
-        runtime.reload_all()
 
 
 def register_resource_commands(router: CommandRouter) -> None:

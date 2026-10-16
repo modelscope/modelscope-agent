@@ -2,7 +2,6 @@
 import json
 
 import pytest
-from omegaconf import OmegaConf
 
 from ms_agent.command.builtin import register_builtin_commands
 from ms_agent.command.router import CommandRouter
@@ -98,8 +97,13 @@ class TestSearchCommand:
         assert data['tools']['web_search']['enabled'] is False
 
     @pytest.mark.asyncio
-    async def test_updates_runtime_config(self):
-        runtime = type('R', (), {'config': OmegaConf.create({})})()
-        await make_router().dispatch(
+    async def test_engine_switch_does_not_need_runtime_config(
+            self, isolate_home):
+        from ms_agent.agent.runtime import Runtime
+        runtime = Runtime()
+        result = await make_router().dispatch(
             make_ctx('/search engine serpapi', runtime))
-        assert runtime.config.tools.web_search.engine == 'serpapi'
+        assert 'Engine → serpapi' in result.content
+        data = json.loads((isolate_home / 'settings.json').read_text())
+        assert data['tools']['web_search']['engine'] == 'serpapi'
+        assert not hasattr(runtime, 'config')

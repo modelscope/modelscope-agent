@@ -93,13 +93,17 @@ def _arm_memory(ctx: CommandContext) -> None:
 
 
 async def _apply_live(ctx: CommandContext, project) -> str:
+    """Arm the next user message. The command does not patch ``Runtime``.
+
+    ``ctx.runtime`` is the session ``Runtime``, which has no config. The
+    ledger is already saved; ``live_config`` writes ``agent.config`` and
+    starts or drops the memory tools.
+    """
+    from omegaconf import OmegaConf
+
     from ms_agent.personalization.memory_apply import apply_project_memory
     _arm_memory(ctx)
-    agent = ctx.runtime
-    cfg = getattr(agent, 'config', None) if agent is not None else None
-    if cfg is None:
-        return '已保存。'
-    kind = apply_project_memory(cfg, project)
+    kind = apply_project_memory(OmegaConf.create({}), project)
     if kind == 'vector-unavailable':
         return (
             '已保存 vector。当前会话不会启动它。'

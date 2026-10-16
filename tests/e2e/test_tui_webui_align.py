@@ -500,8 +500,9 @@ class TestMemoryLedger:
         project = ProjectManager(base_dir=str(isolated_home)).find_by_path(
             str(work_dir))
         assert project.memory_enabled is True
-        node = OmegaConf.select(rt.config, 'memory.unified_memory')
-        assert node is not None
+        assert rt._memory_pending is True
+        assert OmegaConf.select(
+            rt.config, 'memory.unified_memory', default=None) is None
         ui = webui.projects.get_project(project.id)
         assert ui.memory_enabled is True
 
@@ -542,13 +543,14 @@ class TestMemoryLedger:
         status = run_slash('/memory', runtime_for(work_dir))
         assert 'Project: on' in status.content
 
-    def test_g7_disable_after_load_asks_for_new(self, isolated_home,
-                                                      work_dir):
+    def test_g7_disable_arms_the_next_message(self, isolated_home, work_dir):
         TuiApp._open_project(str(work_dir))
         rt = runtime_for(work_dir)
         rt.memory_tools = ['already-loaded']
         result = run_slash('/memory off', rt)
-        assert '/new' in result.content
+        assert 'Project memory → off' in result.content
+        assert '/new' not in result.content
+        assert rt._memory_pending is True
 
 
 class TestHttpEnvelope:

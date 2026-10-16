@@ -365,6 +365,19 @@ class TestSkillsCommand:
         assert not (isolate_home / 'skills' / 'ask-skill').exists()
 
     @pytest.mark.asyncio
+    async def test_add_on_production_runtime_does_not_raise(
+            self, tmp_path, isolate_home):
+        from ms_agent.agent.runtime import Runtime
+        src = tmp_path / 'demo-skill'
+        src.mkdir()
+        (src / 'SKILL.md').write_text('# demo\n')
+        result = await make_router().dispatch(
+            make_ctx(f'/skills add {src} global', Runtime()))
+        assert 'Imported: demo-skill (global)' in result.content
+        dest = SkillsConfigManager(str(isolate_home)).global_skills_tree()
+        assert (dest / 'demo-skill' / 'SKILL.md').is_file()
+
+    @pytest.mark.asyncio
     async def test_add_without_work_dir_defaults_global(
             self, tmp_path, isolate_home):
         src = tmp_path / 'solo-skill'

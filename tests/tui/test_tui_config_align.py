@@ -102,10 +102,36 @@ def test_fresh_home_default_yaml_does_not_mcp_connect_todo_list(
                 for t in (manager.extra_tools or [])
             }
             assert 'todo_list' in names
+            assert 'web_search' in names
         finally:
             await manager.cleanup()
 
     asyncio.run(_connect())
+
+
+def test_fresh_home_enables_web_search(tmp_path, monkeypatch):
+    """A home with no settings.json still resolves WebUI's search default."""
+    home = tmp_path / 'home'
+    monkeypatch.setenv('MS_AGENT_HOME', str(home))
+    work = tmp_path / 'work'
+    work.mkdir()
+    cfg = TuiApp._load_runtime_config('unused.yaml', str(work),
+                                      explicit_config=False)
+    assert cfg.tools.web_search.enabled is True
+    assert cfg.tools.web_search.engine == 'tavily'
+    assert cfg.tools.web_search.mcp is False
+    assert not (home / 'settings.json').is_file()
+
+
+def test_settings_can_turn_web_search_off(tmp_path, monkeypatch):
+    home = tmp_path / 'home'
+    monkeypatch.setenv('MS_AGENT_HOME', str(home))
+    work = tmp_path / 'work'
+    work.mkdir()
+    _write_settings(home, {'tools': {'web_search': {'enabled': False}}})
+    cfg = TuiApp._load_runtime_config('unused.yaml', str(work),
+                                      explicit_config=False)
+    assert cfg.tools.web_search.enabled is False
 
 
 def test_default_tui_disables_snapshots(tmp_path, monkeypatch):

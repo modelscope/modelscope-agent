@@ -24,6 +24,15 @@ _KEYLESS = frozenset({'tavily', 'arxiv'})
 _LEGACY_EXA_FIELDS = ('exa_api_keys', 'api_key')
 _FALLBACK_ORDER = ('tavily', 'exa', 'serpapi', 'arxiv')
 
+# Tavily is the only web-wide engine that works with no key (keyless tier).
+# WebUI persists this block; TUI injects the same one at resolve time so a
+# fresh install can search before anyone opens settings.
+DEFAULT_WEB_SEARCH_BLOCK = {
+    'mcp': False,
+    'engine': 'tavily',
+    'enabled': True,
+}
+
 
 def supported_engine_ids() -> List[str]:
     try:
