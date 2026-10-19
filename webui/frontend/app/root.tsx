@@ -8,7 +8,6 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  type ShouldRevalidateFunctionArgs,
   isRouteErrorResponse,
   redirect,
   useRouteError,
@@ -134,23 +133,13 @@ export async function loader({ request }: { request: Request }) {
   } satisfies RootData
 }
 
-// The `__theme`/`__language` overrides above live only in the URL of the FIRST
-// load — later in-app navigations drop them. Re-running this loader on a route
-// change would therefore re-derive theme/language from the cookie and revert
-// `<html class lang>` (which binds to this loader's data) while the providers
-// still hold the forced values, tearing the theme in half. Refuse pure route
-// changes so the initial (forced) values stand for the whole session; an
-// explicit `revalidate()` (same URL) and non-GET submissions still pass.
-export function shouldRevalidate({
-  currentUrl,
-  nextUrl,
-  formMethod,
-  defaultShouldRevalidate
-}: ShouldRevalidateFunctionArgs) {
-  if (formMethod && formMethod.toUpperCase() !== 'GET') {
-    return defaultShouldRevalidate
-  }
-  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate
+// This loader owns document-lifetime bootstrap data: the initial theme/language,
+// process-static hosted mode and the build's antd stylesheet. Re-running it would
+// violate the `initial*` contract and could replace a query-forced value with a
+// later cookie snapshot. Mutable page data belongs to child loaders, whose
+// independent `shouldRevalidate` decisions still let global revalidation refresh
+// them. Recovery also has its own loader and completes through a full navigation.
+export function shouldRevalidate() {
   return false
 }
 
