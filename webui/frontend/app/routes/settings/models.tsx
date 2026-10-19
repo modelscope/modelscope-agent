@@ -198,6 +198,7 @@ export default function ModelsSettings() {
                 label: p.name,
                 disabled: !p.enabled
               }))}
+              showSearch={{ optionFilterProp: 'label' }}
               // The closed box shows the logo + name; the tags (built-in pill,
               // key glyph) ride the dropdown OPTIONS, where the user is choosing
               // and the "is this ready to use" signal actually helps. Both are
@@ -240,6 +241,7 @@ export default function ModelsSettings() {
               value={resolvedDefaultModelId}
               onChange={(v) => updateSettings({ default_model_id: v })}
               options={defaultModelOptions}
+              showSearch={{ optionFilterProp: 'label' }}
               open={defaultModelOpen}
               onOpenChange={setDefaultModelOpen}
               // A provider with no models leaves this picker with nothing to
