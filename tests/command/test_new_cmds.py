@@ -899,6 +899,24 @@ class TestTools:
         assert 'plugins' not in result.content
 
     @pytest.mark.asyncio
+    async def test_connect_failure_is_not_listed_as_ready(self):
+        runtime = MockRuntime()
+        runtime.tool_manager = type('Mgr', (), {
+            'connect_failures': {
+                'web_search':
+                'UNAVAILABLE: Package `arxiv` is not installed. '
+                'Run: pip install arxiv, then restart ms-agent.',
+            },
+        })()
+        result = await make_router().dispatch(
+            make_ctx('/tools', runtime=runtime))
+        file_row = next(line for line in result.content.splitlines()
+                        if 'file_system' in line)
+        assert 'UNAVAILABLE' not in file_row
+        assert '• web_search  UNAVAILABLE: Package `arxiv`' in result.content
+        assert '• code_executor' in result.content
+
+    @pytest.mark.asyncio
     async def test_no_runtime(self):
         router = make_router()
         ctx = make_ctx('/tools', runtime=None)

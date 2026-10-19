@@ -32,12 +32,19 @@ def _mgr():
     return SearchSettingsManager(global_home())
 
 
+def _engine_notice(engine: str, *, has_key: bool, requires_key: bool) -> str:
+    from ms_agent.tools.search.availability import unavailable_notice
+    return unavailable_notice(
+        engine, has_key=has_key, requires_key=requires_key) or ''
+
+
 def _status_text(mgr) -> str:
     from ms_agent.config.search_settings import requires_key
     cur = mgr.get()
     on = 'on' if cur.enabled else 'off'
     key = 'set' if cur.has_key else 'missing'
-    if not requires_key(cur.engine):
+    needed = requires_key(cur.engine)
+    if not needed:
         key = 'not required'
     elif cur.supports_keyless and not cur.has_key:
         key = 'missing (keyless tier may still work)'
@@ -45,9 +52,15 @@ def _status_text(mgr) -> str:
         f'Search: {on}',
         f'Engine: {cur.engine}',
         f'API key: {key}',
+    ]
+    notice = _engine_notice(
+        cur.engine, has_key=cur.has_key, requires_key=needed)
+    if notice:
+        lines.append(notice)
+    lines.extend([
         'Switch: /search engine <id>   Key: /search key <value>',
         'List engines: /search list',
-    ]
+    ])
     return '\n'.join(lines)
 
 
@@ -76,6 +89,13 @@ async def cmd_search(ctx: CommandContext) -> CommandResult:
             key = 'key=set' if row['has_key'] else (
                 'key=n/a' if not row['requires_key'] else 'key=missing')
             extra = ' keyless-ok' if row['supports_keyless'] else ''
+            notice = _engine_notice(
+                row['id'],
+                has_key=row['has_key'],
+                requires_key=row['requires_key'],
+            )
+            if notice:
+                extra = f'{extra}  {notice}'
             lines.append(
                 f'  {mark} {row["id"]}  {row["label"]}  {key}{extra}')
         return CommandResult(

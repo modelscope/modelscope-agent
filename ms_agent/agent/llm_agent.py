@@ -1068,6 +1068,8 @@ class LLMAgent(Agent):
         if mcp_rt is not None and not mcp_rt.is_started:
             await mcp_rt.start()
         await self.tool_manager.connect()
+        if self.runtime is not None:
+            self.runtime.tool_manager = self.tool_manager
         if mcp_rt is not None:
             mcp_rt.bind_tool_manager(self.tool_manager)
             await mcp_rt.sync_tools()

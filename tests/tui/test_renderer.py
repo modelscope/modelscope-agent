@@ -169,6 +169,32 @@ def _rendered(renderable, width: int) -> str:
     return buf.getvalue()
 
 
+def test_unavailable_label_is_bold_and_the_rest_is_plain():
+    sink, console, _ = _sink()
+    captured = {}
+    original = console.print
+
+    def _spy(*args, **kwargs):
+        captured['args'] = args
+        return original(*args, **kwargs)
+
+    console.print = _spy
+    sink.emit(
+        Notice(
+            level='info',
+            text=('API key: not required\n'
+                  'UNAVAILABLE: Package `arxiv` is not installed.')))
+    body = captured['args'][0].renderable
+    assert body.plain.startswith('API key: not required')
+    assert '[bold]' not in body.plain
+    bold = [
+        span for span in body.spans
+        if getattr(span.style, 'bold', None) or span.style == 'bold'
+    ]
+    assert len(bold) == 1
+    assert body.plain[bold[0].start:bold[0].end] == 'UNAVAILABLE'
+
+
 def test_stream_window_is_only_the_last_screen():
     console = Console(file=StringIO(), force_terminal=True, width=10, height=5)
     sink = RichEventSink(console, TuiState())

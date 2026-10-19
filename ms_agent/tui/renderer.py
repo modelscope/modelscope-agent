@@ -29,6 +29,23 @@ from ms_agent.tui.theme import DEFAULT_THEME, Theme
 from ms_agent.tui.tool_view import tool_header, tool_summary
 from ms_agent.ui.events import AgentEvent
 
+_UNAVAILABLE = 'UNAVAILABLE'
+
+
+def _bold_unavailable(text: str) -> Text:
+    """Bold the word UNAVAILABLE. The rest of a command panel stays plain.
+
+    Command text is not markup, so a ``[bold]`` tag would print literally.
+    """
+    body = Text()
+    parts = re.split(f'({_UNAVAILABLE})', text or '')
+    for part in parts:
+        if part == _UNAVAILABLE:
+            body.append(part, style='bold')
+        else:
+            body.append(part)
+    return body
+
 _KEY_LINE = re.compile(r'^\s*[\w.\-]+:(\s|$)')
 
 
@@ -311,7 +328,7 @@ class RichEventSink:
                     word_wrap=True,
                     background_color='default')
             else:
-                body = Text(ev.text)
+                body = _bold_unavailable(ev.text)
             self._print(Panel(body, border_style='dim', expand=False))
             return
         style = {

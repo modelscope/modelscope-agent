@@ -56,6 +56,40 @@ def _must_propagate(exc: BaseException) -> bool:
     return not isinstance(exc, Exception)
 
 
+def _config_key(tool: ToolBase) -> Optional[str]:
+    """The ``tools.<key>`` name /tools lists, when this object has one."""
+    named = getattr(tool, 'SERVER_NAME', None)
+    if isinstance(named, str) and named:
+        return named
+    return {
+        'FileSystemTool': 'file_system',
+        'CodeExecutionTool': 'code_executor',
+        'LocalCodeExecutionTool': 'code_executor',
+        'ImageReaderTool': 'image_reader',
+        'ImageGenerator': 'image_generator',
+        'VideoGenerator': 'video_generator',
+        'LocalSearchTool': 'local_search',
+    }.get(type(tool).__name__)
+
+
+def _connect_failure_text(tool: ToolBase, exc: BaseException) -> str:
+    """One line for /tools. Package installs stay on the search sentence."""
+    if type(tool).__name__ == 'WebSearchTool':
+        from ms_agent.config.search_settings import requires_key
+        from ms_agent.tools.search.availability import notices_for_engines
+        notice = notices_for_engines(
+            getattr(tool, '_engine_types', ()) or (),
+            getattr(tool, '_api_keys', {}) or {},
+            requires_key,
+        )
+        if notice:
+            return notice
+    line = ' '.join(str(exc).split())
+    if len(line) > 120:
+        line = line[:119] + '…'
+    return f'UNAVAILABLE: {line}'
+
+
 MAX_TOOL_NAME_LEN = int(os.getenv('MAX_TOOL_NAME_LEN', 64))
 # Default wait around each tool invocation (seconds). Override via config.tool_call_timeout or TOOL_CALL_TIMEOUT.
 TOOL_CALL_TIMEOUT = int(os.getenv('TOOL_CALL_TIMEOUT', 120))
@@ -191,6 +225,9 @@ class ToolManager:
         self.mcp_success_handler = mcp_success_handler
 
         self.extra_tools: List[ToolBase] = []
+        # config key -> one-line reason. /tools reads this. MCP servers are
+        # not recorded here; /mcp list already shows those.
+        self.connect_failures: Dict[str, str] = {}
         self.has_split_task_tool = False
         if hasattr(config, 'tools') and hasattr(config.tools,
                                                 'image_generator'):
@@ -369,6 +406,7 @@ class ToolManager:
               and self.mcp_config.get('mcpServers')):
             logger.warning_once(
                 'mcp package not installed; MCP tools disabled for this run')
+        self.connect_failures = {}
         for tool in self.extra_tools:
             try:
                 await tool.connect()
@@ -376,6 +414,10 @@ class ToolManager:
                 logger.warning(
                     f'Tool {getattr(tool, "name", type(tool).__name__)} '
                     f'failed to connect: {e}; disabling.')
+                key = _config_key(tool)
+                if key:
+                    self.connect_failures[key] = _connect_failure_text(
+                        tool, e)
 
         # reindex_tool() self-gates its MCP portion on _skip_mcp_reindex, so it
         # is always safe to call here: extra tools get indexed in every path,

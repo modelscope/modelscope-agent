@@ -97,6 +97,44 @@ class TestSearchCommand:
         assert data['tools']['web_search']['enabled'] is False
 
     @pytest.mark.asyncio
+    async def test_missing_package_stays_keyless_and_says_how_to_install(
+            self, monkeypatch):
+        def missing(engine):
+            return {'arxiv': 'arxiv', 'exa': 'exa-py'}.get(engine)
+
+        monkeypatch.setattr(
+            'ms_agent.tools.search.availability._missing_pip', missing)
+        await make_router().dispatch(make_ctx('/search engine arxiv'))
+        status = await make_router().dispatch(make_ctx('/search'))
+        sentence = (
+            'UNAVAILABLE: Package `arxiv` is not installed. '
+            'Run: pip install arxiv, then restart ms-agent.')
+        assert 'API key: not required' in status.content
+        assert sentence in status.content
+        head = status.content.split('usage:')[0].splitlines()
+        assert head[3] == sentence
+
+        listed = await make_router().dispatch(make_ctx('/search list'))
+        arxiv_row = next(line for line in listed.content.splitlines()
+                         if ' arXiv ' in line)
+        assert 'key=n/a' in arxiv_row
+        assert 'keyless-ok' in arxiv_row
+        assert sentence in arxiv_row
+        tavily_row = next(line for line in listed.content.splitlines()
+                          if ' Tavily ' in line)
+        assert 'keyless-ok' in tavily_row
+        assert 'UNAVAILABLE' not in tavily_row
+
+        await make_router().dispatch(make_ctx('/search engine exa'))
+        bare = await make_router().dispatch(make_ctx('/search'))
+        assert 'UNAVAILABLE' not in bare.content
+        await make_router().dispatch(make_ctx('/search key sk-test'))
+        keyed = await make_router().dispatch(make_ctx('/search'))
+        assert ('UNAVAILABLE: Package `exa-py` is not installed. '
+                'Run: pip install exa-py, then restart ms-agent.'
+                ) in keyed.content
+
+    @pytest.mark.asyncio
     async def test_engine_switch_does_not_need_runtime_config(
             self, isolate_home):
         from ms_agent.agent.runtime import Runtime
