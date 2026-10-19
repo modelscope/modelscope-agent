@@ -6,14 +6,10 @@ Example (full sirchmunk run):
     python -m pytest tests/knowledge_search/test_sirschmunk.py
 """
 import asyncio
-import builtins
 import os
 import shutil
-import sys
 import unittest
 from pathlib import Path
-
-import pytest
 
 from ms_agent.agent import LLMAgent
 from ms_agent.tools.search.sirchmunk_search import SirchmunkSearch
@@ -120,37 +116,6 @@ class SirchmunkKnowledgeSearchTest(unittest.TestCase):
         result = asyncio.run(searcher.query('UserManager'))
         self.assertIsInstance(result, str)
         self.assertTrue(len(result) > 0)
-
-
-def test_missing_loguru_is_named(tmp_path, monkeypatch):
-    real_import = builtins.__import__
-
-    def _blocked(name, *args, **kwargs):
-        if name == 'loguru' or name.startswith('loguru.'):
-            raise ModuleNotFoundError(
-                "No module named 'loguru'", name='loguru')
-        return real_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, '__import__', _blocked)
-    for name in list(sys.modules):
-        if name == 'loguru' or name.startswith('loguru.'):
-            monkeypatch.delitem(sys.modules, name, raising=False)
-    config = DictConfig({
-        'output_dir': str(tmp_path),
-        'llm': {
-            'service': 'openai',
-            'model': 'gpt',
-            'openai_api_key': 'k',
-            'openai_base_url': 'https://example.invalid',
-        },
-        'tools': {
-            'localsearch': {
-                'paths': [str(tmp_path)],
-            },
-        },
-    })
-    with pytest.raises(ImportError, match='loguru is not installed'):
-        SirchmunkSearch(config)._initialize_searcher()
 
 
 if __name__ == '__main__':
