@@ -333,13 +333,12 @@ class TestResumeIndexVsMarker:
 
 
 class TestMissingKeyPrompt:
-    def test_setup_text_tells_user_session_stays_open(self):
+    def test_setup_text_names_the_provider_and_one_command(self):
         from ms_agent.llm.credentials import missing_api_key_setup_text
         text = missing_api_key_setup_text(
             ValueError('No API key found for provider "openai"'))
-        assert '/model provider key' in text
-        assert '/quit' in text
-        assert 'stays open' in text.lower() or 'session stays' in text.lower()
+        assert text == ('还没有 openai 的密钥。\n\n'
+                        '  /model provider key openai <密钥>')
 
 
 class TestDocZeroFiveIsUnreasonable:

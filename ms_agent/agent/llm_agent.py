@@ -2473,11 +2473,26 @@ class LLMAgent(Agent):
             return
         _credential_notice_sent = True
         from ms_agent.llm.credentials import missing_api_key_setup_text
-        text = missing_api_key_setup_text(exc)
+        service = str(
+            OmegaConf.select(self.config, 'llm.service', default='') or '')
+        text = missing_api_key_setup_text(exc, service)
         if self._event_sink is not None:
+            from ms_agent.ui.events import Notice
             self._event_sink.emit(Notice(level='warning', text=text))
         else:
             logger.warning(text)
+
+    def _emit_pending_turn_resume(self) -> None:
+        """The parked sentence is going out now that a client can be built."""
+        from ms_agent.llm.credentials import PENDING_TURN_RESUME
+        if self._event_sink is not None:
+            from ms_agent.ui.events import Notice
+            # Not ``info``: that level is drawn as a command panel. This is
+            # one status line, same weight as the other dim notices.
+            self._event_sink.emit(
+                Notice(level='status', text=PENDING_TURN_RESUME))
+        else:
+            logger.info(PENDING_TURN_RESUME)
 
     def _llm_credentials_present(self) -> bool:
         """True when a client can be built, so the waiting sentence can run."""
@@ -2505,16 +2520,21 @@ class LLMAgent(Agent):
         if not getattr(self.llm, '_setup_stub', False) and self.llm is not None:
             return messages
         self._credential_reprompted = False
+        waited = False
         while True:
             try:
                 self.prepare_llm()
                 if self.runtime is not None:
                     self.runtime.llm = self.llm
                 self._bind_memory_llm()
+                if (waited and not self._credential_reprompted
+                        and isinstance(messages, str) and messages.strip()):
+                    self._emit_pending_turn_resume()
                 return messages
             except Exception as e:
                 if not (self._interactive and client_rejected_missing_key(e)):
                     raise
+                waited = True
                 self._stub_llm_for_setup()
                 if self.runtime is not None:
                     self.runtime.llm = self.llm

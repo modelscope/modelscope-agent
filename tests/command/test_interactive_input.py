@@ -334,6 +334,13 @@ class TestEnsureLlmReady:
 
         agent.prepare_llm = maybe
         agent._llm_credentials_present = lambda: True
+        seen = []
+
+        class _Sink:
+            def emit(self, event):
+                seen.append(event.text)
+
+        agent._event_sink = _Sink()
 
         def _input(prompt=''):
             if attempts.get('reads', 0):
@@ -345,6 +352,7 @@ class TestEnsureLlmReady:
             result = await agent._ensure_llm_ready('hello')
         assert result == 'hello'
         assert attempts['n'] == 2
+        assert seen[-1] == '继续发送未完成的消息。'
 
     def test_setup_notice_is_printed_once_per_process(self):
         import ms_agent.agent.llm_agent as mod
@@ -362,7 +370,10 @@ class TestEnsureLlmReady:
             agent._emit_credential_setup(err)
             agent._emit_credential_setup(err)
             assert len(seen) == 1
-            assert 'No API key found' in seen[0]
+            assert seen[0] == (
+                '还没有 modelscope 的密钥。\n\n'
+                '  /model provider key modelscope <密钥>')
+            assert 'No API key found' not in seen[0]
         finally:
             mod._credential_notice_sent = False
 

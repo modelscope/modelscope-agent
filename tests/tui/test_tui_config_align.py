@@ -340,8 +340,8 @@ def test_missing_api_key_is_classed_as_setup_not_fatal():
     assert not is_missing_api_key_error(ValueError('boom'))
     assert not is_missing_api_key_error(RuntimeError('No API key found'))
     text = missing_api_key_setup_text(err)
-    assert '/model provider key' in text
-    assert '/quit' in text
+    assert text == ('还没有 modelscope 的密钥。\n\n'
+                    '  /model provider key modelscope <密钥>')
 
 
 @pytest.mark.asyncio

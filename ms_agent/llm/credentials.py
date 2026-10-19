@@ -12,6 +12,7 @@ This replaces per-provider ``__init__`` credential handling.
 from __future__ import annotations
 
 import os
+import re
 from omegaconf import DictConfig
 from typing import Optional
 
@@ -59,14 +60,25 @@ def missing_api_key_error(config) -> ValueError:
         f'Set config.llm.{service}_api_key.')
 
 
-def missing_api_key_setup_text(exc: BaseException) -> str:
-    return (
-        f'{exc}\n\n'
-        'The session stays open — configure a key, then send a message.\n'
-        '  /model provider key <provider> <key>\n'
-        '  /model provider add openai key=... url=...\n'
-        '  /model openai/<model>\n'
-        '  /quit to leave')
+_PROVIDER_IN_MISSING_KEY = re.compile(r'provider "([^"]+)"')
+
+#: Shown when a sentence parked for lack of a client is sent after a key exists.
+PENDING_TURN_RESUME = '继续发送未完成的消息。'
+
+
+def missing_api_key_setup_text(exc: BaseException, service: str = '') -> str:
+    """One command for the provider that is missing a key.
+
+    ``service`` is the live ``llm.service``. The exception text is only a
+    fallback when that name is not on the config yet.
+    """
+    name = (service or '').strip()
+    if not name:
+        match = _PROVIDER_IN_MISSING_KEY.search(str(exc))
+        name = match.group(1) if match else ''
+    if not name:
+        return '还没有密钥。\n\n  /model provider key <provider> <密钥>'
+    return f'还没有 {name} 的密钥。\n\n  /model provider key {name} <密钥>'
 
 
 class CredentialResolver:
