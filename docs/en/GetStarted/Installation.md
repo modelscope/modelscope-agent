@@ -23,7 +23,7 @@ Activate an existing virtual or Conda environment instead if you already have on
 
 `pip install ms-agent` installs the published 1.6.0 release, with the older WebUI and dependency set. It lacks the current TUI and the `retrieval` and `cinema` extras. Use source installation below for the capabilities documented in the current repository.
 
-**Older release issue:** The Sirchmunk integration in PyPI 1.6.0 loads `loguru` when importing `LLMAgent`. That package was not declared then, so a clean install failed. The current source lists `loguru` in `requirements/framework.txt`. New users should install from source.
+**Older release issue:** The Sirchmunk integration in PyPI 1.6.0 loads the undeclared `loguru` dependency when importing `LLMAgent`, causing the import to fail in a clean environment. The current source uses the framework's own logger and no longer depends directly on `loguru`. `loguru` is imported only when Sirchmunk local search actually starts, and a missing package says to run `pip install loguru`. New users should install from source.
 
 ## Source Code Installation
 

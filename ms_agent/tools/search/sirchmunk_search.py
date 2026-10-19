@@ -180,6 +180,14 @@ class SirchmunkSearch:
             return
 
         try:
+            # loguru belongs to sirchmunk, not the framework. Import it here,
+            # only when local search actually starts.
+            try:
+                import loguru  # noqa: F401
+            except ImportError as exc:
+                raise ImportError(
+                    'loguru is not installed. Sirchmunk needs it. '
+                    'Run: pip install loguru') from exc
             from sirchmunk.llm.openai_chat import OpenAIChat
             from sirchmunk.search import AgenticSearch
             from sirchmunk.utils.embedding_util import EmbeddingUtil
@@ -218,9 +226,15 @@ class SirchmunkSearch:
             )
 
         except ImportError as e:
+            if 'loguru is not installed' in str(e):
+                raise
+            if getattr(e, 'name', None) == 'loguru' or 'loguru' in str(e):
+                raise ImportError(
+                    'loguru is not installed. Sirchmunk needs it. '
+                    'Run: pip install loguru') from e
             raise ImportError(
                 f'Failed to import sirchmunk: {e}. '
-                'Please install sirchmunk: pip install sirchmunk')
+                'Please install sirchmunk: pip install sirchmunk') from e
         except Exception as e:
             raise RuntimeError(f'Failed to initialize SirchmunkSearch: {e}')
 
