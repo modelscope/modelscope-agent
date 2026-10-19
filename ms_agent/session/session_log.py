@@ -237,7 +237,8 @@ class SessionLog:
         if not self._path.exists():
             self._messages = msgs
             return msgs
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        # JSON strings may contain Unicode line separators; only LF ends a JSONL record.
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
@@ -304,7 +305,7 @@ class SessionLog:
         events: List[Dict[str, Any]] = []
         if not self._path.exists():
             return events
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
@@ -325,7 +326,7 @@ class SessionLog:
         errors: List[Dict[str, Any]] = []
         if not self._path.exists():
             return errors
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
@@ -345,7 +346,7 @@ class SessionLog:
         perms: List[Dict[str, Any]] = []
         if not self._path.exists():
             return perms
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
@@ -366,7 +367,7 @@ class SessionLog:
         out: List[Dict[str, Any]] = []
         if not self._path.exists():
             return out
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
@@ -387,7 +388,7 @@ class SessionLog:
         out: List[Dict[str, Any]] = []
         if not self._path.exists():
             return out
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
@@ -468,7 +469,7 @@ class SessionLog:
     def _load_all_to_set_seq(self) -> None:
         """Scan the file to find the highest seq number."""
         max_seq = -1
-        for line in self._path.read_text(encoding='utf-8').splitlines():
+        for line in self._path.read_text(encoding='utf-8').split('\n'):
             line = line.strip()
             if not line:
                 continue
