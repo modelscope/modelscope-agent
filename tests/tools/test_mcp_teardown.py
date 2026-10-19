@@ -2,11 +2,58 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import inspect
+import os
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
+from mcp.client.session import ClientSession
 
-from ms_agent.tools.mcp_client import MCPClient, _is_teardown_noise
+from ms_agent.tools.mcp_client import (MCPClient, _is_teardown_noise,
+                                       _session_read_timeout,
+                                       _tool_call_is_error, _tool_input_schema)
+
+
+def test_session_read_timeout_matches_installed_client():
+    value = _session_read_timeout(12)
+    annotation = str(inspect.signature(
+        ClientSession.__init__).parameters['read_timeout_seconds'].annotation)
+    if 'timedelta' in annotation and 'float' not in annotation:
+        assert value == timedelta(seconds=12)
+    else:
+        assert value == 12.0
+
+
+def test_tool_call_error_reads_mcp2_name_then_mcp1_name():
+    assert _tool_call_is_error(SimpleNamespace(is_error=True))
+    assert not _tool_call_is_error(SimpleNamespace(is_error=False))
+    assert _tool_call_is_error(SimpleNamespace(isError=True))
+    assert not _tool_call_is_error(SimpleNamespace(isError=False))
+    both = SimpleNamespace(is_error=False, isError=True)
+    assert not _tool_call_is_error(both)
+
+
+def test_tool_schema_reads_mcp2_name_then_mcp1_name():
+    class _V2:
+        input_schema = {'type': 'object', 'properties': {'msg': {}}}
+
+    class _V1:
+        inputSchema = {'type': 'object', 'properties': {'q': {}}}
+
+    class _Neither:
+        pass
+
+    assert _tool_input_schema(_V2())['properties'] == {'msg': {}}
+    assert _tool_input_schema(_V1())['properties'] == {'q': {}}
+    both = _V2()
+    both.inputSchema = {'type': 'object', 'properties': {'old': {}}}
+    assert 'msg' in _tool_input_schema(both)['properties']
+    assert _tool_input_schema(_Neither()) == {
+        'type': 'object',
+        'properties': {},
+    }
 
 
 def test_is_teardown_noise_matches_sdk_errors():
@@ -143,3 +190,71 @@ async def test_kernel_session_stop_swallows_cancellederror():
     await session.stop()
     assert session._km is None
     assert session._client is None
+
+
+class _FakeSession:
+    def __init__(self, response):
+        self.response = response
+
+    async def call_tool(self, tool_name, tool_args):
+        return self.response
+
+
+@pytest.mark.asyncio
+async def test_image_audio_and_structured_results_reach_the_caller(tmp_path):
+    client = MCPClient()
+    client.output_dir = str(tmp_path)
+    png = base64.b64encode(b'\x89PNG').decode()
+    wav = base64.b64encode(b'RIFF').decode()
+    client.sessions['s'] = _FakeSession(
+        SimpleNamespace(
+            is_error=False,
+            content=[
+                SimpleNamespace(type='image', data=png, mime_type='image/png'),
+                SimpleNamespace(type='audio', data=wav, mimeType='audio/wav'),
+            ],
+            structured_content=None,
+        ))
+    result = await client.call_tool('s', 'shot', {})
+    assert result['attachments'][0]['type'] == 'image'
+    assert result['attachments'][0]['media_type'] == 'image/png'
+    assert os.path.isfile(os.path.join(tmp_path, result['attachments'][0]['path']))
+    assert 'Audio returned' in result['text']
+    assert 'saved at' in result['text']
+
+    client.sessions['s'] = _FakeSession(
+        SimpleNamespace(
+            isError=False,
+            content=[],
+            structuredContent={'ok': True},
+        ))
+    text = await client.call_tool('s', 'ping', {})
+    assert '"ok": true' in text
+
+
+@pytest.mark.asyncio
+async def test_resource_without_model_dump_json_still_returns():
+    client = MCPClient()
+    client.sessions['s'] = _FakeSession(
+        SimpleNamespace(
+            is_error=False,
+            content=[SimpleNamespace(type='resource', resource={'uri': 'file://a'})],
+            structured_content=None,
+        ))
+    result = await client.call_tool('s', 'read', {})
+    assert result['resources'] == [{'uri': 'file://a'}]
+
+
+def test_output_schema_is_appended_to_the_tool_description():
+    listed = SimpleNamespace(
+        tools=[
+            SimpleNamespace(
+                name='ping',
+                description='Ping.',
+                input_schema={'type': 'object'},
+                output_schema={'type': 'object', 'properties': {'msg': {}}},
+            )
+        ])
+    tools = MCPClient()._filter_session_tools('mini', listed)
+    assert 'Returns:' in tools[0]['description']
+    assert 'msg' in tools[0]['description']

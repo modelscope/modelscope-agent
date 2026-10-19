@@ -23,7 +23,7 @@ source ms-agent-env/bin/activate
 
 `pip install ms-agent` 安装 PyPI 已发布的 1.6.0，使用旧版 WebUI 和依赖组合。它没有当前源码的 TUI、`retrieval` 或 `cinema` extras。体验当前仓库介绍的功能，请使用下方源码安装。
 
-**旧版安装问题：** PyPI 1.6.0 中的 Sirchmunk 集成会在导入 `LLMAgent` 时加载未声明的 `loguru`，导致干净环境中的导入失败。当前源码已改用框架内置日志，不再直接依赖 `loguru`；新用户请优先从源码安装。
+**旧版安装问题：** PyPI 1.6.0 中的 Sirchmunk 集成会在导入 `LLMAgent` 时加载当时未声明的 `loguru`，导致干净环境中的导入失败。当前源码把 `loguru` 列入 `requirements/framework.txt`。新用户请优先从源码安装。
 
 ## 源代码安装
 

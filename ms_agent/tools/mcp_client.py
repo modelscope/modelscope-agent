@@ -2,10 +2,15 @@ from __future__ import annotations
 
 # Copyright (c) ModelScope Contributors. All rights reserved.
 import asyncio
+import base64
 import copy
+import inspect
+import json
+import mimetypes
 import os
 import re
 import shutil
+import uuid
 from contextlib import AsyncExitStack, suppress
 from datetime import timedelta
 from mcp import ClientSession, ListToolsResult, StdioServerParameters
@@ -22,6 +27,105 @@ from ms_agent.tools.base import ToolBase
 from ms_agent.utils import enhance_error, get_logger
 
 logger = get_logger()
+
+
+def _session_read_timeout(seconds: float):
+    """Value ``ClientSession`` accepts for ``read_timeout_seconds``.
+
+    mcp 1.x takes a ``timedelta``. mcp 2.x takes seconds as a float and
+    adds that number to ``anyio.current_time()``.
+    """
+    param = inspect.signature(
+        ClientSession.__init__).parameters.get('read_timeout_seconds')
+    annotation = '' if param is None else str(param.annotation)
+    if 'timedelta' in annotation and 'float' not in annotation:
+        return timedelta(seconds=seconds)
+    return float(seconds)
+
+
+def _tool_call_is_error(response) -> bool:
+    """Whether an MCP ``call_tool`` result is an error.
+
+    mcp 1.x exposes ``isError``. mcp 2.x renamed it to ``is_error``.
+    """
+    flag = getattr(response, 'is_error', None)
+    if flag is None:
+        flag = getattr(response, 'isError', None)
+    return bool(flag)
+
+
+def _tool_output_schema(tool):
+    """Return schema, whichever spelling this SDK version uses."""
+    schema = getattr(tool, 'output_schema', None)
+    if schema is None:
+        schema = getattr(tool, 'outputSchema', None)
+    return schema if isinstance(schema, dict) else None
+
+
+def _describe_tool(tool) -> str:
+    """Description plus the declared return shape.
+
+    The chat-completions tool object only has a description, so a server that
+    published an output schema would otherwise never show the model what a
+    successful call looks like.
+    """
+    description = getattr(tool, 'description', None) or ''
+    schema = _tool_output_schema(tool)
+    if not schema:
+        return description
+    rendered = json.dumps(schema, ensure_ascii=False)
+    if len(rendered) > 800:
+        rendered = rendered[:800] + '…'
+    return f'{description}\nReturns: {rendered}'.strip()
+
+
+def _structured_content(response):
+    value = getattr(response, 'structured_content', None)
+    if value is None:
+        value = getattr(response, 'structuredContent', None)
+    return value
+
+
+def _content_mime(content) -> str:
+    mime = getattr(content, 'mime_type', None)
+    if not mime:
+        mime = getattr(content, 'mimeType', None)
+    return str(mime or 'application/octet-stream')
+
+
+def _resource_json(resource) -> str:
+    """Serialize an embedded resource on either SDK spelling."""
+    dump_json = getattr(resource, 'model_dump_json', None)
+    if callable(dump_json):
+        try:
+            return dump_json(by_alias=True)
+        except TypeError:
+            return dump_json()
+    dump = getattr(resource, 'model_dump', None)
+    if callable(dump):
+        try:
+            return json.dumps(dump(by_alias=True), ensure_ascii=False)
+        except TypeError:
+            return json.dumps(dump(), ensure_ascii=False)
+    if isinstance(resource, dict):
+        return json.dumps(resource, ensure_ascii=False)
+    return json.dumps(getattr(resource, '__dict__', str(resource)),
+                      default=str,
+                      ensure_ascii=False)
+
+
+def _tool_input_schema(tool) -> dict:
+    """JSON schema for one MCP tool.
+
+    mcp 1.x exposes ``inputSchema``. mcp 2.x renamed it to ``input_schema``
+    and dropped the old attribute.
+    """
+    schema = getattr(tool, 'input_schema', None)
+    if schema is None:
+        schema = getattr(tool, 'inputSchema', None)
+    if isinstance(schema, dict):
+        return schema
+    return {'type': 'object', 'properties': {}}
 
 
 def _retrieve_future(fut) -> None:
@@ -240,7 +344,8 @@ class MCPClient(ToolBase):
 
         texts = []
         resources = []
-        if response.isError:
+        attachments = []
+        if _tool_call_is_error(response):
             sep = '\n\n'
             if all(isinstance(item, str) for item in response.content):
                 detail = sep.join(response.content)
@@ -259,19 +364,67 @@ class MCPClient(ToolBase):
                 'is_error':
                 True,
             }
-        for content in response.content:
-            if content.type == 'text':
+        for content in response.content or []:
+            kind = getattr(content, 'type', None)
+            if kind == 'text':
                 texts.append(content.text)
-            elif content.type == 'resource':
+            elif kind == 'resource':
                 import json5
-                json_str = content.resource.model_dump_json(by_alias=True)
+                json_str = _resource_json(content.resource)
                 texts.append(json_str)
                 resources.append(json5.loads(json_str))
+            elif kind == 'image':
+                path = self._write_media(
+                    getattr(content, 'data', '') or '',
+                    _content_mime(content), 'image')
+                attachments.append({
+                    'type': 'image',
+                    'path': path,
+                    'media_type': _content_mime(content),
+                    'label': f'Image: {os.path.basename(path)}',
+                })
+                texts.append(f'Image returned ({_content_mime(content)}).')
+            elif kind == 'audio':
+                path = self._write_media(
+                    getattr(content, 'data', '') or '',
+                    _content_mime(content), 'audio')
+                texts.append(
+                    f'Audio returned ({_content_mime(content)}), saved at {path}.')
 
-        if resources:
-            return {'text': '\n\n'.join(texts), 'resources': resources}
+        structured = _structured_content(response)
+        if structured is not None and not texts:
+            texts.append(
+                json.dumps(structured, ensure_ascii=False, default=str))
 
-        return '\n\n'.join(texts)
+        body = '\n\n'.join(texts)
+        if resources or attachments:
+            result = {'text': body}
+            if resources:
+                result['resources'] = resources
+            if attachments:
+                result['attachments'] = attachments
+            return result
+        return body
+
+    def _write_media(self, data: str, mime: str, kind: str) -> str:
+        """Persist a base64 tool result next to the workspace.
+
+        Image refs the model can see are file paths, not inline bytes. Audio
+        has no model channel, so the path in the text is the whole delivery.
+        """
+        raw = base64.b64decode(data or '')
+        ext = mimetypes.guess_extension(mime.split(';', 1)[0].strip()) or ''
+        if ext == '.jpe':
+            ext = '.jpg'
+        if not ext:
+            ext = '.png' if kind == 'image' else '.bin'
+        root = self.output_dir or os.getcwd()
+        folder = os.path.join(root, 'mcp_media')
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, f'{uuid.uuid4().hex}{ext}')
+        with open(path, 'wb') as handle:
+            handle.write(raw)
+        return os.path.relpath(path, root)
 
     def _filter_session_tools(
         self,
@@ -291,8 +444,8 @@ class MCPClient(ToolBase):
             Tool(
                 tool_name=t.name,
                 server_name=server_name,
-                description=t.description,
-                parameters=t.inputSchema,
+                description=_describe_tool(t),
+                parameters=_tool_input_schema(t),
             ) for t in session_tools
         ]
 
@@ -475,7 +628,7 @@ class MCPClient(ToolBase):
                 ClientSession(
                     read,
                     write,
-                    read_timeout_seconds=timedelta(seconds=timeout),
+                    read_timeout_seconds=_session_read_timeout(timeout),
                     **session_kwargs))
 
         elif command:
@@ -510,7 +663,7 @@ class MCPClient(ToolBase):
                 ClientSession(
                     stdio,
                     write,
-                    read_timeout_seconds=timedelta(seconds=read_timeout),
+                    read_timeout_seconds=_session_read_timeout(read_timeout),
                     **session_kwargs))
         else:
             raise ValueError(
