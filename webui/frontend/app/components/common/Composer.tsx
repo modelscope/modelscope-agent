@@ -49,7 +49,7 @@ import CaretDownIcon from '~/assets/icons/chevron-down.svg?react'
 import AddIcon from '~/assets/icons/add.svg?react'
 import FolderIcon from '~/assets/icons/folder.svg?react'
 import SendIcon from '~/assets/icons/send.svg?react'
-import MoreIcon from '~/assets/icons/more.svg?react'
+import SlidersIcon from '~/assets/icons/sliders.svg?react'
 import EditIcon from '~/assets/icons/edit.svg?react'
 
 // Sender runs PERMANENTLY in slot mode (structured input): picked skills are
@@ -194,13 +194,14 @@ export function Composer({
   // (container queries on the footer) so the first paint is correct at any width
   // with no SSR/hydration flash; `pillsExpanded` only flips after a user click.
   const [pillsExpanded, setPillsExpanded] = useState(false)
-  const pillsRef = useRef<HTMLDivElement>(null)
+  const pillsMouseDownRef = useRef<MouseEvent | null>(null)
   useEffect(() => {
     if (!pillsExpanded) return
     const handleClickOutside = (e: MouseEvent) => {
-      if (pillsRef.current && !pillsRef.current.contains(e.target as Node)) {
+      if (pillsMouseDownRef.current !== e) {
         setPillsExpanded(false)
       }
+      pillsMouseDownRef.current = null
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -1408,7 +1409,10 @@ export function Composer({
                           `min-w-24` floor and truncate the label instead of spilling
                           onto a second line. */}
                       <div
-                        ref={pillsRef}
+                        onMouseDownCapture={(e) => {
+                          // React capture includes portaled menus outside the DOM subtree.
+                          pillsMouseDownRef.current = e.nativeEvent
+                        }}
                         className={`flex items-center gap-2.5 ${
                           pillsExpanded
                             ? 'absolute inset-x-0 bottom-0 z-10 min-w-0 flex-nowrap overflow-x-auto bg-msa-bg-1 pt-3 @min-[550px]:static @min-[550px]:overflow-x-visible @min-[550px]:bg-transparent @min-[550px]:pt-0'
@@ -1417,11 +1421,14 @@ export function Composer({
                       >
                         {/* Toggle button: shown only while collapsed */}
                         {!pillsExpanded && (
-                          <IconButton
-                            className="@min-[550px]:hidden"
-                            icon={<MoreIcon className="h-5 w-5" />}
-                            onClick={() => setPillsExpanded(true)}
-                          />
+                          <Tooltip title={t.nav.expand}>
+                            <IconButton
+                              aria-label={t.nav.expand}
+                              className="@min-[550px]:hidden"
+                              icon={<SlidersIcon className="h-5 w-5" />}
+                              onClick={() => setPillsExpanded(true)}
+                            />
+                          </Tooltip>
                         )}
 
                         <div
