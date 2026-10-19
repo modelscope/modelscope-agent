@@ -266,25 +266,41 @@ export function Composer({
   const [globalSkills, setGlobalSkills] = useState<Skill[]>(
     appData?.globalSkills ?? []
   )
-  const [projectMcps, setProjectMcps] = useState<Mcp[]>([])
-  const [projectSkills, setProjectSkills] = useState<Skill[]>([])
+  const projectScope: Scope | null = effectiveProject
+    ? `project:${effectiveProject.id}`
+    : null
+  const [projectMcps, setProjectMcps] = useState<{
+    scope: Scope
+    items: Mcp[]
+  } | null>(null)
+  const [projectSkills, setProjectSkills] = useState<{
+    scope: Scope
+    items: Skill[]
+  } | null>(null)
+  const [projectResourceRevision, setProjectResourceRevision] = useState(0)
   useEffect(() => {
-    if (effectiveProject) {
-      const scope: Scope = `project:${effectiveProject.id}`
-      api
-        .listMcps(scope)
-        .then(setProjectMcps)
-        .catch(() => setProjectMcps([]))
-      api
-        .listSkills(scope)
-        .then(setProjectSkills)
-        .catch(() => setProjectSkills([]))
-    } else {
-      setProjectMcps([])
-      setProjectSkills([])
+    if (!projectScope) return
+    let active = true
+    api
+      .listMcps(projectScope)
+      .then((items) => {
+        if (active) setProjectMcps({ scope: projectScope, items })
+      })
+      .catch(() => {
+        if (active) setProjectMcps({ scope: projectScope, items: [] })
+      })
+    api
+      .listSkills(projectScope)
+      .then((items) => {
+        if (active) setProjectSkills({ scope: projectScope, items })
+      })
+      .catch(() => {
+        if (active) setProjectSkills({ scope: projectScope, items: [] })
+      })
+    return () => {
+      active = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveProject?.id])
+  }, [projectScope, projectResourceRevision])
 
   // Re-fetch when MCP/Skill config changes on the same page (e.g. toggled in
   // the project-detail MCPs tab while Composer is mounted above).
@@ -297,19 +313,8 @@ export function Composer({
       .listSkills('global')
       .then(setGlobalSkills)
       .catch(() => setGlobalSkills([]))
-    if (effectiveProject) {
-      const scope: Scope = `project:${effectiveProject.id}`
-      api
-        .listMcps(scope)
-        .then(setProjectMcps)
-        .catch(() => setProjectMcps([]))
-      api
-        .listSkills(scope)
-        .then(setProjectSkills)
-        .catch(() => setProjectSkills([]))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveProject?.id])
+    setProjectResourceRevision((revision) => revision + 1)
+  }, [])
   useOnMcpSkillChanged(refreshMcpSkill)
 
   // Re-fetch when the model catalog changes elsewhere (Settings → Models, or an
@@ -357,12 +362,18 @@ export function Composer({
   useOnProjectsChanged(refreshProjects)
 
   const mergedMcps = useMemo(
-    () => [...globalMcps, ...projectMcps],
-    [globalMcps, projectMcps]
+    () => [
+      ...globalMcps,
+      ...(projectMcps?.scope === projectScope ? projectMcps.items : [])
+    ],
+    [globalMcps, projectMcps, projectScope]
   )
   const mergedSkills = useMemo(
-    () => [...globalSkills, ...projectSkills],
-    [globalSkills, projectSkills]
+    () => [
+      ...globalSkills,
+      ...(projectSkills?.scope === projectScope ? projectSkills.items : [])
+    ],
+    [globalSkills, projectSkills, projectScope]
   )
 
   // Web-search config is GLOBAL, so it is resolved once by the app layout's
