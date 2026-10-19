@@ -994,7 +994,11 @@ export function Composer({
               className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center justify-between gap-2 rounded-lg border-none bg-transparent px-2 py-1 text-left outline-none"
             >
               <span className="flex shrink-0 items-center gap-1">
-                <IconTask className="h-5.5 w-5.5" />
+                <span
+                  className={`flex h-5.5 w-5.5 items-center justify-center ${planLive ? 'msa-agent-working' : ''}`}
+                >
+                  <IconTask className="h-5.5 w-5.5" />
+                </span>
                 <span className="text-sm font-medium text-msa-text-1">
                   {t.home.thinkingTasks}
                 </span>
