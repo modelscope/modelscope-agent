@@ -630,8 +630,7 @@ class TuiApp:
         info.add_column(style='blue', justify='right')
         info.add_column()
         info.add_row(
-            'model',
-            f'{getattr(llm, "service", "?")}/{getattr(llm, "model", "?")}')
+            'model', str(getattr(llm, 'model', '') or '').strip() or '?')
         info.add_row('tools', ', '.join(tools) or '[dim]none[/]')
         info.add_row('perm', f'[yellow]{self.permission_mode}[/]')
         info.add_row('dir', f'[dim]{wd}[/]')
