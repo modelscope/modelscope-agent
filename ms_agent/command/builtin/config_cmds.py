@@ -47,8 +47,7 @@ def _model_usage() -> str:
         '<provider>  first column of /model list, e.g. dashscope\n'
         '<model>     model id on that provider, e.g. qwen3.8-flash\n'
         f'Saved in {ledger_file("settings.json")}.\n'
-        'Example: /model dashscope qwen3.8-flash'
-    )
+        'Example: /model dashscope qwen3.8-flash')
 
 
 _CLEAR = frozenset({'clear', '-', 'none'})
@@ -201,7 +200,8 @@ def _repair_runtime_model(config, llm=None):
     from omegaconf import OmegaConf
     service = str(OmegaConf.select(config, 'llm.service', default='') or '')
     cfg_model = str(OmegaConf.select(config, 'llm.model', default='') or '')
-    live_model = str(getattr(llm, 'model', '') or '') if llm is not None else ''
+    live_model = str(getattr(llm, 'model', '')
+                     or '') if llm is not None else ''
     cfg_cleaned = _strip_provider_prefix(service, cfg_model)
     live_cleaned = _strip_provider_prefix(service, live_model)
     if cfg_model and cfg_cleaned != cfg_model:
@@ -275,7 +275,8 @@ def _current_model_text(service, model, llm=None) -> str:
     try:
         override = _mgr().list_custom_providers().get(raw_service) or {}
         lines.append(
-            f'Key:      {_mask_key(_effective_api_key(raw_service, override))}')
+            f'Key:      {_mask_key(_effective_api_key(raw_service, override))}'
+        )
     except Exception:
         pass
     live_p, live_m, live_url = _live_identity(llm)
@@ -290,8 +291,7 @@ def _current_model_text(service, model, llm=None) -> str:
             'A previous /model switch updated the label but kept the old '
             'client (usually the new provider has no API key). '
             f'Set a key with /model provider key {service} <key>, or '
-            f'realign with {realign}.'
-        )
+            f'realign with {realign}.')
     return '\n'.join(lines) + '\n'
 
 
@@ -299,14 +299,12 @@ def _switch_fail_text(target_service, target_model, stay_service,
                       stay_model) -> str:
     target_model = _strip_provider_prefix(target_service or '', target_model)
     stay_model = _strip_provider_prefix(stay_service, stay_model)
-    same = bool(
-        target_service and stay_service
-        and target_service.lower() == stay_service.lower())
+    same = bool(target_service and stay_service
+                and target_service.lower() == stay_service.lower())
     lines: list[str] = []
     if same:
-        lines.append(
-            f'Cannot use this model: no usable API key for provider '
-            f'{target_service}.')
+        lines.append(f'Cannot use this model: no usable API key for provider '
+                     f'{target_service}.')
         lines.append('Already on:')
     else:
         lines.append('Cannot switch to:')
@@ -315,13 +313,11 @@ def _switch_fail_text(target_service, target_model, stay_service,
         lines.append('Still on:')
     lines.append(_format_pair(stay_service, stay_model))
     if target_service:
-        lines.append(
-            f'Set a key: /model provider key {target_service} <key>')
+        lines.append(f'Set a key: /model provider key {target_service} <key>')
     alt = _first_keyed_provider(exclude=target_service or stay_service)
     if alt:
-        lines.append(
-            f'Or switch to a keyed provider ({alt}):\n'
-            f'  /model {alt} <model>')
+        lines.append(f'Or switch to a keyed provider ({alt}):\n'
+                     f'  /model {alt} <model>')
     elif (stay_service and target_service
           and stay_service.lower() != target_service.lower()):
         lines.append(
@@ -390,7 +386,8 @@ def _runtime_api_key(config, pid: str) -> str:
     if spec is None or getattr(config, 'llm', None) is None:
         return ''
     try:
-        return str(CredentialResolver.resolve_api_key(spec, config) or '').strip()
+        return str(CredentialResolver.resolve_api_key(spec, config)
+                   or '').strip()
     except Exception:
         return ''
 
@@ -400,6 +397,7 @@ def _effective_base_url(pid: str, override: dict) -> str:
     if url:
         return url
     from omegaconf import OmegaConf
+
     from ms_agent.llm.credentials import CredentialResolver
     from ms_agent.llm.spec import get_registry
     spec = get_registry().get(pid)
@@ -419,10 +417,8 @@ def _effective_protocol(pid: str, provider: dict, override: dict) -> str:
 
 def _live_fetch_note(pid: str, override: dict, provider: dict):
     """Fetch chat ids. Returns (ids, dropped, skip_reason)."""
-    from ms_agent.llm.model_discovery import (
-        fetch_model_ids,
-        filter_chat_model_ids,
-    )
+    from ms_agent.llm.model_discovery import (fetch_model_ids,
+                                              filter_chat_model_ids)
     key = _effective_api_key(pid, override)
     if not key:
         return [], 0, 'skipped (no API key)'
@@ -437,17 +433,15 @@ def _live_fetch_note(pid: str, override: dict, provider: dict):
     return kept, dropped, ''
 
 
-def _provider_status_lines(mgr, *, live: bool = False,
+def _provider_status_lines(mgr,
+                           *,
+                           live: bool = False,
                            only: str | None = None) -> list[str]:
-    from ms_agent.llm.model_discovery import (
-        format_id_list,
-        format_live_model_lines,
-    )
+    from ms_agent.llm.model_discovery import (format_id_list,
+                                              format_live_model_lines)
 
     if live:
-        lines = [
-            'Providers (live /models; preview only):'
-        ]
+        lines = ['Providers (live /models; preview only):']
     else:
         lines = ['Providers:']
     default = mgr.get_default_model()
@@ -459,19 +453,23 @@ def _provider_status_lines(mgr, *, live: bool = False,
             continue
         catalog = list(override.get('models') or provider.get('models') or [])
         kind = _provider_kind(provider, override)
-        key = _mask_key(_effective_api_key(pid, override) or override.get('api_key'))
+        key = _mask_key(
+            _effective_api_key(pid, override) or override.get('api_key'))
         url = override.get('base_url') or '(default)'
         proto = _effective_protocol(pid, provider, override)
         if live:
-            live_ids, _dropped, skip = _live_fetch_note(pid, override, provider)
+            live_ids, _dropped, skip = _live_fetch_note(
+                pid, override, provider)
             lines.append(f'  {pid} ({kind}):')
             lines.append(
-                f'    catalog: {format_id_list(catalog) if catalog else "(none listed)"}')
+                f'    catalog: {format_id_list(catalog) if catalog else "(none listed)"}'
+            )
             if skip:
                 lines.append(f'    {skip}')
             else:
                 lines.append(f'    live: {len(live_ids)} chat')
-                lines.extend(format_live_model_lines(live_ids, indent='      '))
+                lines.extend(
+                    format_live_model_lines(live_ids, indent='      '))
             lines.append(f'    protocol={proto}  key={key}  url={url}')
         else:
             model_txt = ', '.join(catalog) or '(none listed)'
@@ -499,13 +497,13 @@ def _push_provider_to_runtime(ctx: CommandContext, provider_id: str) -> str:
     if not ctx.runtime or not ctx.runtime.llm:
         return ''
     from omegaconf import OmegaConf
+
     from ms_agent.tui.app import TuiApp
     config = ctx.runtime.llm.config
     service = str(OmegaConf.select(config, 'llm.service', default='') or '')
     if service != provider_id:
-        return (
-            f' Switch with /model {provider_id} <model> to use this '
-            'provider live.')
+        return (f' Switch with /model {provider_id} <model> to use this '
+                'provider live.')
     TuiApp._apply_provider_credentials(config, overwrite=True)
     return ''
 
@@ -721,23 +719,25 @@ def _cmd_model_switch(ctx: CommandContext, arg: str) -> CommandResult:
         return arg_error(
             '/model <provider>/<model>',
             reason=f'No provider named {unknown}',
-            note=f'Known: {known}' if known else
-            'Add one with /model provider add <provider>',
+            note=f'Known: {known}'
+            if known else 'Add one with /model provider add <provider>',
             ctx=ctx,
         )
     service_override, new_model = _parse_model_arg(arg)
     if service_override:
-        service_override = _canonical_provider(service_override) or service_override
+        service_override = _canonical_provider(
+            service_override) or service_override
 
     from omegaconf import OmegaConf
+
     from ms_agent.tui.app import TuiApp
 
     target = ctx.runtime.llm
     config = target.config
     old_service, _display_model, old_model = _repair_runtime_model(
         config, target)
-    new_model = _strip_provider_prefix(
-        service_override or old_service, new_model)
+    new_model = _strip_provider_prefix(service_override or old_service,
+                                       new_model)
     if contains_secret(new_model):
         return _secret_model_error(ctx)
 
@@ -759,12 +759,13 @@ def _cmd_model_switch(ctx: CommandContext, arg: str) -> CommandResult:
     override = _mgr().list_custom_providers().get(pid) or {}
     # Settings/env keys are probed. A key that already lives on this agent
     # config is enough to keep the switch; the next message builds the client.
-    if not (_effective_api_key(pid, override) or _runtime_api_key(config, pid)):
+    if not (_effective_api_key(pid, override)
+            or _runtime_api_key(config, pid)):
         _revert_switch()
         return CommandResult(
             type=CommandResultType.MESSAGE,
-            content=_switch_fail_text(
-                service_override, new_model, old_service, old_model),
+            content=_switch_fail_text(service_override, new_model, old_service,
+                                      old_model),
         )
 
     from ms_agent.llm.model_discovery import nearby_model_ids
@@ -775,9 +776,10 @@ def _cmd_model_switch(ctx: CommandContext, arg: str) -> CommandResult:
             type=CommandResultType.MESSAGE,
             content=_probe_reject_text(
                 pid, probe.outcome,
-                {'api_key'} if probe.outcome == 'auth' else {'base_url'},
-                {'api_key': override.get('api_key'),
-                 'base_url': override.get('base_url')}),
+                {'api_key'} if probe.outcome == 'auth' else {'base_url'}, {
+                    'api_key': override.get('api_key'),
+                    'base_url': override.get('base_url')
+                }),
         )
     if probe is not None and probe.outcome == 'ok' and new_model not in probe.ids:
         _revert_switch()
@@ -810,7 +812,8 @@ def _cmd_model_switch(ctx: CommandContext, arg: str) -> CommandResult:
     )
 
 
-def _cmd_model_provider(ctx: CommandContext, tokens: list[str]) -> CommandResult:
+def _cmd_model_provider(ctx: CommandContext,
+                        tokens: list[str]) -> CommandResult:
     mgr = _mgr()
     if not tokens:
         return CommandResult(
@@ -842,8 +845,8 @@ def _cmd_model_provider(ctx: CommandContext, tokens: list[str]) -> CommandResult
             base_url=fields.get('base_url'),
         )
         touched = {k for k in ('api_key', 'base_url') if fields.get(k)}
-        return _finish_credential_write(
-            ctx, pid, before, touched, f'Provider {pid} saved.')
+        return _finish_credential_write(ctx, pid, before, touched,
+                                        f'Provider {pid} saved.')
     if action in ('set', 'update'):
         names, fields = _split_kv(rest)
         if not names:
@@ -870,8 +873,8 @@ def _cmd_model_provider(ctx: CommandContext, tokens: list[str]) -> CommandResult
             clear_base_url=fields.get('base_url', None) == '',
         )
         touched = {k for k in ('api_key', 'base_url') if k in fields}
-        return _finish_credential_write(
-            ctx, pid, before, touched, f'Updated provider {pid}.')
+        return _finish_credential_write(ctx, pid, before, touched,
+                                        f'Updated provider {pid}.')
     if action == 'key':
         if len(rest) < 2:
             return arg_error(
@@ -888,8 +891,8 @@ def _cmd_model_provider(ctx: CommandContext, tokens: list[str]) -> CommandResult
             )
         before = _provider_snapshot(pid)
         mgr.patch_provider(pid, api_key=value)
-        return _finish_credential_write(
-            ctx, pid, before, {'api_key'}, f'Saved API key for {pid}.')
+        return _finish_credential_write(ctx, pid, before, {'api_key'},
+                                        f'Saved API key for {pid}.')
     if action in ('url', 'base_url'):
         if len(rest) < 2:
             return arg_error(
@@ -906,8 +909,8 @@ def _cmd_model_provider(ctx: CommandContext, tokens: list[str]) -> CommandResult
             )
         before = _provider_snapshot(pid)
         mgr.patch_provider(pid, base_url=value)
-        return _finish_credential_write(
-            ctx, pid, before, {'base_url'}, f'Saved base URL for {pid}.')
+        return _finish_credential_write(ctx, pid, before, {'base_url'},
+                                        f'Saved base URL for {pid}.')
     if action == 'remove':
         if not rest:
             return arg_error(
@@ -919,10 +922,9 @@ def _cmd_model_provider(ctx: CommandContext, tokens: list[str]) -> CommandResult
         if pid in _builtin_ids() and pid not in custom:
             return CommandResult(
                 type=CommandResultType.MESSAGE,
-                content=(
-                    f'Cannot remove builtin provider {pid}. '
-                    'Clear its override with /model provider key '
-                    f'{pid} clear'),
+                content=(f'Cannot remove builtin provider {pid}. '
+                         'Clear its override with /model provider key '
+                         f'{pid} clear'),
             )
         mgr.remove_provider(pid)
         extra = ''
