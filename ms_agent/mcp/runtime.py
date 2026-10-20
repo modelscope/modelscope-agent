@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Any, Deque, Dict, List, Literal, Optional
 
 from ms_agent.config.mcp_schema import (ResolvedMCPConfig,
                                         connection_params_for_client)
-from ms_agent.tools.mcp_client import MCPClient
-from ms_agent.utils import enhance_error, get_logger
+from ms_agent.tools.mcp_client import MCP_PROBE_TIMEOUT, MCPClient
+from ms_agent.utils import get_logger
 
 if TYPE_CHECKING:
     from ms_agent.tools.tool_manager import ToolManager
@@ -60,6 +60,16 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _exception_group_members(exc: BaseException):
+    """Nested exceptions of an ExceptionGroup, on 3.11 and the 3.10 backport."""
+    if type(exc).__name__ not in ('ExceptionGroup', 'BaseExceptionGroup'):
+        return None
+    members = getattr(exc, 'exceptions', None)
+    if isinstance(members, tuple):
+        return members
+    return None
+
+
 def classify_mcp_failure(exc: BaseException) -> MCPFailureKind:
     """Classify transport failures for degraded policy.
 
@@ -68,11 +78,22 @@ def classify_mcp_failure(exc: BaseException) -> MCPFailureKind:
       after ``DEGRADED_FAILURE_THRESHOLD`` consecutive failures.
     - ``none``: business / argument errors — do not change ``status``.
     """
+    members = _exception_group_members(exc)
+    if members is not None:
+        kinds = [classify_mcp_failure(item) for item in members]
+        if 'hard' in kinds:
+            return 'hard'
+        if 'transient' in kinds:
+            return 'transient'
+        return 'none'
     if isinstance(exc, asyncio.TimeoutError):
         return 'transient'
     if isinstance(exc, (BrokenPipeError, ConnectionResetError)):
         return 'hard'
     if isinstance(exc, ConnectionError):
+        return 'hard'
+    type_name = type(exc).__name__.lower()
+    if type_name in ('closedresourceerror', 'brokenresourceerror'):
         return 'hard'
     msg = str(exc).lower()
     hard_markers = (
@@ -103,6 +124,38 @@ def classify_failure_message(message: str) -> MCPFailureKind:
 def is_connection_error(exc: BaseException) -> bool:
     """Whether a tool exception should be reported to MCP failure tracking."""
     return classify_mcp_failure(exc) in ('transient', 'hard')
+
+
+def short_connect_reason(exc: BaseException, timeout: float) -> str:
+    """One short clause for a connect that did not succeed."""
+    if isinstance(exc, TimeoutError):
+        label = str(int(timeout)) if timeout >= 1 else f'{timeout:g}'
+        return f'{label}秒内没有连上'
+    text = ' '.join(str(exc).split())
+    if not text:
+        text = type(exc).__name__
+    if len(text) > 80:
+        text = text[:79] + '…'
+    return text
+
+
+def mcp_unreachable_notice(name: str, reason: str) -> str:
+    """The one line shown when a server is left out of this turn."""
+    return f'MCP 服务器 {name} 连不上（{reason}），本轮先不用。'
+
+
+def degraded_user_notice(
+    server_name: str,
+    exc: BaseException | None = None,
+    message: str = '',
+) -> str:
+    """One sentence when a server has just become unusable.
+
+    A second failure uses a different sentence, sent from the live-config
+    sync, not from here.
+    """
+    del exc, message
+    return f'MCP 服务器 {server_name} 连接断开，本轮对话无法使用。自动尝试重连中。'
 
 
 class MCPRuntime:
@@ -157,10 +210,10 @@ class MCPRuntime:
             )
 
     async def start(self) -> None:
-        """Connect all enabled servers (idempotent)."""
+        """Connect enabled servers together. Each one gives up after 6s."""
         async with self._sync_lock:
             self._started = True
-            failures: list[BaseException] = []
+            names: list[str] = []
             for name, state in self._states.items():
                 if not state.enabled:
                     state.status = 'disabled'
@@ -169,14 +222,8 @@ class MCPRuntime:
                     if state.status != 'connected':
                         state.status = 'connected'
                     continue
-                try:
-                    await self._connect_server(name, state)
-                except Exception as exc:
-                    if self._connect_policy == 'fail_fast':
-                        raise
-                    failures.append(exc)
-            if failures and self._connect_policy == 'fail_fast':
-                raise failures[0]
+                names.append(name)
+            await self._probe_servers(names)
 
     async def stop(self) -> None:
         """Disconnect all servers when this runtime owns the client."""
@@ -193,22 +240,60 @@ class MCPRuntime:
                 state.tool_count = 0
                 state.connected_at = None
 
+    async def _probe_servers(self, names: list[str]) -> None:
+        """Connect these servers at once. One slow dial must not stall the rest."""
+        pairs = []
+        for name in names:
+            state = self._states.get(name)
+            if state is None or not state.enabled:
+                continue
+            pairs.append((name, state))
+        if not pairs:
+            return
+        await asyncio.gather(*(self._connect_server(name, state)
+                               for name, state in pairs))
+
     async def _connect_server(self, name: str, state: MCPServerState) -> None:
         state.status = 'connecting'
         state.last_error = None
+        timeout = MCP_PROBE_TIMEOUT
         try:
-            await self._client.connect_single_server(
-                name, connection_params_for_client(state.config))
+            await asyncio.wait_for(
+                self._client.connect_single_server(
+                    name,
+                    connection_params_for_client(state.config),
+                    startup_timeout=timeout,
+                ),
+                timeout=timeout,
+            )
             state.status = 'connected'
             state.connected_at = _utc_now()
             state.last_success_at = state.connected_at
             state.consecutive_failures = 0
             await self._refresh_cached_tools(name, state)
         except Exception as exc:
-            new_exc = enhance_error(exc, f'Connect `{name}` failed, details:')
-            await self._record_connect_failure(name, str(new_exc))
+            reason = short_connect_reason(exc, timeout)
+            logger.warning('MCP server %s unreachable: %s', name, exc)
+            await self._record_connect_failure(name, reason)
+            await self._drop_unfinished_connect(name)
             if self._connect_policy == 'fail_fast':
-                raise new_exc from exc
+                raise
+
+    async def _drop_unfinished_connect(self, name: str) -> None:
+        """Stop a dial that the 6s cap abandoned, without the graceful wait."""
+        disconnect = getattr(self._client, 'disconnect_server', None)
+        if disconnect is None:
+            return
+        try:
+            await disconnect(name, graceful=False)
+        except TypeError:
+            try:
+                await disconnect(name)
+            except Exception:
+                logger.debug(
+                    'stop unfinished MCP connect %s', name, exc_info=True)
+        except Exception:
+            logger.debug('stop unfinished MCP connect %s', name, exc_info=True)
 
     async def _refresh_cached_tools(
         self,
@@ -221,7 +306,9 @@ class MCPRuntime:
             state.tool_count = len(state.cached_tools)
             state.last_success_at = _utc_now()
         except Exception as exc:
-            await self.record_failure(name, 'list_tools', str(exc), exc=exc)
+            # Already inside the connect lock. record_failure would take it
+            # again and deadlock when several servers list tools together.
+            self._apply_failure_state(name, 'list_tools', str(exc), exc=exc)
 
     # ── enable / disable ───────────────────────────────────────────────
 
@@ -331,17 +418,26 @@ class MCPRuntime:
                         await self._client.disconnect_server(name)
                     state.status = 'registered'
 
+            to_probe: list[str] = []
             for name, state in self._states.items():
                 if not state.enabled:
                     continue
+                # A degraded server may still hold a dead session. Drop it
+                # so this apply reconnects instead of keeping the stale one.
+                if (state.status == 'degraded'
+                        and self._client.is_connected(name)):
+                    await self._client.disconnect_server(name)
+                    state.status = 'registered'
                 if not self._client.is_connected(name):
-                    try:
-                        await self._connect_server(name, state)
-                    except Exception:
-                        if self._connect_policy == 'fail_fast':
-                            raise
+                    # Probed already for this config. The next message must
+                    # not pay the timeout again; a config edit clears it.
+                    if (state.status == 'error' and name not in added
+                            and name not in changed):
+                        continue
+                    to_probe.append(name)
                 elif name in changed:
                     await self._refresh_cached_tools(name, state)
+            await self._probe_servers(to_probe)
 
             await self._sync_tools_unlocked()
             return list(self._states.values())
@@ -392,12 +488,14 @@ class MCPRuntime:
         *,
         tool_name: str | None = None,
         exc: BaseException | None = None,
-    ) -> None:
+    ) -> bool:
+        """Record one failure. Return True only when status just became degraded."""
         async with self._sync_lock:
             degraded = self._apply_failure_state(
                 name, phase, message, tool_name=tool_name, exc=exc)
             if degraded:
                 await self._sync_tools_unlocked()
+            return degraded
 
     def _apply_failure_state(
         self,
