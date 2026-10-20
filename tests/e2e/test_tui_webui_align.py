@@ -202,7 +202,7 @@ class TestModelLedger:
         listed = run_slash('/model list', rt)
         assert 'acme' in listed.content
         assert 'sk-secret-plaintext' not in listed.content
-        assert 'key=set' in listed.content
+        assert 'key=sk-s****text' in listed.content
         settings = _settings(isolated_home)
         assert settings['providers']['acme']['api_key'] == 'sk-secret-plaintext'
 

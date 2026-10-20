@@ -567,7 +567,7 @@ class TestModel:
         assert data['providers']['acme']['base_url'] == 'https://acme/v1'
         listed = await router.dispatch(make_ctx('/model list', runtime=runtime))
         assert 'sk-secret' not in listed.content
-        assert 'key=set' in listed.content
+        assert 'key=sk-s****cret' in listed.content
         await router.dispatch(
             make_ctx('/model provider key acme sk-new', runtime=runtime))
         data = json.loads((tmp_path / 'ms_home' / 'settings.json').read_text())

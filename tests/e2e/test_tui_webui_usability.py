@@ -286,25 +286,26 @@ class TestWebuiPartialPut:
         assert after['default_memory_enabled'] is False
 
 
-class TestWebuiKeyMaskLeaksShortSecrets:
-    """TUI /model list shows key=set|missing. WebUI list must not leak a
-    short key via first4****last4. Presence is ``set``; long keys may 4+4.
+class TestWebuiKeyMaskMatchesTui:
+    """A configured key uses the WebUI rule on both sides: eight characters
+    or fewer are ``****``, longer keys keep the first and last four.
     """
 
     @pytest.mark.usability
-    def test_webui_provider_mask_is_not_invertible(
+    def test_webui_provider_mask_matches_tui_list(
             self, isolated_home, work_dir, stub_llm_rebuild, webui):
         secret = 'sk-test-acme'
         run_slash(
             f'/model provider add acme key={secret} '
             'url=https://example.invalid/v1 protocol=openai',
             ModelRuntime(work_dir))
+        listed = run_slash('/model list', ModelRuntime(work_dir))
         row = next(p for p in webui.providers.list_providers() if p.id == 'acme')
         masked = row.api_key_masked or ''
         assert secret not in masked
-        assert masked in ('set', 'configured', '****', '') or masked == '••••'
-        # A 4+4 mask of a 12-char key is one character away from the secret.
-        assert not (masked.startswith(secret[:4]) and masked.endswith(secret[-4:]))
+        assert secret not in listed.content
+        assert masked == 'sk-t****acme'
+        assert 'key=sk-t****acme' in listed.content
 
 
 class TestResumeIndexVsMarker:

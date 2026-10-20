@@ -331,9 +331,17 @@ def _switch_fail_text(target_service, target_model, stay_service,
 
 
 def _mask_key(value) -> str:
-    if not value:
+    """Same redaction as the WebUI provider list.
+
+    No key stays ``missing``. Eight characters or fewer become ``****``.
+    Longer keys keep the first four and last four characters.
+    """
+    text = str(value or '').strip()
+    if not text:
         return 'missing'
-    return 'set'
+    if len(text) <= 8:
+        return '****'
+    return f'{text[:4]}****{text[-4:]}'
 
 
 def _iter_provider_rows(mgr):
